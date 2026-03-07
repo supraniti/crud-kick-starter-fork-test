@@ -14,7 +14,8 @@
   "dependencies": {
     "dockerode": "latest",
     "fastify": "latest",
-    "mongodb": "latest"
+    "mongodb": "latest",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "pactum": "latest",

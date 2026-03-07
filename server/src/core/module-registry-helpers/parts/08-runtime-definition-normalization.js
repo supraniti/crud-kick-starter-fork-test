@@ -27,7 +27,8 @@ function createRuntimeDefinitionNormalizer({
       "missions",
       "persistence",
       "fieldTypePlugins",
-      "referenceOptionsProviders"
+      "referenceOptionsProviders",
+      "routes"
     ]);
     const unknownRuntimeKey = Object.keys(runtime).find((key) => !runtimeAllowedKeys.has(key));
     if (unknownRuntimeKey) {
@@ -65,6 +66,10 @@ function createRuntimeDefinitionNormalizer({
       {
         key: "referenceOptionsProviders",
         field: "runtime.referenceOptionsProviders"
+      },
+      {
+        key: "routes",
+        field: "runtime.routes"
       }
     ];
 

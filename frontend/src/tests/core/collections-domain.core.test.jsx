@@ -136,6 +136,48 @@ describe("collections domain manifest-truth defaults", () => {
     );
   });
 
+  test("includes boolean fields in collection filter defaults and list options", () => {
+    const collectionSchema = {
+      id: "media-items",
+      fields: [
+        {
+          id: "status",
+          label: "Status",
+          type: "enum",
+          options: ["ready", "processing", "failed"]
+        },
+        {
+          id: "isDerived",
+          label: "Derived Asset",
+          type: "boolean"
+        }
+      ]
+    };
+
+    expect(createDefaultCollectionFilterState("media-items", collectionSchema)).toEqual({
+      search: "",
+      status: "",
+      isDerived: ""
+    });
+
+    expect(
+      buildCollectionListOptions(
+        "media-items",
+        {
+          search: "",
+          status: "ready",
+          isDerived: "true"
+        },
+        collectionSchema
+      )
+    ).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        isDerived: "true"
+      })
+    );
+  });
+
   test("keeps plugin structured-object payloads as objects for mutation requests", () => {
     const fieldType = "test-plugin-structured-object-payload";
     registerCollectionFieldTypePlugin(

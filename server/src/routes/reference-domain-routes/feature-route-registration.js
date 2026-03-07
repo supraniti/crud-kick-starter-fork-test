@@ -6,6 +6,9 @@ import { registerReferenceProductTaxonomyRoutes } from "./product-taxonomy-route
 import { registerReferenceRemoteDeployRoutes } from "./remote-deploy-routes.js";
 import { registerReferenceModuleSettingsRoutes } from "./settings-routes.js";
 import {
+  registerRoutesForDiscoveredModules
+} from "../../domains/reference/runtime/registrars/discovered-routes-runtime-registrar-domain-service.js";
+import {
   buildCollectionsPayload,
   buildModuleNavigationItems,
   buildModuleRuntimePayload,
@@ -202,7 +205,29 @@ function registerProductTaxonomyFeatureRoutes({
   });
 }
 
-export function registerReferenceFeatureRoutes({
+async function registerModuleRouteFeatureRoutes({
+  fastify,
+  runtimeContext
+}) {
+  const routeRegistration = await registerRoutesForDiscoveredModules({
+    moduleRegistry: runtimeContext.moduleRegistry,
+    fastify,
+    registrationContext: runtimeContext
+  });
+  const diagnostics = Array.isArray(routeRegistration?.diagnostics)
+    ? routeRegistration.diagnostics
+    : [];
+  if (diagnostics.length > 0) {
+    runtimeContext.moduleRuntime.diagnostics = [
+      ...(Array.isArray(runtimeContext.moduleRuntime?.diagnostics)
+        ? runtimeContext.moduleRuntime.diagnostics
+        : []),
+      ...diagnostics
+    ];
+  }
+}
+
+export async function registerReferenceFeatureRoutes({
   fastify,
   runtimeContext,
   deployOutputRoot
@@ -285,5 +310,10 @@ export function registerReferenceFeatureRoutes({
     fastify,
     state,
     remotesDeployRepository
+  });
+
+  await registerModuleRouteFeatureRoutes({
+    fastify,
+    runtimeContext
   });
 }

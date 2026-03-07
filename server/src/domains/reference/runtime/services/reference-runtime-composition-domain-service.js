@@ -179,7 +179,11 @@ export async function registerReferenceRuntimeModuleContributions({
       state,
       moduleRegistry,
       jobRunner,
-      jobLogStore
+      jobLogStore,
+      resolveCollectionRepository: (collectionId) =>
+        persistencePluginRegistry.getCollectionRepository(collectionId),
+      resolveSettingsRepository: (moduleId) =>
+        persistencePluginRegistry.getSettingsRepository(moduleId)
     }
   });
   const missionRegistration = await registerMissionsForDiscoveredModules({
@@ -189,7 +193,12 @@ export async function registerReferenceRuntimeModuleContributions({
       state,
       moduleRegistry,
       jobRunner,
-      jobLogStore
+      jobLogStore,
+      remotesDeployRepository,
+      resolveCollectionRepository: (collectionId) =>
+        persistencePluginRegistry.getCollectionRepository(collectionId),
+      resolveSettingsRepository: (moduleId) =>
+        persistencePluginRegistry.getSettingsRepository(moduleId)
     }
   });
 

@@ -1,0 +1,229 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-media-manager",
+  "version": "0.1.0",
+  "name": "Test Modules Media Manager",
+  "capabilities": [
+    "crud.collection",
+    "mission",
+    "schema",
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-media-manager.install",
+    "uninstall": "test-modules-media-manager.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs",
+    "missions": "./server/missions.mjs",
+    "routes": "./server/routes.mjs"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Media Manager",
+      "icon": "perm_media",
+      "order": 460
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "collections": [
+    {
+      "id": "media-items",
+      "label": "Media Items",
+      "entitySingular": "media-item",
+      "primaryField": "displayName",
+      "description": "Local media assets and derived variants managed by the media manager module.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": false,
+        "update": false,
+        "delete": false
+      },
+      "fields": [
+        {
+          "id": "displayName",
+          "label": "Display Name",
+          "type": "text",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 160
+        },
+        {
+          "id": "mediaKind",
+          "label": "Media Kind",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "image"
+          ],
+          "defaultValue": "image"
+        },
+        {
+          "id": "mimeType",
+          "label": "MIME Type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "defaultValue": "image/jpeg"
+        },
+        {
+          "id": "fileSizeBytes",
+          "label": "File Size (Bytes)",
+          "type": "number",
+          "required": true,
+          "min": 1,
+          "max": 20000000
+        },
+        {
+          "id": "width",
+          "label": "Width",
+          "type": "number",
+          "required": false,
+          "min": 1,
+          "max": 20000
+        },
+        {
+          "id": "height",
+          "label": "Height",
+          "type": "number",
+          "required": false,
+          "min": 1,
+          "max": 20000
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "ready",
+            "processing",
+            "failed"
+          ],
+          "defaultValue": "ready"
+        },
+        {
+          "id": "altText",
+          "label": "Alt Text",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 240
+        },
+        {
+          "id": "description",
+          "label": "Description",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "category",
+          "label": "Category",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "library",
+            "campaign",
+            "product",
+            "social"
+          ],
+          "defaultValue": "library"
+        },
+        {
+          "id": "usageLabels",
+          "label": "Usage Labels",
+          "type": "enum-multi",
+          "required": false,
+          "options": [
+            "editorial",
+            "marketing",
+            "reference",
+            "hero",
+            "thumbnail"
+          ],
+          "defaultValue": []
+        },
+        {
+          "id": "isDerived",
+          "label": "Derived Asset",
+          "type": "boolean",
+          "required": true,
+          "defaultValue": false
+        },
+        {
+          "id": "sourceMediaId",
+          "label": "Source Media",
+          "type": "reference",
+          "required": false,
+          "collectionId": "media-items",
+          "labelField": "displayName",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "operationPreset",
+          "label": "Operation Preset",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "original",
+            "web-optimized",
+            "thumbnail"
+          ],
+          "defaultValue": "original"
+        },
+        {
+          "id": "storageKey",
+          "label": "Storage Key",
+          "type": "text",
+          "required": true,
+          "minLength": 6,
+          "maxLength": 260
+        },
+        {
+          "id": "relativePath",
+          "label": "Relative Path",
+          "type": "text",
+          "required": true,
+          "minLength": 6,
+          "maxLength": 320
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof"
+  }
+}

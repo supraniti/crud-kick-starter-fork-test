@@ -12,6 +12,14 @@ import {
 
 const ACTIVE_MODULE_IDS = Object.freeze([
   "test-modules-crud-core",
+  "test-modules-media-manager",
+  "test-modules-operations-dispatch",
+  "test-modules-relations-taxonomy",
+  "test-modules-remotes-publish",
+  "test-modules-settings-policy"
+]);
+const MODULE_SETTINGS_IDS = Object.freeze([
+  "test-modules-crud-core",
   "test-modules-operations-dispatch",
   "test-modules-relations-taxonomy",
   "test-modules-remotes-publish",
@@ -23,7 +31,7 @@ function sortIds(values = []) {
 }
 
 export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
-  test("GET /api/reference/modules returns the active five-module navigation payload", async () => {
+  test("GET /api/reference/modules returns the active six-module navigation payload", async () => {
     const response = await spec().get("/api/reference/modules").expectStatus(200);
 
     expect(response.body.ok).toBe(true);
@@ -33,7 +41,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
 
     const ids = sortIds(response.body.items.map((item) => item.id));
     expect(ids).toEqual(ACTIVE_MODULE_IDS);
-    expect(response.body.items).toHaveLength(5);
+    expect(response.body.items).toHaveLength(6);
     expect(response.body.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -46,6 +54,10 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
             routeAvailable: true,
             state: "enabled"
           })
+        }),
+        expect.objectContaining({
+          id: "test-modules-media-manager",
+          label: "Media Manager"
         }),
         expect.objectContaining({
           id: "test-modules-operations-dispatch",
@@ -206,7 +218,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     }
   });
 
-  test("GET /api/reference/modules/runtime returns diagnostics and five-module ownership maps", async () => {
+  test("GET /api/reference/modules/runtime returns diagnostics and six-module ownership maps", async () => {
     const response = await spec().get("/api/reference/modules/runtime").expectStatus(200);
 
     expect(response.body.ok).toBe(true);
@@ -237,8 +249,8 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
           source: expect.any(String)
         }),
         moduleIdTranslation: expect.objectContaining({
-          discoveredModuleCount: 5,
-          discoveredTargetModuleCount: 5
+          discoveredModuleCount: 6,
+          discoveredTargetModuleCount: 6
         })
       })
     );
@@ -246,11 +258,12 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(sortIds(response.body.runtime.moduleIdTranslation.discoveredModuleIds)).toEqual(
       ACTIVE_MODULE_IDS
     );
-    expect(sortIds(response.body.runtime.moduleSettingsIds)).toEqual(ACTIVE_MODULE_IDS);
+    expect(sortIds(response.body.runtime.moduleSettingsIds)).toEqual(MODULE_SETTINGS_IDS);
     expect(sortIds(response.body.runtime.items.map((item) => item.id))).toEqual(ACTIVE_MODULE_IDS);
 
     expect(response.body.runtime.moduleCollectionIds).toEqual(
       expect.arrayContaining([
+        "media-items",
         "records",
         "notes",
         "dispatches",
@@ -261,6 +274,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.runtime.collectionHandlerModuleMap).toEqual(
       expect.objectContaining({
         records: "test-modules-crud-core",
+        "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
         authors: "test-modules-relations-taxonomy",
         "wpx-posts": "test-modules-remotes-publish",
@@ -270,6 +284,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.runtime.collectionRepositoryModuleMap).toEqual(
       expect.objectContaining({
         records: "test-modules-crud-core",
+        "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
         authors: "test-modules-relations-taxonomy",
         "wpx-posts": "test-modules-remotes-publish",
@@ -285,6 +300,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.missionModuleMap).toEqual(
       expect.objectContaining({
+        "media-library-image-compression": "test-modules-media-manager",
         "remote-deploy-mission": "test-modules-remotes-publish",
         "iter5-playbook-run-mission": "test-modules-operations-dispatch"
       })
@@ -292,6 +308,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.runtime.persistencePluginModuleMap).toEqual(
       expect.objectContaining({
         "test-modules-crud-core-records-persistence": "test-modules-crud-core",
+        "test-modules-media-manager-media-persistence": "test-modules-media-manager",
         "test-modules-operations-dispatch-dispatches-persistence":
           "test-modules-operations-dispatch",
         "test-modules-relations-taxonomy-authors-persistence":
@@ -304,6 +321,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.runtime.settingsRepositoryModuleMap).toEqual(
       expect.objectContaining({
         "test-modules-crud-core": expect.any(String),
+        "test-modules-media-manager": expect.any(String),
         "test-modules-operations-dispatch": expect.any(String),
         "test-modules-relations-taxonomy": expect.any(String),
         "test-modules-remotes-publish": expect.any(String),
@@ -316,6 +334,11 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
           id: "test-modules-crud-core",
           state: "enabled",
           collectionIds: expect.arrayContaining(["records", "notes", "articles"])
+        }),
+        expect.objectContaining({
+          id: "test-modules-media-manager",
+          state: "enabled",
+          collectionIds: expect.arrayContaining(["media-items"])
         }),
         expect.objectContaining({
           id: "test-modules-operations-dispatch",

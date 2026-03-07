@@ -1,7 +1,7 @@
 {
   "schema_version": "lane-manifest-v1",
   "owner_surface": "server",
-  "generated_on": "2026-02-21",
+  "generated_on": "2026-03-06",
   "source_artifacts": [
     "docs/contracts/contract-index.md",
     "docs/contracts/quality-gate-contract.md"
@@ -11,6 +11,7 @@
     "ownership_mode": "test-modules-authoritative",
     "active_module_ids": [
       "test-modules-crud-core",
+      "test-modules-media-manager",
       "test-modules-relations-taxonomy",
       "test-modules-settings-policy",
       "test-modules-operations-dispatch",
@@ -156,6 +157,18 @@
       ],
       "capability_tags": [
         "reference-slice-persistence"
+      ],
+      "migration_phase": "phase-2"
+    },
+    {
+      "test_file_path": "server/test/core/reference-runtime-infrastructure.core.test.js",
+      "lane": "core-fast",
+      "flow_ids": [
+        "FLOW-RS-PERSIST-003"
+      ],
+      "capability_tags": [
+        "reference-slice-persistence",
+        "reference-slice-runtime-isolation"
       ],
       "migration_phase": "phase-2"
     },
@@ -462,6 +475,19 @@
       ],
       "capability_tags": [
         "reference-slice-runtime-lifecycle"
+      ],
+      "migration_phase": "phase-2"
+    },
+    {
+      "test_file_path": "server/test/module-conformance/media-manager.module-conformance.test.js",
+      "lane": "module-conformance",
+      "flow_ids": [
+        "FLOW-RS-MEDIA-001"
+      ],
+      "capability_tags": [
+        "media-manager-delete-policy",
+        "media-manager-operations",
+        "media-manager-upload-storage"
       ],
       "migration_phase": "phase-2"
     },

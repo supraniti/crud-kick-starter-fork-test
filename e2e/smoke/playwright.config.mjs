@@ -6,8 +6,7 @@ const CURRENT_FILE = fileURLToPath(import.meta.url);
 const CURRENT_DIR = path.dirname(CURRENT_FILE);
 const ROOT_DIR = path.resolve(CURRENT_DIR, "..", "..");
 const ARTIFACT_ROOT = path.join(ROOT_DIR, "e2e", "smoke", "artifacts");
-const REUSE_EXISTING_SERVER =
-  process.env.CI !== "true" && process.env.CI !== "1";
+const REUSE_EXISTING_SERVER = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "true";
 
 export default defineConfig({
   testDir: path.join(ROOT_DIR, "e2e", "smoke", "specs"),
@@ -44,6 +43,7 @@ export default defineConfig({
       reuseExistingServer: REUSE_EXISTING_SERVER,
       timeout: 120_000,
       env: {
+        NODE_ENV: "test",
         REFERENCE_MODULE_ID_TRANSLATION_MODE: "dual-compat",
         REFERENCE_STATE_MODE: "memory"
       }

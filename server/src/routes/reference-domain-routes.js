@@ -11,7 +11,7 @@ export async function registerReferenceDomainRoutes(fastify, options = {}) {
   });
   const runtimeDefaults = resolveReferenceRuntimeDefaults();
 
-  registerReferenceFeatureRoutes({
+  await registerReferenceFeatureRoutes({
     fastify,
     runtimeContext,
     deployOutputRoot: runtimeDefaults.deployOutputRoot

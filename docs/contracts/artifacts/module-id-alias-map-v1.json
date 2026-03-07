@@ -1,9 +1,10 @@
 {
-  "timestamp": "2026-03-03T14:09:11.617Z",
+  "timestamp": "2026-03-06T21:30:00.000Z",
   "sourceModulesDir": "modules",
   "extraMappingModuleIds": [],
   "targetModuleSet": [
     "test-modules-crud-core",
+    "test-modules-media-manager",
     "test-modules-operations-dispatch",
     "test-modules-relations-taxonomy",
     "test-modules-remotes-publish",
@@ -43,6 +44,7 @@
     "iter5-playbook-runs": "test-modules-operations-dispatch",
     "iter5-retro-actions": "test-modules-operations-dispatch",
     "iter5-findings": "test-modules-operations-dispatch",
+    "media-items": "test-modules-media-manager",
     "remotes": "test-modules-remotes-publish",
     "wpx-posts": "test-modules-remotes-publish",
     "wpx-publish-jobs": "test-modules-remotes-publish",
@@ -91,6 +93,9 @@
       "iter5-retro-actions",
       "missions"
     ],
+    "test-modules-media-manager": [
+      "media-items"
+    ],
     "test-modules-remotes-publish": [
       "briefs",
       "digests",
@@ -99,7 +104,7 @@
       "wpx-publish-jobs"
     ]
   },
-  "sourceModuleCount": 38,
-  "mappedSourceModuleCount": 38,
+  "sourceModuleCount": 39,
+  "mappedSourceModuleCount": 39,
   "unmappedSourceModuleIds": []
 }

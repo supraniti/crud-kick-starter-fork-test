@@ -23,3 +23,4 @@
   - `modules/test-modules-settings-policy`
   - `modules/test-modules-operations-dispatch`
   - `modules/test-modules-remotes-publish`
+  - `modules/test-modules-media-manager`

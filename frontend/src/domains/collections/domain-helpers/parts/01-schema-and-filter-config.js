@@ -238,7 +238,7 @@ function resolveEditableCollectionFields(collectionSchema, collectionId) {
 function resolveCollectionFilterFieldConfigs(collectionSchema, collectionId) {
   return resolveCollectionSchemaFields(collectionSchema, collectionId)
     .filter((field) =>
-      ["enum", "enum-multi", "reference", "reference-multi"].includes(field.type)
+      ["boolean", "enum", "enum-multi", "reference", "reference-multi"].includes(field.type)
     )
     .map((field) => ({
       fieldId: field.id,

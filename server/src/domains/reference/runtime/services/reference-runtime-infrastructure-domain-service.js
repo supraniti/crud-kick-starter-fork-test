@@ -104,8 +104,12 @@ function createRuntimeInfrastructure(options = {}) {
     options.moduleIdTranslationMapFile ?? defaults.moduleIdTranslationMapFile;
   const moduleIdTranslationMode =
     options.moduleIdTranslationMode ?? defaults.moduleIdTranslationModeDefault;
+  const moduleRuntimeStateFile =
+    options.moduleRuntimeStateFile === null
+      ? null
+      : options.moduleRuntimeStateFile ?? defaults.moduleRuntimeStateFileDefault;
   const moduleRuntimeStateStore = createModuleRuntimeStateStore({
-    stateFilePath: options.moduleRuntimeStateFile ?? defaults.moduleRuntimeStateFileDefault
+    stateFilePath: moduleRuntimeStateFile
   });
   const moduleRegistry = createModuleRegistry();
   const collectionHandlerRegistry = createCollectionHandlerRegistry();

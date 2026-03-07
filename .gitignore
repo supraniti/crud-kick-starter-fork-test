@@ -7,5 +7,6 @@ coverage/
 .env.*
 !.env.example
 server/runtime/
+media/
 .tmp/
 e2e/smoke/artifacts/

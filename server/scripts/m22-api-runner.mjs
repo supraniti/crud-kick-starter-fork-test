@@ -143,6 +143,7 @@ async function startIsolatedServer({
     logger: false,
     containerManager: createMockContainerManager(),
     referenceStatePersistence,
+    moduleRuntimeStateFile: null,
     moduleIdTranslationMode: moduleIdBindings.mode,
     moduleIdTranslationMapFile: moduleIdBindings.mapPath
   });
