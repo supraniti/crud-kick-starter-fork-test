@@ -9,9 +9,9 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
-export function SummaryCard({ label, value, tone = "default" }) {
+export const SummaryCard = memo(function SummaryCard({ label, value, tone = "default" }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5}>
@@ -28,7 +28,7 @@ export function SummaryCard({ label, value, tone = "default" }) {
       </Stack>
     </Paper>
   );
-}
+});
 
 export function optionItems(referenceOptions, collectionId) {
   const items = Array.isArray(referenceOptions?.[collectionId]?.items)
@@ -54,7 +54,10 @@ export function resolveOptionLabel(options, id) {
   return options.find((option) => option.id === id)?.label ?? id;
 }
 
-export function ContentFilterBar({ collectionsDomain, authorOptions }) {
+export const ContentFilterBar = memo(function ContentFilterBar({
+  collectionsDomain,
+  authorOptions
+}) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack direction={{ xs: "column", lg: "row" }} spacing={2}>
@@ -120,9 +123,15 @@ export function ContentFilterBar({ collectionsDomain, authorOptions }) {
       </Stack>
     </Paper>
   );
-}
+});
 
-export function PostList({ posts, selectedPostId, postHealthMap, onSelect, onCreate }) {
+export const PostList = memo(function PostList({
+  posts,
+  selectedPostId,
+  postHealthMap,
+  onSelect,
+  onCreate
+}) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
@@ -182,9 +191,9 @@ export function PostList({ posts, selectedPostId, postHealthMap, onSelect, onCre
       </Stack>
     </Paper>
   );
-}
+});
 
-export function RevisionPanel({
+export const RevisionPanel = memo(function RevisionPanel({
   revisions,
   selectedRevision,
   loading,
@@ -285,9 +294,9 @@ export function RevisionPanel({
       </Stack>
     </Paper>
   );
-}
+});
 
-export function SeoPreview({ draft, mediaOptions }) {
+export const SeoPreview = memo(function SeoPreview({ draft, mediaOptions }) {
   const imageLabel = useMemo(
     () => resolveOptionLabel(mediaOptions, draft.ogImageMediaId || draft.featuredMediaId || "No image"),
     [draft.featuredMediaId, draft.ogImageMediaId, mediaOptions]
@@ -326,4 +335,4 @@ export function SeoPreview({ draft, mediaOptions }) {
       </Stack>
     </Paper>
   );
-}
+});

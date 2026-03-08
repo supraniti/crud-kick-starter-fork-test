@@ -607,6 +607,11 @@ export function useBlogContentWorkspace({ collectionsDomain }) {
   const [saveState, setSaveState] = useState(createSaveState);
   const selection = usePostSelection(collectionsDomain);
   const revisions = useRevisionTimeline(selection.selectedPostId);
+  const summary = useMemo(() => buildSummary(selection.posts), [selection.posts]);
+  const postHealthMap = useMemo(
+    () => new Map(selection.posts.map((post) => [post.id, computeHealth(post)])),
+    [selection.posts]
+  );
   const actions = useWorkspaceActions({
     collectionsDomain,
     draft: selection.draft,
@@ -621,6 +626,10 @@ export function useBlogContentWorkspace({ collectionsDomain }) {
     setSaveState,
     setSelectedPostId: selection.setSelectedPostId
   });
+  const selectPost = useCallback(
+    (postId) => actions.selectPost(postId, selection.posts),
+    [actions.selectPost, selection.posts]
+  );
 
   return {
     posts: selection.posts,
@@ -630,10 +639,10 @@ export function useBlogContentWorkspace({ collectionsDomain }) {
     saveState,
     revisionState: revisions.revisionState,
     selectedRevision: revisions.selectedRevision,
-    summary: buildSummary(selection.posts),
+    summary,
     referenceOptions: collectionsDomain.referenceOptionsState ?? {},
-    postHealthMap: new Map(selection.posts.map((post) => [post.id, computeHealth(post)])),
-    selectPost: (postId) => actions.selectPost(postId, selection.posts),
+    postHealthMap,
+    selectPost,
     startNew: actions.startNew,
     changeField: actions.changeField,
     toggleFieldValue: actions.toggleFieldValue,

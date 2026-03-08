@@ -2,7 +2,10 @@
 
 ## Current Status
 - Date: 2026-03-08
-- Repository: `crud-kick-starter`
+- Repository: `crud-kick-starter-fork-test`
+- Remote wiring:
+  - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
+  - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed product baseline:
   - `9382ce2` `feat: add media manager module`
 - Ticket in focus:
@@ -13,6 +16,33 @@
 - Working tree intent:
   - keep the aborted implementation parked in `stash@{0}`
   - continue from the new contract-first restart path, not from the stashed code
+
+## Active Follow-up
+- Typing-latency follow-up for `test-modules-blog-content` is closed in the working tree and awaiting manual review / commit preparation.
+- Measured diagnosis:
+  - Chrome trace on `http://localhost:3000/app/test-modules-blog-content` showed bad interaction latency while typing in the title field
+  - the longest observed interaction was a `keydown` with roughly `1s` processing time and repeated MUI `TextareaAutosize` forced reflow work from unrelated multiline fields
+- Retained fix boundary:
+  - no native HTML controls replaced existing MUI components
+  - no shared/core frontend performance refactor was retained
+  - the final fix stays module-local inside `modules/test-modules-blog-content/frontend`
+- Retained implementation:
+  - added `StableMultilineTextField.jsx` as a module-local MUI `TextField` wrapper for multiline fields
+  - memoized the heavy blog-content editor subtrees so title typing does not force unrelated multiline field remeasurement on every keystroke
+  - stabilized derived blog-content view/workspace values with targeted `useMemo` / `useCallback`
+- Measured closure evidence:
+  - local Chromium Event Timing probe after the retained fix recorded `maxDuration=40ms` and `maxProcessing=29.4ms` for the exercised typing interaction
+  - this replaced the earlier Chrome-trace path that showed roughly `1s` processing spikes
+- Verification completed on 2026-03-08:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-content.integration.test.jsx`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+  - `pnpm quality:protocol`
+    - passed after the progress-pointer / contract update
+- Boundary locked on 2026-03-08:
+  - no native HTML controls may replace existing MUI components without explicit user approval
+  - no shared/core frontend performance refactor may be introduced without explicit user approval
 
 ## Active execution target
 - Deliver the blog-management ticket additively from the restart plan.
@@ -285,6 +315,6 @@
 - If a later session resumes, it should start from manual review, cleanup/commit preparation, or a new ticket, not from implementation recovery.
 
 ## Next Actions
-1. Manual repo review of the five delivered blog modules.
+1. Manual repo review of the delivered blog modules plus the module-local blog-content typing-latency follow-up.
 2. Prepare commit(s) once review is complete.
 3. Leave `stash@{0}` untouched unless there is an explicit decision to delete the abandoned prototype stash.

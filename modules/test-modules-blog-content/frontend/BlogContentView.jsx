@@ -1,4 +1,5 @@
 import { Alert, Paper, Stack, Typography } from "@mui/material";
+import { memo, useMemo } from "react";
 import {
   ContentFilterBar,
   PostList,
@@ -11,7 +12,7 @@ import { useBlogContentWorkspace } from "./useBlogContentWorkspace.js";
 
 const POSTS_COLLECTION_ID = "blog-posts";
 
-function Hero({ activeModuleLabel }) {
+const Hero = memo(function Hero({ activeModuleLabel }) {
   return (
     <Paper
       variant="outlined"
@@ -33,9 +34,9 @@ function Hero({ activeModuleLabel }) {
       </Stack>
     </Paper>
   );
-}
+});
 
-function SummaryGrid({ summary }) {
+const SummaryGrid = memo(function SummaryGrid({ summary }) {
   return (
     <Stack
       direction={{ xs: "column", md: "row" }}
@@ -52,12 +53,21 @@ function SummaryGrid({ summary }) {
       />
     </Stack>
   );
-}
+});
 
 function WorkspaceLayout({ workspace }) {
-  const authorOptions = optionItems(workspace.referenceOptions, "blog-authors");
-  const categoryOptions = optionItems(workspace.referenceOptions, "blog-categories");
-  const tagOptions = optionItems(workspace.referenceOptions, "blog-tags");
+  const authorOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "blog-authors"),
+    [workspace.referenceOptions]
+  );
+  const categoryOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "blog-categories"),
+    [workspace.referenceOptions]
+  );
+  const tagOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "blog-tags"),
+    [workspace.referenceOptions]
+  );
 
   return (
     <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
@@ -93,7 +103,10 @@ export function BlogContentView({ activeModuleLabel, collectionsDomain }) {
   const workspace = useBlogContentWorkspace({
     collectionsDomain
   });
-  const authorOptions = optionItems(workspace.referenceOptions, "blog-authors");
+  const authorOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "blog-authors"),
+    [workspace.referenceOptions]
+  );
 
   if (
     !collectionsDomain.isActiveCollectionAvailable &&

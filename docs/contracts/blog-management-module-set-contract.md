@@ -90,6 +90,9 @@
 - Shared primitive extraction is allowed only after repetition is proven twice and the extracted boundary is neutral.
 - No Level 4 core edit is approved at contract time.
 - If a core gap is discovered, record a narrow waiver in the specific module contract before implementation crosses that boundary.
+- Keep blog UI work on the existing MUI component surface unless the user explicitly approves a different boundary.
+- Native HTML controls are not allowed in place of existing MUI components without explicit user approval.
+- Shared/core frontend refactors for performance or ergonomics require explicit user approval before implementation.
 
 ## Implementation Order
 1. `test-modules-blog-editorial`

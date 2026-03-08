@@ -186,3 +186,33 @@
 - Improve:
   - add at least one explicit “create new record stays selected after save” integration test pattern to module-first workflow tickets where a custom editor owns selection state
   - when a ticket requires live browser review, document whether the final gate should run with the review app stopped to avoid rediscovering smoke-lane port conflicts
+
+### 2026-03-08 - Repo Wiring And UI Boundary Correction
+- Tasks:
+  - corrected the git remote model so the working repo now uses `origin=crud-kick-starter-fork-test` and `upstream=crud-kick-starter`
+  - audited a typing-latency issue in the live blog-content editor with Chrome tracing
+  - reverted an unapproved shared-frontend performance refactor and recorded the boundary in the active contracts
+- Easy:
+  - the machine already had valid git credentials through Git Credential Manager, so the new repo could be created and wired without losing any local commits
+  - Chrome tracing made the responsiveness issue concrete quickly by isolating repeated MUI reflow work during typing
+- Hard:
+  - repo identity and remote wiring are separate concerns; a folder name that looks like a fork is not enough, and I failed to normalize the remote model early
+  - performance pressure can tempt a shared UI refactor too early; that crossed the approval boundary before it was explicitly granted
+- Improve:
+  - normalize fork/upstream remote wiring immediately after cloning when the task explicitly starts from a forking workflow
+  - treat native-HTML substitutions and shared/frontend performance refactors as explicit-approval items, not implementation discretion
+
+### 2026-03-08 - Blog Content Typing-Latency Closure
+- Tasks:
+  - closed the live typing-latency issue in `test-modules-blog-content` without crossing the new UI boundary rules
+  - kept the fix entirely module-local and MUI-only
+  - verified the retained fix with a focused frontend test, a full release gate, and a local Chromium Event Timing probe
+- Easy:
+  - once the trace clearly pointed at repeated MUI `TextareaAutosize` work, the right containment strategy was narrow: stop unrelated multiline fields from rerendering on every title keystroke
+  - the module already had enough local seams to isolate the fix without touching shared/frontend core
+- Hard:
+  - responsiveness work invites broad refactors; keeping the change inside one module required deliberate restraint after the earlier approval-boundary mistake
+  - Chrome tracing gave the diagnosis, but the devtools transport was not stable enough for final measurement, so closure evidence had to come from a local Chromium Event Timing probe instead
+- Improve:
+  - for future workflow-heavy MUI editors, treat rerender containment as a first-class design concern before reaching for shared abstractions
+  - when a performance issue is under investigation, record both the approved boundary and the measurement method early so a later session does not restart the wrong class of fix

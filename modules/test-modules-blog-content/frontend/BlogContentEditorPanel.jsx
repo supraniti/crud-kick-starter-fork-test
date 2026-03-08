@@ -10,9 +10,11 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { memo, useMemo } from "react";
 import { SeoPreview, optionItems } from "./BlogContentPanels.jsx";
+import { StableMultilineTextField } from "./StableMultilineTextField.jsx";
 
-function ToggleChipField({ label, options, values, onToggle }) {
+const ToggleChipField = memo(function ToggleChipField({ label, options, values, onToggle }) {
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2">{label}</Typography>
@@ -33,7 +35,7 @@ function ToggleChipField({ label, options, values, onToggle }) {
       </Stack>
     </Stack>
   );
-}
+});
 
 function EditorHeader({ workspace }) {
   return (
@@ -97,18 +99,18 @@ function EssentialsSection({ workspace }) {
           value={workspace.draft.subtitle}
           onChange={(event) => workspace.changeField("subtitle", event.target.value)}
         />
-        <TextField
+        <StableMultilineTextField
           label="Excerpt"
           value={workspace.draft.excerpt}
-          onChange={(event) => workspace.changeField("excerpt", event.target.value)}
-          multiline
+          fieldId="excerpt"
+          onChangeField={workspace.changeField}
           minRows={3}
         />
-        <TextField
+        <StableMultilineTextField
           label="Body (Sanitized HTML)"
           value={workspace.draft.body}
-          onChange={(event) => workspace.changeField("body", event.target.value)}
-          multiline
+          fieldId="body"
+          onChangeField={workspace.changeField}
           minRows={12}
         />
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -155,7 +157,14 @@ function EssentialsSection({ workspace }) {
   );
 }
 
-function AssignmentSection({ workspace, authorOptions, categoryOptions, tagOptions }) {
+function AssignmentSectionComponent({
+  authorOptions,
+  categoryOptions,
+  tagOptions,
+  draft,
+  changeField,
+  toggleFieldValue
+}) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
@@ -164,8 +173,8 @@ function AssignmentSection({ workspace, authorOptions, categoryOptions, tagOptio
           <TextField
             select
             label="Primary Author"
-            value={workspace.draft.primaryAuthorId}
-            onChange={(event) => workspace.changeField("primaryAuthorId", event.target.value)}
+            value={draft.primaryAuthorId}
+            onChange={(event) => changeField("primaryAuthorId", event.target.value)}
             sx={{ minWidth: 220 }}
           >
             {authorOptions.map((option) => (
@@ -177,8 +186,8 @@ function AssignmentSection({ workspace, authorOptions, categoryOptions, tagOptio
           <TextField
             select
             label="Created By"
-            value={workspace.draft.createdByAuthorId}
-            onChange={(event) => workspace.changeField("createdByAuthorId", event.target.value)}
+            value={draft.createdByAuthorId}
+            onChange={(event) => changeField("createdByAuthorId", event.target.value)}
             sx={{ minWidth: 220 }}
           >
             {authorOptions.map((option) => (
@@ -190,8 +199,8 @@ function AssignmentSection({ workspace, authorOptions, categoryOptions, tagOptio
           <TextField
             select
             label="Updated By"
-            value={workspace.draft.updatedByAuthorId}
-            onChange={(event) => workspace.changeField("updatedByAuthorId", event.target.value)}
+            value={draft.updatedByAuthorId}
+            onChange={(event) => changeField("updatedByAuthorId", event.target.value)}
             sx={{ minWidth: 220 }}
           >
             {authorOptions.map((option) => (
@@ -205,27 +214,45 @@ function AssignmentSection({ workspace, authorOptions, categoryOptions, tagOptio
         <ToggleChipField
           label="Co-Authors"
           options={authorOptions}
-          values={workspace.draft.coAuthorIds}
-          onToggle={(value) => workspace.toggleFieldValue("coAuthorIds", value)}
+          values={draft.coAuthorIds}
+          onToggle={(value) => toggleFieldValue("coAuthorIds", value)}
         />
         <ToggleChipField
           label="Categories"
           options={categoryOptions}
-          values={workspace.draft.categoryIds}
-          onToggle={(value) => workspace.toggleFieldValue("categoryIds", value)}
+          values={draft.categoryIds}
+          onToggle={(value) => toggleFieldValue("categoryIds", value)}
         />
         <ToggleChipField
           label="Tags"
           options={tagOptions}
-          values={workspace.draft.tagIds}
-          onToggle={(value) => workspace.toggleFieldValue("tagIds", value)}
+          values={draft.tagIds}
+          onToggle={(value) => toggleFieldValue("tagIds", value)}
         />
       </Stack>
     </Paper>
   );
 }
 
-function MediaSection({ workspace, mediaOptions }) {
+const AssignmentSection = memo(AssignmentSectionComponent, (previousProps, nextProps) => {
+  const previousDraft = previousProps.draft;
+  const nextDraft = nextProps.draft;
+  return (
+    previousProps.authorOptions === nextProps.authorOptions &&
+    previousProps.categoryOptions === nextProps.categoryOptions &&
+    previousProps.tagOptions === nextProps.tagOptions &&
+    previousProps.changeField === nextProps.changeField &&
+    previousProps.toggleFieldValue === nextProps.toggleFieldValue &&
+    previousDraft.primaryAuthorId === nextDraft.primaryAuthorId &&
+    previousDraft.createdByAuthorId === nextDraft.createdByAuthorId &&
+    previousDraft.updatedByAuthorId === nextDraft.updatedByAuthorId &&
+    previousDraft.coAuthorIds === nextDraft.coAuthorIds &&
+    previousDraft.categoryIds === nextDraft.categoryIds &&
+    previousDraft.tagIds === nextDraft.tagIds
+  );
+});
+
+function MediaSectionComponent({ draft, mediaOptions, changeField, toggleFieldValue }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
@@ -234,8 +261,8 @@ function MediaSection({ workspace, mediaOptions }) {
           <TextField
             select
             label="Featured Media"
-            value={workspace.draft.featuredMediaId}
-            onChange={(event) => workspace.changeField("featuredMediaId", event.target.value)}
+            value={draft.featuredMediaId}
+            onChange={(event) => changeField("featuredMediaId", event.target.value)}
             sx={{ minWidth: 240 }}
           >
             <MenuItem value="">None</MenuItem>
@@ -248,8 +275,8 @@ function MediaSection({ workspace, mediaOptions }) {
           <TextField
             select
             label="OpenGraph Image"
-            value={workspace.draft.ogImageMediaId}
-            onChange={(event) => workspace.changeField("ogImageMediaId", event.target.value)}
+            value={draft.ogImageMediaId}
+            onChange={(event) => changeField("ogImageMediaId", event.target.value)}
             sx={{ minWidth: 240 }}
           >
             <MenuItem value="">None</MenuItem>
@@ -262,8 +289,8 @@ function MediaSection({ workspace, mediaOptions }) {
           <TextField
             select
             label="Comment Policy"
-            value={workspace.draft.commentPolicy}
-            onChange={(event) => workspace.changeField("commentPolicy", event.target.value)}
+            value={draft.commentPolicy}
+            onChange={(event) => changeField("commentPolicy", event.target.value)}
             sx={{ minWidth: 220 }}
           >
             {["open", "registered-only", "closed"].map((option) => (
@@ -276,8 +303,8 @@ function MediaSection({ workspace, mediaOptions }) {
         <FormControlLabel
           control={
             <Switch
-              checked={workspace.draft.allowComments}
-              onChange={(event) => workspace.changeField("allowComments", event.target.checked)}
+              checked={draft.allowComments}
+              onChange={(event) => changeField("allowComments", event.target.checked)}
             />
           }
           label="Allow Comments"
@@ -285,46 +312,61 @@ function MediaSection({ workspace, mediaOptions }) {
         <ToggleChipField
           label="Gallery Media"
           options={mediaOptions}
-          values={workspace.draft.galleryMediaIds}
-          onToggle={(value) => workspace.toggleFieldValue("galleryMediaIds", value)}
+          values={draft.galleryMediaIds}
+          onToggle={(value) => toggleFieldValue("galleryMediaIds", value)}
         />
       </Stack>
     </Paper>
   );
 }
 
-function SeoFieldsSection({ workspace }) {
+const MediaSection = memo(MediaSectionComponent, (previousProps, nextProps) => {
+  const previousDraft = previousProps.draft;
+  const nextDraft = nextProps.draft;
+  return (
+    previousProps.mediaOptions === nextProps.mediaOptions &&
+    previousProps.changeField === nextProps.changeField &&
+    previousProps.toggleFieldValue === nextProps.toggleFieldValue &&
+    previousDraft.featuredMediaId === nextDraft.featuredMediaId &&
+    previousDraft.ogImageMediaId === nextDraft.ogImageMediaId &&
+    previousDraft.commentPolicy === nextDraft.commentPolicy &&
+    previousDraft.allowComments === nextDraft.allowComments &&
+    previousDraft.galleryMediaIds === nextDraft.galleryMediaIds
+  );
+});
+
+function SeoFieldsSectionComponent({ draft, changeField }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
         <Typography variant="h6">SEO Metadata</Typography>
         <TextField
           label="Canonical URL"
-          value={workspace.draft.canonicalUrl}
-          onChange={(event) => workspace.changeField("canonicalUrl", event.target.value)}
+          value={draft.canonicalUrl}
+          onChange={(event) => changeField("canonicalUrl", event.target.value)}
         />
         <TextField
           label="SEO Title"
-          value={workspace.draft.seoTitle}
-          onChange={(event) => workspace.changeField("seoTitle", event.target.value)}
+          value={draft.seoTitle}
+          onChange={(event) => changeField("seoTitle", event.target.value)}
         />
-        <TextField
+        <StableMultilineTextField
           label="SEO Description"
-          value={workspace.draft.seoDescription}
-          onChange={(event) => workspace.changeField("seoDescription", event.target.value)}
-          multiline
+          value={draft.seoDescription}
+          fieldId="seoDescription"
+          onChangeField={changeField}
           minRows={3}
         />
         <TextField
           label="OpenGraph Title"
-          value={workspace.draft.ogTitle}
-          onChange={(event) => workspace.changeField("ogTitle", event.target.value)}
+          value={draft.ogTitle}
+          onChange={(event) => changeField("ogTitle", event.target.value)}
         />
-        <TextField
+        <StableMultilineTextField
           label="OpenGraph Description"
-          value={workspace.draft.ogDescription}
-          onChange={(event) => workspace.changeField("ogDescription", event.target.value)}
-          multiline
+          value={draft.ogDescription}
+          fieldId="ogDescription"
+          onChangeField={changeField}
           minRows={3}
         />
       </Stack>
@@ -332,11 +374,36 @@ function SeoFieldsSection({ workspace }) {
   );
 }
 
+const SeoFieldsSection = memo(SeoFieldsSectionComponent, (previousProps, nextProps) => {
+  const previousDraft = previousProps.draft;
+  const nextDraft = nextProps.draft;
+  return (
+    previousProps.changeField === nextProps.changeField &&
+    previousDraft.canonicalUrl === nextDraft.canonicalUrl &&
+    previousDraft.seoTitle === nextDraft.seoTitle &&
+    previousDraft.seoDescription === nextDraft.seoDescription &&
+    previousDraft.ogTitle === nextDraft.ogTitle &&
+    previousDraft.ogDescription === nextDraft.ogDescription
+  );
+});
+
 export function BlogContentEditorPanel({ workspace }) {
-  const authorOptions = optionItems(workspace.referenceOptions, "blog-authors");
-  const categoryOptions = optionItems(workspace.referenceOptions, "blog-categories");
-  const tagOptions = optionItems(workspace.referenceOptions, "blog-tags");
-  const mediaOptions = optionItems(workspace.referenceOptions, "media-items");
+  const authorOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "blog-authors"),
+    [workspace.referenceOptions]
+  );
+  const categoryOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "blog-categories"),
+    [workspace.referenceOptions]
+  );
+  const tagOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "blog-tags"),
+    [workspace.referenceOptions]
+  );
+  const mediaOptions = useMemo(
+    () => optionItems(workspace.referenceOptions, "media-items"),
+    [workspace.referenceOptions]
+  );
 
   return (
     <Stack spacing={2}>
@@ -345,13 +412,20 @@ export function BlogContentEditorPanel({ workspace }) {
       {workspace.saveState.successMessage ? <Alert severity="success">{workspace.saveState.successMessage}</Alert> : null}
       <EssentialsSection workspace={workspace} />
       <AssignmentSection
-        workspace={workspace}
         authorOptions={authorOptions}
         categoryOptions={categoryOptions}
         tagOptions={tagOptions}
+        draft={workspace.draft}
+        changeField={workspace.changeField}
+        toggleFieldValue={workspace.toggleFieldValue}
       />
-      <MediaSection workspace={workspace} mediaOptions={mediaOptions} />
-      <SeoFieldsSection workspace={workspace} />
+      <MediaSection
+        draft={workspace.draft}
+        mediaOptions={mediaOptions}
+        changeField={workspace.changeField}
+        toggleFieldValue={workspace.toggleFieldValue}
+      />
+      <SeoFieldsSection draft={workspace.draft} changeField={workspace.changeField} />
       <SeoPreview draft={workspace.draft} mediaOptions={mediaOptions} />
     </Stack>
   );
