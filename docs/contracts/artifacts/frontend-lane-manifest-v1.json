@@ -1,7 +1,7 @@
 {
   "schema_version": "lane-manifest-v1",
   "owner_surface": "frontend",
-  "generated_on": "2026-03-06",
+  "generated_on": "2026-03-08",
   "source_artifacts": [
     "docs/contracts/contract-index.md",
     "docs/contracts/quality-gate-contract.md"
@@ -12,10 +12,15 @@
     "active_module_ids": [
       "test-modules-crud-core",
       "test-modules-media-manager",
+      "test-modules-blog-content",
+      "test-modules-blog-distribution",
+      "test-modules-blog-engagement",
       "test-modules-relations-taxonomy",
       "test-modules-settings-policy",
       "test-modules-operations-dispatch",
-      "test-modules-remotes-publish"
+      "test-modules-remotes-publish",
+      "test-modules-blog-editorial",
+      "test-modules-blog-taxonomy"
     ],
     "module_id_alias_map": "docs/contracts/artifacts/module-id-alias-map-v1.json"
   },
@@ -241,7 +246,55 @@
         "reference-api-filter-forwarding"
       ],
       "migration_phase": "phase-3"
+    },
+    {
+      "test_file_path": "frontend/src/tests/app-integration/blog-editorial-taxonomy.integration.test.jsx",
+      "lane": "frontend-integration",
+      "flow_ids": [
+        "FLOW-FE-BLOG-001"
+      ],
+      "capability_tags": [
+        "blog-editorial-queue-ui",
+        "blog-taxonomy-tree-ui"
+      ],
+      "migration_phase": "phase-3"
+    },
+    {
+      "test_file_path": "frontend/src/tests/app-integration/blog-content.integration.test.jsx",
+      "lane": "frontend-integration",
+      "flow_ids": [
+        "FLOW-FE-BLOG-002"
+      ],
+      "capability_tags": [
+        "blog-content-editor-ui",
+        "blog-content-revision-restore-ui"
+      ],
+      "migration_phase": "phase-3"
+    },
+    {
+      "test_file_path": "frontend/src/tests/app-integration/blog-engagement.integration.test.jsx",
+      "lane": "frontend-integration",
+      "flow_ids": [
+        "FLOW-FE-BLOG-003"
+      ],
+      "capability_tags": [
+        "blog-engagement-moderation-ui",
+        "blog-engagement-thread-inspector-ui"
+      ],
+      "migration_phase": "phase-3"
+    },
+    {
+      "test_file_path": "frontend/src/tests/app-integration/blog-distribution.integration.test.jsx",
+      "lane": "frontend-integration",
+      "flow_ids": [
+        "FLOW-FE-BLOG-004"
+      ],
+      "capability_tags": [
+        "blog-distribution-overview-ui",
+        "blog-distribution-publish-action-ui",
+        "blog-redirect-manager-ui"
+      ],
+      "migration_phase": "phase-3"
     }
   ]
 }
-

@@ -6,6 +6,7 @@
 ## Active Contracts
 1. `docs/contracts/delivery-scope-contract.md`
 2. `docs/contracts/quality-gate-contract.md`
+3. `docs/contracts/blog-management-module-set-contract.md`
 
 ## Active Artifacts
 1. `docs/contracts/artifacts/server-lane-manifest-v1.json`
@@ -16,4 +17,5 @@
 ## Contract Usage
 - `scripts/protocol-integrity-check.mjs` verifies that all active contracts and artifacts exist and are referenced here.
 - `scripts/quality-gate.mjs` enforces delivery checks and executes runtime/test verification lanes.
+- Module-specific delivery contracts for active tickets may live alongside these files even when only the coordinating module-set contract is indexed here.
 

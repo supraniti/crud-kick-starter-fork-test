@@ -1,0 +1,132 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-blog-distribution",
+  "version": "0.1.0",
+  "name": "Test Modules Blog Distribution",
+  "capabilities": [
+    "crud.collection",
+    "schema",
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-blog-distribution.install",
+    "uninstall": "test-modules-blog-distribution.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs",
+    "routes": "./server/routes.mjs"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Blog Distribution",
+      "icon": "alt_route",
+      "order": 510
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "collections": [
+    {
+      "id": "blog-redirect-rules",
+      "label": "Redirect Rules",
+      "entitySingular": "redirect-rule",
+      "primaryField": "sourcePath",
+      "description": "Deterministic permalink redirect registry for blog distribution workflows.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "sourcePath",
+          "label": "Source Path",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 320
+        },
+        {
+          "id": "targetPostId",
+          "label": "Target Post",
+          "type": "reference",
+          "required": false,
+          "collectionId": "blog-posts",
+          "labelField": "title",
+          "onDelete": "nullify"
+        },
+        {
+          "id": "targetUrl",
+          "label": "Target URL",
+          "type": "url",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 320
+        },
+        {
+          "id": "httpCode",
+          "label": "HTTP Code",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "301",
+            "302",
+            "307",
+            "308"
+          ],
+          "defaultValue": "301"
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "active",
+            "disabled"
+          ],
+          "defaultValue": "active"
+        },
+        {
+          "id": "reason",
+          "label": "Reason",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof",
+    "ticket": "blog-management-modules"
+  }
+}

@@ -18,6 +18,8 @@ import {
   waitForMissionJob
 } from "./helpers/reference-slice-runtime-test-helpers.js";
 
+const GENERATED_RUNTIME_CORE_TEST_TIMEOUT_MS = 20_000;
+
 async function copyGeneratedRuntimeCoreModules(tempModulesRoot) {
   const sourceRecordsModuleDir = path.resolve(
     process.cwd(),
@@ -132,7 +134,7 @@ export function registerReferenceSliceRuntimeLifecycleGeneratedCoreSuite() {
         force: true
       });
     }
-  });
+  }, GENERATED_RUNTIME_CORE_TEST_TIMEOUT_MS);
 
   test("generated runtime honors manifest primaryField semantics through API routes", async () => {
     const tempModulesRoot = await fs.mkdtemp(path.join(os.tmpdir(), "crud-control-modules-"));
@@ -308,7 +310,7 @@ export function registerReferenceSliceRuntimeLifecycleGeneratedCoreSuite() {
         force: true
       });
     }
-  });
+  }, GENERATED_RUNTIME_CORE_TEST_TIMEOUT_MS);
 
   test("generated runtime honors behavior.enforcePrimaryFieldUnique=false through API routes", async () => {
     const tempModulesRoot = await fs.mkdtemp(path.join(os.tmpdir(), "crud-control-modules-"));
@@ -461,7 +463,7 @@ export function registerReferenceSliceRuntimeLifecycleGeneratedCoreSuite() {
         force: true
       });
     }
-  });
+  }, GENERATED_RUNTIME_CORE_TEST_TIMEOUT_MS);
 
 }
 

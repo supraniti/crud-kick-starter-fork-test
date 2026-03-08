@@ -1,0 +1,154 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-blog-engagement",
+  "version": "0.1.0",
+  "name": "Test Modules Blog Engagement",
+  "capabilities": [
+    "crud.collection",
+    "schema",
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-blog-engagement.install",
+    "uninstall": "test-modules-blog-engagement.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Blog Engagement",
+      "icon": "forum",
+      "order": 500
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "collections": [
+    {
+      "id": "blog-comments",
+      "label": "Comments",
+      "entitySingular": "comment",
+      "primaryField": "authorDisplayName",
+      "description": "Moderated blog comments with deterministic approval and rejection flows.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "postId",
+          "label": "Post",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-posts",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "parentCommentId",
+          "label": "Parent Comment",
+          "type": "reference",
+          "required": false,
+          "collectionId": "blog-comments",
+          "labelField": "authorDisplayName",
+          "onDelete": "nullify"
+        },
+        {
+          "id": "authorDisplayName",
+          "label": "Author Display Name",
+          "type": "text",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 120
+        },
+        {
+          "id": "authorEmail",
+          "label": "Author Email",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 240
+        },
+        {
+          "id": "body",
+          "label": "Body",
+          "type": "text",
+          "required": true,
+          "minLength": 12,
+          "maxLength": 5000
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "pending",
+            "approved",
+            "rejected",
+            "spam"
+          ],
+          "defaultValue": "pending"
+        },
+        {
+          "id": "moderationReason",
+          "label": "Moderation Reason",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "approvedByAuthorId",
+          "label": "Moderator",
+          "type": "reference",
+          "required": false,
+          "collectionId": "blog-authors",
+          "labelField": "displayName",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "approvedOn",
+          "label": "Moderated On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof",
+    "ticket": "blog-management-modules"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": "lane-manifest-v1",
   "owner_surface": "server",
-  "generated_on": "2026-03-06",
+  "generated_on": "2026-03-08",
   "source_artifacts": [
     "docs/contracts/contract-index.md",
     "docs/contracts/quality-gate-contract.md"
@@ -12,10 +12,15 @@
     "active_module_ids": [
       "test-modules-crud-core",
       "test-modules-media-manager",
+      "test-modules-blog-content",
+      "test-modules-blog-distribution",
+      "test-modules-blog-engagement",
       "test-modules-relations-taxonomy",
       "test-modules-settings-policy",
       "test-modules-operations-dispatch",
-      "test-modules-remotes-publish"
+      "test-modules-remotes-publish",
+      "test-modules-blog-editorial",
+      "test-modules-blog-taxonomy"
     ],
     "module_id_alias_map": "docs/contracts/artifacts/module-id-alias-map-v1.json"
   },
@@ -534,7 +539,58 @@
         "m26-api-runner-replay"
       ],
       "migration_phase": "phase-5"
+    },
+    {
+      "test_file_path": "server/test/module-conformance/blog-editorial-taxonomy.module-conformance.test.js",
+      "lane": "module-conformance",
+      "flow_ids": [
+        "FLOW-RS-BLOG-001"
+      ],
+      "capability_tags": [
+        "blog-editorial-author-validation",
+        "blog-taxonomy-hierarchy-safety",
+        "blog-taxonomy-slug-integrity"
+      ],
+      "migration_phase": "phase-2"
+    },
+    {
+      "test_file_path": "server/test/module-conformance/blog-content.module-conformance.test.js",
+      "lane": "module-conformance",
+      "flow_ids": [
+        "FLOW-RS-BLOG-002"
+      ],
+      "capability_tags": [
+        "blog-content-lifecycle-validation",
+        "blog-content-revision-restore",
+        "blog-content-revision-timeline"
+      ],
+      "migration_phase": "phase-2"
+    },
+    {
+      "test_file_path": "server/test/module-conformance/blog-engagement.module-conformance.test.js",
+      "lane": "module-conformance",
+      "flow_ids": [
+        "FLOW-RS-BLOG-003"
+      ],
+      "capability_tags": [
+        "blog-comment-policy-enforcement",
+        "blog-comment-thread-integrity",
+        "blog-comment-moderation-workflow"
+      ],
+      "migration_phase": "phase-2"
+    },
+    {
+      "test_file_path": "server/test/module-conformance/blog-distribution.module-conformance.test.js",
+      "lane": "module-conformance",
+      "flow_ids": [
+        "FLOW-RS-BLOG-004"
+      ],
+      "capability_tags": [
+        "blog-distribution-publish-now-route",
+        "blog-redirect-source-normalization",
+        "blog-redirect-target-validation"
+      ],
+      "migration_phase": "phase-2"
     }
   ]
 }
-

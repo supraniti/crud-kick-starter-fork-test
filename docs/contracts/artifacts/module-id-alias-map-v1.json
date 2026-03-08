@@ -1,14 +1,19 @@
 {
-  "timestamp": "2026-03-06T21:30:00.000Z",
+  "timestamp": "2026-03-08T16:00:00.000Z",
   "sourceModulesDir": "modules",
   "extraMappingModuleIds": [],
   "targetModuleSet": [
     "test-modules-crud-core",
     "test-modules-media-manager",
-    "test-modules-operations-dispatch",
     "test-modules-relations-taxonomy",
+    "test-modules-settings-policy",
+    "test-modules-operations-dispatch",
     "test-modules-remotes-publish",
-    "test-modules-settings-policy"
+    "test-modules-blog-content",
+    "test-modules-blog-distribution",
+    "test-modules-blog-engagement",
+    "test-modules-blog-editorial",
+    "test-modules-blog-taxonomy"
   ],
   "mapping": {
     "records": "test-modules-crud-core",
@@ -49,7 +54,14 @@
     "wpx-posts": "test-modules-remotes-publish",
     "wpx-publish-jobs": "test-modules-remotes-publish",
     "digests": "test-modules-remotes-publish",
-    "briefs": "test-modules-remotes-publish"
+    "briefs": "test-modules-remotes-publish",
+    "blog-posts": "test-modules-blog-content",
+    "blog-post-revisions": "test-modules-blog-content",
+    "blog-redirect-rules": "test-modules-blog-distribution",
+    "blog-authors": "test-modules-blog-editorial",
+    "blog-tags": "test-modules-blog-taxonomy",
+    "blog-categories": "test-modules-blog-taxonomy",
+    "blog-comments": "test-modules-blog-engagement"
   },
   "groupedTargets": {
     "test-modules-crud-core": [
@@ -102,9 +114,26 @@
       "remotes",
       "wpx-posts",
       "wpx-publish-jobs"
+    ],
+    "test-modules-blog-content": [
+      "blog-post-revisions",
+      "blog-posts"
+    ],
+    "test-modules-blog-distribution": [
+      "blog-redirect-rules"
+    ],
+    "test-modules-blog-editorial": [
+      "blog-authors"
+    ],
+    "test-modules-blog-taxonomy": [
+      "blog-categories",
+      "blog-tags"
+    ],
+    "test-modules-blog-engagement": [
+      "blog-comments"
     ]
   },
-  "sourceModuleCount": 39,
-  "mappedSourceModuleCount": 39,
+  "sourceModuleCount": 46,
+  "mappedSourceModuleCount": 46,
   "unmappedSourceModuleIds": []
 }

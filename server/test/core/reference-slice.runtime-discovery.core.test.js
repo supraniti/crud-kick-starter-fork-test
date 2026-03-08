@@ -11,6 +11,11 @@ import {
 } from "../module-conformance/helpers/reference-slice-runtime-test-helpers.js";
 
 const ACTIVE_MODULE_IDS = Object.freeze([
+  "test-modules-blog-content",
+  "test-modules-blog-distribution",
+  "test-modules-blog-editorial",
+  "test-modules-blog-engagement",
+  "test-modules-blog-taxonomy",
   "test-modules-crud-core",
   "test-modules-media-manager",
   "test-modules-operations-dispatch",
@@ -31,7 +36,7 @@ function sortIds(values = []) {
 }
 
 export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
-  test("GET /api/reference/modules returns the active six-module navigation payload", async () => {
+  test("GET /api/reference/modules returns the active module navigation payload", async () => {
     const response = await spec().get("/api/reference/modules").expectStatus(200);
 
     expect(response.body.ok).toBe(true);
@@ -41,9 +46,29 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
 
     const ids = sortIds(response.body.items.map((item) => item.id));
     expect(ids).toEqual(ACTIVE_MODULE_IDS);
-    expect(response.body.items).toHaveLength(6);
+    expect(response.body.items).toHaveLength(ACTIVE_MODULE_IDS.length);
     expect(response.body.items).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          id: "test-modules-blog-content",
+          label: "Blog Content"
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-distribution",
+          label: "Blog Distribution"
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-engagement",
+          label: "Blog Engagement"
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-editorial",
+          label: "Blog Editorial"
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-taxonomy",
+          label: "Blog Taxonomy"
+        }),
         expect.objectContaining({
           id: "test-modules-crud-core",
           label: "Test Modules CRUD Core",
@@ -218,7 +243,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     }
   });
 
-  test("GET /api/reference/modules/runtime returns diagnostics and six-module ownership maps", async () => {
+  test("GET /api/reference/modules/runtime returns diagnostics and active ownership maps", async () => {
     const response = await spec().get("/api/reference/modules/runtime").expectStatus(200);
 
     expect(response.body.ok).toBe(true);
@@ -249,8 +274,8 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
           source: expect.any(String)
         }),
         moduleIdTranslation: expect.objectContaining({
-          discoveredModuleCount: 6,
-          discoveredTargetModuleCount: 6
+          discoveredModuleCount: ACTIVE_MODULE_IDS.length,
+          discoveredTargetModuleCount: ACTIVE_MODULE_IDS.length
         })
       })
     );
@@ -263,6 +288,13 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
 
     expect(response.body.runtime.moduleCollectionIds).toEqual(
       expect.arrayContaining([
+        "blog-comments",
+        "blog-post-revisions",
+        "blog-posts",
+        "blog-redirect-rules",
+        "blog-authors",
+        "blog-categories",
+        "blog-tags",
         "media-items",
         "records",
         "notes",
@@ -273,6 +305,13 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.collectionHandlerModuleMap).toEqual(
       expect.objectContaining({
+        "blog-posts": "test-modules-blog-content",
+        "blog-post-revisions": "test-modules-blog-content",
+        "blog-redirect-rules": "test-modules-blog-distribution",
+        "blog-comments": "test-modules-blog-engagement",
+        "blog-authors": "test-modules-blog-editorial",
+        "blog-tags": "test-modules-blog-taxonomy",
+        "blog-categories": "test-modules-blog-taxonomy",
         records: "test-modules-crud-core",
         "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
@@ -283,6 +322,13 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.collectionRepositoryModuleMap).toEqual(
       expect.objectContaining({
+        "blog-posts": "test-modules-blog-content",
+        "blog-post-revisions": "test-modules-blog-content",
+        "blog-redirect-rules": "test-modules-blog-distribution",
+        "blog-comments": "test-modules-blog-engagement",
+        "blog-authors": "test-modules-blog-editorial",
+        "blog-tags": "test-modules-blog-taxonomy",
+        "blog-categories": "test-modules-blog-taxonomy",
         records: "test-modules-crud-core",
         "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
@@ -307,6 +353,12 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.persistencePluginModuleMap).toEqual(
       expect.objectContaining({
+        "test-modules-blog-content-content-persistence": "test-modules-blog-content",
+        "test-modules-blog-distribution-distribution-persistence":
+          "test-modules-blog-distribution",
+        "test-modules-blog-engagement-comments-persistence": "test-modules-blog-engagement",
+        "test-modules-blog-editorial-authors-persistence": "test-modules-blog-editorial",
+        "test-modules-blog-taxonomy-taxonomy-persistence": "test-modules-blog-taxonomy",
         "test-modules-crud-core-records-persistence": "test-modules-crud-core",
         "test-modules-media-manager-media-persistence": "test-modules-media-manager",
         "test-modules-operations-dispatch-dispatches-persistence":
@@ -320,6 +372,11 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.settingsRepositoryModuleMap).toEqual(
       expect.objectContaining({
+        "test-modules-blog-content": expect.any(String),
+        "test-modules-blog-distribution": expect.any(String),
+        "test-modules-blog-engagement": expect.any(String),
+        "test-modules-blog-editorial": expect.any(String),
+        "test-modules-blog-taxonomy": expect.any(String),
         "test-modules-crud-core": expect.any(String),
         "test-modules-media-manager": expect.any(String),
         "test-modules-operations-dispatch": expect.any(String),
@@ -330,6 +387,31 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.items).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          id: "test-modules-blog-content",
+          state: "enabled",
+          collectionIds: expect.arrayContaining(["blog-posts", "blog-post-revisions"])
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-distribution",
+          state: "enabled",
+          collectionIds: expect.arrayContaining(["blog-redirect-rules"])
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-engagement",
+          state: "enabled",
+          collectionIds: expect.arrayContaining(["blog-comments"])
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-editorial",
+          state: "enabled",
+          collectionIds: expect.arrayContaining(["blog-authors"])
+        }),
+        expect.objectContaining({
+          id: "test-modules-blog-taxonomy",
+          state: "enabled",
+          collectionIds: expect.arrayContaining(["blog-tags", "blog-categories"])
+        }),
         expect.objectContaining({
           id: "test-modules-crud-core",
           state: "enabled",

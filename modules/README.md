@@ -5,6 +5,11 @@ This directory contains the active non-production module set used by runtime and
 Active modules:
 - `modules/test-modules-crud-core`
 - `modules/test-modules-media-manager`
+- `modules/test-modules-blog-content`
+- `modules/test-modules-blog-distribution`
+- `modules/test-modules-blog-engagement`
+- `modules/test-modules-blog-editorial`
+- `modules/test-modules-blog-taxonomy`
 - `modules/test-modules-relations-taxonomy`
 - `modules/test-modules-settings-policy`
 - `modules/test-modules-operations-dispatch`

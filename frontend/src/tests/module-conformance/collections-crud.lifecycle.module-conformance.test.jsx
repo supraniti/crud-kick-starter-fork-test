@@ -148,9 +148,9 @@ describe("Collections CRUD lifecycle", () => {
       expect(screen.getByText("Launch Checklist")).toBeInTheDocument();
     });
 
-    const linkedNoteFilterInput = await screen.findByLabelText("Filter by linked note");
+    const linkedNoteFilterInput = await screen.findByLabelText("Linked Notes");
     fireEvent.mouseDown(linkedNoteFilterInput);
-    const noteFilterListbox = await screen.findByRole("listbox", { name: "Filter by linked note" });
+    const noteFilterListbox = await screen.findByRole("listbox", { name: "Linked Notes" });
     fireEvent.click(within(noteFilterListbox).getByRole("option", { name: "Ops Followup" }));
     fireEvent.keyDown(noteFilterListbox, { key: "Escape" });
 
@@ -161,6 +161,7 @@ describe("Collections CRUD lifecycle", () => {
         limit: 25,
         search: "",
         status: "",
+        featured: "",
         noteId: "note-001"
       });
     });

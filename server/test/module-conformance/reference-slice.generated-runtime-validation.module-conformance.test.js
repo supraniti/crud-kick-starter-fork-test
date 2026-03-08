@@ -18,6 +18,8 @@ import {
   waitForMissionJob
 } from "./helpers/reference-slice-runtime-test-helpers.js";
 
+const GENERATED_RUNTIME_VALIDATION_TEST_TIMEOUT_MS = 20_000;
+
 async function copyGeneratedRuntimeCoreModules(tempModulesRoot) {
   const sourceRecordsModuleDir = path.resolve(
     process.cwd(),
@@ -199,7 +201,7 @@ export function registerReferenceSliceRuntimeLifecycleGeneratedValidationSuite()
         force: true
       });
     }
-  });
+  }, GENERATED_RUNTIME_VALIDATION_TEST_TIMEOUT_MS);
 
   test("records validation profile resolves enum constraints from module manifest", async () => {
     const tempModulesRoot = await fs.mkdtemp(path.join(os.tmpdir(), "crud-control-modules-"));
@@ -270,7 +272,7 @@ export function registerReferenceSliceRuntimeLifecycleGeneratedValidationSuite()
         force: true
       });
     }
-  });
+  }, GENERATED_RUNTIME_VALIDATION_TEST_TIMEOUT_MS);
 
 }
 

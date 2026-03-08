@@ -76,8 +76,11 @@ function useMediaSelection(collectionsDomain) {
   }, [collectionsDomain.activeCollectionId, collectionsDomain.handleSelectCollection]);
 
   const items = useMemo(
-    () => sortMediaItems(collectionsDomain.collectionItemsState.items),
-    [collectionsDomain.collectionItemsState.items]
+    () =>
+      collectionsDomain.activeCollectionId === MEDIA_ITEMS_COLLECTION_ID
+        ? sortMediaItems(collectionsDomain.collectionItemsState.items)
+        : [],
+    [collectionsDomain.activeCollectionId, collectionsDomain.collectionItemsState.items]
   );
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedMediaId) ?? null,

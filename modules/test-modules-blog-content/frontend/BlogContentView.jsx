@@ -1,0 +1,113 @@
+import { Alert, Paper, Stack, Typography } from "@mui/material";
+import {
+  ContentFilterBar,
+  PostList,
+  RevisionPanel,
+  SummaryCard,
+  optionItems
+} from "./BlogContentPanels.jsx";
+import { BlogContentEditorPanel } from "./BlogContentEditorPanel.jsx";
+import { useBlogContentWorkspace } from "./useBlogContentWorkspace.js";
+
+const POSTS_COLLECTION_ID = "blog-posts";
+
+function Hero({ activeModuleLabel }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        background: "linear-gradient(135deg, #111827 0%, #7c2d12 100%)",
+        color: "common.white"
+      }}
+    >
+      <Stack spacing={0.5}>
+        <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.75)" }}>
+          {activeModuleLabel}
+        </Typography>
+        <Typography variant="h4">Content Desk</Typography>
+        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
+          Workflow-oriented editing for posts, publication states, and deterministic revision
+          history.
+        </Typography>
+      </Stack>
+    </Paper>
+  );
+}
+
+function SummaryGrid({ summary }) {
+  return (
+    <Stack
+      direction={{ xs: "column", md: "row" }}
+      spacing={2}
+      sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}
+    >
+      <SummaryCard label="Total Posts" value={summary.total} />
+      <SummaryCard label="Draft Queue" value={summary.drafts} />
+      <SummaryCard label="Scheduled" value={summary.scheduled} />
+      <SummaryCard
+        label="Published"
+        value={summary.published}
+        tone={summary.published > 0 ? "attention" : "default"}
+      />
+    </Stack>
+  );
+}
+
+function WorkspaceLayout({ workspace }) {
+  const authorOptions = optionItems(workspace.referenceOptions, "blog-authors");
+  const categoryOptions = optionItems(workspace.referenceOptions, "blog-categories");
+  const tagOptions = optionItems(workspace.referenceOptions, "blog-tags");
+
+  return (
+    <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
+      <Stack sx={{ width: { xs: "100%", xl: 360 }, flexShrink: 0 }}>
+        <PostList
+          posts={workspace.posts}
+          selectedPostId={workspace.selectedPostId}
+          postHealthMap={workspace.postHealthMap}
+          onSelect={workspace.selectPost}
+          onCreate={workspace.startNew}
+        />
+      </Stack>
+
+      <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
+        <BlogContentEditorPanel workspace={workspace} />
+        <RevisionPanel
+          revisions={workspace.revisionState.items}
+          selectedRevision={workspace.selectedRevision}
+          loading={workspace.revisionState.loading}
+          errorMessage={workspace.revisionState.errorMessage}
+          authorOptions={authorOptions}
+          categoryOptions={categoryOptions}
+          tagOptions={tagOptions}
+          onSelectRevision={workspace.selectRevision}
+          onRestoreRevision={workspace.restoreRevision}
+        />
+      </Stack>
+    </Stack>
+  );
+}
+
+export function BlogContentView({ activeModuleLabel, collectionsDomain }) {
+  const workspace = useBlogContentWorkspace({
+    collectionsDomain
+  });
+  const authorOptions = optionItems(workspace.referenceOptions, "blog-authors");
+
+  if (
+    !collectionsDomain.isActiveCollectionAvailable &&
+    collectionsDomain.activeCollectionId === POSTS_COLLECTION_ID
+  ) {
+    return <Alert severity="warning">{collectionsDomain.activeCollectionUnavailableMessage}</Alert>;
+  }
+
+  return (
+    <Stack spacing={2}>
+      <Hero activeModuleLabel={activeModuleLabel} />
+      <SummaryGrid summary={workspace.summary} />
+      <ContentFilterBar collectionsDomain={collectionsDomain} authorOptions={authorOptions} />
+      <WorkspaceLayout workspace={workspace} />
+    </Stack>
+  );
+}

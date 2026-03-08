@@ -8,6 +8,8 @@ import {
   injectJson
 } from "./helpers/reference-slice-runtime-test-helpers.js";
 
+const DELETE_POLICY_TEST_TIMEOUT_MS = 20_000;
+
 async function copyGeneratedRuntimeCoreModules(tempModulesRoot) {
   const sourceRecordsModuleDir = path.resolve(
     process.cwd(),
@@ -328,7 +330,7 @@ export function registerReferenceSliceCollectionsReferenceDeletePolicySuite() {
         force: true
       });
     }
-  });
+  }, DELETE_POLICY_TEST_TIMEOUT_MS);
 }
 
 

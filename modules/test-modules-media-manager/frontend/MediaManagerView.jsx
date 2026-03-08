@@ -25,6 +25,15 @@ const USAGE_LABEL_OPTIONS = [
   "thumbnail"
 ];
 
+function resolveMimeLabel(item) {
+  const mimeType = typeof item?.mimeType === "string" ? item.mimeType : "";
+  if (mimeType.startsWith("image/")) {
+    return mimeType.replace("image/", "");
+  }
+
+  return mimeType || "unknown";
+}
+
 function MediaCard({
   item,
   selected,
@@ -66,7 +75,7 @@ function MediaCard({
             <Stack direction="row" spacing={1} flexWrap="wrap">
               <Chip size="small" label={item.status} color={item.status === "failed" ? "error" : "default"} />
               {item.isDerived ? <Chip size="small" label="Derived" color="secondary" /> : null}
-              <Chip size="small" label={item.mimeType.replace("image/", "")} />
+              <Chip size="small" label={resolveMimeLabel(item)} />
             </Stack>
             <Typography variant="subtitle2">{item.displayName}</Typography>
             <Typography variant="caption" color="text.secondary">

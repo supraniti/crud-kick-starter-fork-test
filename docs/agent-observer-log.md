@@ -78,3 +78,111 @@
 - Improve:
   - prefer module-location-anchored or repo-root-anchored runtime paths for persisted artifacts
   - include one live-run filesystem assertion in module tickets where the acceptance criteria depend on durable files, not just API records
+
+### 2026-03-07 - Blog Ticket Reset
+- Tasks:
+  - reviewed the abandoned blog implementation
+  - extracted postmortem artifacts and a restart plan
+  - stashed the implementation so only recovery docs remain visible
+  - re-ran baseline validation after the stash
+- Easy:
+  - the bad pattern was obvious once the delta was inventoried: too much code landed in a new shared server blog layer instead of module-local surfaces
+  - the ticket itself was still clear enough to rewrite as a clean restart plan
+- Hard:
+  - the repo’s raw `pnpm test` and the official gate do not currently tell the same story on the cleaned baseline
+  - once the blog code was stashed, baseline failures remained in module-id alignment and boolean-filter expectations, so the repo is not fully green from the committed state alone
+- Improve:
+  - require an explicit capability-gap audit before any Level 3 or Level 4 work starts
+  - require a per-ticket checkpoint that lists every existing non-module file touched, so architectural drift is visible before it spreads
+  - treat “baseline green before feature work” as a hard preflight, not an assumption
+
+### 2026-03-08 - Blog Restart Preflight And Contract Recovery
+- Tasks:
+  - fixed the baseline frontend conformance mismatch around generic boolean filters
+  - re-ran the official frontend conformance lane and full quality gate to restore a green starting point
+  - wrote the blog module-set contract, five per-module contracts, and a capability-gap audit
+- Easy:
+  - once the baseline was checked against the committed media-manager/core tests, the boolean-filter failure was clearly an outdated conformance expectation rather than a code regression
+  - the repo already has the key module seams needed for blog delivery: custom route views, module-owned routes, missions, field-type plugins, and reference UI controls
+- Hard:
+  - additive module work will necessarily touch a small number of core/runtime discovery tests because they currently hard-code the six-module active surface
+  - `date-time` is a real cross-module data-model gap, but it should not trigger a new shared primitive until a slice proves the simpler module-owned approach is insufficient
+- Improve:
+  - keep active-surface expectations in one generated source instead of repeating exact module counts in discovery tests
+  - add a documented decision path for introducing new neutral field types so agents do not guess between module-local text handling and premature core extraction
+
+### 2026-03-08 - Blog Slice A Delivery
+- Tasks:
+  - delivered `test-modules-blog-editorial` and `test-modules-blog-taxonomy` additively
+  - updated runtime discovery and module-id artifacts for the expanded active module surface
+  - added focused server/frontend tests and reran the full release gate
+- Easy:
+  - the repo’s generated collection handlers and module-owned custom route views were enough for the initial blog slices without any new shared core primitive
+  - namespaced internal IDs (`blog-*`) cleanly avoided the earlier collision pattern with permanent baseline modules
+- Hard:
+  - the authoritative server conformance lane depends on `REFERENCE_MODULE_ID_TRANSLATION_MODE=dual-compat`; running the lane raw without that env still produces distracting legacy-alias noise
+  - expanding the active module surface pushed several ephemeral-server conformance tests past the default `5s` test budget even though the runtime behavior was still correct
+- Improve:
+  - make the dynamic lane runner print its required translation mode more explicitly so raw lane runs fail less opaquely
+  - centralize slow conformance timeout policy for temp-module/ephemeral-server tests instead of rediscovering it after each module-surface expansion
+
+### 2026-03-08 - Blog Slice B Delivery
+- Tasks:
+  - delivered `test-modules-blog-content` additively
+  - added module-local post/revision behavior, including revision restore through a module-owned route
+  - updated active-surface artifacts and reran the full release gate
+- Easy:
+  - the repo already had the right seams for content ownership once the work stayed module-local: wrapped collection handlers, module-owned routes, and custom route views were enough
+  - focused server/frontend tests were effective at catching restore-route payload drift before the full gate
+- Hard:
+  - the first working version still violated the repo’s architectural lint contracts because the view, workspace hook, and server helpers were too large and too branch-heavy
+  - `repo-loc` and `function-shape` failures arrived after behavior was correct, so architectural compliance had to be treated as part of feature completion, not polish
+- Improve:
+  - design large module slices against lint boundaries from the start by planning smaller files and helper seams before the first implementation pass
+  - when a module owns both workflow UI and route logic, budget time for a second pass that reduces decision density without widening the core surface
+
+### 2026-03-08 - Blog Slice C Delivery
+- Tasks:
+  - delivered `test-modules-blog-engagement` additively
+  - added module-local moderation behavior for `blog-comments`
+  - updated active-surface artifacts and reran the full release gate
+- Easy:
+  - moderation behavior fit cleanly into module-local collection-handler wrapping and a custom route view without any new core primitive
+  - focused frontend integration coverage caught the queue/detail workflow cheaply before the full gate
+- Hard:
+  - raw server conformance output is still noisy when the repo-specific module-id translation mode is not active, which makes local diagnosis look worse than the authoritative gate result
+  - UI assertions that rely on broad repeated text are fragile once the workflow view contains summary cards and repeated status labels
+- Improve:
+  - keep integration tests anchored to explicit labels or roles instead of repeated free text whenever a workflow screen includes dashboards and detail panes
+  - document the authoritative module-id translation mode closer to the dynamic conformance commands so ad hoc runs do not mislead future agents
+
+### 2026-03-08 - Blog Slice D Delivery
+- Tasks:
+  - delivered `test-modules-blog-distribution` additively
+  - added module-local redirect validation, publish-now coordination, and a custom distribution workspace
+  - reran the full release gate to close the five-module blog ticket surface
+- Easy:
+  - distribution ownership fit cleanly once the module limited itself to redirect rules plus coordination with `blog-posts`, instead of trying to re-own post lifecycle or SEO persistence
+  - the repo-native quality gate was a reliable closure mechanism even when direct single-file vitest commands were noisy in the sandbox
+- Hard:
+  - the failing redirect-rule test came from an interaction between module-local conflict logic and the shared URL field plugin default of `\"\"`, which produced a false positive “both targets set” state
+  - direct `pnpm --filter server exec vitest run ...` remained unreliable here because of sandbox worker spawning, so targeted diagnosis had to happen through in-memory server reproduction plus the authoritative gate
+- Improve:
+  - when module-local validation sits on top of shared field-type plugins, treat plugin default values as part of the contract instead of assuming `undefined`/`null`
+  - keep a small reproducible inline-server debugging pattern handy for route/handler issues, because it is more reliable in this environment than ad hoc single-file vitest runs
+
+### 2026-03-08 - Blog Manual QA Closure
+- Tasks:
+  - reran the actual operator flows in the live browser across editorial, taxonomy, content, media, and distribution
+  - converted live findings into focused module-local fixes
+  - reran targeted tests and the full release gate after the browser pass
+- Easy:
+  - the live browser was the fastest way to separate real workflow defects from static code-review anxiety; several issues became obvious in minutes once the flows were exercised
+  - the module boundaries held: every production-relevant fix from this pass stayed in blog/media module code or in one small generic filter-label surface
+- Hard:
+  - UI automation via devtools was less reliable for MUI form fields than direct DOM event dispatch, so validating the real flows still required some low-level interaction work
+  - create-flow state bugs can hide behind successful persistence; the post was saved correctly, but the operator experience still failed because selection handoff raced the collection reload
+  - a full release gate can fail for environment reasons after product behavior is already green; here the smoke lane failed only because the live review server still owned `3001`
+- Improve:
+  - add at least one explicit “create new record stays selected after save” integration test pattern to module-first workflow tickets where a custom editor owns selection state
+  - when a ticket requires live browser review, document whether the final gate should run with the review app stopped to avoid rediscovering smoke-lane port conflicts

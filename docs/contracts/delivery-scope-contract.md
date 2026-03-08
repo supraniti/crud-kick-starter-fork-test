@@ -24,3 +24,8 @@
   - `modules/test-modules-operations-dispatch`
   - `modules/test-modules-remotes-publish`
   - `modules/test-modules-media-manager`
+  - `modules/test-modules-blog-content`
+  - `modules/test-modules-blog-distribution`
+  - `modules/test-modules-blog-engagement`
+  - `modules/test-modules-blog-editorial`
+  - `modules/test-modules-blog-taxonomy`

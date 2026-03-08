@@ -15,16 +15,20 @@ import {
   singularizeCollectionLabel
 } from "../../domains/collections/domain-helpers.js";
 import { normalizeMultiSelectValue } from "./constants.js";
-import { stripReferenceSingleSuffix } from "../../runtime/shared-capability-bridges/reference-field-key-utils.mjs";
 
-function toReferenceFilterLabel(field, config) {
-  if (config.type === "reference") {
-    const normalizedFieldId = stripReferenceSingleSuffix(field.id);
-    return `Filter by ${normalizedFieldId.toLowerCase()}`;
-  }
-
-  const singularLabel = singularizeCollectionLabel(field.label);
-  return `Filter by ${singularLabel.toLowerCase()}`;
+function resolveSearchLabel(schema, activeCollectionId) {
+  const primaryFieldId =
+    typeof schema?.primaryField === "string" && schema.primaryField.length > 0
+      ? schema.primaryField
+      : "title";
+  const fields = resolveCollectionSchemaFields(schema, activeCollectionId);
+  const primaryField =
+    fields.find((field) => field.id === primaryFieldId) ?? null;
+  const primaryLabel =
+    typeof primaryField?.label === "string" && primaryField.label.length > 0
+      ? primaryField.label.toLowerCase()
+      : singularizeCollectionLabel(primaryFieldId).toLowerCase();
+  return `Search ${primaryLabel}`;
 }
 
 function toSelectOptions(field) {
@@ -73,7 +77,7 @@ function CollectionFiltersPanel({
             name="search"
             size="small"
             fullWidth
-            label="Search title"
+            label={resolveSearchLabel(schema, activeCollectionId)}
             value={filterState.search}
             disabled={controlsDisabled}
             onChange={(event) => onChangeFilter("search", event.target.value)}
@@ -145,7 +149,7 @@ function CollectionFiltersPanel({
             }
 
             if (fieldConfig.type === "reference" || fieldConfig.type === "reference-multi") {
-              const label = toReferenceFilterLabel(field, fieldConfig);
+              const label = field.label;
               const labelId = `${field.id}-filter-label`;
               const selectId = `${field.id}-filter-select`;
               const optionsState = referenceOptionsState?.[field.collectionId] ?? {
