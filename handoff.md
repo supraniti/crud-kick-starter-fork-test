@@ -316,5 +316,7 @@
 
 ## Next Actions
 1. Manual repo review of the delivered blog modules plus the module-local blog-content typing-latency follow-up.
-2. Prepare commit(s) once review is complete.
+2. Architecture follow-up tickets were intentionally moved out of the repo and are not tracked:
+   - `M02-T01-current-capability-module-realignment.md`
+   - `M02-T02-pages-module-evolution.md`
 3. Leave `stash@{0}` untouched unless there is an explicit decision to delete the abandoned prototype stash.
