@@ -14,6 +14,7 @@
       "test-modules-media-manager",
       "test-modules-content",
       "test-modules-pages",
+      "test-modules-layouts",
       "test-modules-engagement",
       "test-modules-relations-taxonomy",
       "test-modules-settings-policy",
@@ -589,6 +590,18 @@
         "blog-distribution-publish-now-route",
         "blog-redirect-source-normalization",
         "blog-redirect-target-validation"
+      ],
+      "migration_phase": "phase-2"
+    },
+    {
+      "test_file_path": "server/test/module-conformance/layouts.module-conformance.test.js",
+      "lane": "module-conformance",
+      "flow_ids": [
+        "FLOW-RS-LAYOUTS-001"
+      ],
+      "capability_tags": [
+        "layouts-builder-record-validation",
+        "layouts-page-delivery-reference"
       ],
       "migration_phase": "phase-2"
     }

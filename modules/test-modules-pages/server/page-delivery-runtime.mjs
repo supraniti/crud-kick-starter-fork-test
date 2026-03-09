@@ -2,6 +2,7 @@ import {
   AUTHORS_COLLECTION_ID,
   CATEGORIES_COLLECTION_ID,
   DATA_SOURCE_KIND_SET,
+  LAYOUTS_COLLECTION_ID,
   MODULE_ID,
   POSTS_COLLECTION_ID,
   TAGS_COLLECTION_ID,
@@ -17,6 +18,7 @@ import {
   resolveSourceCollectionId,
   toTimestamp
 } from "./distribution-shared-runtime.mjs";
+import { parseStoredLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
 
 function toArray(value) {
   return Array.isArray(value) ? value : [];
@@ -237,11 +239,21 @@ function buildHeadModel(page, primaryRecord = null) {
   };
 }
 
-function buildRenderModel(page = {}) {
+async function buildRenderModel(page = {}, collectionHandlerRegistry) {
+  const layoutsHandler = collectionHandlerRegistry.get(LAYOUTS_COLLECTION_ID);
+  const layout = page.layoutId && layoutsHandler && typeof layoutsHandler.findById === "function"
+    ? await layoutsHandler.findById(page.layoutId)
+    : null;
+  const layoutDocument = layout
+    ? (layout.layoutDocument ?? parseStoredLayoutDocument(layout.layoutDocumentJson))
+    : null;
+
   return {
-    layoutKey: page.layoutKey,
+    layoutId: page.layoutId ?? null,
+    layoutKey: layout?.layoutKey ?? page.layoutKey,
     pageKind: page.pageKind,
     layoutModel: cloneJsonValue(page.layoutModel ?? {}),
+    layoutDocument: cloneJsonValue(layoutDocument),
     bindings: {
       hero: page.layoutModel?.heroBinding ?? "primary",
       body: page.layoutModel?.bodyBinding ?? "primary",
@@ -281,6 +293,7 @@ function buildPageSummary(page = {}) {
     status: page.status,
     pageKind: page.pageKind,
     primarySourceType: page.primarySourceType,
+    layoutId: page.layoutId ?? null,
     layoutKey: page.layoutKey,
     layoutModel: cloneJsonValue(page.layoutModel ?? {}),
     runtimeScriptUrls: normalizeScriptUrlList(page.runtimeScriptUrls),
@@ -309,6 +322,7 @@ export async function resolvePageDeliveryPayload({
     dataSourceDescriptors.map((descriptor) => resolveDescriptor(collectionHandlerRegistry, descriptor))
   );
   const primaryRecord = resolvedPrimary?.value?.record ?? null;
+  const renderModel = await buildRenderModel(page, collectionHandlerRegistry);
   const dependencyKeys = mergeDependencyKeys([
     resolvedPrimary ?? { dependencyKeys: [] },
     ...resolvedSources,
@@ -316,12 +330,15 @@ export async function resolvePageDeliveryPayload({
       dependencyKeys: [createDependencyKey("blog-pages", page.id)]
     }
   ]);
+  const resolvedDependencyKeys = page.layoutId
+    ? [...new Set([...dependencyKeys, createDependencyKey(LAYOUTS_COLLECTION_ID, page.layoutId)])]
+    : dependencyKeys;
 
   return {
     contractVersion: 1,
     page: buildPageSummary(page),
     head: buildHeadModel(page, primaryRecord),
-    renderModel: buildRenderModel(page),
+    renderModel,
     resolvedSources: buildResolvedSourceSummaries(primarySource, resolvedPrimary, resolvedSources),
     data: buildResolvedDataMap(primarySource, resolvedPrimary, resolvedSources),
     followUp: {
@@ -332,7 +349,7 @@ export async function resolvePageDeliveryPayload({
     versioning: {
       publishModel: page.renderPolicy?.publishModel ?? "live-reference",
       previewMode: preview ? "preview" : "delivery",
-      dependencyKeys
+      dependencyKeys: resolvedDependencyKeys
     },
     resolvedAt: toTimestamp()
   };

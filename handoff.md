@@ -255,6 +255,7 @@
 - `docs/contracts/delivery-scope-contract.md`
 - `docs/contracts/quality-gate-contract.md`
 - `docs/contracts/blog-management-module-set-contract.md`
+- `docs/contracts/test-modules-layouts-module-contract.md`
 - `docs/contracts/blog-management-capability-audit.md`
 - `docs/contracts/test-modules-blog-editorial-module-contract.md`
 - `docs/contracts/test-modules-blog-taxonomy-module-contract.md`
@@ -522,3 +523,315 @@
 3. If a post-T01 cleanup is requested before T02, scope it narrowly around removing compatibility-mirror publication fields from `blog-posts` without breaking revision/restore behavior.
 4. Leave `stash@{0}` untouched unless there is an explicit decision to delete the abandoned prototype stash.
 
+## Layout Builder Phase 1 Planning
+- Date: `2026-03-09`
+- Requested outcome:
+  - add a dedicated page-layout configuration UI with drag/drop positioning and resizing
+  - keep the first phase focused on container + nested empty layout blocks only
+  - make the layout map to JSON cleanly
+  - treat layouts as a candidate reusable module instead of a page-inline-only feature
+  - stop at design approval before implementation
+- Current verified baseline:
+  - `test-modules-pages` already stores page-inline `layoutKey` and `layoutModel`
+  - current `layoutModel` is still form-driven and page-local; there is no reusable layout collection or drag/drop surface
+  - frontend currently has MUI only; no drag/resizable layout library is installed
+- Planning constraints locked from the request and existing repo rules:
+  - update progress pointers first
+  - plan/design must be approved before code starts
+  - prefer MUI surfaces for operator UI
+  - if thin native HTML is used for the actual canvas/container structure, it must stay inside the new module-local builder surface and not replace existing form controls
+  - no shared/core refactor without explicit approval
+- Current recommended direction before approval:
+  - introduce an additive reusable module, `test-modules-layouts`
+  - keep `test-modules-pages` as the consumer of selected layouts rather than the owner of reusable layout assets
+  - add a `page-layouts` collection with JSON layout definitions and operator metadata
+  - add a dedicated full-screen builder surface instead of squeezing the interaction into the current pages form
+  - keep phase 1 to a single desktop canvas model with an extensible JSON shape; defer multi-breakpoint responsive editing to a later ticket
+  - maintain compatibility by allowing `test-modules-pages` to keep reading legacy inline `layoutModel` until pages are migrated to referenced layout records
+- Research note:
+  - MUI provides the operator-shell primitives needed for a polished builder shell (`Dialog`, `Drawer`, `Stack`, `Paper`, etc.) but not the drag/resizable canvas behavior itself
+  - the likely interaction candidate is `react-grid-layout`, because it already provides draggable/resizable grid layouts and JSON-serializable state; this needs explicit approval as a new dependency before implementation
+- Approval boundary:
+  - do not code the builder until the module boundary, JSON model, UI surface, and dependency choice are approved
+
+## Layout Builder Phase 1 Execution Status
+- Date: `2026-03-09`
+- Closure status:
+  - closed in the working tree
+  - authoritative repo gate is green
+- Delivered module surface:
+  - additive module `test-modules-layouts`
+  - reusable collection `page-layouts`
+  - dedicated route-owned builder UI under `test-modules-layouts`
+  - `test-modules-pages` now references reusable layouts through `layoutId`
+- Delivered behavior:
+  - reusable layout records round-trip deterministic layout JSON through module-local parse/serialize handling
+  - phase-1 builder supports:
+    - root/nested `grid` and `flex` containers
+    - empty block nodes
+    - drag/drop ordering and movement
+    - inspector-driven sizing/configuration
+  - page delivery payloads now resolve referenced reusable layouts and expose:
+    - `renderModel.layoutId`
+    - `renderModel.layoutKey`
+    - `renderModel.layoutDocument`
+    - version dependency key `page-layouts:<layoutId>`
+  - `test-modules-pages` keeps legacy inline `layoutModel` as compatibility fallback when no `layoutId` is selected
+- Primary implementation files:
+  - `docs/contracts/test-modules-layouts-module-contract.md`
+  - `modules/test-modules-layouts/module.json`
+  - `modules/test-modules-layouts/shared/layout-document.mjs`
+  - `modules/test-modules-layouts/server/layouts-handler-runtime.mjs`
+  - `modules/test-modules-layouts/frontend/LayoutsView.jsx`
+  - `modules/test-modules-layouts/frontend/LayoutBuilderCanvas.jsx`
+  - `modules/test-modules-layouts/frontend/LayoutBuilderInspector.jsx`
+  - `modules/test-modules-layouts/frontend/useLayoutsWorkspace.js`
+  - `modules/test-modules-pages/module.json`
+  - `modules/test-modules-pages/frontend/useBlogDistributionWorkspace.js`
+  - `modules/test-modules-pages/server/page-delivery-runtime.mjs`
+  - `frontend/vite.config.js`
+- Verification completed on `2026-03-09`:
+  - `pnpm test:frontend:integration:dynamic`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Important command nuance:
+  - raw `pnpm test:server:conformance:dynamic` without the gate env still surfaces expected module-id translation noise on this machine
+  - authoritative truth remains the full gate or any lane run with `REFERENCE_MODULE_ID_TRANSLATION_MODE=dual-compat`
+- Live browser QA completed on `2026-03-09`:
+  - app was started on `localhost:3000` / `127.0.0.1:3001` outside the sandbox because local dev servers hit Windows `spawn EPERM` inside the sandbox
+  - the `Layouts` route loaded and accepted operator edits
+  - a reusable layout record was created with two grid blocks
+  - the `Pages` route consumed that reusable layout through `Layout Record`
+  - saving the page updated the delivery preview so it resolved:
+    - `layoutId`
+    - `layoutDocument`
+    - dependency key `page-layouts:pagelayo-001`
+
+## Layout Builder Phase 2 Research And Improvement Plan
+- Date: `2026-03-09`
+- Status:
+  - phase 2 implemented in the working tree
+  - authoritative full gate is green
+- Review feedback captured from manual UX review:
+  - inserting more than one block into the same container is effectively not workable
+  - drop targets are too narrow and often feel like swap/reorder targets instead of insertion targets
+  - add controls are not discoverable enough
+  - block editing actions are too hidden and not intuitive
+- Hard-file plan:
+  - `docs/contracts/test-modules-layouts-phase-2-plan.md`
+- Local root causes confirmed from the current code:
+  - `LayoutBuilderCanvas.jsx` renders only one explicit drop strip per container before the child list
+  - the active drag model applies listeners to the full node card instead of a dedicated drag handle
+  - add/remove/edit actions depend too heavily on `LayoutBuilderInspector.jsx`
+  - insertion targeting is based on container-strip or sibling inference, so drag intent is too ambiguous
+- Research-backed direction:
+  - keep the current module boundary: `test-modules-layouts` owns reusable layout records and the builder
+  - keep the JSON contract shape stable
+  - add a persistent `Insert` + `Layers` left rail, keep the inspector on the right, keep the canvas in the center
+  - move to larger, explicit insertion affordances:
+    - full empty-state CTA in empty containers
+    - insertion rails before, between, and after siblings
+    - selected-container inline add controls
+  - separate selection from dragging with dedicated drag handles
+  - add a contextual quick-action toolbar for the selected node
+- Suggested implementation order:
+  1. interaction foundations: drag handle + insert-vs-reorder target model
+  2. canvas accessibility: empty-state CTA + insertion rails + inline add controls
+  3. builder navigation: `Layers` tree and `Insert` panel
+  4. editing UX: quick-action toolbar, breadcrumbs, better inspector grouping
+- Suggested test-first additions:
+  - model tests for `before-node`, `after-node`, `inside-start`, `inside-end`
+  - frontend integration tests for multiple insertions into one container, between-sibling insertion, cross-container movement, and layers-tree selection
+- Research note:
+  - commercial tools repeatedly converge on the same pattern:
+    - explicit insert surface
+    - persistent layers/navigator surface
+    - persistent properties inspector
+    - contextual quick actions near the selected node
+- Sources captured in the phase-2 plan:
+  - Builder.io docs
+  - Webflow help docs
+  - Wix editor help docs
+- Next action:
+  - manual review / commit preparation
+
+## Layout Builder Phase 2 Execution Status
+- Date: `2026-03-09`
+- Closure status:
+  - closed in the working tree
+  - `pnpm quality:gate:full` passed
+- Delivered UX changes:
+  - left rail now exposes persistent `Insert` and `Layers` surfaces
+  - empty containers expose full-size `Add First Block` / `Add Grid Container` / `Add Flex Container` CTAs
+  - populated containers expose visible insertion rails before, between, and after children
+  - drag is now bound to dedicated `DRAG` handles instead of the full node card
+  - selected nodes expose on-canvas quick actions:
+    - blocks: `Add Before`, `Add After`, `Remove`
+    - containers: `Add Block`, `Add Grid`, `Add Flex`, `Remove`
+  - breadcrumbs/path chips now surface selection context in both the canvas and the inspector
+  - add semantics no longer fall back to the root container when the current selection is a block
+- Model/test additions:
+  - focused model tests added in `frontend/src/tests/core/layout-builder-model.core.test.jsx`
+  - integration coverage expanded in `frontend/src/tests/app-integration/layouts.integration.test.jsx`
+- Test harness adjustments:
+  - explicit `15000ms` timeouts were added to a small set of long-path frontend integration tests that were hitting default `5000ms` ceilings under the larger suite:
+    - `frontend/src/tests/app-integration/layouts.integration.test.jsx`
+    - `frontend/src/tests/app-integration/blog-content.integration.test.jsx`
+    - `frontend/src/tests/app-integration/blog-distribution.integration.test.jsx`
+    - `frontend/src/tests/app-integration/media-manager.integration.test.jsx`
+- Live browser QA completed on `2026-03-09`:
+  - verified a new layout starts with a full empty-container CTA
+  - verified an insertion rail can place a new block between existing siblings without drag/swap ambiguity
+  - verified the `Layers` rail selects nodes and keeps the inspector synced
+  - verified selected-node quick actions are visible on the canvas
+- Current review state:
+  - app is currently running for manual review on `http://localhost:3000/app/test-modules-layouts`
+  - API health is on `http://127.0.0.1:3001/health`
+- Post-QA visual-density finding:
+  - after live review with saved screenshots, the main remaining usability issue is not insertion anymore; it is canvas density
+  - the builder still renders blocks and containers as information-heavy control cards instead of mostly-empty spatial primitives
+  - screenshot evidence captured under:
+    - `.codex-runtime/layout-review/step-01-existing-layout.png`
+    - `.codex-runtime/layout-review/step-02-empty-state.png`
+    - `.codex-runtime/layout-review/step-03-first-block-clutter.png`
+    - `.codex-runtime/layout-review/step-04-nested-container-clutter.png`
+  - concrete problem observed:
+    - ids, kind chips, drag buttons, quick-action buttons, rail copy, and inspector duplication make it hard to read the actual layout shape
+    - the problem compounds quickly as soon as a container is nested
+  - likely next UX direction:
+    - make the canvas mostly spatial
+    - move metadata/action density to hover/selection chrome, left rail, and inspector
+    - keep blocks visually empty by default
+    - keep container frames lightweight and hierarchy-first
+
+## Layout Builder Visual-Density Follow-Up Status
+- Date: `2026-03-09`
+- Closure status:
+  - implemented in the working tree
+  - authoritative `pnpm quality:gate:full` passed after the follow-up pass
+- Follow-up goal:
+  - make the builder readable on the next review pass by reducing persistent chrome and fixing the page-level shell composition on normal desktop widths
+- Delivered follow-up changes:
+  - `modules/test-modules-layouts/frontend/LayoutBuilderCanvas.jsx`
+    - canvas nodes now stay mostly geometric by default
+    - overlay actions remain compact and selection/hover driven
+  - `modules/test-modules-layouts/frontend/LayoutsView.jsx`
+    - builder shell switches to a three-column layout at `lg` instead of `xl`
+    - left rail and inspector stay sticky on desktop so the canvas remains the center of the workflow
+  - `modules/test-modules-layouts/frontend/LayoutBuilderInspector.jsx`
+    - record/settings/debug panels moved into accordions
+    - `Layout JSON` is collapsed by default
+    - duplicated add controls were removed from the inspector so add flows stay on the canvas and left rail
+  - `modules/test-modules-layouts/frontend/LayoutBuilderLeftRail.jsx`
+    - layers list no longer renders raw node ids
+- Live browser QA completed on `2026-03-09`:
+  - verified the cleaned desktop shell with screenshot evidence:
+    - `.codex-runtime/layout-review/step-08-live-desktop-after-layout-shell-fix.png`
+    - `.codex-runtime/layout-review/step-09-new-layout-clean-shell.png`
+  - verified `New Layout` now exposes:
+    - empty-state CTA in the canvas
+    - `Create Layout` state in the inspector
+    - a readable three-column builder shell
+- Verification completed on `2026-03-09`:
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+    - passed (required escalated run because this machine hit Windows `spawn EPERM` in the sandbox)
+  - `pnpm quality:protocol`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Current review judgment:
+  - this judgment was too optimistic; the next manual review rejected the builder as still unusable
+  - treat the current builder as a failed prototype that proved some mechanics, not as an acceptable product surface
+
+## Layout Builder Reset Required
+- Date: `2026-03-09`
+- Manual review outcome:
+  - rejected as still unusable
+- Verified rejection reasons from the review:
+  - the builder still uses too little of the available page width
+  - a newly added container can render as a narrow rectangle instead of a credible containing surface
+  - insertion and resulting layout structure are still too scrambled to understand quickly
+- Required next-step posture:
+  - do not continue with cosmetic tweaks on top of the current canvas
+  - perform a design reset driven by target-state builder behavior and real reference products
+- Non-negotiable design constraints for the reset:
+  - use the full workspace width for layout editing, likely through a dedicated full-width route or builder-focused shell
+  - containers must visually contain child space
+  - populated layouts must remain legible at a glance
+  - insert/select/reorder actions must be obvious from the rendered layout itself
+- Recommended reset plan before more code:
+  1. research concrete visual references from mature builders
+  2. define the exact target state for:
+     - empty container
+     - populated container
+     - selected block
+     - selected container
+     - insertion target
+     - drag/reorder affordance
+  3. sketch the new interaction model in the hard plan
+  4. only then replace the current canvas/shell implementation
+
+
+## Layout Builder Reset Delivery Status
+- Date: `2026-03-09`
+- Status:
+  - implemented in the working tree
+  - authoritative `pnpm quality:gate:full` passed after the reset
+  - this supersedes the earlier rejection state for the builder shell/canvas direction
+- Delivered reset surface:
+  - `test-modules-layouts` now renders as a dedicated immersive builder route
+  - the layouts route hides the global module sidebar so the builder uses the full app width
+  - `LayoutsView.jsx` now uses a builder-first workspace layout:
+    - left rail
+    - central page stage
+    - inspector below or beside the stage depending on viewport width
+  - `LayoutBuilderCanvas.jsx` now treats the page as a stage with explicit top-level add actions
+  - `LayoutBuilderCanvasNodes.jsx` now renders:
+    - a full-width empty page CTA for new layouts
+    - section containers as real containing surfaces
+    - blocks as mostly-empty placeholders
+    - drag only from handles
+    - selected-node controls without always-on canvas clutter
+  - empty sections no longer inherit grid body layout, so the empty-state CTA stays full-width and readable
+  - duplicate root-level footer add controls were removed; top-level insertion now belongs to the page-stage header
+- Important implementation note:
+  - generic `shell.mode = immersive` validation/support exists in the route-descriptor pipeline
+  - during live QA, that metadata still did not surface reliably in `AppShellLayout` for the layouts route
+  - current delivery therefore includes a route-level fallback in `frontend/src/app/parts/04-app-shell-layout.jsx` so `test-modules-layouts` is guaranteed to render in the immersive shell now
+  - if future immersive routes are added, revisit the generic shell metadata path so this fallback can be retired cleanly
+- Live browser QA completed on `2026-03-09`:
+  - verified the dedicated-width builder shell in the browser
+  - verified a fresh layout opens with a full-page empty-state CTA
+  - verified adding a section produces a full-width containing surface instead of a narrow rectangle
+  - verified the section empty state remains legible and centered after the empty-grid-body fix
+  - screenshot evidence captured under:
+    - `.codex-runtime/layout-review/step-12-immersive-shell-applied.png`
+    - `.codex-runtime/layout-review/step-13-empty-stage-usable.png`
+    - `.codex-runtime/layout-review/step-15-empty-section-fixed.png`
+- Verification completed on `2026-03-09`:
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/core/layout-builder-model.core.test.jsx src/tests/app-integration/layouts.integration.test.jsx`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Current state:
+  - no listeners remain on `3000` or `3001`
+  - the app is not currently running
+  - worktree remains intentionally dirty with the full layouts module, pages integration, contracts, and supporting test coverage
+
+## Review Process Reuse Note
+- Date: `2026-03-09`
+- Manual-review run discipline now explicitly requires:
+  - inspect `3000` / `3001` first
+  - reuse the verified healthy repo-owned pair when safe
+  - otherwise stop the old pair before starting a fresh one
+- Updated docs:
+  - `docs/command-registry.md`
+  - `docs/common-tasks.md`
+  - `docs/contracts/delivery-scope-contract.md`

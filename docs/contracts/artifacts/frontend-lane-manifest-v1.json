@@ -14,6 +14,7 @@
       "test-modules-media-manager",
       "test-modules-content",
       "test-modules-pages",
+      "test-modules-layouts",
       "test-modules-engagement",
       "test-modules-relations-taxonomy",
       "test-modules-settings-policy",
@@ -293,6 +294,18 @@
         "blog-distribution-overview-ui",
         "blog-distribution-publish-action-ui",
         "blog-redirect-manager-ui"
+      ],
+      "migration_phase": "phase-3"
+    },
+    {
+      "test_file_path": "frontend/src/tests/app-integration/layouts.integration.test.jsx",
+      "lane": "frontend-integration",
+      "flow_ids": [
+        "FLOW-FE-LAYOUTS-001"
+      ],
+      "capability_tags": [
+        "layouts-builder-route-ui",
+        "layouts-builder-save-ui"
       ],
       "migration_phase": "phase-3"
     }

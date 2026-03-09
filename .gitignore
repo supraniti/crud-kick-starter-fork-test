@@ -11,3 +11,4 @@ media/
 deployment/
 .tmp/
 e2e/smoke/artifacts/
+.codex-runtime/

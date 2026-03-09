@@ -149,6 +149,70 @@ function validateDescriptorActionRunnerRequirement(
   );
 }
 
+function validateDescriptorShell(descriptor, index, moduleId) {
+  if (descriptor.shell === undefined || descriptor.shell === null) {
+    return {
+      ok: true,
+      value: null
+    };
+  }
+
+  if (!descriptor.shell || typeof descriptor.shell !== "object" || Array.isArray(descriptor.shell)) {
+    return descriptorError(
+      index,
+      VIEW_REGISTRATION_CODES.INVALID_DESCRIPTOR,
+      `View registration '${moduleId}' shell must be an object when provided`,
+      {
+        moduleId,
+        field: "shell"
+      }
+    );
+  }
+
+  const unknownField = Object.keys(descriptor.shell).find((key) => key !== "mode");
+  if (unknownField) {
+    return descriptorError(
+      index,
+      VIEW_REGISTRATION_CODES.UNKNOWN_FIELD,
+      `View registration '${moduleId}' shell field '${unknownField}' is not supported`,
+      {
+        moduleId,
+        field: `shell.${unknownField}`
+      }
+    );
+  }
+
+  const mode =
+    typeof descriptor.shell.mode === "string" ? descriptor.shell.mode.trim().toLowerCase() : "";
+  if (mode.length === 0 || mode === "default") {
+    return {
+      ok: true,
+      value: {
+        mode: "default"
+      }
+    };
+  }
+
+  if (mode !== "immersive") {
+    return descriptorError(
+      index,
+      VIEW_REGISTRATION_CODES.INVALID_DESCRIPTOR,
+      `View registration '${moduleId}' shell mode must be 'default' or 'immersive'`,
+      {
+        moduleId,
+        field: "shell.mode"
+      }
+    );
+  }
+
+  return {
+    ok: true,
+    value: {
+      mode: "immersive"
+    }
+  };
+}
+
 function validateViewDescriptor(descriptor, index) {
   const shapeValidation = validateDescriptorShape(descriptor, index);
   if (!shapeValidation.ok) {
@@ -224,6 +288,11 @@ function validateViewDescriptor(descriptor, index) {
     return actionRunnerRequirement;
   }
 
+  const shellValidation = validateDescriptorShell(descriptor, index, moduleId);
+  if (!shellValidation.ok) {
+    return shellValidation;
+  }
+
   return {
     ok: true,
     value: {
@@ -234,6 +303,7 @@ function validateViewDescriptor(descriptor, index) {
       requiredDomains: requiredDomainsValidation.value,
       quickActions: quickActionsValidation.value,
       actions: actionsValidation.value,
+      ...(shellValidation.value ? { shell: shellValidation.value } : {}),
       ...(typeof descriptor.runAction === "function"
         ? { runAction: descriptor.runAction }
         : {})

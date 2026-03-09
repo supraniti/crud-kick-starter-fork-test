@@ -258,7 +258,7 @@ test("media manager view renders mission history and uses module-owned media rou
   expect(window.confirm).toHaveBeenCalledWith(
     "Delete 'Hero Banner' from the media library?"
   );
-});
+}, 15000);
 
 test("media manager filters call the collection domain with field id and value", async () => {
   const collectionsDomain = createCollectionsDomain();

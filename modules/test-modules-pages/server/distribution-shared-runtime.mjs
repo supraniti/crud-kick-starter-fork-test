@@ -6,6 +6,7 @@ export const CATEGORIES_COLLECTION_ID = "blog-categories";
 export const TAGS_COLLECTION_ID = "blog-tags";
 export const PAGES_COLLECTION_ID = "blog-pages";
 export const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
+export const LAYOUTS_COLLECTION_ID = "page-layouts";
 
 export const PAGE_KIND_SET = new Set(["standalone", "content-detail", "listing", "profile"]);
 export const PAGE_STATUS_SET = new Set(["draft", "in-review", "scheduled", "published", "archived"]);

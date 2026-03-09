@@ -18,6 +18,7 @@
 3. `test-modules-editorial`
 4. `test-modules-engagement`
 5. `test-modules-pages`
+6. `test-modules-layouts`
 
 ## Permanent Baseline Protection
 - The following modules are permanent repo fixtures and must remain active throughout this ticket:
@@ -59,6 +60,9 @@
   - owns `blog-pages`
   - owns `blog-redirect-rules`
   - owns standalone page records, route/path, layout, SEO/social metadata, redirect workflows, delivery payload resolution, and static HTML deployment artifacts
+- `test-modules-layouts`
+  - owns `page-layouts`
+  - owns reusable layout records and the dedicated layout-builder UI consumed by `test-modules-pages`
 
 ## Shared Decisions Locked For Implementation
 - Rich text storage format:
@@ -92,6 +96,7 @@
 - `blog-posts.featuredMediaId`, `galleryMediaIds`, and `ogImageMediaId` reference `media-items`.
 - `blog-post-revisions.postId` references `blog-posts`.
 - `blog-pages` may reference `blog-posts`, `blog-authors`, `blog-categories`, and `blog-tags` through declarative source descriptors owned by `test-modules-pages`.
+- `blog-pages.layoutId` may reference `page-layouts`.
 - `blog-pages.ogImageMediaId` references `media-items`.
 - `blog-comments.postId` references `blog-posts`.
 - `blog-comments.approvedByAuthorId` references `blog-authors`.

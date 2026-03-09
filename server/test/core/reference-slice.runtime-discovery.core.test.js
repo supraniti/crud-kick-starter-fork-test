@@ -15,6 +15,7 @@ const ACTIVE_MODULE_IDS = Object.freeze([
   "test-modules-crud-core",
   "test-modules-editorial",
   "test-modules-engagement",
+  "test-modules-layouts",
   "test-modules-media-manager",
   "test-modules-operations-dispatch",
   "test-modules-pages",
@@ -61,6 +62,10 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         expect.objectContaining({
           id: "test-modules-engagement",
           label: "Engagement"
+        }),
+        expect.objectContaining({
+          id: "test-modules-layouts",
+          label: "Layouts"
         }),
         expect.objectContaining({
           id: "test-modules-editorial",
@@ -290,6 +295,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.runtime.moduleCollectionIds).toEqual(
       expect.arrayContaining([
         "blog-comments",
+        "page-layouts",
         "blog-pages",
         "blog-post-revisions",
         "blog-posts",
@@ -312,6 +318,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "blog-pages": "test-modules-pages",
         "blog-redirect-rules": "test-modules-pages",
         "blog-comments": "test-modules-engagement",
+        "page-layouts": "test-modules-layouts",
         "blog-authors": "test-modules-editorial",
         "blog-tags": "test-modules-taxonomy",
         "blog-categories": "test-modules-taxonomy",
@@ -330,6 +337,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "blog-pages": "test-modules-pages",
         "blog-redirect-rules": "test-modules-pages",
         "blog-comments": "test-modules-engagement",
+        "page-layouts": "test-modules-layouts",
         "blog-authors": "test-modules-editorial",
         "blog-tags": "test-modules-taxonomy",
         "blog-categories": "test-modules-taxonomy",
@@ -360,6 +368,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "test-modules-content-content-persistence": "test-modules-content",
         "test-modules-pages-pages-persistence": "test-modules-pages",
         "test-modules-engagement-comments-persistence": "test-modules-engagement",
+        "test-modules-layouts-persistence": "test-modules-layouts",
         "test-modules-editorial-authors-persistence": "test-modules-editorial",
         "test-modules-taxonomy-taxonomy-persistence": "test-modules-taxonomy",
         "test-modules-crud-core-records-persistence": "test-modules-crud-core",
@@ -378,6 +387,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "test-modules-content": expect.any(String),
         "test-modules-pages": expect.any(String),
         "test-modules-engagement": expect.any(String),
+        "test-modules-layouts": expect.any(String),
         "test-modules-editorial": expect.any(String),
         "test-modules-taxonomy": expect.any(String),
         "test-modules-crud-core": expect.any(String),
@@ -404,6 +414,11 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
           id: "test-modules-engagement",
           state: "enabled",
           collectionIds: expect.arrayContaining(["blog-comments"])
+        }),
+        expect.objectContaining({
+          id: "test-modules-layouts",
+          state: "enabled",
+          collectionIds: expect.arrayContaining(["page-layouts"])
         }),
         expect.objectContaining({
           id: "test-modules-editorial",

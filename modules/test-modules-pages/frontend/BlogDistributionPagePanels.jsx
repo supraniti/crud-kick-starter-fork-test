@@ -144,12 +144,38 @@ function PageSourceSection({ workspace, sourceOptions }) {
 }
 
 function PagePresentationSection({ workspace }) {
+  const usingReusableLayout = Boolean(workspace.pageDraft.layoutId);
+
   return (
-    <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+    <Stack spacing={2}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+        <TextField
+          select
+          label="Layout Record"
+          value={workspace.pageDraft.layoutId}
+          onChange={(event) => workspace.changePageField("layoutId", event.target.value)}
+          sx={{ minWidth: 240 }}
+          helperText="Reusable layouts are managed from the Layouts module."
+        >
+          <MenuItem value="">Legacy Inline Layout</MenuItem>
+          {workspace.layoutOptions.map((option) => (
+            <MenuItem key={option.id} value={option.id}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
+        {usingReusableLayout ? (
+          <Alert severity="info" sx={{ alignItems: "center" }}>
+            This page uses a reusable layout record. Inline layout controls are kept only as a compatibility fallback.
+          </Alert>
+        ) : null}
+      </Stack>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
       <TextField
         label="Layout Key"
         value={workspace.pageDraft.layoutKey}
         onChange={(event) => workspace.changePageField("layoutKey", event.target.value)}
+        disabled={usingReusableLayout}
       />
       <TextField
         select
@@ -157,6 +183,7 @@ function PagePresentationSection({ workspace }) {
         value={workspace.pageDraft.templateKey}
         onChange={(event) => workspace.changePageField("templateKey", event.target.value)}
         sx={{ minWidth: 200 }}
+        disabled={usingReusableLayout}
       >
         {TEMPLATE_KEY_OPTIONS.map((option) => (
           <MenuItem key={option} value={option}>
@@ -170,6 +197,7 @@ function PagePresentationSection({ workspace }) {
         value={workspace.pageDraft.heroVariant}
         onChange={(event) => workspace.changePageField("heroVariant", event.target.value)}
         sx={{ minWidth: 180 }}
+        disabled={usingReusableLayout}
       >
         {HERO_VARIANT_OPTIONS.map((option) => (
           <MenuItem key={option} value={option}>
@@ -181,34 +209,42 @@ function PagePresentationSection({ workspace }) {
         label="Theme Key"
         value={workspace.pageDraft.themeKey}
         onChange={(event) => workspace.changePageField("themeKey", event.target.value)}
+        disabled={usingReusableLayout}
       />
+    </Stack>
     </Stack>
   );
 }
 
 function PageBindingSection({ workspace }) {
+  const usingReusableLayout = Boolean(workspace.pageDraft.layoutId);
+
   return (
     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
       <TextField
         label="Hero Binding"
         value={workspace.pageDraft.heroBinding}
         onChange={(event) => workspace.changePageField("heroBinding", event.target.value)}
+        disabled={usingReusableLayout}
       />
       <TextField
         label="Body Binding"
         value={workspace.pageDraft.bodyBinding}
         onChange={(event) => workspace.changePageField("bodyBinding", event.target.value)}
+        disabled={usingReusableLayout}
       />
       <TextField
         label="Supporting Binding"
         value={workspace.pageDraft.supportingBinding}
         onChange={(event) => workspace.changePageField("supportingBinding", event.target.value)}
+        disabled={usingReusableLayout}
       />
       <TextField
         label="Section Order"
         value={workspace.pageDraft.sectionOrderText}
         onChange={(event) => workspace.changePageField("sectionOrderText", event.target.value)}
         helperText="Comma separated: hero, body, supporting"
+        disabled={usingReusableLayout}
       />
     </Stack>
   );

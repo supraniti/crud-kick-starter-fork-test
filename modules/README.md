@@ -7,6 +7,7 @@ Active modules:
 - `modules/test-modules-media-manager`
 - `modules/test-modules-content`
 - `modules/test-modules-pages`
+- `modules/test-modules-layouts`
 - `modules/test-modules-engagement`
 - `modules/test-modules-editorial`
 - `modules/test-modules-taxonomy`

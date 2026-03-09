@@ -172,6 +172,7 @@ function useAppController({ api = defaultApiClients }) {
     handleRunViewAction,
     requiredDomains,
     remotesDeployDomain,
+    activeViewRegistration,
     activeModuleView,
     routeUrl,
     handleSelectModule,

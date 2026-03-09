@@ -1,5 +1,6 @@
 import { badRequestWithConflicts } from "../../../server/src/domains/reference/collections/services/reference-collection-route-shared-domain-service.js";
 import {
+  LAYOUTS_COLLECTION_ID,
   PAGE_KIND_SET,
   PAGE_STATUS_SET,
   PRIMARY_SOURCE_TYPE_SET,
@@ -273,9 +274,27 @@ function collectPageUniquenessConflicts({ existingPages, currentItem, preparedVa
 }
 
 async function collectPageConflicts({ handler, preparedValue, currentItem = null }) {
+  const layoutConflicts = [];
+  if (preparedValue.layoutId) {
+    const layoutsHandler = handler?.context?.registry?.get?.(LAYOUTS_COLLECTION_ID);
+    const layout = layoutsHandler && typeof layoutsHandler.findById === "function"
+      ? await layoutsHandler.findById(preparedValue.layoutId)
+      : null;
+    if (!layout) {
+      layoutConflicts.push(
+        buildConflict(
+          "PAGE_LAYOUT_NOT_FOUND",
+          `Layout '${preparedValue.layoutId}' was not found`,
+          "layoutId"
+        )
+      );
+    }
+  }
+
   const existingPages = await listExistingItems(handler);
   return [
     ...collectPageFieldConflicts(preparedValue),
+    ...layoutConflicts,
     ...collectPageUniquenessConflicts({
       existingPages,
       currentItem,
@@ -361,6 +380,10 @@ function createPageDeploymentCoordinator(handler, context = {}) {
 
 export function wrapPagesHandler(handler, context = {}) {
   const deploymentCoordinator = createPageDeploymentCoordinator(handler, context);
+  const contextualHandler = {
+    ...handler,
+    context
+  };
 
   return {
     ...handler,
@@ -386,7 +409,7 @@ export function wrapPagesHandler(handler, context = {}) {
       }
 
       const conflicts = await collectPageConflicts({
-        handler,
+        handler: contextualHandler,
         preparedValue
       });
       return mergeValidationResult(validation, conflicts);
@@ -403,7 +426,7 @@ export function wrapPagesHandler(handler, context = {}) {
       }
 
       const conflictFailure = await validatePreparedPage({
-        handler,
+        handler: contextualHandler,
         preparedValue,
         reply
       });
@@ -432,7 +455,7 @@ export function wrapPagesHandler(handler, context = {}) {
       }
 
       const conflictFailure = await validatePreparedPage({
-        handler,
+        handler: contextualHandler,
         preparedValue,
         currentItem: item,
         reply

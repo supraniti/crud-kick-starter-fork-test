@@ -28,12 +28,17 @@ function AppShellLayout({
   handleRunViewAction,
   requiredDomains,
   remotesDeployDomain,
+  activeViewRegistration,
   runtimeSettingsOpen,
   handleOpenRuntimeSettings,
   handleCloseRuntimeSettings,
   handleOpenRemotes,
   activeModuleView
 }) {
+  const immersiveShell =
+    activeViewRegistration?.shell?.mode === "immersive" ||
+    route.moduleId === "test-modules-layouts";
+
   return (
     <Box
       sx={{
@@ -42,11 +47,13 @@ function AppShellLayout({
         bgcolor: "grey.100"
       }}
     >
-      <ModuleSidebar
-        modules={moduleState.items}
-        activeModuleId={route.moduleId}
-        onSelectModule={handleSelectModule}
-      />
+      {!immersiveShell ? (
+        <ModuleSidebar
+          modules={moduleState.items}
+          activeModuleId={route.moduleId}
+          onSelectModule={handleSelectModule}
+        />
+      ) : null}
 
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <Paper
@@ -89,23 +96,31 @@ function AppShellLayout({
           </Stack>
         </Paper>
 
-        <Box sx={{ p: 2, overflow: "auto" }}>
+        <Box
+          sx={{
+            p: immersiveShell ? 0 : 2,
+            overflow: immersiveShell ? "hidden" : "auto",
+            flex: 1
+          }}
+        >
           {moduleState.loading ? (
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ p: immersiveShell ? 2 : 0 }}>
               <CircularProgress size={18} />
               <Typography variant="body2">Loading modules...</Typography>
             </Stack>
           ) : null}
 
           {moduleState.errorMessage ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ m: immersiveShell ? 2 : 0, mb: 2 }}>
               {moduleState.errorMessage}
             </Alert>
           ) : null}
 
-          <ModuleQuickActions actions={viewActions} onRunAction={handleRunViewAction} />
+          {!immersiveShell ? (
+            <ModuleQuickActions actions={viewActions} onRunAction={handleRunViewAction} />
+          ) : null}
 
-          {requiredDomains.has("remotes-deploy") ? (
+          {!immersiveShell && requiredDomains.has("remotes-deploy") ? (
             <DeployPanel
               state={remotesDeployDomain.deployState}
               remotes={remotesDeployDomain.remotesState.items}
@@ -116,7 +131,7 @@ function AppShellLayout({
             />
           ) : null}
 
-          <Divider sx={{ mb: 2 }} />
+          {!immersiveShell ? <Divider sx={{ mb: 2 }} /> : null}
 
           {activeModuleView}
         </Box>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createReferenceCollectionItem,
   fetchReferenceCollectionItems,
@@ -31,6 +31,7 @@ import {
 const MODULE_ID = "test-modules-pages";
 const PAGES_COLLECTION_ID = "blog-pages";
 const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
+const LAYOUTS_COLLECTION_ID = "page-layouts";
 const POSTS_COLLECTION_ID = "blog-posts";
 const AUTHORS_COLLECTION_ID = "blog-authors";
 const CATEGORIES_COLLECTION_ID = "blog-categories";
@@ -52,10 +53,11 @@ const DEFAULT_REDIRECT_FILTERS = Object.freeze({
 });
 
 async function loadSupportData() {
-  const [pagesPayload, redirectsPayload, postsPayload, authorsPayload, categoriesPayload, tagsPayload, mediaPayload] =
+  const [pagesPayload, redirectsPayload, layoutsPayload, postsPayload, authorsPayload, categoriesPayload, tagsPayload, mediaPayload] =
     await Promise.all([
       fetchReferenceCollectionItems({ collectionId: PAGES_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: REDIRECTS_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: LAYOUTS_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: POSTS_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: AUTHORS_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: CATEGORIES_COLLECTION_ID, limit: 200 }),
@@ -66,6 +68,7 @@ async function loadSupportData() {
   return {
     pages: toArray(pagesPayload?.items),
     redirects: toArray(redirectsPayload?.items),
+    layouts: toArray(layoutsPayload?.items),
     posts: toArray(postsPayload?.items),
     authors: toArray(authorsPayload?.items),
     categories: toArray(categoriesPayload?.items),
@@ -178,6 +181,7 @@ function useSupportData() {
         errorMessage: error?.message ?? "Failed to load pages data",
         pages: [],
         redirects: [],
+        layouts: [],
         posts: [],
         authors: [],
         categories: [],
@@ -231,38 +235,49 @@ function usePageSelection(pages) {
 
 function useDeliveryPreview(selectedPageId, refreshToken) {
   const [deliveryState, setDeliveryState] = useState(createDeliveryState);
+  const latestPreviewKeyRef = useRef("");
+  const previewKey = `${selectedPageId ?? ""}:${refreshToken}`;
+  latestPreviewKeyRef.current = previewKey;
 
   useEffect(() => {
     async function run() {
       if (!selectedPageId) {
-        setDeliveryState(createDeliveryState());
+        if (latestPreviewKeyRef.current === previewKey) {
+          setDeliveryState(createDeliveryState());
+        }
         return;
       }
 
-      setDeliveryState({
-        loading: true,
-        errorMessage: null,
-        payload: null
-      });
+      if (latestPreviewKeyRef.current === previewKey) {
+        setDeliveryState({
+          loading: true,
+          errorMessage: null,
+          payload: null
+        });
+      }
 
       try {
         const payload = await fetchDeliveryPayload(selectedPageId);
-        setDeliveryState({
-          loading: false,
-          errorMessage: null,
-          payload
-        });
+        if (latestPreviewKeyRef.current === previewKey) {
+          setDeliveryState({
+            loading: false,
+            errorMessage: null,
+            payload
+          });
+        }
       } catch (error) {
-        setDeliveryState({
-          loading: false,
-          errorMessage: error?.message ?? "Failed to load delivery payload",
-          payload: null
-        });
+        if (latestPreviewKeyRef.current === previewKey) {
+          setDeliveryState({
+            loading: false,
+            errorMessage: error?.message ?? "Failed to load delivery payload",
+            payload: null
+          });
+        }
       }
     }
 
     void run();
-  }, [refreshToken, selectedPageId]);
+  }, [previewKey, selectedPageId]);
 
   return deliveryState;
 }
@@ -282,7 +297,24 @@ function startNewPageDraft(selection, setPageActionState) {
   setPageActionState(createActionState());
 }
 
-function usePageWorkspace({ pages, reloadSupportData, selectedActorId }) {
+function changePageDraftField({ fieldId, value, layoutById, setPageDraftField }) {
+  if (fieldId === "layoutId") {
+    const selectedLayout = layoutById.get(value) ?? null;
+    setPageDraftField((previous) => ({
+      ...previous,
+      layoutId: value,
+      layoutKey: selectedLayout?.layoutKey ?? previous.layoutKey
+    }));
+    return;
+  }
+
+  setPageDraftField((previous) => ({
+    ...previous,
+    [fieldId]: value
+  }));
+}
+
+function usePageWorkspace({ pages, layouts, reloadSupportData, selectedActorId }) {
   const selection = usePageSelection(pages);
   const [pageFilters, setPageFilters] = useState(DEFAULT_PAGE_FILTERS);
   const [pageActionState, setPageActionState] = useState(createActionState);
@@ -295,6 +327,7 @@ function usePageWorkspace({ pages, reloadSupportData, selectedActorId }) {
   const readinessMap = useMemo(() => new Map(pages.map((page) => [page.id, buildReadinessIssues(page)])), [pages]);
   const filteredPages = useMemo(() => pages.filter((page) => matchesPageFilters(page, pageFilters, readinessMap.get(page.id) ?? [])), [pageFilters, pages, readinessMap]);
 
+  const layoutById = useMemo(() => new Map(layouts.map((layout) => [layout.id, layout])), [layouts]);
   const setPageDraftField = useCallback((updater) => {
     selection.setPageDraft(updater);
     setPageActionState(createActionState());
@@ -367,12 +400,7 @@ function usePageWorkspace({ pages, reloadSupportData, selectedActorId }) {
     setPageFilters,
     selectPage: (pageId) => selectExistingPage({ pages, selection, setPageActionState }, pageId),
     startNewPage: () => startNewPageDraft(selection, setPageActionState),
-    changePageField: (fieldId, value) => {
-      setPageDraftField((previous) => ({
-        ...previous,
-        [fieldId]: value
-      }));
-    },
+    changePageField: (fieldId, value) => changePageDraftField({ fieldId, value, layoutById, setPageDraftField }),
     changeDataSourceField: (index, fieldId, value) => {
       setPageDraftField((previous) => ({
         ...previous,
@@ -547,6 +575,7 @@ export function useBlogDistributionWorkspace() {
 
   const pageWorkspace = usePageWorkspace({
     pages,
+    layouts: support.supportState.layouts,
     reloadSupportData: support.reloadSupportData,
     selectedActorId
   });
@@ -574,6 +603,7 @@ export function useBlogDistributionWorkspace() {
       categories: support.supportState.categories,
       tags: support.supportState.tags
     }),
+    layoutOptions: support.supportState.layouts.map(toOption),
     mediaOptions: support.supportState.media.map(toOption),
     actorOptions,
     selectedActorId,

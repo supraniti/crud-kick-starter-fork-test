@@ -6,6 +6,13 @@ const serverOrigin = process.env.VITE_SERVER_ORIGIN ?? "http://127.0.0.1:3001";
 const reactAliasRoot = fileURLToPath(new URL("./node_modules/react", import.meta.url));
 const reactDomAliasRoot = fileURLToPath(new URL("./node_modules/react-dom", import.meta.url));
 const muiAliasRoot = fileURLToPath(new URL("./node_modules/@mui/material", import.meta.url));
+const dndKitCoreAliasRoot = fileURLToPath(new URL("./node_modules/@dnd-kit/core", import.meta.url));
+const dndKitSortableAliasRoot = fileURLToPath(
+  new URL("./node_modules/@dnd-kit/sortable", import.meta.url)
+);
+const dndKitUtilitiesAliasRoot = fileURLToPath(
+  new URL("./node_modules/@dnd-kit/utilities", import.meta.url)
+);
 const emotionReactAliasRoot = fileURLToPath(
   new URL("./node_modules/@emotion/react", import.meta.url)
 );
@@ -27,6 +34,9 @@ export default defineConfig({
       "react-dom": reactDomAliasRoot,
       "react/jsx-runtime": reactJsxRuntimeAlias,
       "react/jsx-dev-runtime": reactJsxDevRuntimeAlias,
+      "@dnd-kit/core": dndKitCoreAliasRoot,
+      "@dnd-kit/sortable": dndKitSortableAliasRoot,
+      "@dnd-kit/utilities": dndKitUtilitiesAliasRoot,
       "@mui/material": muiAliasRoot,
       "@emotion/react": emotionReactAliasRoot,
       "@emotion/styled": emotionStyledAliasRoot

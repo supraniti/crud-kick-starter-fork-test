@@ -9,7 +9,8 @@ const VIEW_DESCRIPTOR_ALLOWED_KEYS = new Set([
   "requiredDomains",
   "quickActions",
   "actions",
-  "runAction"
+  "runAction",
+  "shell"
 ]);
 const ROUTE_STATE_ADAPTER_ALLOWED_KEYS = new Set([
   "parseQuery",

@@ -136,6 +136,7 @@ export function buildPreparedPageValue(input = {}, currentItem = null) {
     pageKind,
     primarySourceType,
     path: normalizePagePath(pickInputValue(input, currentItem, "path", "")),
+    layoutId: normalizeOptionalText(pickInputValue(input, currentItem, "layoutId")),
     layoutKey: normalizeOptionalText(pickInputValue(input, currentItem, "layoutKey")) ?? "page-shell",
     layoutModel: normalizeLayoutModel(pickInputValue(input, currentItem, "layoutModel"), pageKind),
     primarySource: normalizePrimarySource(
@@ -212,6 +213,7 @@ export function buildPreparedPageUpdateBody(body, preparedValue) {
     pageKind: preparedValue.pageKind,
     primarySourceType: preparedValue.primarySourceType,
     path: preparedValue.path,
+    layoutId: preparedValue.layoutId,
     layoutKey: preparedValue.layoutKey,
     layoutModel: cloneJsonValue(preparedValue.layoutModel),
     primarySource: cloneJsonValue(preparedValue.primarySource),

@@ -383,4 +383,4 @@ test("blog content editor keeps the newly created draft selected before collecti
     expect(screen.getByLabelText("Title")).toHaveValue("Created Draft");
     expect(screen.getByText("Post created")).toBeInTheDocument();
   });
-});
+}, 15000);

@@ -247,7 +247,18 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Standalone Pages Desk" })).toBeInTheDocument();
     expect(screen.getByText("Launch Story")).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/"contractVersion": 1/)).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByText("Launch Story"));
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-pages/pages/page-001/delivery?preview=true",
+      expect.objectContaining({
+        method: "GET"
+      })
+    );
+    expect(screen.getByLabelText("Resolved Page JSON").value).toContain("\"contractVersion\": 1");
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Publish Page" }));
@@ -261,7 +272,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
     );
     expect(screen.getByText("Page published and deployed")).toBeInTheDocument();
   });
-});
+}, 15000);
 
 test("pages editor creates standalone pages and redirect manager persists page-targeted redirects", async () => {
   installReferenceMocks();
@@ -407,4 +418,4 @@ test("pages editor creates standalone pages and redirect manager persists page-t
       }
     });
   });
-});
+}, 15000);

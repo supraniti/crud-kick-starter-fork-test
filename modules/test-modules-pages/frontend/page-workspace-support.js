@@ -16,6 +16,7 @@ export function createSupportState() {
     errorMessage: null,
     pages: [],
     redirects: [],
+    layouts: [],
     posts: [],
     authors: [],
     categories: [],
@@ -52,6 +53,7 @@ export function createEmptyPageDraft() {
     primarySourceType: "none",
     primarySourceItemId: "",
     path: "",
+    layoutId: "",
     layoutKey: "page-shell",
     templateKey: "page-shell",
     heroVariant: "standard",
@@ -110,6 +112,7 @@ export function createPageDraftFromItem(page = {}) {
     primarySourceType: page.primarySourceType ?? "none",
     primarySourceItemId: page.primarySource?.itemId ?? "",
     path: page.path ?? "",
+    layoutId: page.layoutId ?? "",
     ...readLayoutDraft(page),
     dataSources: toArray(page.dataSources).map((entry, index) => ({
       ...createEmptyDataSourceDraft(index),
@@ -182,6 +185,7 @@ export function buildPageMutationPayload(draft) {
     pageKind: draft.pageKind,
     primarySourceType: draft.primarySourceType,
     path: draft.path,
+    layoutId: normalizeOptionalText(draft.layoutId),
     layoutKey: draft.layoutKey,
     layoutModel: {
       templateKey: draft.templateKey,

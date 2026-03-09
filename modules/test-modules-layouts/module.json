@@ -1,0 +1,127 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-layouts",
+  "version": "0.1.0",
+  "name": "Test Modules Layouts",
+  "capabilities": [
+    "crud.collection",
+    "schema",
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-layouts.install",
+    "uninstall": "test-modules-layouts.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Layouts",
+      "icon": "dashboard_customize",
+      "order": 515
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "collections": [
+    {
+      "id": "page-layouts",
+      "label": "Page Layouts",
+      "entitySingular": "layout",
+      "primaryField": "title",
+      "description": "Reusable page layout records edited through the dedicated layout builder.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Layout Title",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 180
+        },
+        {
+          "id": "layoutKey",
+          "label": "Layout Key",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 120
+        },
+        {
+          "id": "summary",
+          "label": "Summary",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "draft",
+            "ready"
+          ],
+          "defaultValue": "draft"
+        },
+        {
+          "id": "rootLayoutMode",
+          "label": "Root Layout Mode",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "grid",
+            "flex"
+          ],
+          "defaultValue": "grid"
+        },
+        {
+          "id": "layoutDocumentJson",
+          "label": "Layout Document JSON",
+          "type": "text",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 200000
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof"
+  }
+}

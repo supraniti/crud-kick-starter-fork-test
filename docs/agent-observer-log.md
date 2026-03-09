@@ -357,3 +357,160 @@
   - on Windows, if a runner must own stale-port cleanup, verify the listener probe against `netstat` early instead of assuming the higher-level cmdlets are reliable
   - for modules that use generic text fields as nullable metadata, normalize the exposed read contract in the module handler immediately so tests and UI do not inherit blank-string ambiguity
 
+### 2026-03-09 - Layout Builder Phase 1 Planning
+- Tasks:
+  - audited the current `test-modules-pages` layout surface before starting implementation
+  - confirmed that the repo currently has only page-inline `layoutModel` editing and no reusable layout asset/module
+  - stopped at the requested approval boundary after capturing the recommended design direction in `handoff.md`
+- Easy:
+  - the current standalone-pages architecture already makes the right separation visible: pages should consume layout definitions, not necessarily own reusable layout assets
+  - the repo already has enough module-local UI/runtime seams to add a new additive module without needing core changes first
+- Hard:
+  - current `layoutModel` is already part of the live page contract and delivery pipeline, so a reusable-layout module needs an explicit compatibility bridge instead of a blind replacement
+  - MUI gives a strong operator shell but not the drag/resizable interaction engine, so dependency choice is a real design decision, not a minor implementation detail
+- Improve:
+  - for interaction-heavy tickets, lock the dependency policy at design time; smooth drag/resize should not be attempted ad hoc if a proven library is the better fit
+  - when a future reusable asset is already implied, bias early toward a referenced module boundary instead of deepening page-inline structures
+
+### 2026-03-09 - Layout Builder Phase 1 Execution
+- Tasks:
+  - added additive module `test-modules-layouts` with the `page-layouts` collection and dedicated builder route
+  - wired `test-modules-pages` to consume reusable layouts through `layoutId`
+  - extended the page delivery payload so reusable layouts resolve as `layoutDocument`
+  - reran the full repo gate and then performed a live browser pass over `Layouts` and `Pages`
+- Easy:
+  - the pages module already had a clean compatibility seam for keeping inline `layoutModel` while adding referenced reusable layouts
+  - once the reusable layout record was saved, the page delivery preview made the integration truth obvious immediately because `layoutId`, `layoutDocument`, and the layout dependency key all surfaced in one place
+- Hard:
+  - modules rendered from outside `frontend/` cannot rely on sibling `frontend/node_modules` package resolution automatically, so the new `@dnd-kit/*` imports needed explicit Vite aliases
+  - the repo’s authoritative server-conformance truth still depends on `REFERENCE_MODULE_ID_TRANSLATION_MODE=dual-compat`; raw lane commands without that env remain noisy and can waste time if treated as primary evidence
+  - live browser QA needed escalated dev-server startup because Vite and `node --watch` hit Windows `spawn EPERM` inside the sandbox
+- Improve:
+  - whenever a frontend dependency is introduced for code that lives outside the `frontend/` root, verify module resolution from the actual importer path before assuming the install is enough
+  - for this repo, capture “raw lane may be noisy, full gate is authoritative” directly in the progress pointer whenever a new session starts heavy verification
+  - when using browser automation on MUI forms, prefer field-specific selection and keyboard replacement over repeated fill calls, because some controls append rather than replace under automation
+
+### 2026-03-09 - Review App Run Discipline
+- Tasks:
+  - tightened the repo guidance for manual review app startup after repeated friction around frontend host binding, sandbox startup, and stale listener reuse
+  - updated the command registry, common-tasks playbook, and delivery contract so review runs are verified before being handed to the user
+- Easy:
+  - the failure pattern is consistent on this machine: API health is reliable on `127.0.0.1:3001`, while the frontend should be treated as `http://localhost:3000`
+  - once the rules are explicit, the correct operator flow is simple: clear ports, boot backend, verify health, boot frontend, verify HTML
+- Hard:
+  - a successful process spawn can look like success even when the live review instance is half-broken because a stale backend listener is still serving requests or the frontend only binds on `localhost`
+  - repeated live-review work is where sandbox `spawn EPERM` noise and stale port ownership are most likely to waste time
+- Improve:
+  - never announce a review URL until both backend and frontend answer over HTTP
+  - treat `localhost:3000` and `127.0.0.1:3001/health` as separate verified endpoints with different reliability characteristics on this machine
+  - if review startup behavior changes later, update `docs/command-registry.md` immediately in the same slice instead of letting the next session rediscover it
+
+### 2026-03-09 - Layout Builder Phase 2 Research
+- Tasks:
+  - reviewed the first live layout-builder pass against operator feedback
+  - audited the current canvas/inspector implementation to confirm the exact causes of the insertion and discoverability problems
+  - researched common builder UX patterns from Builder.io, Webflow, and Wix before writing the next plan
+  - wrote the hard-file improvement plan in `docs/contracts/test-modules-layouts-phase-2-plan.md`
+- Easy:
+  - the reported friction aligns directly with the current implementation shape: one narrow container drop strip, full-card drag listeners, and inspector-only actions
+  - the external tools are consistent about the right answer: insert surface, layers surface, inspector surface, and contextual actions
+- Hard:
+  - the current phase-1 builder technically works, which can hide how much usability debt is packed into the interaction model
+  - drag-and-drop builders fail when insert and reorder share the same ambiguous hover surface; that distinction has to become a first-class model concern, not just a visual tweak
+- Improve:
+  - when building operator tooling with spatial interaction, treat discoverability and insertion semantics as core acceptance criteria, not polish
+  - sketch the focused tests before implementation so regressions in insert/reorder intent are caught early
+  - if a builder needs commercial-grade usability, start from the shell pattern used by mature products instead of inventing a custom surface from scratch
+
+### 2026-03-09 - Layout Builder Phase 2 Execution
+- Tasks:
+  - implemented the phase-2 usability pass inside `test-modules-layouts`
+  - added model-level insertion target semantics, then refactored the canvas around them
+  - introduced a left `Insert` / `Layers` rail, explicit insertion rails, empty-state CTAs, drag handles, and selected-node quick actions
+  - reran focused tests, the frontend integration lane, and the full release gate
+  - completed live browser QA against the running app
+- Easy:
+  - the biggest UX fix was also the simplest structural one: stop routing add actions back to the root container after selecting a block
+  - once insertion rails existed, the builder immediately felt more predictable because the operator could aim at a location instead of aiming at an interpretation
+- Hard:
+  - `dnd-kit` made drag handles straightforward, but it still required an explicit insertion-target model to distinguish insert-from-reorder cleanly
+  - the expanded frontend suite exposed several pre-existing tests that were only failing because their default `5000ms` timeout was no longer realistic under the heavier integration load
+  - the function-shape contract forced a second cleanup pass on `useLayoutsWorkspace.js`, which was correct; the hook had become too large during the first UX implementation pass
+- Improve:
+  - when a UX ticket changes interaction semantics, add model tests first; it sharply reduces UI debugging time
+  - if a growing integration suite starts tripping default per-test timeouts, pin explicit long-test budgets close to the affected tests instead of waiting for lane flake
+  - browser QA is still necessary even after green integration tests for spatial UIs; the rails/empty-state improvements were much easier to judge live than from snapshots alone
+
+### 2026-03-09 - Layout Builder Visual-Density Finding
+- Tasks:
+  - reran a fresh browser flow specifically to inspect the user-reported “too much text/buttons inside containers and blocks” problem
+  - captured screenshots at four points under `.codex-runtime/layout-review/`
+- Easy:
+  - the issue is obvious once the builder is viewed as a layout tool instead of a form tool: the canvas is still full of metadata chrome
+- Hard:
+  - phase 2 fixed insertion and discoverability, but it did not yet change the deeper visual model; nodes still behave like mini inspector cards
+  - the density compounds sharply with nesting because every container repeats labels, chips, ids, drag affordances, quick actions, empty-state copy, and insertion copy
+- Improve:
+  - the next pass should reduce persistent chrome inside canvas nodes and make the canvas mostly geometric
+  - ids should likely disappear from default canvas view
+  - most buttons should move to hover/selection-only affordances or the side rails, leaving only the minimum spatial cues visible by default
+
+### 2026-03-09 - Layout Builder Visual-Density Follow-Up
+- Tasks:
+  - converted the builder shell to a normal-desktop three-column layout instead of waiting for the `xl` breakpoint
+  - collapsed the inspector into accordions and hid `Layout JSON` by default
+  - removed raw node ids from the layers rail and removed duplicated add controls from the inspector
+  - reran focused layout verification and the full repo gate
+  - captured follow-up screenshots showing the cleaner shell and fresh-layout empty state
+- Easy:
+  - once the layout shell stayed three-column on `lg`, the builder became much easier to evaluate because the canvas, left rail, and inspector were finally visible together at the same time
+  - moving debug-heavy content behind accordions delivered a large usability gain without changing the underlying layout model at all
+- Hard:
+  - the first post-edit frontend test failure was misleading; the actual issue was not behavior but the test environment hitting Windows `spawn EPERM`, so the targeted integration check needed an escalated rerun to get a real signal
+  - a visually cleaner builder can still feel broken if the shell collapses into one long column; page composition mattered almost as much as the node chrome itself
+- Improve:
+  - for any future spatial builder work, evaluate the shell at realistic content widths before assuming the breakpoint plan is sound
+  - keep debug JSON and low-value metadata available but collapsed by default; always-on debug surfaces are high-noise in operator tools
+  - when a frontend test suddenly “fails fast” after a UI refactor on this machine, separate real product regressions from sandbox `spawn EPERM` noise before changing code
+
+### 2026-03-09 - Layout Builder Review Rejection
+- Tasks:
+  - captured the fact that the manual review still rejected the builder despite the green gates
+  - reframed the next step as a design reset rather than more incremental polish
+- Easy:
+  - the rejection reasons are concrete and defensible: width usage, non-container-looking containers, and scrambled insertion readability
+- Hard:
+  - passing mechanics and tests created a false sense of progress; the builder still lacked a coherent spatial product vision
+  - the current implementation optimized local interactions before the overall page model was convincing
+- Improve:
+  - for visual-authoring tools, do not trust “green tests + somewhat improved interaction” as a sign that the product direction is right
+  - establish the target visual model first: what the full page should look like when it already contains several blocks and containers
+  - if the operator cannot look at the canvas and immediately understand containment, hierarchy, and available actions, the design is not ready for implementation
+
+
+### 2026-03-09 - Layout Builder Replacement Reset
+- Tasks:
+  - replaced the rejected layout-builder shell/canvas direction with a dedicated immersive builder route and a page-stage-first canvas
+  - finished the canvas split under the repo LOC cap, then rebuilt the stage so new layouts start with a full-width empty-page CTA and sections render as actual containing surfaces
+  - closed the last browser-found layout bug where empty grid sections were inheriting grid body layout and collapsing their empty state into a narrow column
+  - reran focused layout tests, `pnpm quality:protocol`, and the authoritative full gate
+- Easy:
+  - once the builder was treated as a page-stage editor instead of an admin-card editor, the right default shapes became obvious: full-width sections, mostly-empty blocks, stage-owned top-level add actions
+  - screenshot review was decisive; it immediately exposed the remaining mistakes that tests would not have called out clearly
+- Hard:
+  - the generic `shell.mode = immersive` support validated at the route-descriptor layer but still did not surface reliably in the live layouts route, so the delivery needed a pragmatic route-level fallback in `AppShellLayout` to guarantee the full-width builder surface now
+  - running review instances on this machine still requires strict port discipline; a stale `3000` listener silently pushed Vite onto another port until the ports were cleared explicitly
+- Improve:
+  - for spatial tooling, verify the dedicated-shell behavior in the browser before assuming route metadata is enough; width ownership is part of the product, not a minor shell detail
+  - empty container states should never render through the same grid/flex body layout that is meant for populated children; treat empty-body rendering as its own layout mode
+  - when tests are green but screenshots still look wrong, trust the screenshots and keep iterating before calling the UI usable
+
+### 2026-03-09 - Review Pair Reuse Rule
+- Tasks:
+  - tightened the manual-review startup rule so future runs inspect `3000` / `3001` first, reuse a healthy repo-owned pair when safe, and otherwise stop the old pair before starting a new one
+- Easy:
+  - the right discipline was already obvious from the failures; it just needed to be made explicit in the run docs instead of rediscovered ad hoc
+- Hard:
+  - this machine makes a simple review start look noisier than it is because stale listeners and sandbox `spawn EPERM` can mask whether the app is actually live
+- Improve:
+  - treat review-process ownership as part of the task, not cleanup after the task

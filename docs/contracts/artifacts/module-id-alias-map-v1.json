@@ -11,6 +11,7 @@
     "test-modules-remotes-publish",
     "test-modules-content",
     "test-modules-pages",
+    "test-modules-layouts",
     "test-modules-engagement",
     "test-modules-editorial",
     "test-modules-taxonomy"
@@ -59,6 +60,7 @@
     "blog-post-revisions": "test-modules-content",
     "blog-pages": "test-modules-pages",
     "blog-redirect-rules": "test-modules-pages",
+    "page-layouts": "test-modules-layouts",
     "blog-authors": "test-modules-editorial",
     "blog-tags": "test-modules-taxonomy",
     "blog-categories": "test-modules-taxonomy",
@@ -124,6 +126,9 @@
       "blog-pages",
       "blog-redirect-rules"
     ],
+    "test-modules-layouts": [
+      "page-layouts"
+    ],
     "test-modules-editorial": [
       "blog-authors"
     ],
@@ -135,8 +140,8 @@
       "blog-comments"
     ]
   },
-  "sourceModuleCount": 47,
-  "mappedSourceModuleCount": 47,
+  "sourceModuleCount": 48,
+  "mappedSourceModuleCount": 48,
   "unmappedSourceModuleIds": []
 }
 

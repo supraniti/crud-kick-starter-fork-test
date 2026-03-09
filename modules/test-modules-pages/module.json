@@ -101,6 +101,15 @@
           "maxLength": 320
         },
         {
+          "id": "layoutId",
+          "label": "Layout",
+          "type": "reference",
+          "required": false,
+          "collectionId": "page-layouts",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
           "id": "layoutKey",
           "label": "Layout Key",
           "type": "text",
