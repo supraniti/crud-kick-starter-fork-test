@@ -1,12 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  createReferenceCollectionItem,
-  fetchReferenceCollectionItems,
-  updateReferenceCollectionItem
-} from "../../../frontend/src/api/reference.js";
-
-export const PAGES_COLLECTION_ID = "blog-pages";
-
 const DRAFT_LIST_FIELDS = Object.freeze(["coAuthorIds", "categoryIds", "tagIds", "galleryMediaIds"]);
 const DRAFT_TEXT_FIELDS = Object.freeze([
   "title",
@@ -31,45 +22,19 @@ function pickFields(item, fieldIds, normalizeValue) {
   return Object.fromEntries(fieldIds.map((fieldId) => [fieldId, normalizeValue(item?.[fieldId])]));
 }
 
-function normalizeOptionalText(value) {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function buildDefaultPath(post = {}) {
-  const slug = typeof post?.slug === "string" ? post.slug.trim() : "";
-  return slug.length > 0 ? `/blog/${slug}` : "";
-}
-
-function createPublicationState() {
-  return {
-    loading: false,
-    errorMessage: null,
-    items: []
-  };
-}
-
-function pickPublicationValue(page, post, fieldId, fallback = "") {
-  return page?.[fieldId] ?? post?.[fieldId] ?? fallback;
-}
-
-export function normalizeDraftFromSources(post = {}, page = null) {
+export function normalizeDraftFromSources(post = {}) {
   const primaryAuthorId = readItemValue(post, "primaryAuthorId");
   return {
     ...pickFields(post, DRAFT_TEXT_FIELDS, (value) => value ?? ""),
     ...pickFields(post, DRAFT_LIST_FIELDS, toArray),
-    path: readItemValue(page, "path", buildDefaultPath(post)),
-    status: pickPublicationValue(page, post, "status", "draft"),
-    canonicalUrl: pickPublicationValue(page, post, "canonicalUrl", ""),
-    seoTitle: pickPublicationValue(page, post, "seoTitle", ""),
-    seoDescription: pickPublicationValue(page, post, "seoDescription", ""),
-    ogTitle: pickPublicationValue(page, post, "ogTitle", ""),
-    ogDescription: pickPublicationValue(page, post, "ogDescription", ""),
-    ogImageMediaId: pickPublicationValue(page, post, "ogImageMediaId", ""),
-    scheduledOn: pickPublicationValue(page, post, "scheduledOn", ""),
+    status: readItemValue(post, "status", "draft"),
+    canonicalUrl: readItemValue(post, "canonicalUrl"),
+    seoTitle: readItemValue(post, "seoTitle"),
+    seoDescription: readItemValue(post, "seoDescription"),
+    ogTitle: readItemValue(post, "ogTitle"),
+    ogDescription: readItemValue(post, "ogDescription"),
+    ogImageMediaId: readItemValue(post, "ogImageMediaId"),
+    scheduledOn: readItemValue(post, "scheduledOn"),
     allowComments: post?.allowComments !== false,
     commentPolicy: readItemValue(post, "commentPolicy", "open"),
     format: readItemValue(post, "format", "article"),
@@ -118,118 +83,9 @@ export function buildPostMutationPayload(draft, currentPost = null) {
   };
 }
 
-function buildPageMutationPayload(draft, post, currentPage = null) {
-  return {
-    sourceType: currentPage?.sourceType ?? "blog-post",
-    sourcePostId: post.id,
-    path: normalizeOptionalText(draft.path) ?? buildDefaultPath(post),
-    layoutKey: currentPage?.layoutKey ?? "blog-post",
-    status: draft.status,
-    canonicalUrl: normalizeOptionalText(draft.canonicalUrl),
-    seoTitle: normalizeOptionalText(draft.seoTitle),
-    seoDescription: normalizeOptionalText(draft.seoDescription),
-    ogTitle: normalizeOptionalText(draft.ogTitle),
-    ogDescription: normalizeOptionalText(draft.ogDescription),
-    ogImageMediaId: normalizeOptionalText(draft.ogImageMediaId),
-    scheduledOn: normalizeOptionalText(draft.scheduledOn),
-    publishedOn: currentPage?.publishedOn ?? post?.publishedOn ?? null,
-    archivedOn: currentPage?.archivedOn ?? post?.archivedOn ?? null
-  };
-}
-
-async function loadPublicationPages() {
-  const payload = await fetchReferenceCollectionItems({
-    collectionId: PAGES_COLLECTION_ID,
-    limit: 200
-  });
-  return toArray(payload?.items);
-}
-
-async function findPageByPostId(postId) {
-  const payload = await fetchReferenceCollectionItems({
-    collectionId: PAGES_COLLECTION_ID,
-    sourcePostId: postId,
-    limit: 2
-  });
-  return toArray(payload?.items)[0] ?? null;
-}
-
-export function usePublicationPages() {
-  const [publicationState, setPublicationState] = useState(createPublicationState);
-
-  const reloadPublicationPages = useCallback(async () => {
-    setPublicationState((previous) => ({
-      ...previous,
-      loading: true,
-      errorMessage: null
-    }));
-
-    try {
-      const items = await loadPublicationPages();
-      setPublicationState({
-        loading: false,
-        errorMessage: null,
-        items
-      });
-    } catch (error) {
-      setPublicationState({
-        loading: false,
-        errorMessage: error?.message ?? "Failed to load publication pages",
-        items: []
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    void reloadPublicationPages();
-  }, [reloadPublicationPages]);
-
-  const pageByPostId = useMemo(
-    () =>
-      new Map(
-        publicationState.items
-          .filter((page) => typeof page?.sourcePostId === "string" && page.sourcePostId.length > 0)
-          .map((page) => [page.sourcePostId, page])
-      ),
-    [publicationState.items]
-  );
-
-  return {
-    publicationState,
-    pageByPostId,
-    reloadPublicationPages
-  };
-}
-
-export async function persistPublicationPage({ draft, post, currentPage = null }) {
-  if (!post?.id) {
-    return {
-      ok: false,
-      error: {
-        message: "Cannot persist publication page without a saved post"
-      }
-    };
-  }
-
-  const payload = buildPageMutationPayload(draft, post, currentPage);
-  const resolvedPage = currentPage ?? (await findPageByPostId(post.id));
-
-  return resolvedPage?.id
-    ? updateReferenceCollectionItem({
-        collectionId: PAGES_COLLECTION_ID,
-        itemId: resolvedPage.id,
-        item: payload
-      })
-    : createReferenceCollectionItem({
-        collectionId: PAGES_COLLECTION_ID,
-        item: payload
-      });
-}
-
-export function computeHealth(post, page = null) {
+export function computeHealth(post) {
   const issues = [];
-  const publication = page ?? null;
-  if (!(publication?.seoTitle ?? post?.seoTitle) || !(publication?.seoDescription ?? post?.seoDescription)) {
+  if (!post?.seoTitle || !post?.seoDescription) {
     issues.push("seo");
   }
   if (!Array.isArray(post?.categoryIds) || post.categoryIds.length === 0) {

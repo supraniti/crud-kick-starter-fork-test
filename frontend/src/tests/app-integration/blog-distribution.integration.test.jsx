@@ -43,19 +43,7 @@ function createCollectionsDomain() {
     collectionItemsState: {
       loading: false,
       errorMessage: null,
-      items: [
-        {
-          id: "redirect-001",
-          sourcePath: "/legacy-launch",
-          targetPostId: "post-001",
-          targetUrl: null,
-          httpCode: "301",
-          status: "active",
-          reason: "Legacy permalink",
-          createdOn: "2026-03-08T08:00:00.000Z",
-          updatedOn: "2026-03-08T08:00:00.000Z"
-        }
-      ]
+      items: []
     },
     referenceOptionsState: {},
     activeCollectionId: "blog-redirect-rules",
@@ -68,6 +56,54 @@ function createCollectionsDomain() {
 
 function installReferenceMocks() {
   referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "blog-pages") {
+      return {
+        items: [
+          {
+            id: "page-001",
+            title: "Launch Story",
+            pageKind: "content-detail",
+            primarySourceType: "blog-post",
+            path: "/stories/launch-window-update",
+            layoutKey: "story-shell",
+            primarySource: {
+              sourceType: "blog-post",
+              itemId: "post-001",
+              bindAs: "primary"
+            },
+            dataSources: [],
+            status: "scheduled",
+            scheduledOn: "2026-03-09T09:00:00.000Z",
+            seoTitle: "Launch Story",
+            seoDescription: "Launch story description",
+            ogTitle: "Launch Story",
+            ogDescription: "Launch story description",
+            ogImageMediaId: "media-001",
+            createdOn: "2026-03-08T08:00:00.000Z",
+            updatedOn: "2026-03-08T08:00:00.000Z"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-redirect-rules") {
+      return {
+        items: [
+          {
+            id: "redirect-001",
+            sourcePath: "/legacy-launch",
+            targetPageId: "page-001",
+            targetUrl: null,
+            httpCode: "301",
+            status: "active",
+            reason: "Legacy permalink",
+            createdOn: "2026-03-08T08:00:00.000Z",
+            updatedOn: "2026-03-08T08:00:00.000Z"
+          }
+        ]
+      };
+    }
+
     if (collectionId === "blog-posts") {
       return {
         items: [
@@ -77,16 +113,13 @@ function installReferenceMocks() {
             slug: "launch-window-update",
             status: "scheduled",
             primaryAuthorId: "author-001",
-            scheduledOn: "2026-03-09T08:30:00.000Z",
-            publishedOn: null,
-            updatedOn: "2026-03-08T10:00:00.000Z",
-            excerpt: "",
-            seoTitle: "",
-            seoDescription: "",
-            ogTitle: "",
-            ogDescription: "",
-            ogImageMediaId: null,
-            featuredMediaId: null
+            excerpt: "Launch story description",
+            featuredMediaId: "media-001",
+            seoTitle: "Launch Window Update",
+            seoDescription: "Launch story description",
+            ogTitle: "Launch Window Update",
+            ogDescription: "Launch story description",
+            ogImageMediaId: "media-001"
           }
         ]
       };
@@ -100,12 +133,39 @@ function installReferenceMocks() {
             displayName: "Distribution Editor",
             role: "editor",
             status: "active"
-          },
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-categories") {
+      return {
+        items: [
           {
-            id: "author-002",
-            displayName: "Feature Author",
-            role: "author",
-            status: "active"
+            id: "cat-001",
+            name: "Releases"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-tags") {
+      return {
+        items: [
+          {
+            id: "tag-001",
+            name: "Platform"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "media-items") {
+      return {
+        items: [
+          {
+            id: "media-001",
+            displayName: "Launch Hero"
           }
         ]
       };
@@ -117,22 +177,63 @@ function installReferenceMocks() {
   });
 }
 
+function createJsonResponse(status, payload) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async json() {
+      return payload;
+    }
+  };
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
-test("pages overview renders readiness warnings and publishes scheduled pages", async () => {
+test("pages overview renders standalone pages desk, previews delivery json, and publishes scheduled pages", async () => {
   installReferenceMocks();
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({
-      ok: true,
-      item: {
-        id: "post-001",
-        status: "published"
+  const fetchMock = vi.fn(async (url) => {
+    if (String(url).includes("/pages/page-001/delivery")) {
+      return createJsonResponse(200, {
+        ok: true,
+        payload: {
+          contractVersion: 1,
+          page: {
+            id: "page-001",
+            title: "Launch Story",
+            path: "/stories/launch-window-update"
+          },
+          data: {
+            primary: {
+              collectionId: "blog-posts",
+              itemId: "post-001"
+            }
+          }
+        }
+      });
+    }
+
+    if (String(url).includes("/pages/page-001/publish-now")) {
+      return createJsonResponse(200, {
+        ok: true,
+        item: {
+          id: "page-001",
+          status: "published",
+          deploymentArtifactPath: "stories/launch-window-update/index.html",
+          deploymentSyncedOn: "2026-03-09T09:05:00.000Z"
+        }
+      });
+    }
+
+    return createJsonResponse(404, {
+      ok: false,
+      error: {
+        message: "not found"
       }
-    })
+    });
   });
   vi.stubGlobal("fetch", fetchMock);
 
@@ -144,37 +245,80 @@ test("pages overview renders readiness warnings and publishes scheduled pages", 
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Pages Desk" })).toBeInTheDocument();
-    expect(screen.getByText("Missing SEO title")).toBeInTheDocument();
-    expect(screen.getByText("Pages Queue")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Standalone Pages Desk" })).toBeInTheDocument();
+    expect(screen.getByText("Launch Story")).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/"contractVersion": 1/)).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "Publish Scheduled Page" }));
+  fireEvent.click(screen.getByRole("button", { name: "Publish Page" }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reference/modules/test-modules-pages/posts/post-001/publish-now",
+      "/api/reference/modules/test-modules-pages/pages/page-001/publish-now",
       expect.objectContaining({
         method: "POST"
       })
     );
-    expect(screen.getByText("Scheduled post published")).toBeInTheDocument();
+    expect(screen.getByText("Page published and deployed")).toBeInTheDocument();
   });
 });
 
-test("blog distribution redirect manager persists new rules through the redirect collection api", async () => {
+test("pages editor creates standalone pages and redirect manager persists page-targeted redirects", async () => {
   installReferenceMocks();
-  referenceApi.createReferenceCollectionItem.mockResolvedValue({
-    ok: true,
-    item: {
-      id: "redirect-002",
-      sourcePath: "/legacy-launch-2",
-      targetUrl: "https://example.com/blog/launch-window-update",
-      httpCode: "302",
-      status: "active",
-      reason: "Campaign handoff"
+  referenceApi.createReferenceCollectionItem.mockImplementation(async ({ collectionId, item }) => {
+    if (collectionId === "blog-pages") {
+      return {
+        ok: true,
+        item: {
+          id: "page-002",
+          ...item,
+          createdOn: "2026-03-09T08:00:00.000Z",
+          updatedOn: "2026-03-09T08:00:00.000Z"
+        }
+      };
     }
+
+    return {
+      ok: true,
+      item: {
+        id: "redirect-002",
+        ...item
+      }
+    };
   });
+  const fetchMock = vi.fn(async (url) => {
+    if (String(url).includes("/pages/page-001/delivery")) {
+      return createJsonResponse(200, {
+        ok: true,
+        payload: {
+          contractVersion: 1,
+          page: {
+            id: "page-001"
+          }
+        }
+      });
+    }
+
+    if (String(url).includes("/pages/page-002/delivery")) {
+      return createJsonResponse(200, {
+        ok: true,
+        payload: {
+          contractVersion: 1,
+          page: {
+            id: "page-002"
+          }
+        }
+      });
+    }
+
+    return createJsonResponse(404, {
+      ok: false,
+      error: {
+        message: "not found"
+      }
+    });
+  });
+  vi.stubGlobal("fetch", fetchMock);
 
   const collectionsDomain = createCollectionsDomain();
 
@@ -186,7 +330,49 @@ test("blog distribution redirect manager persists new rules through the redirect
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("tab", { name: "Redirect Manager" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New Page" })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "New Page" }));
+  fireEvent.change(screen.getByLabelText("Page Title"), {
+    target: {
+      value: "Platform Landing"
+    }
+  });
+  fireEvent.change(screen.getByLabelText("Path"), {
+    target: {
+      value: "/platform"
+    }
+  });
+  fireEvent.change(screen.getByLabelText("Runtime Script URLs"), {
+    target: {
+      value: "https://cdn.example.com/runtime.js\n/assets/runtime/platform.js"
+    }
+  });
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Create Page" })).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Create Page" }));
+
+  await waitFor(() => {
+    expect(referenceApi.createReferenceCollectionItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionId: "blog-pages",
+        item: expect.objectContaining({
+          title: "Platform Landing",
+          path: "/platform",
+          primarySourceType: "none",
+          runtimeScriptUrls: [
+            {
+              url: "https://cdn.example.com/runtime.js"
+            },
+            {
+              url: "/assets/runtime/platform.js"
+            }
+          ]
+        })
+      })
+    );
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Redirect Manager" }));
@@ -198,7 +384,7 @@ test("blog distribution redirect manager persists new rules through the redirect
   });
   fireEvent.change(screen.getByLabelText("Target URL"), {
     target: {
-      value: "https://example.com/blog/launch-window-update"
+      value: "https://example.com/platform"
     }
   });
   fireEvent.change(screen.getByLabelText("Reason"), {
@@ -213,14 +399,12 @@ test("blog distribution redirect manager persists new rules through the redirect
       collectionId: "blog-redirect-rules",
       item: {
         sourcePath: "/legacy-launch-2",
-        targetPostId: null,
-        targetUrl: "https://example.com/blog/launch-window-update",
+        targetPageId: null,
+        targetUrl: "https://example.com/platform",
         httpCode: "301",
         status: "active",
         reason: "Campaign handoff"
       }
     });
-    expect(collectionsDomain.reloadCollectionItems).toHaveBeenCalled();
   });
 });
-

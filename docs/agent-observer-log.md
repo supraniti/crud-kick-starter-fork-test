@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-09 - T02 Standalone Pages Kickoff
+- Tasks:
+  - audited the T01 `Pages` module against the standalone-pages ticket
+  - identified the exact post-derived coupling points in schema, routes, UI, and tests
+  - updated the contracts and handoff before implementation so T02 has an explicit repo-level target
+- Easy:
+  - the repo already supports structured descriptors through `structured-object` and `structured-object-array`, so standalone page contracts can stay module-local
+  - module-owned custom route views and module-owned HTTP routes are already present, so a standalone pages desk does not require broad core work
+- Hard:
+  - the T01 coupling is deep: content mutation hooks, content-editor save flow, pages schema, pages workspace composition, and conformance tests all still assume one page per post
+  - the previous T01 contract file name (`blog-distribution`) was already conceptually stale for the new standalone-pages target
+- Improve:
+  - when a module changes from transitional to long-term ownership, rename or replace the module contract immediately so later sessions do not inherit stale terminology
+  - record coupling points before implementation whenever a ticket explicitly asks to reverse a previous transition model
+
 ### 2026-03-06 - Orientation Baseline
 - Tasks:
   - cloned the repo into the workspace
@@ -278,4 +293,67 @@
 - Improve:
   - when a migration relies on compatibility mirrors, add an explicit test for “source-of-truth values survive mirror-driven sync” as soon as the first mirror is introduced
   - treat smoke-lane port ownership as part of the closure checklist, not cleanup work after the fact
+
+### 2026-03-09 - T02 Standalone Pages Delivery
+- Tasks:
+  - finished the standalone-pages shift so page records are created from the pages desk and are no longer derived from content creation
+  - delivered page-owned primary-source/data-source descriptors plus deterministic delivery payload routes inside `test-modules-pages`
+  - split the oversized pages frontend/server files into module-local siblings so the standalone-pages work clears the repo LOC/function-shape rules
+  - reran the targeted standalone-pages integration test, the smoke lane, and the full repo gate lanes
+- Easy:
+  - the repo already had the right module-local seams for this architecture; the pages desk, module-owned routes, and module-owned runtime helpers were enough without broad core work
+  - once the manifest issue was fixed, the standalone-pages model fit cleanly into the existing collection/runtime surface
+- Hard:
+  - the first server-side failures were misleading because the real blocker was manifest discovery: `test-modules-pages` was invalid and not loading at all
+  - the full release gate now fails only at the final smoke step because `127.0.0.1:3001` ends up occupied by a `node --watch src/index.js` parent and `node src/index.js` child before Playwright starts, even though `pnpm test:e2e:smoke` passes when run directly after clearing that listener
+  - keeping the pages files within repo shape limits required a real structural split, not just incremental edits
+- Improve:
+  - when a new module “does not work,” check runtime discovery diagnostics before debugging feature behavior; invalid manifests can hide the real problem completely
+  - for large module-local desks, plan the helper-file split before crossing the LOC cap instead of treating the split as cleanup after behavior work lands
+
+### 2026-03-09 - T02 Smoke-Lane Closure
+- Tasks:
+  - closed the remaining release-gate caveat after T02 by hardening the smoke runner itself
+  - added a preflight cleanup in `scripts/e2e-smoke-runner.mjs` so stale repo listeners on `3000` / `3001` are cleared before Playwright starts
+  - reran `pnpm test:e2e:smoke` and then `pnpm quality:gate:full` without manual cleanup between them
+- Easy:
+  - once the failure was isolated to stale repo listeners, the right fix was in the smoke runner, not in the pages feature
+  - replaying the full gate after the runner fix gave a decisive closure signal immediately
+- Hard:
+  - the flake looked like a product problem at first, but it was really an environment ownership issue across test steps
+  - the lingering server shape on Windows was slightly deceptive because the live listener was the child `node src/index.js` process while the real root cause was the `node --watch src/index.js` parent
+- Improve:
+  - test runners that own web-server boot should also own stale-port cleanup for their known app ports
+  - when a full gate fails only at the final environment-dependent lane, prove the suspected fix by replaying the entire gate, not just the failing lane in isolation
+
+### 2026-03-09 - T03 Static Deployment Publish Surface
+- Tasks:
+  - extended `test-modules-pages` so publish now materializes repo-root static HTML under `deployment/`
+  - kept the deployment writer and cleanup behavior entirely module-local to the pages module
+  - added pages-module settings for the global mount tag and page-owned script-list configuration
+- Easy:
+  - the existing standalone-page delivery payload was already the right input for HTML generation, so no new shared resolver layer was needed
+  - collection-handler `afterMutation` was enough to keep deployment add/update/remove behavior attached to page state without introducing a core deployment service
+- Hard:
+  - direct single-file vitest runs remain unreliable on this machine because of Windows `spawn EPERM`, so focused validation still has to flow through the repo-authoritative lanes
+  - deployment cleanup needs delete-time state, which is not available in the generic `afterMutation` payload; the safe path was capturing removed-page snapshots in the module-local handler wrapper
+- Improve:
+  - whenever a module owns durable filesystem artifacts, define the repo-root path helper and path-traversal rule in the same slice instead of treating path safety as later cleanup
+  - document earlier that direct vitest entrypoints are non-authoritative here so future agents do not burn time retrying the same noisy commands
+
+### 2026-03-09 - T03 Static Deployment Closure
+- Tasks:
+  - closed the pages deployment slice under the authoritative full gate
+  - fixed page-publish coordination so blog-post-backed pages can publish from a draft source post without weakening the generic content-module lifecycle rules
+  - normalized cleared page deployment metadata back to `null` on reads so archived/unpublished pages expose a stable contract
+  - replaced the flaky Windows listener probe in the smoke runner with a netstat-based cleanup path that actually sees and clears stale repo `node` listeners
+- Easy:
+  - once the failure surface was isolated, the right fixes stayed module-local: route-side publish coordination, page-handler read normalization, and smoke-runner cleanup
+  - the standalone-page delivery payload remained the single source for both deployment HTML and verification expectations
+- Hard:
+  - the initial smoke-runner cleanup looked correct on paper but was blind on this machine because `Get-NetTCPConnection` / `Get-CimInstance` did not return usable listener/process data
+  - text-backed optional metadata fields (`deploymentArtifactPath`, `deploymentSyncedOn`, lifecycle timestamps) round-tripped as empty strings through the generic collection layer, so the module had to define its own exposed null-shape explicitly
+- Improve:
+  - on Windows, if a runner must own stale-port cleanup, verify the listener probe against `netstat` early instead of assuming the higher-level cmdlets are reliable
+  - for modules that use generic text fields as nullable metadata, normalize the exposed read contract in the module handler immediately so tests and UI do not inherit blank-string ambiguity
 

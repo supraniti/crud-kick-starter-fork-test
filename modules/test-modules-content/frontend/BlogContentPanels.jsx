@@ -313,7 +313,7 @@ export const SeoPreview = memo(function SeoPreview({ draft, mediaOptions }) {
             </Typography>
             <Typography variant="subtitle2">{draft.seoTitle || draft.title || "Untitled Post"}</Typography>
             <Typography variant="caption" color="success.main">
-              {draft.canonicalUrl || draft.path || "https://example.com/blog/post-slug"}
+              {draft.canonicalUrl || "https://example.com/blog/post-slug"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {draft.seoDescription || draft.excerpt || "Add an SEO description to complete the preview."}

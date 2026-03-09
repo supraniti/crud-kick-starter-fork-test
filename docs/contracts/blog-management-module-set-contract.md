@@ -58,8 +58,7 @@
 - `test-modules-pages`
   - owns `blog-pages`
   - owns `blog-redirect-rules`
-  - owns page/publication route, SEO/social metadata, and redirect workflows
-  - owns the emerging publication state surface for blog-backed pages
+  - owns standalone page records, route/path, layout, SEO/social metadata, redirect workflows, delivery payload resolution, and static HTML deployment artifacts
 
 ## Shared Decisions Locked For Implementation
 - Rich text storage format:
@@ -76,10 +75,15 @@
 - Media integration:
   - use references to `media-items` only
   - do not add upload/storage logic in any blog module
-- T01 transition posture:
-  - `blog-pages` is introduced now as the page/publication record
-  - current post workflows remain operator-compatible during T01
-  - publication fields may remain mirrored between `blog-posts` and `blog-pages` during T01 while the source-of-truth boundary is moved incrementally toward `test-modules-pages`
+- T02 standalone-pages posture:
+  - `blog-pages` is now the standalone page/publication record
+  - page creation is independent from content creation
+  - pages choose source descriptors declaratively instead of being derived from `blog-posts`
+  - content writes must not auto-create or auto-update page records
+  - delivery payloads resolve with a `live-reference` model from page descriptors plus referenced source state
+  - page/query/layout structures must remain declarative, typed, and bounded
+  - published pages deploy module-owned static HTML into repo-root `deployment/`
+  - deployed HTML uses a global pages-module mount tag setting, per-page runtime script URLs, and embedded application/json payload boot data
 
 ## Cross-Module Invariants
 - `blog-posts.primaryAuthorId`, `coAuthorIds`, `createdByAuthorId`, and `updatedByAuthorId` reference `blog-authors`.
@@ -87,11 +91,11 @@
 - `blog-posts.tagIds` and `blog-authors.expertiseTagIds` reference `blog-tags`.
 - `blog-posts.featuredMediaId`, `galleryMediaIds`, and `ogImageMediaId` reference `media-items`.
 - `blog-post-revisions.postId` references `blog-posts`.
-- `blog-pages.sourcePostId` references `blog-posts`.
+- `blog-pages` may reference `blog-posts`, `blog-authors`, `blog-categories`, and `blog-tags` through declarative source descriptors owned by `test-modules-pages`.
 - `blog-pages.ogImageMediaId` references `media-items`.
 - `blog-comments.postId` references `blog-posts`.
 - `blog-comments.approvedByAuthorId` references `blog-authors`.
-- `blog-redirect-rules.targetPostId` references `blog-posts`.
+- `blog-redirect-rules.targetPageId` references `blog-pages`.
 - No module may create a second copy of shared blog business logic under `server/src/domains/reference/blog`.
 
 ## Module-First Delivery Rules

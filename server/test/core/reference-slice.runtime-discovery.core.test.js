@@ -26,6 +26,7 @@ const ACTIVE_MODULE_IDS = Object.freeze([
 const MODULE_SETTINGS_IDS = Object.freeze([
   "test-modules-crud-core",
   "test-modules-operations-dispatch",
+  "test-modules-pages",
   "test-modules-relations-taxonomy",
   "test-modules-remotes-publish",
   "test-modules-settings-policy"

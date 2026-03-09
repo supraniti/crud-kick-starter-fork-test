@@ -339,13 +339,7 @@ function SeoFieldsSectionComponent({ draft, changeField }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
-        <Typography variant="h6">Page Publication</Typography>
-        <TextField
-          label="Page Path"
-          value={draft.path}
-          onChange={(event) => changeField("path", event.target.value)}
-          placeholder="/blog/post-slug"
-        />
+        <Typography variant="h6">Search + Social Defaults</Typography>
         <TextField
           label="Canonical URL"
           value={draft.canonicalUrl}
@@ -385,7 +379,6 @@ const SeoFieldsSection = memo(SeoFieldsSectionComponent, (previousProps, nextPro
   const nextDraft = nextProps.draft;
   return (
     previousProps.changeField === nextProps.changeField &&
-    previousDraft.path === nextDraft.path &&
     previousDraft.canonicalUrl === nextDraft.canonicalUrl &&
     previousDraft.seoTitle === nextDraft.seoTitle &&
     previousDraft.seoDescription === nextDraft.seoDescription &&
@@ -415,9 +408,7 @@ export function BlogContentEditorPanel({ workspace }) {
   return (
     <Stack spacing={2}>
       <EditorHeader workspace={workspace} />
-      {workspace.publicationState.errorMessage ? (
-        <Alert severity="warning">{workspace.publicationState.errorMessage}</Alert>
-      ) : null}
+      <Alert severity="info">Standalone pages are managed in the Pages module.</Alert>
       {workspace.saveState.errorMessage ? <Alert severity="error">{workspace.saveState.errorMessage}</Alert> : null}
       {workspace.saveState.successMessage ? <Alert severity="success">{workspace.saveState.successMessage}</Alert> : null}
       <EssentialsSection workspace={workspace} />

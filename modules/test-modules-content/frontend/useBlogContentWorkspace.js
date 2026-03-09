@@ -8,9 +8,7 @@ import {
   buildPostMutationPayload,
   computeHealth,
   createEmptyDraft,
-  normalizeDraftFromSources,
-  persistPublicationPage,
-  usePublicationPages
+  normalizeDraftFromSources
 } from "./publication-support.js";
 
 const MODULE_ID = "test-modules-content";
@@ -109,7 +107,6 @@ function buildSummary(posts) {
 function syncSelectedPost({
   isCreatingNew,
   pendingPostId,
-  pageByPostId,
   posts,
   selectedPostId,
   setSelectedPostId,
@@ -131,7 +128,7 @@ function syncSelectedPost({
 
     setPendingPostId(null);
     setSelectedPostId(pendingPost.id);
-    setDraft(normalizeDraftFromSources(pendingPost, pageByPostId.get(pendingPost.id) ?? null));
+    setDraft(normalizeDraftFromSources(pendingPost));
     return;
   }
 
@@ -146,16 +143,11 @@ function syncSelectedPost({
 
   const nextSelectedPost = posts.find((post) => post.id === selectedPostId) ?? null;
   if (nextSelectedPost) {
-    setDraft(
-      normalizeDraftFromSources(
-        nextSelectedPost,
-        pageByPostId.get(nextSelectedPost.id) ?? null
-      )
-    );
+    setDraft(normalizeDraftFromSources(nextSelectedPost));
   }
 }
 
-function usePostSelection(collectionsDomain, pageByPostId) {
+function usePostSelection(collectionsDomain) {
   const [pendingPostId, setPendingPostId] = useState(null);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -180,14 +172,13 @@ function usePostSelection(collectionsDomain, pageByPostId) {
     syncSelectedPost({
       isCreatingNew,
       pendingPostId,
-      pageByPostId,
       posts,
       selectedPostId,
       setSelectedPostId,
       setPendingPostId,
       setDraft
     });
-  }, [isCreatingNew, pageByPostId, pendingPostId, posts, selectedPostId]);
+  }, [isCreatingNew, pendingPostId, posts, selectedPostId]);
 
   return {
     isCreatingNew,
@@ -275,12 +266,10 @@ function useRevisionTimeline(selectedPostId) {
 async function savePost({
   isCreatingNew,
   mutationDraft,
-  currentPage,
   selectedPost,
   selectedPostId,
   collectionsDomain,
   loadRevisions,
-  reloadPublicationPages,
   setDraft,
   setIsCreatingNew,
   setPendingPostId,
@@ -309,22 +298,6 @@ async function savePost({
 
     const savedItem = result.item ?? null;
     if (savedItem?.id) {
-      const pageResult = await persistPublicationPage({
-        draft: mutationDraft,
-        post: savedItem,
-        currentPage
-      });
-      if (!pageResult?.ok) {
-        setSaveFailure(
-          setSaveState,
-          "Post saved but page publication failed to persist",
-          pageResult?.error
-        );
-        collectionsDomain.reloadCollectionItems();
-        void reloadPublicationPages();
-        return { ok: false };
-      }
-
       if (isCreatingNew) {
         setIsCreatingNew(false);
         setPendingPostId(savedItem.id);
@@ -332,10 +305,10 @@ async function savePost({
         setPendingPostId(null);
       }
       setSelectedPostId(savedItem.id);
-      setDraft(normalizeDraftFromSources(savedItem, pageResult.item ?? null));
+      setDraft(normalizeDraftFromSources(savedItem));
       void loadRevisions(savedItem.id);
     }
-    void reloadPublicationPages();
+
     collectionsDomain.reloadCollectionItems();
     setSaveSuccess(setSaveState, selectedPostId ? "Post updated" : "Post created");
     return {
@@ -353,7 +326,6 @@ async function restoreRevision({
   draft,
   loadRevisions,
   postId,
-  reloadPublicationPages,
   revisionId,
   setDraft,
   setSaveState
@@ -368,7 +340,6 @@ async function restoreRevision({
       changeSummary: `Rollback to revision ${revisionId}`
     });
     collectionsDomain.reloadCollectionItems();
-    await reloadPublicationPages();
     if (result?.item) {
       setDraft(normalizeDraftFromSources(result.item));
     }
@@ -380,7 +351,6 @@ async function restoreRevision({
 }
 
 function useDraftActions({
-  getPageForPostId,
   setDraft,
   setIsCreatingNew,
   setPendingPostId,
@@ -394,14 +364,10 @@ function useDraftActions({
       setIsCreatingNew(false);
       setPendingPostId(null);
       setSelectedPostId(postId);
-      setDraft(
-        nextPost
-          ? normalizeDraftFromSources(nextPost, getPageForPostId(postId))
-          : createEmptyDraft()
-      );
+      setDraft(nextPost ? normalizeDraftFromSources(nextPost) : createEmptyDraft());
       setSaveState(createSaveState());
     },
-    [getPageForPostId, setDraft, setIsCreatingNew, setPendingPostId, setSaveState, setSelectedPostId]
+    [setDraft, setIsCreatingNew, setPendingPostId, setSaveState, setSelectedPostId]
   );
 
   const startNew = useCallback(() => {
@@ -457,12 +423,9 @@ function useDraftActions({
 
 function useWorkspaceActions({
   collectionsDomain,
-  getPageForPostId,
   draft,
   isCreatingNew,
   loadRevisions,
-  currentPage,
-  reloadPublicationPages,
   selectedPost,
   selectedPostId,
   setDraft,
@@ -473,7 +436,6 @@ function useWorkspaceActions({
   setSelectedPostId
 }) {
   const draftActions = useDraftActions({
-    getPageForPostId,
     setDraft,
     setIsCreatingNew,
     setPendingPostId,
@@ -487,12 +449,10 @@ function useWorkspaceActions({
       savePost({
         isCreatingNew,
         mutationDraft: nextDraft ?? draft,
-        currentPage,
         selectedPost,
         selectedPostId,
         collectionsDomain,
         loadRevisions,
-        reloadPublicationPages,
         setDraft,
         setIsCreatingNew,
         setPendingPostId,
@@ -501,11 +461,9 @@ function useWorkspaceActions({
       }),
     [
       collectionsDomain,
-      currentPage,
       draft,
       isCreatingNew,
       loadRevisions,
-      reloadPublicationPages,
       selectedPost,
       selectedPostId,
       setDraft,
@@ -539,13 +497,12 @@ function useWorkspaceActions({
         draft,
         loadRevisions,
         postId: selectedPostId,
-        reloadPublicationPages,
         revisionId,
         setDraft,
         setSaveState
       });
     },
-    [collectionsDomain, draft, loadRevisions, reloadPublicationPages, selectedPostId, setDraft, setSaveState]
+    [collectionsDomain, draft, loadRevisions, selectedPostId, setDraft, setSaveState]
   );
 
   return {
@@ -558,28 +515,18 @@ function useWorkspaceActions({
 
 export function useBlogContentWorkspace({ collectionsDomain }) {
   const [saveState, setSaveState] = useState(createSaveState);
-  const publication = usePublicationPages();
-  const selection = usePostSelection(collectionsDomain, publication.pageByPostId);
+  const selection = usePostSelection(collectionsDomain);
   const revisions = useRevisionTimeline(selection.selectedPostId);
   const summary = useMemo(() => buildSummary(selection.posts), [selection.posts]);
   const postHealthMap = useMemo(
-    () =>
-      new Map(
-        selection.posts.map((post) => [
-          post.id,
-          computeHealth(post, publication.pageByPostId.get(post.id) ?? null)
-        ])
-      ),
-    [publication.pageByPostId, selection.posts]
+    () => new Map(selection.posts.map((post) => [post.id, computeHealth(post)])),
+    [selection.posts]
   );
   const actions = useWorkspaceActions({
     collectionsDomain,
-    currentPage: publication.pageByPostId.get(selection.selectedPostId) ?? null,
     draft: selection.draft,
-    getPageForPostId: (postId) => publication.pageByPostId.get(postId) ?? null,
     isCreatingNew: selection.isCreatingNew,
     loadRevisions: revisions.loadRevisions,
-    reloadPublicationPages: publication.reloadPublicationPages,
     selectedPost: selection.selectedPost,
     selectedPostId: selection.selectedPostId,
     setDraft: selection.setDraft,
@@ -600,7 +547,6 @@ export function useBlogContentWorkspace({ collectionsDomain }) {
     selectedPost: selection.selectedPost,
     draft: selection.draft,
     saveState,
-    publicationState: publication.publicationState,
     revisionState: revisions.revisionState,
     selectedRevision: revisions.selectedRevision,
     summary,
@@ -616,4 +562,3 @@ export function useBlogContentWorkspace({ collectionsDomain }) {
     selectRevision: revisions.selectRevision
   };
 }
-

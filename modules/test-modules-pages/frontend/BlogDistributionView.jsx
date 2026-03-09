@@ -1,6 +1,7 @@
 import { Alert, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { useState } from "react";
 import {
+  DeliveryPreviewPanel,
   DistributionFilters,
   DistributionQueue,
   ReadinessPanel,
@@ -27,10 +28,10 @@ function Hero({ activeModuleLabel }) {
         <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.75)" }}>
           {activeModuleLabel}
         </Typography>
-        <Typography variant="h4">Pages Desk</Typography>
+        <Typography variant="h4">Standalone Pages Desk</Typography>
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
-          Coordinate page publication, permalink redirects, and SEO-social readiness while content
-          records remain separate from page records.
+          Build standalone pages, bind them to approved content sources, and inspect the delivery
+          JSON that downstream renderers will consume.
         </Typography>
       </Stack>
     </Paper>
@@ -56,44 +57,38 @@ function OverviewTab({ workspace }) {
   return (
     <Stack spacing={2}>
       <DistributionFilters
-        filters={workspace.postFilters}
+        filters={workspace.pageFilters}
         onChangeFilters={(fieldId, value) =>
-          workspace.setPostFilters((previous) => ({
+          workspace.setPageFilters((previous) => ({
             ...previous,
             [fieldId]: value
           }))
         }
         onClear={() =>
-          workspace.setPostFilters({
+          workspace.setPageFilters({
             search: "",
             status: "",
+            pageKind: "",
+            primarySourceType: "",
             readiness: ""
           })
         }
       />
 
-      {workspace.supportState.errorMessage ? (
-        <Alert severity="error">{workspace.supportState.errorMessage}</Alert>
-      ) : null}
-      {workspace.postActionState.errorMessage ? (
-        <Alert severity="error">{workspace.postActionState.errorMessage}</Alert>
-      ) : null}
-      {workspace.postActionState.successMessage ? (
-        <Alert severity="success">{workspace.postActionState.successMessage}</Alert>
-      ) : null}
-
       <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
         <Stack sx={{ width: { xs: "100%", xl: 360 }, flexShrink: 0 }}>
           <DistributionQueue
-            posts={workspace.filteredPosts}
-            selectedPostId={workspace.selectedPostId}
-            authorMap={workspace.authorMap}
+            pages={workspace.filteredPages}
+            selectedPageId={workspace.selectedPageId}
+            sourceOptionsByType={workspace.sourceOptionsByType}
             readinessMap={workspace.readinessMap}
-            onSelectPost={workspace.setSelectedPostId}
+            onSelectPage={workspace.selectPage}
+            onCreatePage={workspace.startNewPage}
           />
         </Stack>
         <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
           <ReadinessPanel workspace={workspace} />
+          <DeliveryPreviewPanel workspace={workspace} />
         </Stack>
       </Stack>
     </Stack>
@@ -105,7 +100,7 @@ function RedirectsTab({ workspace }) {
     <Stack spacing={2}>
       <RedirectFilters
         filters={workspace.redirectFilters}
-        posts={workspace.posts}
+        pages={workspace.pages}
         onChangeFilters={(fieldId, value) =>
           workspace.setRedirectFilters((previous) => ({
             ...previous,
@@ -117,26 +112,19 @@ function RedirectsTab({ workspace }) {
             search: "",
             status: "",
             httpCode: "",
-            targetPostId: ""
+            targetPageId: ""
           })
         }
       />
-
-      {workspace.redirectActionState.errorMessage ? (
-        <Alert severity="error">{workspace.redirectActionState.errorMessage}</Alert>
-      ) : null}
-      {workspace.redirectActionState.successMessage ? (
-        <Alert severity="success">{workspace.redirectActionState.successMessage}</Alert>
-      ) : null}
 
       <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
         <Stack sx={{ width: { xs: "100%", xl: 360 }, flexShrink: 0 }}>
           <RedirectList
             redirects={workspace.filteredRedirects}
-            posts={workspace.posts}
+            pageById={workspace.pageById}
             selectedRedirectId={workspace.selectedRedirectId}
             onSelectRedirect={workspace.selectRedirect}
-            onCreate={workspace.startNewRedirect}
+            onCreateRedirect={workspace.startNewRedirect}
           />
         </Stack>
         <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>

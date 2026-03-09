@@ -16,7 +16,6 @@ import {
   toTimestamp
 } from "./content-shared-runtime.mjs";
 import { consumeNextRevisionMeta } from "./content-revision-meta-runtime.mjs";
-import { PAGES_COLLECTION_ID, syncPostPageRecord } from "./page-sync-runtime.mjs";
 
 const AUTHORS_COLLECTION_ID = "blog-authors";
 const DEFAULT_BODY_MIN_WORDS = 30;
@@ -383,14 +382,6 @@ async function appendRevisionRecord({ postsHandler, revisionsHandler, postId }) 
   }
 }
 
-async function syncPageRecord({ postsHandler, pagesHandler, postId }) {
-  await syncPostPageRecord({
-    postsHandler,
-    pagesHandler,
-    postId
-  });
-}
-
 function buildPreparedUpdateBody(body, preparedValue) {
   return {
     ...body,
@@ -521,11 +512,6 @@ function wrapPostsHandler(handler, registry) {
       await appendRevisionRecord({
         postsHandler: handler,
         revisionsHandler: registry.get(REVISIONS_COLLECTION_ID),
-        postId: itemId
-      });
-      await syncPageRecord({
-        postsHandler: handler,
-        pagesHandler: registry.get(PAGES_COLLECTION_ID),
         postId: itemId
       });
     }

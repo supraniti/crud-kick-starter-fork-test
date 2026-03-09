@@ -9,7 +9,7 @@
 - Last committed product baseline:
   - `9382ce2` `feat: add media manager module`
 - Ticket in focus:
-  - `C:\Users\cmsin\OneDrive\שולחן העבודה\M02-T01-current-capability-module-realignment.md`
+  - `C:\Users\cmsin\OneDrive\שולחן העבודה\M02-T02-pages-module-evolution.md`
 - Prior delivery baseline:
   - `C:\Users\cmsin\OneDrive\שולחן העבודה\blog-management-modules-agent-ticket.md`
 - Abandoned implementation state:
@@ -19,7 +19,133 @@
   - keep the aborted implementation parked in `stash@{0}`
   - continue from the new contract-first restart path, not from the stashed code
 - Current migration ticket in execution:
-  - `C:\Users\cmsin\OneDrive\שולחן העבודה\M02-T01-current-capability-module-realignment.md`
+  - `C:\Users\cmsin\OneDrive\שולחן העבודה\M02-T02-pages-module-evolution.md`
+
+## T02 Standalone Pages Kickoff
+- Date: `2026-03-09`
+- Requested outcome:
+  - full delivery on standalone pages
+  - page chooses which content or listing it displays
+  - page existence is not derived from content creation
+- Locked T02 decisions before coding:
+  - `test-modules-pages` owns standalone page records, redirects, and deterministic delivery payload resolution
+  - content mutations must stop auto-creating or auto-updating `blog-pages`
+  - page source selection moves to declarative descriptors owned by `blog-pages`
+  - delivery payloads are resolved with a `live-reference` publish model
+  - approved first source/query scope:
+    - single `blog-post`
+    - single `blog-author`
+    - single `blog-category`
+    - single `blog-tag`
+    - bounded listings derived from author/category/tag context
+  - no arbitrary query language or executable page logic is allowed
+- Immediate coupling points that must be removed in the implementation:
+  - `modules/test-modules-content/server/page-sync-runtime.mjs`
+  - `modules/test-modules-content/server/content-handler-runtime.mjs`
+  - `modules/test-modules-content/frontend/publication-support.js`
+  - `modules/test-modules-content/frontend/useBlogContentWorkspace.js`
+  - `modules/test-modules-pages/module.json`
+  - `modules/test-modules-pages/server/distribution-handler-runtime.mjs`
+  - `modules/test-modules-pages/server/routes.mjs`
+  - `modules/test-modules-pages/frontend/useBlogDistributionWorkspace.js`
+- T02 contract source:
+  - `docs/contracts/blog-management-module-set-contract.md`
+  - `docs/contracts/test-modules-pages-module-contract.md`
+
+## T02 Execution Status
+- Standalone pages delivery is functionally closed in the working tree.
+- Delivered model:
+  - `blog-pages` records are created from the pages desk, not from content mutations
+  - `test-modules-pages` owns standalone page records, redirect rules, and delivery payload resolution
+  - supported first-source scope is live through declarative descriptors:
+    - single `blog-post`
+    - single `blog-author`
+    - single `blog-category`
+    - single `blog-tag`
+    - bounded listings derived from author/category/tag context
+  - delivery routes now resolve deterministic JSON from the page record and its approved sources
+  - redirects target standalone pages through `blog-redirect-rules.targetPageId`
+  - content create/update flows no longer auto-create or auto-update `blog-pages`
+- Primary implementation files:
+  - `modules/test-modules-pages/module.json`
+  - `modules/test-modules-pages/server/routes.mjs`
+  - `modules/test-modules-pages/server/page-delivery-runtime.mjs`
+  - `modules/test-modules-pages/server/distribution-handler-runtime.mjs`
+  - `modules/test-modules-pages/frontend/useBlogDistributionWorkspace.js`
+  - `modules/test-modules-pages/frontend/page-workspace-support.js`
+- Structural cleanup completed for repo gates:
+  - oversized pages frontend/server files were split into module-local siblings
+  - `BlogDistributionPanels.jsx` now stays as the stable export surface while page/redirect panels live in separate module-local files
+  - pages handler runtime is now a thin registry entrypoint with page/redirect helper files beside it
+- Verification completed on `2026-03-09`:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.integration.test.jsx`
+    - passed
+  - `pnpm test:e2e:smoke`
+    - passed after clearing a stale `3001` listener
+  - `pnpm quality:gate:full`
+    - passed
+    - repo LOC
+    - function-shape
+    - protocol integrity
+    - server core
+    - server conformance
+    - server runtime integration
+    - frontend core
+    - frontend conformance
+    - frontend integration
+    - smoke e2e
+    - m22 api runner
+    - m26 api runner
+    - frontend build
+    - mission replay gate
+- Smoke-lane closure:
+  - retained fix lives in `scripts/e2e-smoke-runner.mjs`
+  - the smoke runner now clears stale repo app listeners on `3000` / `3001` before Playwright boots
+  - this closes the earlier full-gate flake where a lingering repo listener could block `lane-e2e-smoke`
+- no app listeners remained on `3000`-`3003` after the final successful gate replay
+
+## T03 Static Deployment Follow-up
+- Date: `2026-03-09`
+- Requested outcome:
+  - give `test-modules-pages` a real publish action that writes static HTML under repo-root `deployment/`
+  - inject SEO/head tags, a configurable mount element, per-page runtime scripts, and readable embedded page JSON
+  - keep deployment behavior module-local to `test-modules-pages`
+- Locked decisions from the request:
+  - only `published` pages produce deployable HTML artifacts
+  - per-page script list is page-owned
+  - mount element tag is global pages-module config
+  - runtime payload is embedded with `<script type="application/json">`
+  - no redirect HTML generation in this slice
+  - path changes must delete the old artifact automatically
+  - output stays HTML-only; no sidecar page JSON files
+- Closure status:
+  - closed in the working tree on `2026-03-09`
+  - the full release gate is green
+- Delivered implementation:
+  - `test-modules-pages` declares the global `appMountTagName` module setting
+  - `blog-pages` stores per-page `runtimeScriptUrls`, `deploymentArtifactPath`, and `deploymentSyncedOn`
+  - publish/update/archive/delete flows now sync deployment artifacts through module-local runtime helpers:
+    - `modules/test-modules-pages/server/page-deployment-root.mjs`
+    - `modules/test-modules-pages/server/page-deployment-runtime.mjs`
+    - `modules/test-modules-pages/server/distribution-page-handler-runtime.mjs`
+    - `modules/test-modules-pages/server/routes.mjs`
+  - deployment root defaults to repo-root `deployment/` and is git-ignored
+  - path traversal segments (`.` / `..`) are rejected for `blog-pages.path`
+  - pages frontend exposes per-page runtime script URLs and deployment status chips in the pages desk
+  - the pages publish route now runs its module-local `afterMutation` deployment sync path and coordinates draft-backed source posts through allowed content transitions (`draft -> in-review -> published`) without relaxing the generic content-module transition rules
+  - the pages handler now normalizes cleared optional lifecycle/deployment text fields back to `null` on the exposed read surface, so archived/unpublished pages read back with `deploymentArtifactPath=null` and `deploymentSyncedOn=null`
+  - the smoke runner now uses netstat-based stale-port cleanup for `3000` / `3001`, which closed the final Windows-specific gate flake
+- Authoritative verification completed on `2026-03-09`:
+  - `pnpm test:e2e:smoke`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Environment state at handoff:
+  - no active listeners remain on `3000`-`3003`
+  - `deployment/` currently contains gitignored local verification artifacts from direct/debug publish runs:
+    - `deployment/landing-1773058363582/index.html`
+    - `deployment/stories/scheduled-launch/index.html`
+  - those files are not part of the commit surface unless explicitly kept/cleaned later
 
 ## Active Follow-up
 - Typing-latency follow-up for `test-modules-content` is closed in the working tree and awaiting manual review / commit preparation.
@@ -134,7 +260,7 @@
 - `docs/contracts/test-modules-blog-taxonomy-module-contract.md`
 - `docs/contracts/test-modules-blog-content-module-contract.md`
 - `docs/contracts/test-modules-blog-engagement-module-contract.md`
-- `docs/contracts/test-modules-blog-distribution-module-contract.md`
+- `docs/contracts/test-modules-pages-module-contract.md`
 - `docs/templates/module-contract.md`
 - `docs/module-onboarding-playbook.md`
 

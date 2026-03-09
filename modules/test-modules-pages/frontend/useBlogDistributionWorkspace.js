@@ -7,96 +7,89 @@ import {
 import {
   buildDistributionSummary,
   buildReadinessIssues,
-  matchesPostFilters,
+  matchesPageFilters,
   matchesRedirectFilters,
-  sortPostsForQueue,
+  sortPagesForDesk,
   sortRedirectRules
 } from "./distribution-readiness.js";
+import {
+  buildPageMutationPayload,
+  createActionState,
+  createDeliveryState,
+  createEmptyDataSourceDraft,
+  createEmptyPageDraft,
+  createEmptyRedirectDraft,
+  createPageDraftFromItem,
+  createSourceOptionsMap,
+  createSupportState,
+  normalizeRedirectDraft,
+  resolveActorOptions,
+  toArray,
+  toOption
+} from "./page-workspace-support.js";
 
 const MODULE_ID = "test-modules-pages";
-const AUTHORS_COLLECTION_ID = "blog-authors";
 const PAGES_COLLECTION_ID = "blog-pages";
-const POSTS_COLLECTION_ID = "blog-posts";
 const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
+const POSTS_COLLECTION_ID = "blog-posts";
+const AUTHORS_COLLECTION_ID = "blog-authors";
+const CATEGORIES_COLLECTION_ID = "blog-categories";
+const TAGS_COLLECTION_ID = "blog-tags";
+const MEDIA_COLLECTION_ID = "media-items";
 
-const DEFAULT_POST_FILTERS = Object.freeze({
+const DEFAULT_PAGE_FILTERS = Object.freeze({
   search: "",
   status: "",
+  pageKind: "",
+  primarySourceType: "",
   readiness: ""
 });
 const DEFAULT_REDIRECT_FILTERS = Object.freeze({
   search: "",
   status: "",
   httpCode: "",
-  targetPostId: ""
+  targetPageId: ""
 });
-const EMPTY_REDIRECT_DRAFT = Object.freeze({
-  sourcePath: "",
-  targetPostId: "",
-  targetUrl: "",
-  httpCode: "301",
-  status: "active",
-  reason: ""
-});
-
-function toArray(value) {
-  return Array.isArray(value) ? value : [];
-}
-
-function createActionState() {
-  return {
-    saving: false,
-    errorMessage: null,
-    successMessage: null
-  };
-}
-
-function createSupportState() {
-  return {
-    loading: false,
-    errorMessage: null,
-    pages: [],
-    posts: [],
-    authors: []
-  };
-}
-
-function normalizeRedirectDraft(rule = {}) {
-  return {
-    sourcePath: rule.sourcePath ?? "",
-    targetPostId: rule.targetPostId ?? "",
-    targetUrl: rule.targetUrl ?? "",
-    httpCode: rule.httpCode ?? "301",
-    status: rule.status ?? "active",
-    reason: rule.reason ?? ""
-  };
-}
 
 async function loadSupportData() {
-  const [pagesPayload, postsPayload, authorsPayload] = await Promise.all([
-    fetchReferenceCollectionItems({
-      collectionId: PAGES_COLLECTION_ID,
-      limit: 200
-    }),
-    fetchReferenceCollectionItems({
-      collectionId: POSTS_COLLECTION_ID,
-      limit: 200
-    }),
-    fetchReferenceCollectionItems({
-      collectionId: AUTHORS_COLLECTION_ID,
-      limit: 200
-    })
-  ]);
+  const [pagesPayload, redirectsPayload, postsPayload, authorsPayload, categoriesPayload, tagsPayload, mediaPayload] =
+    await Promise.all([
+      fetchReferenceCollectionItems({ collectionId: PAGES_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: REDIRECTS_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: POSTS_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: AUTHORS_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: CATEGORIES_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: TAGS_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: MEDIA_COLLECTION_ID, limit: 200 })
+    ]);
 
   return {
     pages: toArray(pagesPayload?.items),
+    redirects: toArray(redirectsPayload?.items),
     posts: toArray(postsPayload?.items),
-    authors: toArray(authorsPayload?.items)
+    authors: toArray(authorsPayload?.items),
+    categories: toArray(categoriesPayload?.items),
+    tags: toArray(tagsPayload?.items),
+    media: toArray(mediaPayload?.items)
   };
 }
 
-async function publishScheduledPost({ postId, updatedByAuthorId }) {
-  const response = await fetch(`/api/reference/modules/${MODULE_ID}/posts/${postId}/publish-now`, {
+async function fetchDeliveryPayload(pageId) {
+  const response = await fetch(`/api/reference/modules/${MODULE_ID}/pages/${pageId}/delivery?preview=true`, {
+    method: "GET",
+    headers: {
+      accept: "application/json"
+    }
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Failed to load delivery payload");
+  }
+  return payload?.payload ?? null;
+}
+
+async function publishSelectedPage({ pageId, updatedByAuthorId }) {
+  const response = await fetch(`/api/reference/modules/${MODULE_ID}/pages/${pageId}/publish-now`, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -108,100 +101,38 @@ async function publishScheduledPost({ postId, updatedByAuthorId }) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(payload?.error?.message ?? "Failed to publish scheduled post");
+    throw new Error(payload?.error?.message ?? "Failed to publish scheduled page");
   }
   return payload;
 }
 
-function resolveActorOptions(authors) {
-  return authors
-    .filter((author) => author.status === "active")
-    .filter((author) => author.role === "editor" || author.role === "managing-editor");
+async function persistPageMutation({ pageId, draft }) {
+  const payload = buildPageMutationPayload(draft);
+  return pageId
+    ? updateReferenceCollectionItem({
+        collectionId: PAGES_COLLECTION_ID,
+        itemId: pageId,
+        item: payload
+      })
+    : createReferenceCollectionItem({
+        collectionId: PAGES_COLLECTION_ID,
+        item: payload
+      });
 }
 
-function buildDefaultPagePath(post = {}) {
-  const slug = typeof post.slug === "string" && post.slug.length > 0 ? post.slug : post.id;
-  return `/blog/${slug}`;
-}
-
-function pickPublicationValue(page, post, fieldId, fallback = null) {
-  return page?.[fieldId] ?? post?.[fieldId] ?? fallback;
-}
-
-function buildPublicationIdentity(post, page) {
-  return {
-    id: page?.id ?? post.id,
-    pageId: page?.id ?? null,
-    sourcePostId: post.id,
-    title: post.title,
-    slug: post.slug,
-    primaryAuthorId: post.primaryAuthorId,
-    excerpt: post.excerpt,
-    featuredMediaId: post.featuredMediaId
-  };
-}
-
-function buildPublicationMetadata(post, page) {
-  return {
-    updatedOn: pickPublicationValue(page, post, "updatedOn"),
-    createdOn: pickPublicationValue(page, post, "createdOn"),
-    path: page?.path ?? buildDefaultPagePath(post),
-    layoutKey: page?.layoutKey ?? "blog-post",
-    status: pickPublicationValue(page, post, "status", "draft")
-  };
-}
-
-function buildPublicationSeoFields(post, page) {
-  return {
-    canonicalUrl: pickPublicationValue(page, post, "canonicalUrl"),
-    seoTitle: pickPublicationValue(page, post, "seoTitle"),
-    seoDescription: pickPublicationValue(page, post, "seoDescription"),
-    ogTitle: pickPublicationValue(page, post, "ogTitle"),
-    ogDescription: pickPublicationValue(page, post, "ogDescription"),
-    ogImageMediaId: pickPublicationValue(page, post, "ogImageMediaId")
-  };
-}
-
-function buildPublicationLifecycleFields(post, page) {
-  return {
-    scheduledOn: pickPublicationValue(page, post, "scheduledOn"),
-    publishedOn: pickPublicationValue(page, post, "publishedOn"),
-    archivedOn: pickPublicationValue(page, post, "archivedOn")
-  };
-}
-
-function mergePublicationEntry(post, page = null) {
-  return {
-    ...buildPublicationIdentity(post, page),
-    ...buildPublicationMetadata(post, page),
-    ...buildPublicationSeoFields(post, page),
-    ...buildPublicationLifecycleFields(post, page)
-  };
-}
-
-function buildPublicationEntries(rawPages, posts) {
-  const pageByPostId = new Map(
-    rawPages
-      .filter((page) => typeof page?.sourcePostId === "string" && page.sourcePostId.length > 0)
-      .map((page) => [page.sourcePostId, page])
-  );
-  return posts.map((post) => mergePublicationEntry(post, pageByPostId.get(post.id) ?? null));
-}
-
-async function saveRedirectRule(selectedRedirectId, redirectDraft) {
+async function persistRedirectMutation({ redirectId, redirectDraft }) {
   const payload = {
     sourcePath: redirectDraft.sourcePath,
-    targetPostId: redirectDraft.targetPostId || null,
+    targetPageId: redirectDraft.targetPageId || null,
     targetUrl: redirectDraft.targetUrl || null,
     httpCode: redirectDraft.httpCode,
     status: redirectDraft.status,
     reason: redirectDraft.reason || null
   };
-
-  return selectedRedirectId
+  return redirectId
     ? updateReferenceCollectionItem({
         collectionId: REDIRECTS_COLLECTION_ID,
-        itemId: selectedRedirectId,
+        itemId: redirectId,
         item: payload
       })
     : createReferenceCollectionItem({
@@ -210,7 +141,21 @@ async function saveRedirectRule(selectedRedirectId, redirectDraft) {
       });
 }
 
-function useDistributionSupport() {
+async function disableRedirectMutation({ redirectId, redirectDraft }) {
+  return updateReferenceCollectionItem({
+    collectionId: REDIRECTS_COLLECTION_ID,
+    itemId: redirectId,
+    item: {
+      ...redirectDraft,
+      targetPageId: redirectDraft.targetPageId || null,
+      targetUrl: redirectDraft.targetUrl || null,
+      reason: redirectDraft.reason || null,
+      status: "disabled"
+    }
+  });
+}
+
+function useSupportData() {
   const [supportState, setSupportState] = useState(createSupportState);
 
   const reloadSupportData = useCallback(async () => {
@@ -230,10 +175,14 @@ function useDistributionSupport() {
     } catch (error) {
       setSupportState({
         loading: false,
-        errorMessage: error?.message ?? "Failed to load blog distribution data",
+        errorMessage: error?.message ?? "Failed to load pages data",
         pages: [],
+        redirects: [],
         posts: [],
-        authors: []
+        authors: [],
+        categories: [],
+        tags: [],
+        media: []
       });
     }
   }, []);
@@ -242,61 +191,349 @@ function useDistributionSupport() {
     void reloadSupportData();
   }, [reloadSupportData]);
 
-  const pages = useMemo(
-    () => sortPostsForQueue(buildPublicationEntries(supportState.pages, supportState.posts)),
-    [supportState.pages, supportState.posts]
-  );
-  const readinessMap = useMemo(
-    () => new Map(pages.map((page) => [page.id, buildReadinessIssues(page)])),
-    [pages]
-  );
-  const actorOptions = useMemo(() => resolveActorOptions(supportState.authors), [supportState.authors]);
-  const authorMap = useMemo(
-    () => new Map(supportState.authors.map((author) => [author.id, author])),
-    [supportState.authors]
-  );
-
-  return {
-    supportState,
-    reloadSupportData,
-    pages,
-    posts: supportState.posts,
-    readinessMap,
-    actorOptions,
-    authorMap
-  };
+  return { supportState, reloadSupportData };
 }
 
-function usePostSelection(posts) {
-  const [selectedPostId, setSelectedPostId] = useState(null);
+function usePageSelection(pages) {
+  const [selectedPageId, setSelectedPageId] = useState(null);
+  const [isCreatingNewPage, setIsCreatingNewPage] = useState(false);
+  const [pageDraft, setPageDraft] = useState(createEmptyPageDraft);
 
   useEffect(() => {
-    if (posts.length === 0) {
-      setSelectedPostId(null);
+    if (isCreatingNewPage) {
       return;
     }
-    if (!selectedPostId || !posts.some((post) => post.id === selectedPostId)) {
-      setSelectedPostId(posts[0].id);
+    if (pages.length === 0) {
+      setSelectedPageId(null);
+      setPageDraft(createEmptyPageDraft());
+      return;
     }
-  }, [posts, selectedPostId]);
-
-  const selectedPost = useMemo(
-    () => posts.find((post) => post.id === selectedPostId) ?? null,
-    [posts, selectedPostId]
-  );
+    if (!selectedPageId || !pages.some((page) => page.id === selectedPageId)) {
+      setSelectedPageId(pages[0].id);
+      return;
+    }
+    const selectedPage = pages.find((page) => page.id === selectedPageId) ?? null;
+    if (selectedPage) {
+      setPageDraft(createPageDraftFromItem(selectedPage));
+    }
+  }, [isCreatingNewPage, pages, selectedPageId]);
 
   return {
-    selectedPostId,
-    selectedPost,
-    setSelectedPostId
+    selectedPageId,
+    selectedPage: pages.find((page) => page.id === selectedPageId) ?? null,
+    isCreatingNewPage,
+    pageDraft,
+    setSelectedPageId,
+    setIsCreatingNewPage,
+    setPageDraft
   };
 }
 
-function usePostWorkspace({ posts, readinessMap, actorOptions, reloadSupportData }) {
-  const selection = usePostSelection(posts);
-  const [postFilters, setPostFilters] = useState(DEFAULT_POST_FILTERS);
+function useDeliveryPreview(selectedPageId, refreshToken) {
+  const [deliveryState, setDeliveryState] = useState(createDeliveryState);
+
+  useEffect(() => {
+    async function run() {
+      if (!selectedPageId) {
+        setDeliveryState(createDeliveryState());
+        return;
+      }
+
+      setDeliveryState({
+        loading: true,
+        errorMessage: null,
+        payload: null
+      });
+
+      try {
+        const payload = await fetchDeliveryPayload(selectedPageId);
+        setDeliveryState({
+          loading: false,
+          errorMessage: null,
+          payload
+        });
+      } catch (error) {
+        setDeliveryState({
+          loading: false,
+          errorMessage: error?.message ?? "Failed to load delivery payload",
+          payload: null
+        });
+      }
+    }
+
+    void run();
+  }, [refreshToken, selectedPageId]);
+
+  return deliveryState;
+}
+
+function selectExistingPage({ pages, selection, setPageActionState }, pageId) {
+  const nextPage = pages.find((page) => page.id === pageId) ?? null;
+  selection.setIsCreatingNewPage(false);
+  selection.setSelectedPageId(pageId);
+  selection.setPageDraft(nextPage ? createPageDraftFromItem(nextPage) : createEmptyPageDraft());
+  setPageActionState(createActionState());
+}
+
+function startNewPageDraft(selection, setPageActionState) {
+  selection.setIsCreatingNewPage(true);
+  selection.setSelectedPageId(null);
+  selection.setPageDraft(createEmptyPageDraft());
+  setPageActionState(createActionState());
+}
+
+function usePageWorkspace({ pages, reloadSupportData, selectedActorId }) {
+  const selection = usePageSelection(pages);
+  const [pageFilters, setPageFilters] = useState(DEFAULT_PAGE_FILTERS);
+  const [pageActionState, setPageActionState] = useState(createActionState);
+  const [deliveryRefreshToken, setDeliveryRefreshToken] = useState(0);
+  const effectiveSelectedPageId = selection.isCreatingNewPage ? null : selection.selectedPageId;
+  const effectiveSelectedPage =
+    selection.isCreatingNewPage
+      ? null
+      : pages.find((page) => page.id === selection.selectedPageId) ?? null;
+  const readinessMap = useMemo(() => new Map(pages.map((page) => [page.id, buildReadinessIssues(page)])), [pages]);
+  const filteredPages = useMemo(() => pages.filter((page) => matchesPageFilters(page, pageFilters, readinessMap.get(page.id) ?? [])), [pageFilters, pages, readinessMap]);
+
+  const setPageDraftField = useCallback((updater) => {
+    selection.setPageDraft(updater);
+    setPageActionState(createActionState());
+  }, [selection]);
+
+  const persistPage = useCallback(async () => {
+    setPageActionState({ saving: true, errorMessage: null, successMessage: null });
+    try {
+      const targetPageId = selection.isCreatingNewPage ? null : selection.selectedPageId;
+      const result = await persistPageMutation({
+        pageId: targetPageId,
+        draft: selection.pageDraft
+      });
+      if (!result?.ok) {
+        throw new Error(result?.error?.message ?? "Failed to save page");
+      }
+      const savedPage = result.item ?? null;
+      await reloadSupportData();
+      if (savedPage?.id) {
+        selection.setIsCreatingNewPage(false);
+        selection.setSelectedPageId(savedPage.id);
+        selection.setPageDraft(createPageDraftFromItem(savedPage));
+      }
+      setDeliveryRefreshToken((previous) => previous + 1);
+      setPageActionState({
+        saving: false,
+        errorMessage: null,
+        successMessage: targetPageId ? "Page updated" : "Page created"
+      });
+    } catch (error) {
+      setPageActionState({ saving: false, errorMessage: error?.message ?? "Failed to save page", successMessage: null });
+    }
+  }, [reloadSupportData, selection]);
+
+  const publishPage = useCallback(async () => {
+    if (!selection.selectedPageId) {
+      return;
+    }
+    setPageActionState({ saving: true, errorMessage: null, successMessage: null });
+    try {
+      await publishSelectedPage({
+        pageId: effectiveSelectedPageId,
+        updatedByAuthorId: selectedActorId
+      });
+      await reloadSupportData();
+      setDeliveryRefreshToken((previous) => previous + 1);
+      setPageActionState({
+        saving: false,
+        errorMessage: null,
+        successMessage:
+          effectiveSelectedPage?.status === "published"
+            ? "Published page synced to deployment"
+            : "Page published and deployed"
+      });
+    } catch (error) {
+      setPageActionState({ saving: false, errorMessage: error?.message ?? "Failed to publish page", successMessage: null });
+    }
+  }, [effectiveSelectedPage, effectiveSelectedPageId, reloadSupportData, selectedActorId, selection.selectedPageId]);
+
+  return {
+    ...selection,
+    pages,
+    selectedPageId: effectiveSelectedPageId,
+    selectedPage: effectiveSelectedPage,
+    readinessMap,
+    deliveryRefreshToken,
+    filteredPages,
+    pageFilters,
+    pageActionState,
+    setPageFilters,
+    selectPage: (pageId) => selectExistingPage({ pages, selection, setPageActionState }, pageId),
+    startNewPage: () => startNewPageDraft(selection, setPageActionState),
+    changePageField: (fieldId, value) => {
+      setPageDraftField((previous) => ({
+        ...previous,
+        [fieldId]: value
+      }));
+    },
+    changeDataSourceField: (index, fieldId, value) => {
+      setPageDraftField((previous) => ({
+        ...previous,
+        dataSources: previous.dataSources.map((entry, entryIndex) =>
+          entryIndex === index ? { ...entry, [fieldId]: value } : entry
+        )
+      }));
+    },
+    addDataSource: () => {
+      setPageDraftField((previous) => ({
+        ...previous,
+        dataSources: [...previous.dataSources, createEmptyDataSourceDraft(previous.dataSources.length)]
+      }));
+    },
+    removeDataSource: (index) => {
+      setPageDraftField((previous) => ({
+        ...previous,
+        dataSources: previous.dataSources.filter((_, entryIndex) => entryIndex !== index)
+      }));
+    },
+    persistPage,
+    publishPage
+  };
+}
+
+function useRedirectWorkspace({ redirects, reloadSupportData }) {
+  const [redirectFilters, setRedirectFilters] = useState(DEFAULT_REDIRECT_FILTERS);
+  const [selectedRedirectId, setSelectedRedirectId] = useState(null);
+  const [isCreatingNewRedirect, setIsCreatingNewRedirect] = useState(false);
+  const [redirectDraft, setRedirectDraft] = useState(createEmptyRedirectDraft);
+  const [redirectActionState, setRedirectActionState] = useState(createActionState);
+
+  useEffect(() => {
+    if (isCreatingNewRedirect) {
+      return;
+    }
+    if (redirects.length === 0) {
+      setSelectedRedirectId(null);
+      setRedirectDraft(createEmptyRedirectDraft());
+      return;
+    }
+    if (!selectedRedirectId || !redirects.some((rule) => rule.id === selectedRedirectId)) {
+      setSelectedRedirectId(redirects[0].id);
+      setRedirectDraft(normalizeRedirectDraft(redirects[0]));
+    }
+  }, [isCreatingNewRedirect, redirects, selectedRedirectId]);
+
+  const filteredRedirects = useMemo(
+    () => redirects.filter((rule) => matchesRedirectFilters(rule, redirectFilters)),
+    [redirectFilters, redirects]
+  );
+  const effectiveSelectedRedirectId = isCreatingNewRedirect ? null : selectedRedirectId;
+
+  const setDraftWithReset = useCallback((updater) => {
+    setRedirectDraft(updater);
+    setRedirectActionState(createActionState());
+  }, []);
+
+  const persistRedirect = useCallback(async () => {
+    setRedirectActionState({ saving: true, errorMessage: null, successMessage: null });
+    try {
+      const targetRedirectId = isCreatingNewRedirect ? null : selectedRedirectId;
+      const result = await persistRedirectMutation({
+        redirectId: targetRedirectId,
+        redirectDraft
+      });
+      if (!result?.ok) {
+        throw new Error(result?.error?.message ?? "Failed to save redirect");
+      }
+      await reloadSupportData();
+      if (result.item?.id) {
+        setIsCreatingNewRedirect(false);
+        setSelectedRedirectId(result.item.id);
+        setRedirectDraft(normalizeRedirectDraft(result.item));
+      }
+      setRedirectActionState({
+        saving: false,
+        errorMessage: null,
+        successMessage: targetRedirectId ? "Redirect updated" : "Redirect created"
+      });
+    } catch (error) {
+      setRedirectActionState({
+        saving: false,
+        errorMessage: error?.message ?? "Failed to save redirect",
+        successMessage: null
+      });
+    }
+  }, [isCreatingNewRedirect, redirectDraft, reloadSupportData, selectedRedirectId]);
+
+  const disableSelectedRedirect = useCallback(async () => {
+    if (!effectiveSelectedRedirectId) {
+      return;
+    }
+    setRedirectActionState({ saving: true, errorMessage: null, successMessage: null });
+    try {
+      const result = await disableRedirectMutation({
+        redirectId: effectiveSelectedRedirectId,
+        redirectDraft
+      });
+      if (!result?.ok) {
+        throw new Error(result?.error?.message ?? "Failed to disable redirect");
+      }
+      await reloadSupportData();
+      setRedirectDraft((previous) => ({ ...previous, status: "disabled" }));
+      setRedirectActionState({
+        saving: false,
+        errorMessage: null,
+        successMessage: "Redirect disabled"
+      });
+    } catch (error) {
+      setRedirectActionState({
+        saving: false,
+        errorMessage: error?.message ?? "Failed to disable redirect",
+        successMessage: null
+      });
+    }
+  }, [effectiveSelectedRedirectId, redirectDraft, reloadSupportData]);
+
+  return {
+    filteredRedirects,
+    redirectFilters,
+    selectedRedirectId: effectiveSelectedRedirectId,
+    redirectDraft,
+    redirectActionState,
+    setRedirectFilters,
+    selectRedirect: (redirectId) => {
+      const rule = redirects.find((entry) => entry.id === redirectId) ?? null;
+      setIsCreatingNewRedirect(false);
+      setSelectedRedirectId(redirectId);
+      setRedirectDraft(rule ? normalizeRedirectDraft(rule) : createEmptyRedirectDraft());
+      setRedirectActionState(createActionState());
+    },
+    startNewRedirect: () => {
+      setIsCreatingNewRedirect(true);
+      setSelectedRedirectId(null);
+      setRedirectDraft(createEmptyRedirectDraft());
+      setRedirectActionState(createActionState());
+    },
+    changeRedirectField: (fieldId, value) => {
+      setDraftWithReset((previous) => ({
+        ...previous,
+        [fieldId]: value
+      }));
+    },
+    persistRedirect,
+    disableSelectedRedirect
+  };
+}
+
+export function useBlogDistributionWorkspace() {
+  const support = useSupportData();
   const [selectedActorId, setSelectedActorId] = useState("");
-  const [postActionState, setPostActionState] = useState(createActionState);
+  const pages = useMemo(() => sortPagesForDesk(support.supportState.pages), [support.supportState.pages]);
+  const redirects = useMemo(
+    () => sortRedirectRules(support.supportState.redirects),
+    [support.supportState.redirects]
+  );
+  const actorOptions = useMemo(
+    () => resolveActorOptions(support.supportState.authors),
+    [support.supportState.authors]
+  );
 
   useEffect(() => {
     if (!selectedActorId && actorOptions[0]?.id) {
@@ -308,292 +545,41 @@ function usePostWorkspace({ posts, readinessMap, actorOptions, reloadSupportData
     }
   }, [actorOptions, selectedActorId]);
 
-  const filteredPosts = useMemo(
-    () =>
-      posts.filter((post) =>
-        matchesPostFilters(post, postFilters, readinessMap.get(post.id) ?? [])
-      ),
-    [postFilters, posts, readinessMap]
-  );
-
-  const publishSelectedPost = useCallback(async () => {
-    if (!selection.selectedPost || !selectedActorId) {
-      return;
-    }
-
-    setPostActionState({
-      saving: true,
-      errorMessage: null,
-      successMessage: null
-    });
-
-    try {
-      await publishScheduledPost({
-        postId: selection.selectedPost.sourcePostId ?? selection.selectedPost.id,
-        updatedByAuthorId: selectedActorId
-      });
-      await reloadSupportData();
-      setPostActionState({
-        saving: false,
-        errorMessage: null,
-        successMessage: "Scheduled post published"
-      });
-    } catch (error) {
-      setPostActionState({
-        saving: false,
-        errorMessage: error?.message ?? "Failed to publish scheduled post",
-        successMessage: null
-      });
-    }
-  }, [reloadSupportData, selectedActorId, selection.selectedPost]);
-
-  return {
-    filteredPosts,
-    postFilters,
-    selectedActorId,
-    postActionState,
-    setPostFilters,
-    setSelectedActorId,
-    publishSelectedPost,
-    ...selection
-  };
-}
-
-function useRedirectFilters(redirects) {
-  const [redirectFilters, setRedirectFilters] = useState(DEFAULT_REDIRECT_FILTERS);
-  const filteredRedirects = useMemo(
-    () => redirects.filter((rule) => matchesRedirectFilters(rule, redirectFilters)),
-    [redirectFilters, redirects]
-  );
-
-  return {
-    redirectFilters,
-    filteredRedirects,
-    setRedirectFilters
-  };
-}
-
-function useRedirectEditorState(redirects) {
-  const [selectedRedirectId, setSelectedRedirectId] = useState(null);
-  const [redirectDraft, setRedirectDraft] = useState(EMPTY_REDIRECT_DRAFT);
-  const [redirectActionState, setRedirectActionState] = useState(createActionState);
-
-  useEffect(() => {
-    if (redirects.length === 0 && selectedRedirectId) {
-      setSelectedRedirectId(null);
-      setRedirectDraft(EMPTY_REDIRECT_DRAFT);
-      return;
-    }
-    if (!selectedRedirectId || !redirects.some((rule) => rule.id === selectedRedirectId)) {
-      return;
-    }
-    const selectedRule = redirects.find((rule) => rule.id === selectedRedirectId) ?? null;
-    if (selectedRule) {
-      setRedirectDraft(normalizeRedirectDraft(selectedRule));
-    }
-  }, [redirects, selectedRedirectId]);
-
-  const selectedRedirect = useMemo(
-    () => redirects.find((rule) => rule.id === selectedRedirectId) ?? null,
-    [redirects, selectedRedirectId]
-  );
-
-  const selectRedirect = useCallback(
-    (ruleId) => {
-      const rule = redirects.find((item) => item.id === ruleId) ?? null;
-      setSelectedRedirectId(ruleId);
-      setRedirectDraft(rule ? normalizeRedirectDraft(rule) : EMPTY_REDIRECT_DRAFT);
-      setRedirectActionState(createActionState());
-    },
-    [redirects]
-  );
-
-  const startNewRedirect = useCallback(() => {
-    setSelectedRedirectId(null);
-    setRedirectDraft(EMPTY_REDIRECT_DRAFT);
-    setRedirectActionState(createActionState());
-  }, []);
-
-  const changeRedirectField = useCallback((fieldId, value) => {
-    setRedirectDraft((previous) => ({
-      ...previous,
-      [fieldId]: value
-    }));
-    setRedirectActionState((previous) => ({
-      ...previous,
-      errorMessage: null,
-      successMessage: null
-    }));
-  }, []);
-
-  return {
-    selectedRedirectId,
-    selectedRedirect,
-    redirectDraft,
-    redirectActionState,
-    setSelectedRedirectId,
-    setRedirectDraft,
-    setRedirectActionState,
-    selectRedirect,
-    startNewRedirect,
-    changeRedirectField
-  };
-}
-
-function useRedirectMutations({
-  collectionsDomain,
-  selectedRedirectId,
-  selectedRedirect,
-  redirectDraft,
-  setSelectedRedirectId,
-  setRedirectDraft,
-  setRedirectActionState
-}) {
-  const persistRedirect = useCallback(async () => {
-    setRedirectActionState({
-      saving: true,
-      errorMessage: null,
-      successMessage: null
-    });
-
-    try {
-      const result = await saveRedirectRule(selectedRedirectId, redirectDraft);
-      if (!result?.ok) {
-        setRedirectActionState({
-          saving: false,
-          errorMessage: result?.error?.message ?? "Failed to save redirect rule",
-          successMessage: null
-        });
-        return;
-      }
-
-      collectionsDomain.reloadCollectionItems();
-      if (result.item?.id) {
-        setSelectedRedirectId(result.item.id);
-        setRedirectDraft(normalizeRedirectDraft(result.item));
-      }
-      setRedirectActionState({
-        saving: false,
-        errorMessage: null,
-        successMessage: selectedRedirectId ? "Redirect updated" : "Redirect created"
-      });
-    } catch (error) {
-      setRedirectActionState({
-        saving: false,
-        errorMessage: error?.message ?? "Failed to save redirect rule",
-        successMessage: null
-      });
-    }
-  }, [
-    collectionsDomain,
-    redirectDraft,
-    selectedRedirectId,
-    setRedirectActionState,
-    setRedirectDraft,
-    setSelectedRedirectId
-  ]);
-
-  const disableSelectedRedirect = useCallback(async () => {
-    if (!selectedRedirect) {
-      return;
-    }
-
-    setRedirectActionState({
-      saving: true,
-      errorMessage: null,
-      successMessage: null
-    });
-
-    try {
-      const result = await updateReferenceCollectionItem({
-        collectionId: REDIRECTS_COLLECTION_ID,
-        itemId: selectedRedirect.id,
-        item: {
-          status: "disabled"
-        }
-      });
-      if (!result?.ok) {
-        setRedirectActionState({
-          saving: false,
-          errorMessage: result?.error?.message ?? "Failed to disable redirect rule",
-          successMessage: null
-        });
-        return;
-      }
-
-      collectionsDomain.reloadCollectionItems();
-      setRedirectActionState({
-        saving: false,
-        errorMessage: null,
-        successMessage: "Redirect disabled"
-      });
-    } catch (error) {
-      setRedirectActionState({
-        saving: false,
-        errorMessage: error?.message ?? "Failed to disable redirect rule",
-        successMessage: null
-      });
-    }
-  }, [collectionsDomain, selectedRedirect, setRedirectActionState]);
-
-  return {
-    persistRedirect,
-    disableSelectedRedirect
-  };
-}
-
-function useRedirectWorkspace({ collectionsDomain }) {
-  const redirects = useMemo(
-    () => sortRedirectRules(toArray(collectionsDomain.collectionItemsState.items)),
-    [collectionsDomain.collectionItemsState.items]
-  );
-  const filters = useRedirectFilters(redirects);
-  const editor = useRedirectEditorState(redirects);
-  const mutations = useRedirectMutations({
-    collectionsDomain,
-    selectedRedirectId: editor.selectedRedirectId,
-    selectedRedirect: editor.selectedRedirect,
-    redirectDraft: editor.redirectDraft,
-    setSelectedRedirectId: editor.setSelectedRedirectId,
-    setRedirectDraft: editor.setRedirectDraft,
-    setRedirectActionState: editor.setRedirectActionState
-  });
-
-  useEffect(() => {
-    if (collectionsDomain.activeCollectionId !== REDIRECTS_COLLECTION_ID) {
-      collectionsDomain.handleSelectCollection(REDIRECTS_COLLECTION_ID);
-    }
-  }, [collectionsDomain.activeCollectionId, collectionsDomain.handleSelectCollection]);
-
-  return {
-    redirects,
-    ...filters,
-    ...editor,
-    ...mutations
-  };
-}
-
-export function useBlogDistributionWorkspace({ collectionsDomain }) {
-  const support = useDistributionSupport();
-  const postWorkspace = usePostWorkspace({
-    posts: support.pages,
-    readinessMap: support.readinessMap,
-    actorOptions: support.actorOptions,
-    reloadSupportData: support.reloadSupportData
+  const pageWorkspace = usePageWorkspace({
+    pages,
+    reloadSupportData: support.reloadSupportData,
+    selectedActorId
   });
   const redirectWorkspace = useRedirectWorkspace({
-    collectionsDomain
+    redirects,
+    reloadSupportData: support.reloadSupportData
   });
+  const deliveryState = useDeliveryPreview(
+    pageWorkspace.selectedPageId,
+    pageWorkspace.deliveryRefreshToken
+  );
+  const readinessMap = useMemo(
+    () => new Map(pages.map((page) => [page.id, buildReadinessIssues(page)])),
+    [pages]
+  );
 
   return {
-    ...support,
-    ...postWorkspace,
-    ...redirectWorkspace,
-    summary: buildDistributionSummary({
-      posts: support.pages,
-      redirects: redirectWorkspace.redirects,
-      readinessMap: support.readinessMap
-    })
+    supportState: support.supportState,
+    summary: buildDistributionSummary({ pages, redirects, readinessMap }),
+    readinessMap,
+    pageById: new Map(pages.map((page) => [page.id, page])),
+    sourceOptionsByType: createSourceOptionsMap({
+      posts: support.supportState.posts,
+      authors: support.supportState.authors,
+      categories: support.supportState.categories,
+      tags: support.supportState.tags
+    }),
+    mediaOptions: support.supportState.media.map(toOption),
+    actorOptions,
+    selectedActorId,
+    setSelectedActorId,
+    deliveryState,
+    ...pageWorkspace,
+    ...redirectWorkspace
   };
 }
-

@@ -28,7 +28,7 @@ const Hero = memo(function Hero({ activeModuleLabel }) {
         </Typography>
         <Typography variant="h4">Content Desk</Typography>
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
-          Workflow-oriented editing for posts, publication states, and deterministic revision
+          Workflow-oriented editing for posts, editorial lifecycle states, and deterministic revision
           history.
         </Typography>
       </Stack>
