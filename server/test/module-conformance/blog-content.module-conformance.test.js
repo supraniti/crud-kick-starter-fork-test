@@ -102,6 +102,22 @@ test("blog content creates deterministic revisions and enforces lifecycle role c
     expect(createPost.body.item.wordCount).toBeGreaterThanOrEqual(30);
     expect(createPost.body.item.readTimeMinutes).toBeGreaterThanOrEqual(1);
 
+    const syncedPages = await injectJson(
+      server,
+      "GET",
+      `${buildItemsRoute("blog-pages")}?sourcePostId=${createPost.body.item.id}&limit=200`
+    );
+    expect(syncedPages.statusCode).toBe(200);
+    expect(syncedPages.body.items).toHaveLength(1);
+    expect(syncedPages.body.items[0]).toEqual(
+      expect.objectContaining({
+        sourceType: "blog-post",
+        sourcePostId: createPost.body.item.id,
+        status: "draft",
+        path: `/${["blog", createPost.body.item.slug].join("/")}`
+      })
+    );
+
     const initialRevisions = await injectJson(
       server,
       "GET",
@@ -214,7 +230,7 @@ test("blog content restore route rehydrates a revision snapshot and appends roll
     const restoreResponse = await injectJson(
       server,
       "POST",
-      `/api/reference/modules/test-modules-blog-content/posts/${createdPost.body.item.id}/restore-revision`,
+      `/api/reference/modules/test-modules-content/posts/${createdPost.body.item.id}/restore-revision`,
       {
         revisionId: originalRevision.id,
         updatedByAuthorId: editor.id
@@ -243,6 +259,107 @@ test("blog content restore route rehydrates a revision snapshot and appends roll
         source: "rollback",
         statusSnapshot: "draft",
         titleSnapshot: "Original Platform Playbook"
+      })
+    );
+  } finally {
+    await server.close();
+  }
+}, BLOG_CONTENT_TEST_TIMEOUT_MS);
+
+test("blog content page sync preserves page-owned route and SEO fields after post updates", async () => {
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+
+    const createdPost = await injectJson(server, "POST", buildItemsRoute("blog-posts"), {
+      title: "Reliability Signals Weekly",
+      excerpt: "Initial excerpt",
+      body: createLongBody("Initial reliability body"),
+      status: "draft",
+      format: "article",
+      primaryAuthorId: editor.id,
+      coAuthorIds: [],
+      categoryIds: [category.id],
+      tagIds: [tag.id],
+      galleryMediaIds: [],
+      allowComments: true,
+      commentPolicy: "open",
+      canonicalUrl: "https://example.com/blog/reliability-signals-weekly",
+      seoTitle: "Initial SEO title",
+      seoDescription: "Initial SEO description",
+      ogTitle: "Initial OG title",
+      ogDescription: "Initial OG description",
+      createdByAuthorId: editor.id,
+      updatedByAuthorId: editor.id
+    });
+    expect(createdPost.statusCode).toBe(201);
+
+    const syncedPages = await injectJson(
+      server,
+      "GET",
+      `${buildItemsRoute("blog-pages")}?sourcePostId=${createdPost.body.item.id}&limit=200`
+    );
+    expect(syncedPages.statusCode).toBe(200);
+    expect(syncedPages.body.items).toHaveLength(1);
+    const syncedPage = syncedPages.body.items[0];
+
+    const updatedPage = await injectJson(server, "PUT", buildItemRoute("blog-pages", syncedPage.id), {
+      path: "/stories/reliability-signals",
+      canonicalUrl: "https://example.com/stories/reliability-signals",
+      seoTitle: "Page owned SEO title",
+      seoDescription: "Page owned SEO description",
+      ogTitle: "Page owned OG title",
+      ogDescription: "Page owned OG description"
+    });
+    expect(updatedPage.statusCode).toBe(200);
+
+    const updatedPost = await injectJson(
+      server,
+      "PUT",
+      buildItemRoute("blog-posts", createdPost.body.item.id),
+      {
+        title: "Reliability Signals Weekly Updated",
+        excerpt: "Updated excerpt",
+        body: createLongBody("Updated reliability body"),
+        status: "in-review",
+        canonicalUrl: "https://example.com/blog/reliability-signals-weekly-updated",
+        seoTitle: "Post SEO title should stay mirrored only",
+        seoDescription: "Post SEO description should stay mirrored only",
+        ogTitle: "Post OG title should stay mirrored only",
+        ogDescription: "Post OG description should stay mirrored only",
+        updatedByAuthorId: editor.id
+      }
+    );
+    expect(updatedPost.statusCode).toBe(200);
+    expect(updatedPost.body.item).toEqual(
+      expect.objectContaining({
+        status: "in-review",
+        canonicalUrl: "https://example.com/blog/reliability-signals-weekly-updated",
+        seoTitle: "Post SEO title should stay mirrored only"
+      })
+    );
+
+    const pagesAfterPostUpdate = await injectJson(
+      server,
+      "GET",
+      `${buildItemsRoute("blog-pages")}?sourcePostId=${createdPost.body.item.id}&limit=200`
+    );
+    expect(pagesAfterPostUpdate.statusCode).toBe(200);
+    expect(pagesAfterPostUpdate.body.items).toHaveLength(1);
+    expect(pagesAfterPostUpdate.body.items[0]).toEqual(
+      expect.objectContaining({
+        id: syncedPage.id,
+        sourcePostId: createdPost.body.item.id,
+        status: "in-review",
+        path: "/stories/reliability-signals",
+        canonicalUrl: "https://example.com/stories/reliability-signals",
+        seoTitle: "Page owned SEO title",
+        seoDescription: "Page owned SEO description",
+        ogTitle: "Page owned OG title",
+        ogDescription: "Page owned OG description"
       })
     );
   } finally {

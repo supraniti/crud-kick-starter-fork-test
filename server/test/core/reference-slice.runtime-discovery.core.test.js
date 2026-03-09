@@ -11,17 +11,17 @@ import {
 } from "../module-conformance/helpers/reference-slice-runtime-test-helpers.js";
 
 const ACTIVE_MODULE_IDS = Object.freeze([
-  "test-modules-blog-content",
-  "test-modules-blog-distribution",
-  "test-modules-blog-editorial",
-  "test-modules-blog-engagement",
-  "test-modules-blog-taxonomy",
+  "test-modules-content",
   "test-modules-crud-core",
+  "test-modules-editorial",
+  "test-modules-engagement",
   "test-modules-media-manager",
   "test-modules-operations-dispatch",
+  "test-modules-pages",
   "test-modules-relations-taxonomy",
   "test-modules-remotes-publish",
-  "test-modules-settings-policy"
+  "test-modules-settings-policy",
+  "test-modules-taxonomy"
 ]);
 const MODULE_SETTINGS_IDS = Object.freeze([
   "test-modules-crud-core",
@@ -50,24 +50,24 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "test-modules-blog-content",
-          label: "Blog Content"
+          id: "test-modules-content",
+          label: "Content"
         }),
         expect.objectContaining({
-          id: "test-modules-blog-distribution",
-          label: "Blog Distribution"
+          id: "test-modules-pages",
+          label: "Pages"
         }),
         expect.objectContaining({
-          id: "test-modules-blog-engagement",
-          label: "Blog Engagement"
+          id: "test-modules-engagement",
+          label: "Engagement"
         }),
         expect.objectContaining({
-          id: "test-modules-blog-editorial",
-          label: "Blog Editorial"
+          id: "test-modules-editorial",
+          label: "Editorial"
         }),
         expect.objectContaining({
-          id: "test-modules-blog-taxonomy",
-          label: "Blog Taxonomy"
+          id: "test-modules-taxonomy",
+          label: "Taxonomy"
         }),
         expect.objectContaining({
           id: "test-modules-crud-core",
@@ -289,6 +289,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.runtime.moduleCollectionIds).toEqual(
       expect.arrayContaining([
         "blog-comments",
+        "blog-pages",
         "blog-post-revisions",
         "blog-posts",
         "blog-redirect-rules",
@@ -305,13 +306,14 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.collectionHandlerModuleMap).toEqual(
       expect.objectContaining({
-        "blog-posts": "test-modules-blog-content",
-        "blog-post-revisions": "test-modules-blog-content",
-        "blog-redirect-rules": "test-modules-blog-distribution",
-        "blog-comments": "test-modules-blog-engagement",
-        "blog-authors": "test-modules-blog-editorial",
-        "blog-tags": "test-modules-blog-taxonomy",
-        "blog-categories": "test-modules-blog-taxonomy",
+        "blog-posts": "test-modules-content",
+        "blog-post-revisions": "test-modules-content",
+        "blog-pages": "test-modules-pages",
+        "blog-redirect-rules": "test-modules-pages",
+        "blog-comments": "test-modules-engagement",
+        "blog-authors": "test-modules-editorial",
+        "blog-tags": "test-modules-taxonomy",
+        "blog-categories": "test-modules-taxonomy",
         records: "test-modules-crud-core",
         "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
@@ -322,13 +324,14 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.collectionRepositoryModuleMap).toEqual(
       expect.objectContaining({
-        "blog-posts": "test-modules-blog-content",
-        "blog-post-revisions": "test-modules-blog-content",
-        "blog-redirect-rules": "test-modules-blog-distribution",
-        "blog-comments": "test-modules-blog-engagement",
-        "blog-authors": "test-modules-blog-editorial",
-        "blog-tags": "test-modules-blog-taxonomy",
-        "blog-categories": "test-modules-blog-taxonomy",
+        "blog-posts": "test-modules-content",
+        "blog-post-revisions": "test-modules-content",
+        "blog-pages": "test-modules-pages",
+        "blog-redirect-rules": "test-modules-pages",
+        "blog-comments": "test-modules-engagement",
+        "blog-authors": "test-modules-editorial",
+        "blog-tags": "test-modules-taxonomy",
+        "blog-categories": "test-modules-taxonomy",
         records: "test-modules-crud-core",
         "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
@@ -353,12 +356,11 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.persistencePluginModuleMap).toEqual(
       expect.objectContaining({
-        "test-modules-blog-content-content-persistence": "test-modules-blog-content",
-        "test-modules-blog-distribution-distribution-persistence":
-          "test-modules-blog-distribution",
-        "test-modules-blog-engagement-comments-persistence": "test-modules-blog-engagement",
-        "test-modules-blog-editorial-authors-persistence": "test-modules-blog-editorial",
-        "test-modules-blog-taxonomy-taxonomy-persistence": "test-modules-blog-taxonomy",
+        "test-modules-content-content-persistence": "test-modules-content",
+        "test-modules-pages-pages-persistence": "test-modules-pages",
+        "test-modules-engagement-comments-persistence": "test-modules-engagement",
+        "test-modules-editorial-authors-persistence": "test-modules-editorial",
+        "test-modules-taxonomy-taxonomy-persistence": "test-modules-taxonomy",
         "test-modules-crud-core-records-persistence": "test-modules-crud-core",
         "test-modules-media-manager-media-persistence": "test-modules-media-manager",
         "test-modules-operations-dispatch-dispatches-persistence":
@@ -372,11 +374,11 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     );
     expect(response.body.runtime.settingsRepositoryModuleMap).toEqual(
       expect.objectContaining({
-        "test-modules-blog-content": expect.any(String),
-        "test-modules-blog-distribution": expect.any(String),
-        "test-modules-blog-engagement": expect.any(String),
-        "test-modules-blog-editorial": expect.any(String),
-        "test-modules-blog-taxonomy": expect.any(String),
+        "test-modules-content": expect.any(String),
+        "test-modules-pages": expect.any(String),
+        "test-modules-engagement": expect.any(String),
+        "test-modules-editorial": expect.any(String),
+        "test-modules-taxonomy": expect.any(String),
         "test-modules-crud-core": expect.any(String),
         "test-modules-media-manager": expect.any(String),
         "test-modules-operations-dispatch": expect.any(String),
@@ -388,27 +390,27 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
     expect(response.body.runtime.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "test-modules-blog-content",
+          id: "test-modules-content",
           state: "enabled",
           collectionIds: expect.arrayContaining(["blog-posts", "blog-post-revisions"])
         }),
         expect.objectContaining({
-          id: "test-modules-blog-distribution",
+          id: "test-modules-pages",
           state: "enabled",
-          collectionIds: expect.arrayContaining(["blog-redirect-rules"])
+          collectionIds: expect.arrayContaining(["blog-pages", "blog-redirect-rules"])
         }),
         expect.objectContaining({
-          id: "test-modules-blog-engagement",
+          id: "test-modules-engagement",
           state: "enabled",
           collectionIds: expect.arrayContaining(["blog-comments"])
         }),
         expect.objectContaining({
-          id: "test-modules-blog-editorial",
+          id: "test-modules-editorial",
           state: "enabled",
           collectionIds: expect.arrayContaining(["blog-authors"])
         }),
         expect.objectContaining({
-          id: "test-modules-blog-taxonomy",
+          id: "test-modules-taxonomy",
           state: "enabled",
           collectionIds: expect.arrayContaining(["blog-tags", "blog-categories"])
         }),

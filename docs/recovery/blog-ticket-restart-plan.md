@@ -80,8 +80,8 @@ Status: reset-ready
 
 #### Slice A - Editorial + Taxonomy Foundation
 - Deliver:
-  - `test-modules-blog-editorial`
-  - `test-modules-blog-taxonomy`
+  - `test-modules-editorial`
+  - `test-modules-taxonomy`
 - Focus:
   - manifests
   - collection schemas
@@ -92,7 +92,7 @@ Status: reset-ready
 
 #### Slice B - Content Module
 - Deliver:
-  - `test-modules-blog-content`
+  - `test-modules-content`
 - Focus:
   - posts
   - revisions
@@ -103,7 +103,7 @@ Status: reset-ready
 
 #### Slice C - Engagement Module
 - Deliver:
-  - `test-modules-blog-engagement`
+  - `test-modules-engagement`
 - Focus:
   - comments
   - moderation queue
@@ -111,7 +111,7 @@ Status: reset-ready
 
 #### Slice D - Distribution Module
 - Deliver:
-  - `test-modules-blog-distribution`
+  - `test-modules-pages`
 - Focus:
   - redirects
   - SEO/social policy surfaces
@@ -149,3 +149,4 @@ Status: reset-ready
 - Start by writing contracts and a capability-gap table.
 - Keep shared code inside module folders unless repetition is proven twice and stable.
 - Reuse media-manager by reference only; do not duplicate media storage/upload concerns.
+

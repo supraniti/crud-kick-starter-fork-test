@@ -1,15 +1,15 @@
 # Test Modules Blog Distribution Module Contract
 
 ## Metadata
-- Contract ID: `module-contract.test-modules-blog-distribution.v1`
+- Contract ID: `module-contract.test-modules-pages.v1`
 - Date: `2026-03-08`
 - Milestone: `blog-management-modules`
 - Owner: `codex`
 - Status: `approved`
 
 ## Module Brief
-- Module name: `test-modules-blog-distribution`
-- Business objective: manage redirect rules, scheduling surfaces, and SEO/social distribution policy without taking ownership away from post content storage.
+- Module name: `test-modules-pages`
+- Business objective: manage page/publication records, redirect rules, and web-delivery policy while referencing canonical content records from `test-modules-content`.
 - Primary users: editors and managing editors.
 - Non-goals:
   1. Post body editing.
@@ -18,27 +18,37 @@
 
 ## Domain Model
 - Primary entities:
+  - `blog-pages`
   - `blog-redirect-rules`
 - Core fields:
-  - `sourcePath`, `targetPostId`, `targetUrl`, `httpCode`, `status`, `reason`, `createdOn`, `updatedOn`
+  - `blog-pages`: `sourceType`, `sourcePostId`, `path`, `layoutKey`, `status`, `canonicalUrl`, `seoTitle`, `seoDescription`, `ogTitle`, `ogDescription`, `ogImageMediaId`, `scheduledOn`, `publishedOn`, `archivedOn`, `createdOn`, `updatedOn`
+  - `blog-redirect-rules`: `sourcePath`, `targetPostId`, `targetUrl`, `httpCode`, `status`, `reason`, `createdOn`, `updatedOn`
 - Relations:
+  - `blog-pages.sourcePostId -> blog-posts`
+  - `blog-pages.ogImageMediaId -> media-items`
   - `blog-redirect-rules.targetPostId -> blog-posts`
-  - scheduling and SEO views read `blog-posts` but do not own the post record
+  - page/publication workflows reference `blog-posts` but do not own the canonical content body
 - Validation rules:
+  - unique `sourcePostId`
+  - unique normalized `path`
+  - `sourceType` in `blog-post`
+  - page `status` in `draft|in-review|scheduled|published|archived`
+  - `path` must be relative and normalized
   - unique `sourcePath`
   - either `targetPostId` or `targetUrl` must be set
   - `httpCode` in `301|302|307|308`
-  - `status` in `active|disabled`
+  - redirect `status` in `active|disabled`
   - `targetUrl` must be a valid URL when present
 
 ## UI Surfaces
 - Routes/views:
+  - pages overview route for publication queue and SEO/social warnings
   - redirect manager route
-  - distribution overview route for scheduling queue and SEO/social warnings
 - CRUD interactions:
+  - create/update page/publication records
+  - inspect publication readiness
   - create/update/disable redirect rules
-  - inspect scheduled posts and distribution readiness
-  - run publish-ready actions that coordinate with post lifecycle ownership
+  - run publish-ready actions that coordinate with content lifecycle ownership
 - Filters/search/sort needs:
   - redirect filters for `status`, `httpCode`, `targetPostId`
   - distribution filters for `status`, `scheduledOn`, SEO warning presence
@@ -53,7 +63,7 @@
   - module settings may hold SEO/social warning thresholds and default social fallbacks if required
 - Actions:
   - activate/disable redirect
-  - publish scheduled post
+  - publish scheduled page/post pairing
   - validate distribution readiness
 - Jobs:
   - schedule/publish flows may use module-local actions or missions if existing seams are sufficient
@@ -65,14 +75,16 @@
 
 ## Persistence And Runtime
 - Storage boundaries:
-  - redirect data persists through module-owned collections
-  - scheduling/SEO overview reads from `blog-posts`
+  - page/publication data persists through `blog-pages`
+  - redirect data persists through `blog-redirect-rules`
+  - T01 may temporarily mirror some publication values from `blog-posts` while operator workflows are preserved
 - Runtime contracts touched:
-  - module manifest collection
-  - module-owned distribution overview and redirect-manager route views
+  - module manifest collections
+  - module-owned pages overview and redirect-manager route views
 - Determinism requirements:
+  - one `blog-pages` record maps to one source post during T01
   - redirect activation must remain unique by `sourcePath`
-  - scheduling actions must respect post lifecycle rules owned by `test-modules-blog-content`
+  - publication actions must respect content lifecycle rules coordinated with `test-modules-content`
 
 ## Security And Policy
 - Access constraints:
@@ -83,9 +95,10 @@
   - redirect changes and publish/schedule actions should be reproducible from persisted state
 
 ## Acceptance Criteria
-1. `blog-redirect-rules` exists with deterministic validation and activation flows.
-2. Distribution overview surfaces SEO/social warnings without blocking on advisory issues alone.
-3. Scheduled publish flows coordinate with post lifecycle ownership without introducing duplicate post logic here.
+1. `blog-pages` exists with deterministic source-post, path, SEO, and publication validation.
+2. `blog-redirect-rules` exists with deterministic validation and activation flows.
+3. Pages overview surfaces SEO/social warnings without blocking on advisory issues alone.
+4. Scheduled publish flows coordinate with content lifecycle ownership without introducing duplicate content-body logic here.
 
 ## Out Of Scope
 1. External CDN/search-console integrations.
@@ -93,9 +106,9 @@
 
 ## Extension-Level Plan
 - Level 1 changes:
-  - add module manifest, redirect collection, and distribution route-view declarations
+  - add module manifest, `blog-pages`, `blog-redirect-rules`, and route-view declarations
 - Level 2 changes:
-  - implement redirect manager and distribution overview locally in the module
+  - implement pages overview and redirect manager locally in the module
 - Level 3 changes:
   - extract neutral scheduling helpers only if another module proves reuse
 - Level 4 changes (if any):
@@ -125,6 +138,7 @@
 
 ## Risks And Mitigations
 - Risk:
-  - distribution surfaces could duplicate post lifecycle logic owned elsewhere
+  - page/publication surfaces could duplicate content lifecycle logic owned elsewhere
   - Mitigation:
-    - keep post-state ownership in `test-modules-blog-content`; this module coordinates and validates rather than re-owning post records
+    - keep canonical content ownership in `test-modules-content`; this module coordinates and validates rather than re-owning content records
+

@@ -1,14 +1,14 @@
 # Test Modules Blog Engagement Module Contract
 
 ## Metadata
-- Contract ID: `module-contract.test-modules-blog-engagement.v1`
+- Contract ID: `module-contract.test-modules-engagement.v1`
 - Date: `2026-03-08`
 - Milestone: `blog-management-modules`
 - Owner: `codex`
 - Status: `approved`
 
 ## Module Brief
-- Module name: `test-modules-blog-engagement`
+- Module name: `test-modules-engagement`
 - Business objective: manage comments and moderation queues with deterministic approval/rejection/spam workflows.
 - Primary users: editors and managing editors.
 - Non-goals:
@@ -126,3 +126,4 @@
   - moderation actions could become implicit field edits with poor traceability
   - Mitigation:
     - model moderation as explicit workflow actions with actor/timestamp updates
+

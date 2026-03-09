@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { BlogEditorialView } from "../../../../modules/test-modules-blog-editorial/frontend/BlogEditorialView.jsx";
-import { BlogTaxonomyView } from "../../../../modules/test-modules-blog-taxonomy/frontend/BlogTaxonomyView.jsx";
+import { BlogEditorialView } from "../../../../modules/test-modules-editorial/frontend/BlogEditorialView.jsx";
+import { BlogTaxonomyView } from "../../../../modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx";
 
 function createCollectionsDomain({
   activeCollectionId,
@@ -239,3 +239,4 @@ test("blog taxonomy view renders tree summary and collection switcher", async ()
   fireEvent.click(screen.getByRole("button", { name: "Tags" }));
   expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");
 });
+

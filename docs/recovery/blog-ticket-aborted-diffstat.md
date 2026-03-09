@@ -20,11 +20,11 @@ Date: 2026-03-07
  ?? docs/contracts/blog-management-module-set-contract.md
  ?? frontend/src/domains/blog/
  ?? frontend/src/ui/blog/
- ?? modules/test-modules-blog-content/
- ?? modules/test-modules-blog-distribution/
- ?? modules/test-modules-blog-editorial/
- ?? modules/test-modules-blog-engagement/
- ?? modules/test-modules-blog-taxonomy/
+ ?? modules/test-modules-content/
+ ?? modules/test-modules-pages/
+ ?? modules/test-modules-editorial/
+ ?? modules/test-modules-engagement/
+ ?? modules/test-modules-taxonomy/
  ?? server/src/domains/reference/blog/
 ```
 
@@ -49,11 +49,11 @@ Date: 2026-03-07
 ## New Directory Inventory Before Stash
 - `frontend/src/domains/blog`: 1 file / 82 lines
 - `frontend/src/ui/blog`: 1 file / 149 lines
-- `modules/test-modules-blog-content`: 8 files / 1037 lines
-- `modules/test-modules-blog-taxonomy`: 8 files / 428 lines
-- `modules/test-modules-blog-editorial`: 8 files / 394 lines
-- `modules/test-modules-blog-engagement`: 8 files / 428 lines
-- `modules/test-modules-blog-distribution`: 9 files / 633 lines
+- `modules/test-modules-content`: 8 files / 1037 lines
+- `modules/test-modules-taxonomy`: 8 files / 428 lines
+- `modules/test-modules-editorial`: 8 files / 394 lines
+- `modules/test-modules-engagement`: 8 files / 428 lines
+- `modules/test-modules-pages`: 9 files / 633 lines
 - `server/src/domains/reference/blog`: 18 files / 2303 lines
 
 ## Existing Repo Files Touched Before Stash
@@ -69,3 +69,4 @@ Date: 2026-03-07
 ## Interpretation
 - Most of the change volume landed outside module manifests and module-local adapters.
 - The largest new shared runtime boundary was `server/src/domains/reference/blog`, which is the main signal that the attempt drifted away from repo extension order.
+

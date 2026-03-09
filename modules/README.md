@@ -5,11 +5,11 @@ This directory contains the active non-production module set used by runtime and
 Active modules:
 - `modules/test-modules-crud-core`
 - `modules/test-modules-media-manager`
-- `modules/test-modules-blog-content`
-- `modules/test-modules-blog-distribution`
-- `modules/test-modules-blog-engagement`
-- `modules/test-modules-blog-editorial`
-- `modules/test-modules-blog-taxonomy`
+- `modules/test-modules-content`
+- `modules/test-modules-pages`
+- `modules/test-modules-engagement`
+- `modules/test-modules-editorial`
+- `modules/test-modules-taxonomy`
 - `modules/test-modules-relations-taxonomy`
 - `modules/test-modules-settings-policy`
 - `modules/test-modules-operations-dispatch`
@@ -22,3 +22,4 @@ Runtime surfaces:
 - module discovery and navigation via `GET /api/reference/modules`
 - runtime diagnostics via `GET /api/reference/modules/runtime`
 - collection schema and CRUD registration via `GET /api/reference/collections`
+

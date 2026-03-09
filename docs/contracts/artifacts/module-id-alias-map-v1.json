@@ -9,11 +9,11 @@
     "test-modules-settings-policy",
     "test-modules-operations-dispatch",
     "test-modules-remotes-publish",
-    "test-modules-blog-content",
-    "test-modules-blog-distribution",
-    "test-modules-blog-engagement",
-    "test-modules-blog-editorial",
-    "test-modules-blog-taxonomy"
+    "test-modules-content",
+    "test-modules-pages",
+    "test-modules-engagement",
+    "test-modules-editorial",
+    "test-modules-taxonomy"
   ],
   "mapping": {
     "records": "test-modules-crud-core",
@@ -55,13 +55,14 @@
     "wpx-publish-jobs": "test-modules-remotes-publish",
     "digests": "test-modules-remotes-publish",
     "briefs": "test-modules-remotes-publish",
-    "blog-posts": "test-modules-blog-content",
-    "blog-post-revisions": "test-modules-blog-content",
-    "blog-redirect-rules": "test-modules-blog-distribution",
-    "blog-authors": "test-modules-blog-editorial",
-    "blog-tags": "test-modules-blog-taxonomy",
-    "blog-categories": "test-modules-blog-taxonomy",
-    "blog-comments": "test-modules-blog-engagement"
+    "blog-posts": "test-modules-content",
+    "blog-post-revisions": "test-modules-content",
+    "blog-pages": "test-modules-pages",
+    "blog-redirect-rules": "test-modules-pages",
+    "blog-authors": "test-modules-editorial",
+    "blog-tags": "test-modules-taxonomy",
+    "blog-categories": "test-modules-taxonomy",
+    "blog-comments": "test-modules-engagement"
   },
   "groupedTargets": {
     "test-modules-crud-core": [
@@ -115,25 +116,27 @@
       "wpx-posts",
       "wpx-publish-jobs"
     ],
-    "test-modules-blog-content": [
+    "test-modules-content": [
       "blog-post-revisions",
       "blog-posts"
     ],
-    "test-modules-blog-distribution": [
+    "test-modules-pages": [
+      "blog-pages",
       "blog-redirect-rules"
     ],
-    "test-modules-blog-editorial": [
+    "test-modules-editorial": [
       "blog-authors"
     ],
-    "test-modules-blog-taxonomy": [
+    "test-modules-taxonomy": [
       "blog-categories",
       "blog-tags"
     ],
-    "test-modules-blog-engagement": [
+    "test-modules-engagement": [
       "blog-comments"
     ]
   },
-  "sourceModuleCount": 46,
-  "mappedSourceModuleCount": 46,
+  "sourceModuleCount": 47,
+  "mappedSourceModuleCount": 47,
   "unmappedSourceModuleIds": []
 }
+

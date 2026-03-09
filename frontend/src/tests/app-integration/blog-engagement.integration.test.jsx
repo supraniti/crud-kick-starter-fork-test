@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { BlogEngagementView } from "../../../../modules/test-modules-blog-engagement/frontend/BlogEngagementView.jsx";
+import { BlogEngagementView } from "../../../../modules/test-modules-engagement/frontend/BlogEngagementView.jsx";
 import * as referenceApi from "../../api/reference.js";
 
 vi.mock("../../api/reference.js", async () => {
@@ -156,3 +156,4 @@ test("blog engagement moderation action updates the selected comment determinist
     expect(collectionsDomain.reloadCollectionItems).toHaveBeenCalled();
   });
 });
+

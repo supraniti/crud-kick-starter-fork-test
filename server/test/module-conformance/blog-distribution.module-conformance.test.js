@@ -5,7 +5,7 @@ import {
 } from "./helpers/reference-slice-runtime-test-helpers.js";
 
 const BLOG_DISTRIBUTION_TEST_TIMEOUT_MS = 20_000;
-const MODULE_ID = "test-modules-blog-distribution";
+const MODULE_ID = "test-modules-pages";
 
 function buildItemsRoute(collectionId) {
   return `/api/reference/collections/${collectionId}/items`;
@@ -70,7 +70,7 @@ async function seedPost(server, authorId, categoryId, overrides = {}) {
   return response.body.item;
 }
 
-test("blog distribution redirect rules normalize source paths and reject ambiguous targets", async () => {
+test("pages redirect rules normalize source paths and reject ambiguous targets", async () => {
   const server = await createEphemeralReferenceServer();
 
   try {
@@ -143,7 +143,7 @@ test("blog distribution redirect rules normalize source paths and reject ambiguo
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
-test("blog distribution publish-now route coordinates with scheduled post lifecycle and revisions", async () => {
+test("pages publish-now route coordinates with scheduled post lifecycle and synced page records", async () => {
   const server = await createEphemeralReferenceServer();
 
   try {
@@ -154,6 +154,20 @@ test("blog distribution publish-now route coordinates with scheduled post lifecy
       status: "scheduled",
       scheduledOn: "2026-03-09T08:30:00.000Z"
     });
+
+    const syncedPages = await injectJson(
+      server,
+      "GET",
+      `${buildItemsRoute("blog-pages")}?sourcePostId=${scheduledPost.id}&limit=200`
+    );
+    expect(syncedPages.statusCode).toBe(200);
+    expect(syncedPages.body.items).toHaveLength(1);
+    expect(syncedPages.body.items[0]).toEqual(
+      expect.objectContaining({
+        sourcePostId: scheduledPost.id,
+        status: "scheduled"
+      })
+    );
 
     const publishResponse = await injectJson(server, "POST", buildModuleRoute(scheduledPost.id), {
       updatedByAuthorId: editor.id
@@ -175,6 +189,21 @@ test("blog distribution publish-now route coordinates with scheduled post lifecy
     );
     expect(revisionsResponse.statusCode).toBe(200);
     expect(revisionsResponse.body.items).toHaveLength(2);
+
+    const publishedPages = await injectJson(
+      server,
+      "GET",
+      `${buildItemsRoute("blog-pages")}?sourcePostId=${scheduledPost.id}&limit=200`
+    );
+    expect(publishedPages.statusCode).toBe(200);
+    expect(publishedPages.body.items).toHaveLength(1);
+    expect(publishedPages.body.items[0]).toEqual(
+      expect.objectContaining({
+        sourcePostId: scheduledPost.id,
+        status: "published",
+        publishedOn: expect.any(String)
+      })
+    );
 
     const draftPost = await seedPost(server, editor.id, category.id, {
       title: "Draft Launch Update"

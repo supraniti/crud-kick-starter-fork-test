@@ -1,14 +1,14 @@
 # Test Modules Blog Taxonomy Module Contract
 
 ## Metadata
-- Contract ID: `module-contract.test-modules-blog-taxonomy.v1`
+- Contract ID: `module-contract.test-modules-taxonomy.v1`
 - Date: `2026-03-08`
 - Milestone: `blog-management-modules`
 - Owner: `codex`
 - Status: `approved`
 
 ## Module Brief
-- Module name: `test-modules-blog-taxonomy`
+- Module name: `test-modules-taxonomy`
 - Business objective: manage reusable blog tags and hierarchical categories with deterministic reference integrity.
 - Primary users: editors and managing editors.
 - Non-goals:
@@ -128,3 +128,4 @@
   - hierarchy logic can spread into generic collection code
   - Mitigation:
     - keep hierarchy behavior in module-local views/helpers unless a neutral primitive is truly needed
+

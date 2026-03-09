@@ -5,11 +5,11 @@ Baseline commit before this ticket: `9382ce2` (`feat: add media manager module`)
 
 ## What Was Attempted
 - Added five additive blog module directories:
-  - `modules/test-modules-blog-content`
-  - `modules/test-modules-blog-taxonomy`
-  - `modules/test-modules-blog-editorial`
-  - `modules/test-modules-blog-engagement`
-  - `modules/test-modules-blog-distribution`
+  - `modules/test-modules-content`
+  - `modules/test-modules-taxonomy`
+  - `modules/test-modules-editorial`
+  - `modules/test-modules-engagement`
+  - `modules/test-modules-pages`
 - Added shared blog frontend helpers:
   - `frontend/src/domains/blog`
   - `frontend/src/ui/blog`
@@ -74,3 +74,4 @@ Baseline commit before this ticket: `9382ce2` (`feat: add media manager module`)
 - Restart from contracts and a capability-gap audit.
 - Implement module by module.
 - Keep logic module-local unless a missing primitive is proven and explicitly waived.
+

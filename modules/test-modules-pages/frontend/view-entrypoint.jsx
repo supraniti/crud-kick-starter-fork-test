@@ -1,0 +1,22 @@
+import { COLLECTIONS_ROUTE_STATE_ADAPTER } from "../../../frontend/src/runtime/view-registry/registration-primitives.js";
+import { BlogDistributionView } from "./BlogDistributionView.jsx";
+
+const MODULE_ID = "test-modules-pages";
+
+export function registerModuleViews() {
+  return [
+    {
+      moduleId: MODULE_ID,
+      usesCollectionsDomain: true,
+      requiredDomains: ["collections"],
+      routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
+      render: (context) => (
+        <BlogDistributionView
+          activeModuleLabel={context.activeModuleLabel}
+          collectionsDomain={context.collectionsDomain}
+        />
+      )
+    }
+  ];
+}
+

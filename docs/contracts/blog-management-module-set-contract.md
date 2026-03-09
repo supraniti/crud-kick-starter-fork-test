@@ -13,11 +13,11 @@
 - Reuse existing media-manager capabilities by reference only.
 
 ## Additive Module Surface
-1. `test-modules-blog-content`
-2. `test-modules-blog-taxonomy`
-3. `test-modules-blog-editorial`
-4. `test-modules-blog-engagement`
-5. `test-modules-blog-distribution`
+1. `test-modules-content`
+2. `test-modules-taxonomy`
+3. `test-modules-editorial`
+4. `test-modules-engagement`
+5. `test-modules-pages`
 
 ## Permanent Baseline Protection
 - The following modules are permanent repo fixtures and must remain active throughout this ticket:
@@ -34,6 +34,7 @@
   - `blog-authors`
   - `blog-posts`
   - `blog-post-revisions`
+  - `blog-pages`
   - `blog-tags`
   - `blog-categories`
   - `blog-comments`
@@ -41,22 +42,24 @@
 - UI labels may use plain-language labels such as `Authors`, `Posts`, and `Categories`.
 
 ## Cross-Module Ownership Map
-- `test-modules-blog-editorial`
+- `test-modules-editorial`
   - owns `blog-authors`
   - owns editorial overview and assignment surfaces
-- `test-modules-blog-taxonomy`
+- `test-modules-taxonomy`
   - owns `blog-tags`
   - owns `blog-categories`
-- `test-modules-blog-content`
+- `test-modules-content`
   - owns `blog-posts`
   - owns `blog-post-revisions`
   - owns post editor and revision history workflows
-- `test-modules-blog-engagement`
+- `test-modules-engagement`
   - owns `blog-comments`
   - owns moderation queue and moderation actions
-- `test-modules-blog-distribution`
+- `test-modules-pages`
+  - owns `blog-pages`
   - owns `blog-redirect-rules`
-  - owns scheduling, SEO/social policy surfaces, and redirect workflows
+  - owns page/publication route, SEO/social metadata, and redirect workflows
+  - owns the emerging publication state surface for blog-backed pages
 
 ## Shared Decisions Locked For Implementation
 - Rich text storage format:
@@ -73,6 +76,10 @@
 - Media integration:
   - use references to `media-items` only
   - do not add upload/storage logic in any blog module
+- T01 transition posture:
+  - `blog-pages` is introduced now as the page/publication record
+  - current post workflows remain operator-compatible during T01
+  - publication fields may remain mirrored between `blog-posts` and `blog-pages` during T01 while the source-of-truth boundary is moved incrementally toward `test-modules-pages`
 
 ## Cross-Module Invariants
 - `blog-posts.primaryAuthorId`, `coAuthorIds`, `createdByAuthorId`, and `updatedByAuthorId` reference `blog-authors`.
@@ -80,6 +87,8 @@
 - `blog-posts.tagIds` and `blog-authors.expertiseTagIds` reference `blog-tags`.
 - `blog-posts.featuredMediaId`, `galleryMediaIds`, and `ogImageMediaId` reference `media-items`.
 - `blog-post-revisions.postId` references `blog-posts`.
+- `blog-pages.sourcePostId` references `blog-posts`.
+- `blog-pages.ogImageMediaId` references `media-items`.
 - `blog-comments.postId` references `blog-posts`.
 - `blog-comments.approvedByAuthorId` references `blog-authors`.
 - `blog-redirect-rules.targetPostId` references `blog-posts`.
@@ -95,11 +104,11 @@
 - Shared/core frontend refactors for performance or ergonomics require explicit user approval before implementation.
 
 ## Implementation Order
-1. `test-modules-blog-editorial`
-2. `test-modules-blog-taxonomy`
-3. `test-modules-blog-content`
-4. `test-modules-blog-engagement`
-5. `test-modules-blog-distribution`
+1. `test-modules-editorial`
+2. `test-modules-taxonomy`
+3. `test-modules-content`
+4. `test-modules-engagement`
+5. `test-modules-pages`
 
 ## Verification Plan
 - During implementation:
@@ -124,3 +133,4 @@
   - schedule, revision, and moderation flows may require custom UI beyond generic CRUD
   - Control:
     - use module-owned route views instead of forcing generic tables to absorb workflow complexity
+

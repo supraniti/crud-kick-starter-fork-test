@@ -115,11 +115,11 @@ test("file-backed translation layer loads freeze map and exposes summary", async
     mode: "dual-compat",
     mapPath,
     moduleRegistry: createMockRegistry([
-      "test-modules-blog-content",
-      "test-modules-blog-distribution",
-      "test-modules-blog-engagement",
-      "test-modules-blog-editorial",
-      "test-modules-blog-taxonomy",
+      "test-modules-content",
+      "test-modules-pages",
+      "test-modules-engagement",
+      "test-modules-editorial",
+      "test-modules-taxonomy",
       "test-modules-crud-core",
       "test-modules-media-manager",
       "test-modules-relations-taxonomy",
@@ -130,7 +130,7 @@ test("file-backed translation layer loads freeze map and exposes summary", async
   });
 
   expect(translation.summary.mapLoadOk).toBe(true);
-  expect(translation.summary.mappingCount).toBe(46);
+  expect(translation.summary.mappingCount).toBe(47);
   expect(translation.summary.discoveredTargetModuleCount).toBe(11);
   expect(translation.diagnostics).toEqual([]);
 });

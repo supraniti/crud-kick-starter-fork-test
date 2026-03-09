@@ -1,0 +1,617 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-content",
+  "version": "0.1.0",
+  "name": "Test Modules Content",
+  "capabilities": [
+    "crud.collection",
+    "schema",
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-content.install",
+    "uninstall": "test-modules-content.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs",
+    "routes": "./server/routes.mjs"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Content",
+      "icon": "article",
+      "order": 490
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "collections": [
+    {
+      "id": "blog-posts",
+      "label": "Posts",
+      "entitySingular": "post",
+      "primaryField": "title",
+      "description": "Workflow-oriented blog post records with deterministic lifecycle validation and revision hooks.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": false
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "minLength": 5,
+          "maxLength": 180
+        },
+        {
+          "id": "slug",
+          "label": "Slug",
+          "type": "computed",
+          "required": false,
+          "source": "title",
+          "resolver": "slugify",
+          "transform": "slugify"
+        },
+        {
+          "id": "subtitle",
+          "label": "Subtitle",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 220
+        },
+        {
+          "id": "excerpt",
+          "label": "Excerpt",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 600
+        },
+        {
+          "id": "body",
+          "label": "Body",
+          "type": "text",
+          "required": true,
+          "minLength": 20,
+          "maxLength": 50000
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "draft",
+            "in-review",
+            "scheduled",
+            "published",
+            "archived"
+          ],
+          "defaultValue": "draft"
+        },
+        {
+          "id": "format",
+          "label": "Format",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "article",
+            "news",
+            "opinion",
+            "tutorial",
+            "review"
+          ],
+          "defaultValue": "article"
+        },
+        {
+          "id": "primaryAuthorId",
+          "label": "Primary Author",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-authors",
+          "labelField": "displayName",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "coAuthorIds",
+          "label": "Co-Authors",
+          "type": "reference-multi",
+          "required": false,
+          "collectionId": "blog-authors",
+          "labelField": "displayName",
+          "onDelete": "nullify",
+          "defaultValue": []
+        },
+        {
+          "id": "categoryIds",
+          "label": "Categories",
+          "type": "reference-multi",
+          "required": false,
+          "collectionId": "blog-categories",
+          "labelField": "name",
+          "onDelete": "restrict",
+          "defaultValue": []
+        },
+        {
+          "id": "tagIds",
+          "label": "Tags",
+          "type": "reference-multi",
+          "required": false,
+          "collectionId": "blog-tags",
+          "labelField": "name",
+          "onDelete": "nullify",
+          "defaultValue": []
+        },
+        {
+          "id": "featuredMediaId",
+          "label": "Featured Media",
+          "type": "reference",
+          "required": false,
+          "collectionId": "media-items",
+          "labelField": "displayName",
+          "onDelete": "nullify"
+        },
+        {
+          "id": "galleryMediaIds",
+          "label": "Gallery Media",
+          "type": "reference-multi",
+          "required": false,
+          "collectionId": "media-items",
+          "labelField": "displayName",
+          "onDelete": "nullify",
+          "defaultValue": []
+        },
+        {
+          "id": "allowComments",
+          "label": "Allow Comments",
+          "type": "boolean",
+          "required": true,
+          "defaultValue": true
+        },
+        {
+          "id": "commentPolicy",
+          "label": "Comment Policy",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "open",
+            "registered-only",
+            "closed"
+          ],
+          "defaultValue": "open"
+        },
+        {
+          "id": "canonicalUrl",
+          "label": "Canonical URL",
+          "type": "url",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 320
+        },
+        {
+          "id": "seoTitle",
+          "label": "SEO Title",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 70
+        },
+        {
+          "id": "seoDescription",
+          "label": "SEO Description",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 160
+        },
+        {
+          "id": "ogTitle",
+          "label": "OpenGraph Title",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 95
+        },
+        {
+          "id": "ogDescription",
+          "label": "OpenGraph Description",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 220
+        },
+        {
+          "id": "ogImageMediaId",
+          "label": "OpenGraph Image",
+          "type": "reference",
+          "required": false,
+          "collectionId": "media-items",
+          "labelField": "displayName",
+          "onDelete": "nullify"
+        },
+        {
+          "id": "scheduledOn",
+          "label": "Scheduled On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "publishedOn",
+          "label": "Published On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "archivedOn",
+          "label": "Archived On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "readTimeMinutes",
+          "label": "Read Time Minutes",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 10000,
+          "defaultValue": 0
+        },
+        {
+          "id": "wordCount",
+          "label": "Word Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000000,
+          "defaultValue": 0
+        },
+        {
+          "id": "locale",
+          "label": "Locale",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 16
+        },
+        {
+          "id": "translationGroupId",
+          "label": "Translation Group",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 120
+        },
+        {
+          "id": "createdByAuthorId",
+          "label": "Created By",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-authors",
+          "labelField": "displayName",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "updatedByAuthorId",
+          "label": "Updated By",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-authors",
+          "labelField": "displayName",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    },
+    {
+      "id": "blog-post-revisions",
+      "label": "Post Revisions",
+      "entitySingular": "revision",
+      "primaryField": "titleSnapshot",
+      "description": "Deterministic revision log for blog posts.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": false,
+        "update": false,
+        "delete": false
+      },
+      "fields": [
+        {
+          "id": "postId",
+          "label": "Post",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-posts",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "revisionNumber",
+          "label": "Revision Number",
+          "type": "number",
+          "required": true,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "titleSnapshot",
+          "label": "Title Snapshot",
+          "type": "text",
+          "required": true,
+          "minLength": 5,
+          "maxLength": 180
+        },
+        {
+          "id": "subtitleSnapshot",
+          "label": "Subtitle Snapshot",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 220
+        },
+        {
+          "id": "excerptSnapshot",
+          "label": "Excerpt Snapshot",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 600
+        },
+        {
+          "id": "bodySnapshot",
+          "label": "Body Snapshot",
+          "type": "text",
+          "required": true,
+          "minLength": 20,
+          "maxLength": 50000
+        },
+        {
+          "id": "taxonomySnapshot",
+          "label": "Taxonomy Snapshot",
+          "type": "structured-object",
+          "required": true,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "categoryIds",
+                  "label": "Category IDs",
+                  "type": "string-list",
+                  "required": false
+                },
+                {
+                  "id": "tagIds",
+                  "label": "Tag IDs",
+                  "type": "string-list",
+                  "required": false
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "mediaSnapshot",
+          "label": "Media Snapshot",
+          "type": "structured-object",
+          "required": false,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "featuredMediaId",
+                  "label": "Featured Media ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 64
+                },
+                {
+                  "id": "galleryMediaIds",
+                  "label": "Gallery Media IDs",
+                  "type": "string-list",
+                  "required": false
+                },
+                {
+                  "id": "ogImageMediaId",
+                  "label": "OpenGraph Image ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 64
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "seoSnapshot",
+          "label": "SEO Snapshot",
+          "type": "structured-object",
+          "required": false,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "canonicalUrl",
+                  "label": "Canonical URL",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 320
+                },
+                {
+                  "id": "seoTitle",
+                  "label": "SEO Title",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 70
+                },
+                {
+                  "id": "seoDescription",
+                  "label": "SEO Description",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "ogTitle",
+                  "label": "OpenGraph Title",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 95
+                },
+                {
+                  "id": "ogDescription",
+                  "label": "OpenGraph Description",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 220
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "statusSnapshot",
+          "label": "Status Snapshot",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "draft",
+            "in-review",
+            "scheduled",
+            "published",
+            "archived"
+          ]
+        },
+        {
+          "id": "scheduledOnSnapshot",
+          "label": "Scheduled On Snapshot",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "publishedOnSnapshot",
+          "label": "Published On Snapshot",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "archivedOnSnapshot",
+          "label": "Archived On Snapshot",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "changeSummary",
+          "label": "Change Summary",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "source",
+          "label": "Source",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "manual",
+            "autosave",
+            "rollback",
+            "import"
+          ],
+          "defaultValue": "manual"
+        },
+        {
+          "id": "isAutosave",
+          "label": "Autosave",
+          "type": "boolean",
+          "required": true,
+          "defaultValue": false
+        },
+        {
+          "id": "changedByAuthorId",
+          "label": "Changed By",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-authors",
+          "labelField": "displayName",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "changedOn",
+          "label": "Changed On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "contentHash",
+          "label": "Content Hash",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 128
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof",
+    "ticket": "current-capability-module-realignment"
+  }
+}
+

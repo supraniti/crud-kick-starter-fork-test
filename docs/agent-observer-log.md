@@ -113,7 +113,7 @@
 
 ### 2026-03-08 - Blog Slice A Delivery
 - Tasks:
-  - delivered `test-modules-blog-editorial` and `test-modules-blog-taxonomy` additively
+  - delivered `test-modules-editorial` and `test-modules-taxonomy` additively
   - updated runtime discovery and module-id artifacts for the expanded active module surface
   - added focused server/frontend tests and reran the full release gate
 - Easy:
@@ -128,7 +128,7 @@
 
 ### 2026-03-08 - Blog Slice B Delivery
 - Tasks:
-  - delivered `test-modules-blog-content` additively
+  - delivered `test-modules-content` additively
   - added module-local post/revision behavior, including revision restore through a module-owned route
   - updated active-surface artifacts and reran the full release gate
 - Easy:
@@ -143,7 +143,7 @@
 
 ### 2026-03-08 - Blog Slice C Delivery
 - Tasks:
-  - delivered `test-modules-blog-engagement` additively
+  - delivered `test-modules-engagement` additively
   - added module-local moderation behavior for `blog-comments`
   - updated active-surface artifacts and reran the full release gate
 - Easy:
@@ -158,7 +158,7 @@
 
 ### 2026-03-08 - Blog Slice D Delivery
 - Tasks:
-  - delivered `test-modules-blog-distribution` additively
+  - delivered `test-modules-pages` additively
   - added module-local redirect validation, publish-now coordination, and a custom distribution workspace
   - reran the full release gate to close the five-module blog ticket surface
 - Easy:
@@ -204,7 +204,7 @@
 
 ### 2026-03-08 - Blog Content Typing-Latency Closure
 - Tasks:
-  - closed the live typing-latency issue in `test-modules-blog-content` without crossing the new UI boundary rules
+  - closed the live typing-latency issue in `test-modules-content` without crossing the new UI boundary rules
   - kept the fix entirely module-local and MUI-only
   - verified the retained fix with a focused frontend test, a full release gate, and a local Chromium Event Timing probe
 - Easy:
@@ -216,3 +216,66 @@
 - Improve:
   - for future workflow-heavy MUI editors, treat rerender containment as a first-class design concern before reaching for shared abstractions
   - when a performance issue is under investigation, record both the approved boundary and the measurement method early so a later session does not restart the wrong class of fix
+
+### 2026-03-08 - T01 Module Realignment Start
+- Tasks:
+  - started the architectural realignment from the delivered blog module surface toward the future content/pages direction
+  - locked the smallest safe migration assumptions before code changes
+  - recorded the transition plan in `handoff.md` so later sessions do not reopen the naming/ownership debate
+- Easy:
+  - the future ownership split is clear conceptually: editorial, taxonomy, content, engagement, pages
+  - the existing codebase already isolates most behavior module-locally, so the migration can happen without inventing a shared blog core
+- Hard:
+  - the current implementation still has publication concerns embedded in `blog-posts`, so a clean ownership shift cannot happen in one move without either compatibility shims or a much larger workflow rewrite
+  - module ids, folder names, tests, manifests, route paths, and runtime-state artifacts are all coupled, so even “just renaming modules” is a repo-wide change
+- Improve:
+  - for future architecture tickets, lock the target naming and transitional-compatibility policy before the first implementation ticket starts
+  - when a future platform direction is already known, bias earlier tickets toward future-safe generic naming so the repo does not need a second round of module-surface migration
+
+### 2026-03-08 - T01 Realignment Verification Pass
+- Tasks:
+  - completed the generic module-surface rename in the working tree
+  - introduced `blog-pages` and wired the first page/publication sync path from content mutations
+  - reran the full release gate until the T01 worktree was green
+- Easy:
+  - the existing module seams were strong enough to add `blog-pages` and retarget the module ids without inventing a shared blog core
+  - the repo-wide rename was noisy but mechanically straightforward once the active-surface tests and lane manifests were updated together
+- Hard:
+  - a one-line workspace regression (`posts` returned from the wrong variable after the publication-merge refactor) only surfaced in the frontend integration lane, not earlier
+  - the full gate failed once for a purely environmental reason because a stale local `node` process was still listening on `3001`, blocking the smoke runner
+  - the current T01 work is only a partial ownership move: `blog-pages` is real, but publication fields are still mirrored from `blog-posts`, so the architectural finish line is still ahead
+- Improve:
+  - when a workspace hook starts merging two sources of truth, add a focused assertion that the raw support collections and merged output are both returned intact
+  - treat smoke-lane port ownership as part of the verification protocol whenever a local review server may have been run earlier in the day
+  - record partial-ownership states explicitly in the contracts/handoff so later sessions do not mistake a compatibility mirror for the final intended boundary
+
+### 2026-03-08 - T01 Page-Backed Editor Slice
+- Tasks:
+  - made the content editor load `blog-pages` explicitly
+  - added a page-only `Page Path` field and saved the page record alongside post saves
+  - updated the content integration tests and reran the full gate
+- Easy:
+  - the repo already had enough module-local seams to add page-aware editing without a shared/frontend refactor or any new core route primitive
+  - keeping post writes intact while adding explicit page writes was a safe way to advance the ownership boundary without destabilizing revisions or lifecycle tests
+- Hard:
+  - `useBlogContentWorkspace.js` was already near the repo LOC ceiling, so the page-support slice required extracting a new module-local helper instead of simply appending more logic
+  - full-gate failures after the code was green were environmental again: a stale `node` process reoccupied `3001` and had to be cleared before smoke could run
+- Improve:
+  - when a module-local workspace is already near the LOC cap, assume the next capability slice will need a helper file before coding starts
+  - where compatibility mirrors are intentional, prefer introducing a page-only field like `path` early because it proves the new ownership boundary with less ambiguity than mirroring an existing SEO field
+
+### 2026-03-08 - T01 Ownership Hardening And Closure
+- Tasks:
+  - hardened the content-to-page sync so operator-edited page path and page SEO values survive later post mutations
+  - added focused server conformance coverage for the preserved page-ownership boundary
+  - reran the full release gate and closed T01 with the compatibility-mirror status made explicit in `handoff.md`
+- Easy:
+  - once `blog-pages` already existed and the content editor was explicitly reading/writing it, the correct hardening move was narrow: preserve page-owned route and SEO during `afterMutation` sync instead of widening the runtime
+  - a single focused conformance test expressed the intended T01 boundary better than more contract prose alone
+- Hard:
+  - a seemingly small preservation tweak pushed `buildPageValue` over the repo function-complexity cap, so even the hardening step had to be shaped around repo lint constraints
+  - the first full-gate rerun failed for a purely environmental reason because a stale listener was still bound to `127.0.0.1:3001`, blocking the smoke lane boot
+- Improve:
+  - when a migration relies on compatibility mirrors, add an explicit test for “source-of-truth values survive mirror-driven sync” as soon as the first mirror is introduced
+  - treat smoke-lane port ownership as part of the closure checklist, not cleanup work after the fact
+

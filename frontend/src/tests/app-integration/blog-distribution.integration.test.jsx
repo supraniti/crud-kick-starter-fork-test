@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { BlogDistributionView } from "../../../../modules/test-modules-blog-distribution/frontend/BlogDistributionView.jsx";
+import { BlogDistributionView } from "../../../../modules/test-modules-pages/frontend/BlogDistributionView.jsx";
 import * as referenceApi from "../../api/reference.js";
 
 vi.mock("../../api/reference.js", async () => {
@@ -122,7 +122,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test("blog distribution overview renders readiness warnings and publishes scheduled posts", async () => {
+test("pages overview renders readiness warnings and publishes scheduled pages", async () => {
   installReferenceMocks();
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
@@ -138,22 +138,22 @@ test("blog distribution overview renders readiness warnings and publishes schedu
 
   render(
     <BlogDistributionView
-      activeModuleLabel="Blog Distribution"
+      activeModuleLabel="Pages"
       collectionsDomain={createCollectionsDomain()}
     />
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Distribution Desk" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pages Desk" })).toBeInTheDocument();
     expect(screen.getByText("Missing SEO title")).toBeInTheDocument();
-    expect(screen.getByText("Distribution Queue")).toBeInTheDocument();
+    expect(screen.getByText("Pages Queue")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "Publish Scheduled Post" }));
+  fireEvent.click(screen.getByRole("button", { name: "Publish Scheduled Page" }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reference/modules/test-modules-blog-distribution/posts/post-001/publish-now",
+      "/api/reference/modules/test-modules-pages/posts/post-001/publish-now",
       expect.objectContaining({
         method: "POST"
       })
@@ -180,7 +180,7 @@ test("blog distribution redirect manager persists new rules through the redirect
 
   render(
     <BlogDistributionView
-      activeModuleLabel="Blog Distribution"
+      activeModuleLabel="Pages"
       collectionsDomain={collectionsDomain}
     />
   );
@@ -223,3 +223,4 @@ test("blog distribution redirect manager persists new rules through the redirect
     expect(collectionsDomain.reloadCollectionItems).toHaveBeenCalled();
   });
 });
+

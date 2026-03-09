@@ -12,15 +12,15 @@
     "active_module_ids": [
       "test-modules-crud-core",
       "test-modules-media-manager",
-      "test-modules-blog-content",
-      "test-modules-blog-distribution",
-      "test-modules-blog-engagement",
+      "test-modules-content",
+      "test-modules-pages",
+      "test-modules-engagement",
       "test-modules-relations-taxonomy",
       "test-modules-settings-policy",
       "test-modules-operations-dispatch",
       "test-modules-remotes-publish",
-      "test-modules-blog-editorial",
-      "test-modules-blog-taxonomy"
+      "test-modules-editorial",
+      "test-modules-taxonomy"
     ],
     "module_id_alias_map": "docs/contracts/artifacts/module-id-alias-map-v1.json"
   },
@@ -298,3 +298,4 @@
     }
   ]
 }
+

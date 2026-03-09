@@ -1,27 +1,28 @@
 # Test Modules Blog Content Module Contract
 
 ## Metadata
-- Contract ID: `module-contract.test-modules-blog-content.v1`
+- Contract ID: `module-contract.test-modules-content.v1`
 - Date: `2026-03-08`
 - Milestone: `blog-management-modules`
 - Owner: `codex`
 - Status: `approved`
 
 ## Module Brief
-- Module name: `test-modules-blog-content`
-- Business objective: manage posts and deterministic revision history with workflow-oriented editing, review, scheduling, publish, and archive flows.
+- Module name: `test-modules-content`
+- Business objective: manage canonical blog content records and deterministic revision history while coordinating with page/publication records for web-delivery concerns.
 - Primary users: authors, editors, and managing editors.
 - Non-goals:
   1. Comment moderation.
   2. Redirect registry ownership.
-  3. Media upload/storage implementation.
+  3. Long-term ownership of route, SEO, or redirect storage.
+  4. Media upload/storage implementation.
 
 ## Domain Model
 - Primary entities:
   - `blog-posts`
   - `blog-post-revisions`
 - Core fields:
-  - `blog-posts`: `slug`, `title`, `subtitle`, `excerpt`, `body`, `status`, `format`, `primaryAuthorId`, `coAuthorIds`, `categoryIds`, `tagIds`, `featuredMediaId`, `galleryMediaIds`, `allowComments`, `commentPolicy`, `canonicalUrl`, `seoTitle`, `seoDescription`, `ogTitle`, `ogDescription`, `ogImageMediaId`, `scheduledOn`, `publishedOn`, `archivedOn`, `readTimeMinutes`, `wordCount`, `locale`, `translationGroupId`, `createdByAuthorId`, `updatedByAuthorId`, `createdOn`, `updatedOn`
+  - `blog-posts`: `slug`, `title`, `subtitle`, `excerpt`, `body`, `status`, `format`, `primaryAuthorId`, `coAuthorIds`, `categoryIds`, `tagIds`, `featuredMediaId`, `galleryMediaIds`, `allowComments`, `commentPolicy`, `readTimeMinutes`, `wordCount`, `locale`, `translationGroupId`, `createdByAuthorId`, `updatedByAuthorId`, `createdOn`, `updatedOn`
   - `blog-post-revisions`: `postId`, `revisionNumber`, `titleSnapshot`, `subtitleSnapshot`, `excerptSnapshot`, `bodySnapshot`, `taxonomySnapshot`, `mediaSnapshot`, `seoSnapshot`, `statusSnapshot`, `changeSummary`, `source`, `isAutosave`, `changedByAuthorId`, `changedOn`, `contentHash`
 - Relations:
   - post author references -> `blog-authors`
@@ -29,6 +30,7 @@
   - post media references -> `media-items`
   - revision post reference -> `blog-posts`
   - revision actor reference -> `blog-authors`
+  - publication/page coordination -> `blog-pages.sourcePostId`
 - Validation rules:
   - unique post `slug`
   - `title` length `5-180`
@@ -39,8 +41,7 @@
   - `format` in `article|news|opinion|tutorial|review`
   - `primaryAuthorId` must reference an active author
   - `categoryIds` must contain at least one category
-  - `scheduledOn` required when `status=scheduled`
-  - `publishedOn` required when `status=published`
+  - publication-specific route/SEO/schedule fields are coordinated with `test-modules-pages`
 
 ## UI Surfaces
 - Routes/views:
@@ -49,7 +50,7 @@
   - revision timeline and compare/restore route
 - CRUD interactions:
   - create/update/archive posts
-  - edit post content, taxonomy, authors, media, and SEO fields
+  - edit post content, taxonomy, authors, media, and T01-compatible publication inputs
   - inspect revisions and restore a selected revision
 - Filters/search/sort needs:
   - quick filters for `status`, `format`, `primaryAuthorId`, `categoryIds`, `locale`
@@ -70,7 +71,7 @@
   - archive
   - restore revision
 - Jobs:
-  - scheduling hooks may be implemented here or coordinated with `test-modules-blog-distribution`, but post state ownership stays here
+  - publication/scheduling coordination may be implemented here or coordinated with `test-modules-pages`, but canonical content ownership stays here
 - Remotes/integrations:
   - consumes authors, taxonomy, media, and redirect coordination by reference
 - Computed behavior:
@@ -81,6 +82,7 @@
 ## Persistence And Runtime
 - Storage boundaries:
   - post and revision data persist through module-owned collections
+  - T01 may retain compatibility mirrors for publication fields while `blog-pages` becomes the emerging page/publication record
   - no binary storage in this module
 - Runtime contracts touched:
   - module manifest collections
@@ -90,6 +92,7 @@
   - every content mutation produces deterministic revision history according to contract rules
   - revision restore must not mutate unrelated records
   - lifecycle transitions must enforce explicit gate rules
+  - page-sync compatibility during T01 must be deterministic and one-to-one per post
 
 ## Security And Policy
 - Access constraints:
@@ -102,8 +105,9 @@
 
 ## Acceptance Criteria
 1. `blog-posts` and `blog-post-revisions` exist with the specified field coverage and workflow validation.
-2. Post editor supports rich body editing, taxonomy/author/media assignment, and SEO fields in a workflow-oriented view.
+2. Post editor supports rich body editing, taxonomy/author/media assignment, and T01-compatible publication editing in a workflow-oriented view.
 3. Revision history is deterministic, queryable, and restorable.
+4. `blog-posts` no longer act as the only effective storage surface for route/SEO/publication concerns during T01.
 
 ## Out Of Scope
 1. Public-site rendering.
@@ -150,3 +154,8 @@
   - editor complexity can overwhelm generic CRUD surfaces
   - Mitigation:
     - use module-owned custom views for editor and revision workflows
+ - Risk:
+  - T01 compatibility can leave publication ownership ambiguous
+  - Mitigation:
+    - treat any duplicated publication fields in `blog-posts` as temporary mirrors while `blog-pages` becomes the durable page/publication surface
+

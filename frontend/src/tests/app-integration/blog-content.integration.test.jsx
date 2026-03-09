@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { BlogContentView } from "../../../../modules/test-modules-blog-content/frontend/BlogContentView.jsx";
+import { BlogContentView } from "../../../../modules/test-modules-content/frontend/BlogContentView.jsx";
 import * as referenceApi from "../../api/reference.js";
 
 vi.mock("../../api/reference.js", async () => {
@@ -130,6 +130,33 @@ function createJsonResponse(status, payload) {
   };
 }
 
+function installContentFetchMocks({
+  revisions = [],
+  pages = []
+} = {}) {
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId, sourcePostId }) => {
+    if (collectionId === "blog-post-revisions") {
+      return {
+        ok: true,
+        items: revisions
+      };
+    }
+
+    if (collectionId === "blog-pages") {
+      const items = sourcePostId ? pages.filter((page) => page.sourcePostId === sourcePostId) : pages;
+      return {
+        ok: true,
+        items
+      };
+    }
+
+    return {
+      ok: true,
+      items: []
+    };
+  });
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -137,9 +164,8 @@ afterEach(() => {
 });
 
 test("blog content view renders custom editor and revision timeline", async () => {
-  referenceApi.fetchReferenceCollectionItems.mockResolvedValue({
-    ok: true,
-    items: [
+  installContentFetchMocks({
+    revisions: [
       {
         id: "rev-002",
         revisionNumber: 2,
@@ -165,11 +191,24 @@ test("blog content view renders custom editor and revision timeline", async () =
         changedOn: "2026-03-08T10:06:00.000Z",
         source: "manual"
       }
+    ],
+    pages: [
+      {
+        id: "page-001",
+        sourcePostId: "post-001",
+        path: "/blog/launch-post",
+        status: "draft",
+        seoTitle: "Launch SEO",
+        seoDescription: "Launch description",
+        ogTitle: "Launch OG",
+        ogDescription: "Launch OG description",
+        ogImageMediaId: "media-001"
+      }
     ]
   });
 
   render(
-    <BlogContentView activeModuleLabel="Blog Content" collectionsDomain={createCollectionsDomain()} />
+    <BlogContentView activeModuleLabel="Content" collectionsDomain={createCollectionsDomain()} />
   );
 
   await waitFor(() => {
@@ -178,13 +217,13 @@ test("blog content view renders custom editor and revision timeline", async () =
     expect(screen.getByText("Launch Post")).toBeInTheDocument();
     expect(screen.getByText("Revision Timeline")).toBeInTheDocument();
     expect(screen.getByText("Rev 2")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("/blog/launch-post")).toBeInTheDocument();
   });
 });
 
 test("blog content editor saves posts and restores revisions through the module route", async () => {
-  referenceApi.fetchReferenceCollectionItems.mockResolvedValue({
-    ok: true,
-    items: [
+  installContentFetchMocks({
+    revisions: [
       {
         id: "rev-001",
         revisionNumber: 1,
@@ -210,28 +249,60 @@ test("blog content editor saves posts and restores revisions through the module 
         changedOn: "2026-03-08T10:00:00.000Z",
         source: "manual"
       }
+    ],
+    pages: [
+      {
+        id: "page-001",
+        sourcePostId: "post-001",
+        path: "/blog/launch-post",
+        status: "draft",
+        seoTitle: "Launch SEO",
+        seoDescription: "Launch description",
+        ogTitle: "Launch OG",
+        ogDescription: "Launch OG description",
+        ogImageMediaId: "media-001"
+      }
     ]
   });
-  referenceApi.updateReferenceCollectionItem.mockResolvedValue({
-    ok: true,
-    item: {
-      id: "post-001",
-      title: "Launch Post Updated",
-      excerpt: "Launch excerpt",
-      body: "<p>Updated body</p>",
-      status: "draft",
-      format: "article",
-      primaryAuthorId: "author-001",
-      coAuthorIds: [],
-      categoryIds: ["cat-001"],
-      tagIds: ["tag-001"],
-      featuredMediaId: "media-001",
-      galleryMediaIds: [],
-      allowComments: true,
-      commentPolicy: "open",
-      createdByAuthorId: "author-001",
-      updatedByAuthorId: "author-001"
+  referenceApi.updateReferenceCollectionItem.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "blog-posts") {
+      return {
+        ok: true,
+        item: {
+          id: "post-001",
+          title: "Launch Post Updated",
+          excerpt: "Launch excerpt",
+          body: "<p>Updated body</p>",
+          status: "draft",
+          format: "article",
+          primaryAuthorId: "author-001",
+          coAuthorIds: [],
+          categoryIds: ["cat-001"],
+          tagIds: ["tag-001"],
+          featuredMediaId: "media-001",
+          galleryMediaIds: [],
+          allowComments: true,
+          commentPolicy: "open",
+          createdByAuthorId: "author-001",
+          updatedByAuthorId: "author-001"
+        }
+      };
     }
+
+    return {
+      ok: true,
+      item: {
+        id: "page-001",
+        sourcePostId: "post-001",
+        path: "/blog/launch-post",
+        status: "draft",
+        seoTitle: "Launch SEO",
+        seoDescription: "Launch description",
+        ogTitle: "Launch OG",
+        ogDescription: "Launch OG description",
+        ogImageMediaId: "media-001"
+      }
+    };
   });
   const fetchMock = vi.fn(async () =>
     createJsonResponse(200, {
@@ -260,7 +331,7 @@ test("blog content editor saves posts and restores revisions through the module 
 
   const collectionsDomain = createCollectionsDomain();
 
-  render(<BlogContentView activeModuleLabel="Blog Content" collectionsDomain={collectionsDomain} />);
+  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={collectionsDomain} />);
 
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "Save Post" })).toBeInTheDocument();
@@ -280,13 +351,19 @@ test("blog content editor saves posts and restores revisions through the module 
         itemId: "post-001"
       })
     );
+    expect(referenceApi.updateReferenceCollectionItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionId: "blog-pages",
+        itemId: "page-001"
+      })
+    );
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Restore Selected Revision" }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reference/modules/test-modules-blog-content/posts/post-001/restore-revision",
+      "/api/reference/modules/test-modules-content/posts/post-001/restore-revision",
       expect.objectContaining({
         method: "POST"
       })
@@ -296,41 +373,98 @@ test("blog content editor saves posts and restores revisions through the module 
 });
 
 test("blog content editor keeps the newly created draft selected before collection reload catches up", async () => {
-  referenceApi.fetchReferenceCollectionItems.mockResolvedValue({
-    ok: true,
-    items: []
+  installContentFetchMocks();
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId, sourcePostId }) => {
+    if (collectionId === "blog-pages" && sourcePostId === "post-002") {
+      return {
+        ok: true,
+        items: [
+          {
+            id: "page-002",
+            sourcePostId: "post-002",
+            path: "/blog/created-draft",
+            status: "draft",
+            seoTitle: "Created Draft",
+            seoDescription: "Fresh draft excerpt",
+            ogTitle: "Created Draft",
+            ogDescription: "Fresh draft excerpt",
+            ogImageMediaId: "media-001"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-pages" || collectionId === "blog-post-revisions") {
+      return {
+        ok: true,
+        items: []
+      };
+    }
+
+    return {
+      ok: true,
+      items: []
+    };
   });
-  referenceApi.createReferenceCollectionItem.mockResolvedValue({
+  referenceApi.createReferenceCollectionItem.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "blog-posts") {
+      return {
+        ok: true,
+        item: {
+          id: "post-002",
+          title: "Created Draft",
+          subtitle: "Fresh draft subtitle",
+          excerpt: "Fresh draft excerpt",
+          body: "<p>Fresh draft body</p>",
+          status: "draft",
+          format: "article",
+          primaryAuthorId: "author-001",
+          coAuthorIds: [],
+          categoryIds: ["cat-001"],
+          tagIds: ["tag-001"],
+          featuredMediaId: "media-001",
+          galleryMediaIds: [],
+          allowComments: true,
+          commentPolicy: "open",
+          seoTitle: "Created Draft",
+          seoDescription: "Fresh draft excerpt",
+          ogTitle: "Created Draft",
+          ogDescription: "Fresh draft excerpt",
+          ogImageMediaId: "media-001",
+          createdByAuthorId: "author-001",
+          updatedByAuthorId: "author-001"
+        }
+      };
+    }
+
+    return {
+      ok: true,
+      item: {
+        id: "page-002",
+        sourcePostId: "post-002",
+        path: "/blog/created-draft",
+        status: "draft"
+      }
+    };
+  });
+  referenceApi.updateReferenceCollectionItem.mockResolvedValue({
     ok: true,
     item: {
-      id: "post-002",
-      title: "Created Draft",
-      subtitle: "Fresh draft subtitle",
-      excerpt: "Fresh draft excerpt",
-      body: "<p>Fresh draft body</p>",
+      id: "page-002",
+      sourcePostId: "post-002",
+      path: "/blog/created-draft",
       status: "draft",
-      format: "article",
-      primaryAuthorId: "author-001",
-      coAuthorIds: [],
-      categoryIds: ["cat-001"],
-      tagIds: ["tag-001"],
-      featuredMediaId: "media-001",
-      galleryMediaIds: [],
-      allowComments: true,
-      commentPolicy: "open",
       seoTitle: "Created Draft",
       seoDescription: "Fresh draft excerpt",
       ogTitle: "Created Draft",
       ogDescription: "Fresh draft excerpt",
-      ogImageMediaId: "media-001",
-      createdByAuthorId: "author-001",
-      updatedByAuthorId: "author-001"
+      ogImageMediaId: "media-001"
     }
   });
 
   const collectionsDomain = createCollectionsDomain();
 
-  render(<BlogContentView activeModuleLabel="Blog Content" collectionsDomain={collectionsDomain} />);
+  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={collectionsDomain} />);
 
   await waitFor(() => {
     expect(screen.getAllByRole("button", { name: "New Draft" }).length).toBeGreaterThan(0);
@@ -355,7 +489,14 @@ test("blog content editor keeps the newly created draft selected before collecti
         collectionId: "blog-posts"
       })
     );
+    expect(referenceApi.updateReferenceCollectionItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionId: "blog-pages",
+        itemId: "page-002"
+      })
+    );
     expect(screen.getByLabelText("Title")).toHaveValue("Created Draft");
     expect(screen.getByText("Post created")).toBeInTheDocument();
   });
 });
+

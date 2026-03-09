@@ -1,14 +1,14 @@
 # Test Modules Blog Editorial Module Contract
 
 ## Metadata
-- Contract ID: `module-contract.test-modules-blog-editorial.v1`
+- Contract ID: `module-contract.test-modules-editorial.v1`
 - Date: `2026-03-08`
 - Milestone: `blog-management-modules`
 - Owner: `codex`
 - Status: `approved`
 
 ## Module Brief
-- Module name: `test-modules-blog-editorial`
+- Module name: `test-modules-editorial`
 - Business objective: manage author records and give editors an assignment-oriented overview of blog content ownership and review readiness.
 - Primary users: authors, editors, and managing editors.
 - Non-goals:
@@ -127,4 +127,5 @@
 - Risk:
   - editorial overview could drift into a second post-management surface
   - Mitigation:
-    - keep author ownership and assignment lens here; keep full post editing in `test-modules-blog-content`
+    - keep author ownership and assignment lens here; keep full post editing in `test-modules-content`
+

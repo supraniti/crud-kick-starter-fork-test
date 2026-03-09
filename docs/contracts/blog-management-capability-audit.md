@@ -70,14 +70,14 @@
 ### Gap 3: No Built-In Revision Compare/Restore UI
 - Revision support must be delivered as a module-owned workflow.
 - Initial delivery choice:
-  - implement revision timeline, snapshot comparison, and restore actions inside `test-modules-blog-content`
+  - implement revision timeline, snapshot comparison, and restore actions inside `test-modules-content`
 - Core impact:
   - none required initially
 
 ### Gap 4: No Built-In Hierarchy Tree Manager UI
 - Self-reference exists, but hierarchy visualization/management is not a generic shared surface.
 - Initial delivery choice:
-  - implement category tree management as a module-owned custom route view in `test-modules-blog-taxonomy`
+  - implement category tree management as a module-owned custom route view in `test-modules-taxonomy`
 - Core impact:
   - none required initially
 
@@ -91,9 +91,10 @@
 | tags | generic collections | standard CRUD + module-local polish |
 | categories hierarchy | self-reference + conditional reference UI | module-local tree manager |
 | comments moderation | generic collections + custom views | module-local moderation queue |
+| page/publication records | generic collections + references + custom views | introduce `blog-pages` in `test-modules-pages` with T01 compatibility mirroring from content |
 | redirect rules | generic collections + `url` type | collection CRUD + module-local overview |
-| SEO/social fields | `text`, `url`, `reference`, `structured-object` available | keep most fields on posts; warnings in module-owned UI |
-| scheduling | custom views + actions/missions available | coordinate through module-local distribution/content actions |
+| SEO/social fields | `text`, `url`, `reference`, `structured-object` available | move toward `blog-pages` ownership while preserving T01-compatible post editing |
+| scheduling | custom views + actions/missions available | coordinate through module-local pages/content actions with transitional mirrors |
 | media integration | existing `media-items` collection | reference only; no media reimplementation |
 
 ## Approved Initial Delivery Posture
@@ -101,3 +102,4 @@
 2. Keep workflow logic inside the owning module unless reuse is proven twice.
 3. Avoid any new shared `blog` domain under `server/src/domains/reference/`.
 4. Treat `date-time` as the only likely future shared primitive candidate, and only after a concrete slice proves the need.
+
