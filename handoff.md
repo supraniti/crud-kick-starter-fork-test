@@ -835,3 +835,118 @@
   - `docs/command-registry.md`
   - `docs/common-tasks.md`
   - `docs/contracts/delivery-scope-contract.md`
+
+## Layout Builder Improvement Pass V1
+- Date: `2026-03-09`
+- Status:
+  - implemented in the working tree
+  - hard-file execution record lives in `docs/contracts/test-modules-layouts-improvement-pass-v1.md`
+  - verification complete
+- Delivered in this pass:
+  - operator-facing `section` wording replaced with `container`
+  - selected-node editing moved into a module-local MUI dialog
+  - selected-container footer actions removed
+  - reorder/move target resolution strengthened for in-container and cross-container moves
+  - canvas chrome reduced so blocks/containers read more like spatial surfaces and less like stacked admin cards
+  - block placeholder defaults reduced to avoid visual overlap inside populated containers
+- Verification completed on `2026-03-09`:
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/core/layout-builder-model.core.test.jsx src/tests/app-integration/layouts.integration.test.jsx`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-content.integration.test.jsx`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Verification nuance:
+  - the full gate initially failed only because two `blog-content` integration tests were under-budgeted for the heavier dynamic frontend lane
+  - fix applied:
+    - raised explicit test timeouts in `frontend/src/tests/app-integration/blog-content.integration.test.jsx`
+  - no product behavior change was required for that closure
+- Latest screenshots:
+  - `.codex-runtime/layout-review/improvement-pass-after-refactor-existing-layout.png`
+  - `.codex-runtime/layout-review/improvement-pass-after-refactor-full.png`
+  - `.codex-runtime/layout-review/improvement-pass-desktop-full.png`
+- Current state:
+  - no repo review pair is intentionally running
+  - the post-gate port check on `3000/3001` returned empty
+  - worktree is intentionally dirty with the layouts improvement pass and supporting test updates
+
+## Layout Builder Improvement Pass V2
+- Date: `2026-03-10`
+- Status:
+  - closed in the working tree
+  - hard-file execution plan lives in `docs/contracts/test-modules-layouts-improvement-pass-v2.md`
+- Trigger:
+  - manual review still rejected the builder as not truly usable
+  - the specific live failure called out by the operator is that reordering blocks inside containers is still effectively broken
+- Locked execution rule:
+  - do not declare this pass complete until multiple complex layouts are actually built in the live browser using grid containers, flex containers, blocks, editing, same-container reorder, and cross-container moves
+- Required manual scenarios for closure:
+  - `Scenario A: Editorial Shell`
+  - `Scenario B: Marketing Landing`
+  - `Scenario C: Reorder Stress`
+  - `Scenario D: Edit Stress`
+- Current code finding before the rewrite:
+  - `modules/test-modules-layouts/frontend/LayoutBuilderCanvasNodes.jsx` no longer renders explicit between-child drop rails
+  - `modules/test-modules-layouts/frontend/layout-builder-model.js` still falls back to weak hovered-node inference for many move outcomes
+  - this is the most likely reason in-container reorder remains unreliable
+- Current state:
+  - worktree remains intentionally dirty
+  - authoritative verification is green on the active worktree:
+    - `pnpm quality:gate:full`
+      - passed on `2026-03-10`
+    - `pnpm --filter frontend exec vitest run src/tests/core/layout-builder-model.core.test.jsx src/tests/app-integration/layouts.integration.test.jsx`
+      - passed on `2026-03-10`
+    - `pnpm quality:protocol`
+      - passed on `2026-03-10`
+  - live browser replay surfaced one real nested-grid regression:
+    - nested container spans were growing after child inserts
+    - later siblings were not repacked against the new span
+    - result: visual overlap / spill across parent boundaries
+  - retained fix:
+    - `modules/test-modules-layouts/frontend/layout-builder-model.js`
+      - grid placements now repack again after container-height normalization
+    - `frontend/src/tests/core/layout-builder-model.core.test.jsx`
+      - locks nested height growth
+      - locks later-sibling reflow after the growth
+  - screenshot evidence of the failure is saved under:
+    - `.codex-runtime/layout-review/v2-overflow-failure-current-viewport.png`
+    - `.codex-runtime/layout-review/v2-overflow-failure-fullpage.png`
+  - current UX note from live review:
+    - text inside small nodes consumes the actual layout space and quickly becomes the dominant problem
+    - nested empty-container copy is being compacted so the canvas stays structural first
+  - retained root-cause fix after the live replay:
+    - `modules/test-modules-layouts/frontend/LayoutBuilderCanvasNodes.jsx`
+      - layout placement moved to the actual sortable wrapper that participates in grid/flex layout
+      - duplicate block-level sortable wrapper was removed
+      - this fixed the “narrow sliver” block rendering and made the drag surface match the layout JSON again
+  - live browser evidence captured after the retained fix:
+    - `Scenario A: Editorial Shell`
+      - completed
+      - screenshots:
+        - `.codex-runtime/layout-review/v2-scenario-a-three-containers.png`
+        - `.codex-runtime/layout-review/v2-scenario-a-container1-two-blocks.png`
+        - `.codex-runtime/layout-review/v2-scenario-a-complete.png`
+    - `Scenario B: Mixed Marketing-Landing Rehearsal`
+      - completed as a second mixed grid/flex composition rehearsal
+      - screenshot:
+        - `.codex-runtime/layout-review/v2-scenario-b-current.png`
+    - `Scenario C: Reorder Stress`
+      - completed
+      - one block was relabeled to `Content BlockD` to make the reorder outcome observable
+      - same-container drag from the second position to the first resolved to `insert:...:0` in the live status region
+      - screenshots:
+        - `.codex-runtime/layout-review/v2-scenario-c-before-reorder.png`
+        - `.codex-runtime/layout-review/v2-scenario-c-after-reorder.png`
+    - `Scenario D: Edit Stress`
+      - completed
+      - container renamed to `ContainerMainContainer`
+      - container switched from `grid` to `flex`
+      - selected block changed to `Flex Basis = 50%` and `Min Height = 220`
+      - screenshot:
+        - `.codex-runtime/layout-review/v2-scenario-d-edit-stress.png`
+  - next sensible step:
+    - manual review / commit preparation

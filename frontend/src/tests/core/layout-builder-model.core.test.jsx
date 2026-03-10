@@ -6,7 +6,8 @@ import {
   createSiblingInsertionTarget,
   moveNodeInLayout,
   resolveCreationTarget,
-  resolveInsertionTarget
+  resolveInsertionTarget,
+  resolveMoveTarget
 } from "../../../../modules/test-modules-layouts/frontend/layout-builder-model.js";
 import { createInitialLayoutDocument, createLayoutNode } from "../../../../modules/test-modules-layouts/shared/layout-document.mjs";
 
@@ -90,6 +91,101 @@ describe("layout builder model", () => {
     expect(next.nodes.sidebar.children).toEqual(["summary", "hero"]);
   });
 
+  test("reorders nodes within the same container using explicit slot indices", () => {
+    const document = createDocumentWithChildren();
+    document.nodes.root.children = ["hero", "sidebar", "outro"];
+    document.nodes.outro = createLayoutNode({
+      id: "outro",
+      kind: "block",
+      label: "Outro Block"
+    });
+
+    const movedToEnd = moveNodeInLayout(document, "hero", "root", 3);
+    expect(movedToEnd.nodes.root.children).toEqual(["sidebar", "outro", "hero"]);
+
+    const movedToMiddle = moveNodeInLayout(document, "outro", "root", 1);
+    expect(movedToMiddle.nodes.root.children).toEqual(["hero", "outro", "sidebar"]);
+  });
+
+  test("grows nested grid-container span as children are added so content stays inside the parent", () => {
+    let document = createInitialLayoutDocument();
+    document.nodes.parent = createLayoutNode({
+      id: "parent",
+      kind: "container",
+      label: "Parent Grid",
+      layoutMode: "grid",
+      placement: {
+        grid: { w: 12, h: 6 }
+      }
+    });
+    document.nodes.nested = createLayoutNode({
+      id: "nested",
+      kind: "container",
+      label: "Nested Grid",
+      layoutMode: "grid",
+      placement: {
+        grid: { w: 12, h: 4 }
+      }
+    });
+    document.nodes.root.children = ["parent"];
+    document.nodes.parent.children = ["nested"];
+
+    for (let index = 0; index < 4; index += 1) {
+      const next = addNodeToLayout(document, { containerId: "nested", index: null }, "block", {
+        label: `Nested Block ${index + 1}`
+      });
+      document = next.document;
+    }
+
+    expect(document.nodes.parent.children).toEqual(["nested"]);
+    expect(document.nodes.nested.children).toHaveLength(4);
+    expect(document.nodes.nested.placement.grid.h).toBeGreaterThan(4);
+    expect(document.nodes.nested.placement.grid.y).toBe(0);
+  });
+
+  test("reflows later siblings after a nested grid container grows", () => {
+    let document = createInitialLayoutDocument();
+    document.nodes.parent = createLayoutNode({
+      id: "parent",
+      kind: "container",
+      label: "Parent Grid",
+      layoutMode: "grid",
+      placement: {
+        grid: { w: 12, h: 6 }
+      }
+    });
+    document.nodes.gridChild = createLayoutNode({
+      id: "gridChild",
+      kind: "container",
+      label: "Grid Child",
+      layoutMode: "grid",
+      placement: {
+        grid: { w: 12, h: 4 }
+      }
+    });
+    document.nodes.flexChild = createLayoutNode({
+      id: "flexChild",
+      kind: "container",
+      label: "Flex Child",
+      layoutMode: "flex",
+      placement: {
+        grid: { w: 12, h: 4 }
+      }
+    });
+    document.nodes.root.children = ["parent"];
+    document.nodes.parent.children = ["gridChild", "flexChild"];
+
+    for (let index = 0; index < 3; index += 1) {
+      const next = addNodeToLayout(document, { containerId: "gridChild", index: null }, "block", {
+        label: `Nested Block ${index + 1}`
+      });
+      document = next.document;
+    }
+
+    expect(document.nodes.gridChild.placement.grid.h).toBeGreaterThan(4);
+    expect(document.nodes.flexChild.placement.grid.y).toBe(document.nodes.gridChild.placement.grid.h);
+  });
+
   test("builds breadcrumbs through the container tree", () => {
     const document = createDocumentWithChildren();
 
@@ -101,6 +197,55 @@ describe("layout builder model", () => {
     expect(createSiblingInsertionTarget(document, "summary", "before")).toEqual({
       containerId: "sidebar",
       index: 0
+    });
+  });
+
+  test("resolves same-container reorder targets from active and hovered nodes", () => {
+    const document = createDocumentWithChildren();
+
+    expect(resolveMoveTarget(document, "hero", "sidebar")).toEqual({
+      containerId: "root",
+      index: 2
+    });
+
+    expect(resolveMoveTarget(document, "sidebar", "hero")).toEqual({
+      containerId: "root",
+      index: 0
+    });
+  });
+
+  test("resolves cross-container hover to the target container order", () => {
+    const document = createDocumentWithChildren();
+    document.nodes.root.children = ["hero", "sidebar", "outro"];
+    document.nodes.outro = createLayoutNode({
+      id: "outro",
+      kind: "block",
+      label: "Outro Block"
+    });
+
+    expect(resolveMoveTarget(document, "hero", "summary")).toEqual({
+      containerId: "sidebar",
+      index: 1
+    });
+  });
+
+  test("resolves explicit insert slots for deterministic move targets", () => {
+    const document = createDocumentWithChildren();
+    document.nodes.root.children = ["hero", "sidebar", "outro"];
+    document.nodes.outro = createLayoutNode({
+      id: "outro",
+      kind: "block",
+      label: "Outro Block"
+    });
+
+    expect(resolveMoveTarget(document, "hero", "insert:root:2")).toEqual({
+      containerId: "root",
+      index: 2
+    });
+
+    expect(resolveMoveTarget(document, "summary", "insert:root:1")).toEqual({
+      containerId: "root",
+      index: 1
     });
   });
 });

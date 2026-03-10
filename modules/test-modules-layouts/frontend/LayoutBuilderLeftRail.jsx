@@ -17,7 +17,7 @@ function buildInsertContext(selectedNode) {
   if (!selectedNode) {
     return {
       title: "Page Stage",
-      description: "Start by adding a full-width section. Use blocks directly only when you really want a top-level block."
+      description: "Start by adding a full-width container. Use blocks directly only when you really want a top-level block."
     };
   }
 
@@ -87,7 +87,7 @@ function InsertPanel({ workspace }) {
       </Stack>
       <Stack spacing={1}>
         <Button variant="contained" onClick={() => workspace.addContainer("grid")}>
-          Add Section
+          Add Container
         </Button>
         <Button variant="outlined" onClick={workspace.addBlock}>
           Add Block
@@ -109,10 +109,10 @@ function InsertPanel({ workspace }) {
                 Add Block After
               </Button>
               <Button variant="text" onClick={() => workspace.addContainerBeforeSelected("grid")}>
-                Add Section Before
+                Add Container Before
               </Button>
               <Button variant="text" onClick={() => workspace.addContainerAfterSelected("grid")}>
-                Add Section After
+                Add Container After
               </Button>
             </Stack>
           </Stack>
@@ -122,17 +122,18 @@ function InsertPanel({ workspace }) {
   );
 }
 
-function LayerNode({ document, nodeId, depth, selectedNodeId, onSelectNode }) {
+function LayerNode({ document, nodeId, depth, workspace }) {
   const node = document.nodes[nodeId];
   if (!node) {
     return null;
   }
+  const isSelected = workspace.selectedNodeId === node.id;
 
   return (
     <Stack spacing={0.5}>
       <ListItemButton
-        selected={selectedNodeId === node.id}
-        onClick={() => onSelectNode(node.id)}
+        selected={isSelected}
+        onClick={() => workspace.selectNode(node.id)}
         sx={{
           borderRadius: 1,
           pl: 1 + depth * 2,
@@ -153,6 +154,46 @@ function LayerNode({ document, nodeId, depth, selectedNodeId, onSelectNode }) {
           }
         />
       </ListItemButton>
+      {isSelected ? (
+        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ pl: 1 + depth * 2 }}>
+          <Button size="small" variant="text" onClick={() => workspace.openNodeDialog(node.id)}>
+            Edit
+          </Button>
+          {workspace.isSelectedNodeMovable ? (
+            <>
+              <Button
+                size="small"
+                variant="text"
+                onClick={workspace.moveSelectedBackward}
+                disabled={!workspace.canMoveSelectedBackward}
+              >
+                Up
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                onClick={workspace.moveSelectedForward}
+                disabled={!workspace.canMoveSelectedForward}
+              >
+                Down
+              </Button>
+            </>
+          ) : null}
+          {node.kind === "container" ? (
+            <>
+              <Button size="small" variant="text" onClick={() => workspace.appendBlockToContainer(node.id)}>
+                + Block
+              </Button>
+              <Button size="small" variant="text" onClick={() => workspace.appendContainerToContainer(node.id, "grid")}>
+                + Container
+              </Button>
+              <Button size="small" variant="text" onClick={() => workspace.appendContainerToContainer(node.id, "flex")}>
+                + Flex
+              </Button>
+            </>
+          ) : null}
+        </Stack>
+      ) : null}
       {node.kind === "container" && node.children.length > 0 ? (
         <Stack spacing={0.25}>
           {node.children.map((childId) => (
@@ -161,8 +202,7 @@ function LayerNode({ document, nodeId, depth, selectedNodeId, onSelectNode }) {
               document={document}
               nodeId={childId}
               depth={depth + 1}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={onSelectNode}
+              workspace={workspace}
             />
           ))}
         </Stack>
@@ -197,8 +237,7 @@ function LayersPanel({ workspace }) {
           document={workspace.draft.layoutDocument}
           nodeId={workspace.draft.layoutDocument.rootId}
           depth={0}
-          selectedNodeId={workspace.selectedNodeId}
-          onSelectNode={workspace.selectNode}
+          workspace={workspace}
         />
       </List>
     </Stack>

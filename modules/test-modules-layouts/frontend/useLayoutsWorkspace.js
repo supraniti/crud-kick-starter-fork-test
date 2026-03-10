@@ -13,10 +13,11 @@ import {
   createSiblingInsertionTarget,
   createEmptyLayoutDraft,
   createLayoutDraftFromItem,
-  resolveCreationTarget,
+  findParentContainerId,
   moveNodeInLayout,
   removeNodeFromLayout,
-  resolveInsertionTarget,
+  resolveCreationTarget,
+  resolveMoveTarget,
   updateNodeInLayout
 } from "./layout-builder-model.js";
 
@@ -96,6 +97,8 @@ function useLayoutSelection(layouts) {
   const [isCreatingNewLayout, setIsCreatingNewLayout] = useState(false);
   const [draft, setDraft] = useState(createEmptyLayoutDraft);
   const [selectedNodeId, setSelectedNodeId] = useState("root");
+  const [isNodeDialogOpen, setIsNodeDialogOpen] = useState(false);
+  const [isMoveMode, setIsMoveMode] = useState(false);
   const [actionState, setActionState] = useState(createActionState);
 
   useEffect(() => {
@@ -112,16 +115,19 @@ function useLayoutSelection(layouts) {
     if (isCreatingNewLayout) {
       setDraft(createEmptyLayoutDraft());
       setSelectedNodeId("root");
+      setIsMoveMode(false);
       return;
     }
     const selectedLayout = layouts.find((item) => item.id === selectedLayoutId) ?? null;
     if (!selectedLayout) {
       setDraft(createEmptyLayoutDraft());
       setSelectedNodeId("root");
+      setIsMoveMode(false);
       return;
     }
     setDraft(createLayoutDraftFromItem(selectedLayout));
     setSelectedNodeId(selectedLayout.layoutDocument?.rootId ?? "root");
+    setIsMoveMode(false);
     setActionState(createActionState());
   }, [isCreatingNewLayout, layouts, selectedLayoutId]);
 
@@ -130,11 +136,15 @@ function useLayoutSelection(layouts) {
     isCreatingNewLayout,
     draft,
     selectedNodeId,
+    isNodeDialogOpen,
+    isMoveMode,
     actionState,
     setSelectedLayoutId,
     setIsCreatingNewLayout,
     setDraft,
     setSelectedNodeId,
+    setIsNodeDialogOpen,
+    setIsMoveMode,
     setActionState
   };
 }
@@ -148,7 +158,8 @@ function useLayoutPersistence(selection, reload) {
     setIsCreatingNewLayout,
     setSelectedLayoutId,
     setDraft,
-    setSelectedNodeId
+    setSelectedNodeId,
+    setIsNodeDialogOpen
   } = selection;
 
   const persistLayout = useCallback(async () => {
@@ -182,6 +193,7 @@ function useLayoutPersistence(selection, reload) {
         setSelectedLayoutId(result.item.id);
         setDraft(createLayoutDraftFromItem(result.item));
       }
+      setIsNodeDialogOpen(false);
       setActionState({
         saving: false,
         deleting: false,
@@ -196,7 +208,7 @@ function useLayoutPersistence(selection, reload) {
         successMessage: null
       });
     }
-  }, [draft, isCreatingNewLayout, reload, selectedLayoutId, setActionState, setDraft, setIsCreatingNewLayout, setSelectedLayoutId]);
+  }, [draft, isCreatingNewLayout, reload, selectedLayoutId, setActionState, setDraft, setIsCreatingNewLayout, setIsNodeDialogOpen, setSelectedLayoutId]);
 
   const deleteLayout = useCallback(async () => {
     if (!selectedLayoutId) {
@@ -219,6 +231,7 @@ function useLayoutPersistence(selection, reload) {
       await reload();
       setIsCreatingNewLayout(false);
       setSelectedNodeId("root");
+      setIsNodeDialogOpen(false);
       setDraft(createEmptyLayoutDraft());
       setActionState({
         saving: false,
@@ -234,7 +247,7 @@ function useLayoutPersistence(selection, reload) {
         successMessage: null
       });
     }
-  }, [reload, selectedLayoutId, setActionState, setDraft, setIsCreatingNewLayout, setSelectedNodeId]);
+  }, [reload, selectedLayoutId, setActionState, setDraft, setIsCreatingNewLayout, setIsNodeDialogOpen, setSelectedNodeId]);
 
   return {
     persistLayout,
@@ -263,7 +276,15 @@ function hasMutableSelection(selectedNodeId, rootId) {
 }
 
 function useLayoutDocumentActions(selection) {
-  const { draft, selectedNodeId, setDraft, setSelectedNodeId, setActionState } = selection;
+  const {
+    draft,
+    selectedNodeId,
+    setDraft,
+    setSelectedNodeId,
+    setIsNodeDialogOpen,
+    setIsMoveMode,
+    setActionState
+  } = selection;
 
   const setDraftWithReset = useCallback((updater) => {
     setDraft(updater);
@@ -327,6 +348,8 @@ function useLayoutDocumentActions(selection) {
         ...previous,
         layoutDocument: removeNodeFromLayout(previous.layoutDocument, selectedNodeId)
       }));
+      setIsMoveMode(false);
+      setIsNodeDialogOpen(false);
       setSelectedNodeId(draft.layoutDocument.rootId);
     },
     updateNode: (nodeId, updater) => {
@@ -339,18 +362,39 @@ function useLayoutDocumentActions(selection) {
       if (!activeId || !overId || activeId === overId) {
         return;
       }
-      const target = resolveInsertionTarget(draft.layoutDocument, overId);
+      const target = resolveMoveTarget(draft.layoutDocument, activeId, overId);
+      if (!target) {
+        return;
+      }
       setDraftWithReset((previous) => ({
         ...previous,
         layoutDocument: moveNodeInLayout(previous.layoutDocument, activeId, target.containerId, target.index)
       }));
     },
+    moveSelectedNodeTo: (target) => {
+      if (!hasMutableSelection(selectedNodeId, draft.layoutDocument.rootId) || !target) {
+        return;
+      }
+      setDraftWithReset((previous) => ({
+        ...previous,
+        layoutDocument: moveNodeInLayout(previous.layoutDocument, selectedNodeId, target.containerId, target.index)
+      }));
+      setIsMoveMode(false);
+    },
+    setMoveMode: (nextValue) => setIsMoveMode(Boolean(nextValue)),
     addBlockBeforeSelected: () => insertRelativeToSelection("before", "block"),
     addBlockAfterSelected: () => insertRelativeToSelection("after", "block"),
     addContainerBeforeSelected: (layoutMode) => insertRelativeToSelection("before", "container", { layoutMode }),
     addContainerAfterSelected: (layoutMode) => insertRelativeToSelection("after", "container", { layoutMode }),
     appendBlockToContainer: (containerId) => appendIntoContainer(containerId, "block"),
-    appendContainerToContainer: (containerId, layoutMode) => appendIntoContainer(containerId, "container", { layoutMode })
+    appendContainerToContainer: (containerId, layoutMode) => appendIntoContainer(containerId, "container", { layoutMode }),
+    openNodeDialog: (nodeId = selectedNodeId) => {
+      if (nodeId) {
+        setSelectedNodeId(nodeId);
+      }
+      setIsNodeDialogOpen(true);
+    },
+    closeNodeDialog: () => setIsNodeDialogOpen(false)
   };
 }
 
@@ -372,6 +416,19 @@ export function useLayoutsWorkspace() {
   const selection = useLayoutSelection(layouts);
   const selectedLayout = layouts.find((item) => item.id === selection.selectedLayoutId) ?? null;
   const selectedNode = selection.draft.layoutDocument?.nodes?.[selection.selectedNodeId] ?? null;
+  const selectedParentNode = useMemo(() => {
+    const parentId = findParentContainerId(selection.draft.layoutDocument, selection.selectedNodeId);
+    if (!parentId) {
+      return null;
+    }
+    return selection.draft.layoutDocument.nodes[parentId] ?? null;
+  }, [selection.draft.layoutDocument, selection.selectedNodeId]);
+  const selectedSiblingIndex = useMemo(() => {
+    if (!selectedParentNode || !selectedNode) {
+      return -1;
+    }
+    return selectedParentNode.children.indexOf(selectedNode.id);
+  }, [selectedNode, selectedParentNode]);
   const selectedPathIds = useMemo(
     () => buildNodePath(selection.draft.layoutDocument, selection.selectedNodeId),
     [selection.draft.layoutDocument, selection.selectedNodeId]
@@ -389,14 +446,65 @@ export function useLayoutsWorkspace() {
     ...selection,
     ...persistence,
     ...documentActions,
+    selectedParentNode,
+    isSelectedNodeMovable: Boolean(selectedNode && selectedNode.id !== selection.draft.layoutDocument.rootId),
+    canMoveSelectedBackward: Boolean(selectedParentNode && selectedSiblingIndex > 0),
+    canMoveSelectedForward: Boolean(
+      selectedParentNode
+      && selectedSiblingIndex >= 0
+      && selectedSiblingIndex < selectedParentNode.children.length - 1
+    ),
+    moveSelectedBackward: () => {
+      if (!selectedNode || !selectedParentNode || selectedSiblingIndex <= 0) {
+        return;
+      }
+      const previousSiblingId = selectedParentNode.children[selectedSiblingIndex - 1];
+      documentActions.moveSelectedNodeTo(
+        createSiblingInsertionTarget(selection.draft.layoutDocument, previousSiblingId, "before")
+      );
+    },
+    moveSelectedForward: () => {
+      if (
+        !selectedNode
+        || !selectedParentNode
+        || selectedSiblingIndex < 0
+        || selectedSiblingIndex >= selectedParentNode.children.length - 1
+      ) {
+        return;
+      }
+      const nextSiblingId = selectedParentNode.children[selectedSiblingIndex + 1];
+      documentActions.moveSelectedNodeTo(
+        createSiblingInsertionTarget(selection.draft.layoutDocument, nextSiblingId, "after")
+      );
+    },
+    moveSelectedToStart: () => {
+      if (!selectedNode || !selectedParentNode) {
+        return;
+      }
+      documentActions.moveSelectedNodeTo(
+        createContainerInsertionTarget(selection.draft.layoutDocument, selectedParentNode.id, 0)
+      );
+    },
+    moveSelectedToEnd: () => {
+      if (!selectedNode || !selectedParentNode) {
+        return;
+      }
+      documentActions.moveSelectedNodeTo(
+        createContainerInsertionTarget(selection.draft.layoutDocument, selectedParentNode.id, null)
+      );
+    },
     selectLayout: (layoutId) => {
       selection.setIsCreatingNewLayout(false);
       selection.setSelectedLayoutId(layoutId);
+      selection.setIsNodeDialogOpen(false);
+      selection.setIsMoveMode(false);
     },
     startNewLayout: () => {
       selection.setIsCreatingNewLayout(true);
       selection.setSelectedLayoutId(null);
       selection.setSelectedNodeId("root");
+      selection.setIsNodeDialogOpen(false);
+      selection.setIsMoveMode(false);
       selection.setDraft(createEmptyLayoutDraft());
       selection.setActionState(createActionState());
     }

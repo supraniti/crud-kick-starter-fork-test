@@ -1,398 +1,157 @@
-import { Box, Button, Chip, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import {
-  SortableContext,
-  rectSortingStrategy,
-  useSortable,
-  verticalListSortingStrategy
-} from "@dnd-kit/sortable";
-
-function buildContainerLayoutStyle(node, isRoot = false) {
-  if (isRoot) {
-    return {
-      display: "flex",
-      flexDirection: "column",
-      gap: "32px"
-    };
-  }
-
-  if (node.layoutMode === "flex") {
-    return {
-      display: "flex",
-      flexDirection: node.props?.direction ?? "column",
-      flexWrap: node.props?.wrap ?? "nowrap",
-      justifyContent: node.props?.justifyContent ?? "flex-start",
-      alignItems: node.props?.alignItems ?? "stretch",
-      gap: `${node.props?.gap ?? 20}px`,
-      padding: 0,
-      minHeight: `${node.props?.minHeight ?? 320}px`
-    };
-  }
-
-  return {
-    display: "grid",
-    gridTemplateColumns: `repeat(${node.props?.columns ?? 12}, minmax(0, 1fr))`,
-    gridAutoRows: `${node.props?.autoRows ?? 120}px`,
-    gap: `${node.props?.gap ?? 20}px`,
-    padding: 0,
-    minHeight: `${node.props?.minHeight ?? 320}px`
-  };
-}
-
-function buildPlacementStyle(node, parentMode, isRootParent = false) {
-  if (isRootParent) {
-    return {
-      width: "100%"
-    };
-  }
-
-  if (parentMode === "flex") {
-    return {
-      order: node.placement?.flex?.order ?? 0,
-      flexBasis: node.placement?.flex?.basis ?? "100%",
-      flexGrow: node.placement?.flex?.grow ?? 0,
-      flexShrink: node.placement?.flex?.shrink ?? 0,
-      width: node.placement?.flex?.basis === "auto" ? "auto" : "100%"
-    };
-  }
-
-  return {
-    gridColumn: `span ${node.placement?.grid?.w ?? 12}`,
-    gridRow: `span ${node.placement?.grid?.h ?? 2}`
-  };
-}
-
-function resolveStrategy(node, isRoot = false) {
-  if (isRoot) {
-    return verticalListSortingStrategy;
-  }
-
-  if (node.layoutMode === "grid") {
-    return rectSortingStrategy;
-  }
-
-  if ((node.props?.direction ?? "column") === "column" && (node.props?.wrap ?? "nowrap") === "nowrap") {
-    return verticalListSortingStrategy;
-  }
-
-  return rectSortingStrategy;
-}
-
-function ActionButton({ children, color = "inherit", onClick, variant = "text" }) {
-  return (
-    <Button
-      size="small"
-      variant={variant}
-      color={color}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick?.();
-      }}
-      sx={{
-        minWidth: 0,
-        px: 1.25,
-        py: 0.5,
-        borderRadius: 999,
-        textTransform: "none"
-      }}
-    >
-      {children}
-    </Button>
-  );
-}
-
-function DragHandle({ setActivatorNodeRef, attributes, listeners }) {
-  return (
-    <Tooltip title="Drag to reorder">
-      <IconButton
-        ref={setActivatorNodeRef}
-        size="small"
-        aria-label="Drag node"
-        onClick={(event) => event.stopPropagation()}
-        sx={{
-          width: 34,
-          height: 34,
-          border: "1px solid",
-          borderColor: "divider",
-          backgroundColor: "background.paper"
-        }}
-        {...attributes}
-        {...listeners}
-      >
-        ::
-      </IconButton>
-    </Tooltip>
-  );
-}
-
-function NodeLabel({ node, isRoot = false }) {
-  return (
-    <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-      <Typography variant={isRoot ? "h6" : "subtitle1"} sx={{ fontWeight: 700 }}>
-        {node.label}
-      </Typography>
-      {node.kind === "container" && !isRoot ? (
-        <Chip size="small" variant="outlined" color="primary" label={node.layoutMode} />
-      ) : null}
-    </Stack>
-  );
-}
-
-function ContainerEmptyState({ isRoot, onAddBlock, onAddGridContainer, onAddFlexContainer }) {
-  return (
-    <Stack
-      spacing={2.25}
-      alignItems="center"
-      justifyContent="center"
-      sx={{
-        minHeight: isRoot ? 420 : 320,
-        borderRadius: 3,
-        border: "2px dashed rgba(15,23,42,0.14)",
-        backgroundColor: "rgba(255,255,255,0.82)",
-        px: 4,
-        py: 5,
-        textAlign: "center"
-      }}
-    >
-      <Stack spacing={1} alignItems="center">
-        <Typography variant="overline" color="text.secondary">
-          {isRoot ? "Empty Page" : "Empty Section"}
-        </Typography>
-        <Typography variant="h5">
-          {isRoot ? "Start with a full-width section" : "This section is ready to contain blocks"}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 520 }}>
-          {isRoot
-            ? "Sections define the major page structure. Add one first, then place blocks or nested containers inside it."
-            : "Use this frame as a real container surface. Add blocks for content placeholders or nested containers for deeper structure."}
-        </Typography>
-      </Stack>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} useFlexGap flexWrap="wrap">
-        <Button variant="contained" onClick={onAddGridContainer}>
-          Add Section
-        </Button>
-        <Button variant="outlined" onClick={onAddBlock}>
-          Add Block
-        </Button>
-        <Button variant="outlined" onClick={onAddFlexContainer}>
-          Add Flex Container
-        </Button>
-      </Stack>
-    </Stack>
-  );
-}
-
-function ContainerFooterActions({ onAddBlock, onAddGridContainer, onAddFlexContainer }) {
-  return (
-    <Stack
-      direction={{ xs: "column", sm: "row" }}
-      spacing={1}
-      useFlexGap
-      flexWrap="wrap"
-      sx={{ pt: 1.5 }}
-    >
-      <Button size="small" variant="contained" onClick={onAddGridContainer}>
-        Add Section
-      </Button>
-      <Button size="small" variant="outlined" onClick={onAddBlock}>
-        Add Block
-      </Button>
-      <Button size="small" variant="outlined" onClick={onAddFlexContainer}>
-        Add Flex Container
-      </Button>
-    </Stack>
-  );
-}
-
-function BlockVisual({ node, isSelected }) {
-  return (
-    <Box
-      sx={{
-        minHeight: `${node.props?.minHeight ?? 220}px`,
-        borderRadius: 3,
-        border: "1px solid rgba(15,23,42,0.08)",
-        background: isSelected
-          ? "linear-gradient(180deg, rgba(239,246,255,1), rgba(219,234,254,0.78))"
-          : "linear-gradient(180deg, rgba(255,255,255,1), rgba(248,250,252,0.96))",
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-        '&::before': {
-          content: '""',
-          position: "absolute",
-          inset: 20,
-          borderRadius: 2.5,
-          border: "1px dashed rgba(15,23,42,0.12)"
-        }
-      }}
-    >
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        sx={{ position: "relative", letterSpacing: "0.08em", textTransform: "uppercase" }}
-      >
-        Block
-      </Typography>
-    </Box>
-  );
-}
+  buildContainerLayoutStyle,
+  buildPlacementStyle,
+  resolveDropAxis,
+  resolveStrategy
+} from "./layout-builder-canvas-layout.js";
+import {
+  BlockVisual,
+  ContainerEmptyState,
+  ContainerEndSlot,
+  DropSlot,
+  NodeHeader
+} from "./LayoutBuilderCanvasPrimitives.jsx";
 
 function BlockNode({
   node,
   parentMode,
-  isRootParent,
   selectedNodeId,
   onSelectNode,
-  onAddBlockBefore,
-  onAddBlockAfter,
-  onAddGridContainerBefore,
-  onAddGridContainerAfter,
-  onRemoveSelectedNode
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: node.id });
-  const isSelected = selectedNodeId === node.id;
-
-  return (
-    <Paper
-      ref={setNodeRef}
-      variant="outlined"
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelectNode(node.id);
-      }}
-      sx={{
-        ...buildPlacementStyle(node, parentMode, isRootParent),
-        transform: CSS.Transform.toString(transform),
-        transition,
-        p: 2,
-        borderRadius: 3,
-        cursor: "default",
-        opacity: isDragging ? 0.55 : 1,
-        borderColor: isSelected ? "primary.main" : "rgba(15,23,42,0.08)",
-        boxShadow: isSelected
-          ? "0 0 0 4px rgba(37,99,235,0.08), 0 18px 42px rgba(15,23,42,0.08)"
-          : "0 14px 34px rgba(15,23,42,0.06)",
-        backgroundColor: "rgba(255,255,255,0.98)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 1.5
-      }}
-    >
-      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-        <NodeLabel node={node} />
-        <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
-          {isSelected ? (
-            <>
-              <ActionButton onClick={onAddBlockBefore}>Add Before</ActionButton>
-              <ActionButton onClick={onAddBlockAfter}>Add After</ActionButton>
-              <ActionButton onClick={onAddGridContainerBefore}>Section Before</ActionButton>
-              <ActionButton onClick={onAddGridContainerAfter}>Section After</ActionButton>
-              <ActionButton color="error" onClick={onRemoveSelectedNode}>Delete</ActionButton>
-            </>
-          ) : null}
-          <DragHandle
-            setActivatorNodeRef={setActivatorNodeRef}
-            attributes={attributes}
-            listeners={listeners}
-          />
-        </Stack>
-      </Stack>
-      <BlockVisual node={node} isSelected={isSelected} />
-    </Paper>
-  );
-}
-
-function SectionSurface({
-  node,
-  nodes,
-  rootId,
-  parentMode,
-  isRoot,
-  isRootParent,
-  selectedNodeId,
-  onSelectNode,
-  onAppendBlockToContainer,
-  onAppendGridContainerToContainer,
-  onAppendFlexContainerToContainer,
-  onAddBlockBefore,
-  onAddBlockAfter,
-  onAddGridContainerBefore,
-  onAddGridContainerAfter,
-  onRemoveSelectedNode,
+  onMoveSelectedNodeToTarget,
+  onOpenNodeDialog,
+  onToggleMoveMode,
+  containerId,
+  childIndex,
+  showDropSlots,
+  containerAxis,
+  isMoveMode,
   dragHandleProps
 }) {
-  const childIds = node.children.filter((childId) => nodes[childId]);
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: `drop:${node.id}` });
   const isSelected = selectedNodeId === node.id;
-  const bodyLayoutStyle = childIds.length === 0
-    ? {
-        minHeight: isRoot ? 0 : `${node.props?.minHeight ?? 320}px`
-      }
-    : buildContainerLayoutStyle(node, isRoot);
+  const showContainerSlots = showDropSlots;
 
-  const content = (
-    <Stack spacing={2.25}>
-      {!isRoot ? (
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-          <NodeLabel node={node} />
-          <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
-            {isSelected ? (
-              <>
-                <ActionButton onClick={() => onAppendBlockToContainer(node.id)}>Add Block</ActionButton>
-                <ActionButton onClick={() => onAppendGridContainerToContainer(node.id)} variant="contained">
-                  Add Section
-                </ActionButton>
-                <ActionButton onClick={() => onAppendFlexContainerToContainer(node.id)}>Add Flex</ActionButton>
-                <ActionButton color="error" onClick={onRemoveSelectedNode}>Delete</ActionButton>
-              </>
-            ) : null}
-            <DragHandle
-              setActivatorNodeRef={dragHandleProps.setActivatorNodeRef}
-              attributes={dragHandleProps.attributes}
-              listeners={dragHandleProps.listeners}
-            />
-          </Stack>
-        </Stack>
-      ) : null}
-      <Box
-        ref={setDropRef}
-        sx={{
-          ...bodyLayoutStyle,
-          borderRadius: isRoot ? 0 : 2.5,
-          backgroundColor: isRoot ? "transparent" : "rgba(248,250,252,0.94)",
-          border: isRoot ? "none" : "1px solid rgba(15,23,42,0.08)",
-          boxShadow: isRoot ? "none" : isSelected ? "0 0 0 4px rgba(37,99,235,0.08)" : "inset 0 0 0 1px rgba(255,255,255,0.6)",
-          p: isRoot ? 0 : 2.5,
-          outline: isOver ? "2px solid rgba(37,99,235,0.42)" : "none",
-          outlineOffset: 0
-        }}
+  return (
+    <Box
+      sx={{
+        height: parentMode === "grid" ? "100%" : "auto",
+        minHeight: 0,
+        position: "relative",
+        minWidth: 0
+      }}
+    >
+      <DropSlot
+        slotId={`insert:${containerId}:${childIndex}`}
+        axis={containerAxis}
+        showDropSlots={showContainerSlots}
+        label={`Move selected node to position ${childIndex + 1}`}
+        onClick={() => onMoveSelectedNodeToTarget?.({ containerId, index: childIndex })}
+      />
+      <Paper
+        variant="outlined"
         onClick={(event) => {
           event.stopPropagation();
           onSelectNode(node.id);
         }}
+        sx={{
+          height: parentMode === "grid" ? "100%" : "auto",
+          minHeight: 0,
+          minWidth: 0,
+          p: 1,
+          pt: 5,
+          borderRadius: 3,
+          cursor: "default",
+          borderColor: isSelected ? "primary.main" : "rgba(15,23,42,0.08)",
+          boxShadow: isSelected
+            ? "0 0 0 3px rgba(37,99,235,0.08), 0 18px 42px rgba(15,23,42,0.08)"
+            : "0 12px 28px rgba(15,23,42,0.05)",
+          backgroundColor: "rgba(255,255,255,0.98)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          '&:hover .node-toolbar': {
+            opacity: 1,
+            pointerEvents: "auto"
+          }
+        }}
       >
-        {childIds.length === 0 ? (
-          <ContainerEmptyState
-            isRoot={isRoot}
-            onAddBlock={() => onAppendBlockToContainer(node.id)}
-            onAddGridContainer={() => onAppendGridContainerToContainer(node.id)}
-            onAddFlexContainer={() => onAppendFlexContainerToContainer(node.id)}
-          />
-        ) : (
+        <NodeHeader
+          label={node.label}
+          isSelected={isSelected}
+          isContainer={false}
+          isMoveMode={isSelected && isMoveMode}
+          canMove
+          onOpenNodeDialog={() => onOpenNodeDialog(node.id)}
+          onToggleMoveMode={() => onToggleMoveMode?.(node.id)}
+          dragHandleProps={dragHandleProps}
+        />
+        <BlockVisual node={node} parentMode={parentMode} isSelected={isSelected} />
+      </Paper>
+    </Box>
+  );
+}
+
+function ContainerChildren({
+  node,
+  nodes,
+  rootId,
+  isRoot,
+  selectedNodeId,
+  onSelectNode,
+  onMoveSelectedNodeToTarget,
+  onAppendBlockToContainer,
+  onAppendGridContainerToContainer,
+  onAppendFlexContainerToContainer,
+  onOpenNodeDialog,
+  onToggleMoveMode,
+  showDropSlots,
+  isMoveMode,
+  moveSourceParentId
+}) {
+  const childIds = node.children.filter((childId) => nodes[childId]);
+  const rootSlotsEnabled = !isRoot || !moveSourceParentId || moveSourceParentId === rootId;
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `drop:${node.id}`,
+    disabled: isRoot && !rootSlotsEnabled
+  });
+  const containerAxis = resolveDropAxis(node, isRoot);
+  const showContainerSlots = showDropSlots && rootSlotsEnabled;
+
+  return (
+    <Box
+      ref={setDropRef}
+      sx={{
+        ...buildContainerLayoutStyle(node, isRoot),
+        width: "100%",
+        minWidth: 0,
+        borderRadius: isRoot ? 0 : 3,
+        backgroundColor: isRoot ? "transparent" : "rgba(248,250,252,0.96)",
+        border: isRoot ? "none" : "1px solid rgba(15,23,42,0.08)",
+        boxShadow: isRoot ? "none" : "inset 0 0 0 1px rgba(255,255,255,0.6)",
+        p: isRoot ? 0 : `${node.props?.padding ?? 24}px`,
+        overflow: "hidden",
+        outline: isOver ? "2px solid rgba(37,99,235,0.42)" : "none"
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelectNode(node.id);
+      }}
+    >
+      {childIds.length === 0 ? (
+        <ContainerEmptyState
+          isRoot={isRoot}
+          onAddBlock={() => onAppendBlockToContainer(node.id)}
+          onAddGridContainer={() => onAppendGridContainerToContainer(node.id)}
+          onAddFlexContainer={() => onAppendFlexContainerToContainer(node.id)}
+        />
+      ) : (
+        <>
           <SortableContext items={childIds} strategy={resolveStrategy(node, isRoot)}>
             <Box sx={buildContainerLayoutStyle(node, isRoot)}>
-              {childIds.map((childId) => (
+              {childIds.map((childId, index) => (
                 <SortableCanvasNode
                   key={childId}
                   node={nodes[childId]}
@@ -402,54 +161,156 @@ function SectionSurface({
                   isRootParent={isRoot}
                   selectedNodeId={selectedNodeId}
                   onSelectNode={onSelectNode}
+                  onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
                   onAppendBlockToContainer={onAppendBlockToContainer}
                   onAppendGridContainerToContainer={onAppendGridContainerToContainer}
                   onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
-                  onAddBlockBefore={onAddBlockBefore}
-                  onAddBlockAfter={onAddBlockAfter}
-                  onAddGridContainerBefore={onAddGridContainerBefore}
-                  onAddGridContainerAfter={onAddGridContainerAfter}
-                  onRemoveSelectedNode={onRemoveSelectedNode}
+                  onOpenNodeDialog={onOpenNodeDialog}
+                  onToggleMoveMode={onToggleMoveMode}
+                  containerId={node.id}
+                  childIndex={index}
+                  showDropSlots={showContainerSlots}
+                  containerAxis={containerAxis}
+                  isMoveMode={isMoveMode}
+                  moveSourceParentId={moveSourceParentId}
                 />
               ))}
             </Box>
           </SortableContext>
-        )}
-      </Box>
-      {!isRoot && isSelected && childIds.length > 0 ? (
-        <ContainerFooterActions
-          onAddBlock={() => onAppendBlockToContainer(node.id)}
-          onAddGridContainer={() => onAppendGridContainerToContainer(node.id)}
-          onAddFlexContainer={() => onAppendFlexContainerToContainer(node.id)}
-        />
-      ) : null}
-    </Stack>
+          <ContainerEndSlot
+            slotId={`insert:${node.id}:end`}
+            axis={containerAxis}
+            showDropSlots={showContainerSlots}
+            label={`Move selected node to the end of ${node.label}`}
+            onClick={() => onMoveSelectedNodeToTarget?.({ containerId: node.id, index: null })}
+          />
+        </>
+      )}
+    </Box>
   );
+}
+
+function ContainerSurface({
+  node,
+  nodes,
+  rootId,
+  parentMode,
+  isRoot,
+  selectedNodeId,
+  onSelectNode,
+  onMoveSelectedNodeToTarget,
+  onAppendBlockToContainer,
+  onAppendGridContainerToContainer,
+  onAppendFlexContainerToContainer,
+  onOpenNodeDialog,
+  onToggleMoveMode,
+  dragHandleProps,
+  containerId,
+  childIndex,
+  showDropSlots,
+  containerAxis,
+  isMoveMode,
+  moveSourceParentId
+}) {
+  const isSelected = selectedNodeId === node.id;
 
   if (isRoot) {
-    return content;
+    return (
+      <ContainerChildren
+        node={node}
+        nodes={nodes}
+        rootId={rootId}
+        isRoot={isRoot}
+        selectedNodeId={selectedNodeId}
+        onSelectNode={onSelectNode}
+        onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
+        onAppendBlockToContainer={onAppendBlockToContainer}
+        onAppendGridContainerToContainer={onAppendGridContainerToContainer}
+        onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+        onOpenNodeDialog={onOpenNodeDialog}
+        onToggleMoveMode={onToggleMoveMode}
+        showDropSlots={showDropSlots}
+        isMoveMode={isMoveMode}
+        moveSourceParentId={moveSourceParentId}
+      />
+    );
   }
 
   return (
-    <Paper
-      variant="outlined"
+    <Box
       sx={{
-        ...buildPlacementStyle(node, parentMode, isRootParent),
-        borderRadius: 4,
-        borderColor: isSelected ? "primary.main" : "rgba(15,23,42,0.08)",
-        backgroundColor: "rgba(255,255,255,0.98)",
-        boxShadow: isSelected
-          ? "0 0 0 4px rgba(37,99,235,0.08), 0 24px 56px rgba(15,23,42,0.12)"
-          : "0 20px 48px rgba(15,23,42,0.08)",
-        p: 2.5
-      }}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelectNode(node.id);
+        height: parentMode === "grid" ? "100%" : "auto",
+        minHeight: 0,
+        minWidth: 0,
+        position: "relative"
       }}
     >
-      {content}
-    </Paper>
+      <DropSlot
+        slotId={`insert:${containerId}:${childIndex}`}
+        axis={containerAxis}
+        showDropSlots={showDropSlots}
+        label={`Move selected node to position ${childIndex + 1}`}
+        onClick={() => onMoveSelectedNodeToTarget?.({ containerId, index: childIndex })}
+      />
+      <Paper
+        variant="outlined"
+        sx={{
+          height: parentMode === "grid" ? "100%" : "auto",
+          minHeight: 0,
+          minWidth: 0,
+          borderRadius: 4,
+          borderColor: isSelected ? "primary.main" : "rgba(15,23,42,0.08)",
+          backgroundColor: "rgba(255,255,255,0.98)",
+          boxShadow: isSelected
+            ? "0 0 0 3px rgba(37,99,235,0.08), 0 22px 48px rgba(15,23,42,0.1)"
+            : "0 16px 34px rgba(15,23,42,0.06)",
+          p: 1,
+          pt: 5,
+          position: "relative",
+          overflow: "hidden",
+          '&:hover .node-toolbar': {
+            opacity: 1,
+            pointerEvents: "auto"
+          }
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectNode(node.id);
+        }}
+      >
+        <NodeHeader
+          label={node.label}
+          mode={node.layoutMode}
+          isSelected={isSelected}
+          isContainer
+          isMoveMode={isSelected && isMoveMode}
+          canMove
+          onAddBlock={() => onAppendBlockToContainer(node.id)}
+          onAddGridContainer={() => onAppendGridContainerToContainer(node.id)}
+          onAddFlexContainer={() => onAppendFlexContainerToContainer(node.id)}
+          onOpenNodeDialog={() => onOpenNodeDialog(node.id)}
+          onToggleMoveMode={() => onToggleMoveMode?.(node.id)}
+          dragHandleProps={dragHandleProps}
+        />
+        <ContainerChildren
+          node={node}
+          nodes={nodes}
+          rootId={rootId}
+          isRoot={isRoot}
+          selectedNodeId={selectedNodeId}
+          onSelectNode={onSelectNode}
+          onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
+          onAppendBlockToContainer={onAppendBlockToContainer}
+          onAppendGridContainerToContainer={onAppendGridContainerToContainer}
+          onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+          onOpenNodeDialog={onOpenNodeDialog}
+          onToggleMoveMode={onToggleMoveMode}
+          showDropSlots={showDropSlots}
+          isMoveMode={isMoveMode}
+          moveSourceParentId={moveSourceParentId}
+        />
+      </Paper>
+    </Box>
   );
 }
 
@@ -461,14 +322,18 @@ function SortableCanvasNode({
   isRootParent,
   selectedNodeId,
   onSelectNode,
+  onMoveSelectedNodeToTarget,
   onAppendBlockToContainer,
   onAppendGridContainerToContainer,
   onAppendFlexContainerToContainer,
-  onAddBlockBefore,
-  onAddBlockAfter,
-  onAddGridContainerBefore,
-  onAddGridContainerAfter,
-  onRemoveSelectedNode
+  onOpenNodeDialog,
+  onToggleMoveMode,
+  containerId,
+  childIndex,
+  showDropSlots,
+  containerAxis,
+  isMoveMode,
+  moveSourceParentId
 }) {
   const {
     attributes,
@@ -484,56 +349,70 @@ function SortableCanvasNode({
     return null;
   }
 
-  if (node.kind === "container") {
-    return (
-      <Box
-        ref={setNodeRef}
-        sx={{
-          transform: CSS.Transform.toString(transform),
-          transition,
-          opacity: isDragging ? 0.6 : 1
-        }}
-      >
-        <SectionSurface
+  return (
+    <Box
+      ref={setNodeRef}
+      sx={{
+        ...buildPlacementStyle(node, parentMode, isRootParent),
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        height: parentMode === "grid" ? "100%" : "auto",
+        minHeight: 0,
+        minWidth: 0,
+        width: parentMode === "grid" ? "100%" : undefined,
+        position: "relative"
+      }}
+    >
+      {node.kind === "container" ? (
+        <ContainerSurface
           node={node}
           nodes={nodes}
           rootId={rootId}
           parentMode={parentMode}
           isRoot={false}
-          isRootParent={isRootParent}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
           onAppendBlockToContainer={onAppendBlockToContainer}
           onAppendGridContainerToContainer={onAppendGridContainerToContainer}
           onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
-          onAddBlockBefore={onAddBlockBefore}
-          onAddBlockAfter={onAddBlockAfter}
-          onAddGridContainerBefore={onAddGridContainerBefore}
-          onAddGridContainerAfter={onAddGridContainerAfter}
-          onRemoveSelectedNode={onRemoveSelectedNode}
+          onOpenNodeDialog={onOpenNodeDialog}
+          onToggleMoveMode={onToggleMoveMode}
+          dragHandleProps={{
+            setActivatorNodeRef,
+            attributes,
+            listeners
+          }}
+          containerId={containerId}
+          childIndex={childIndex}
+          showDropSlots={showDropSlots}
+          containerAxis={containerAxis}
+          isMoveMode={isMoveMode}
+          moveSourceParentId={moveSourceParentId}
+        />
+      ) : (
+        <BlockNode
+          node={node}
+          parentMode={parentMode}
+          selectedNodeId={selectedNodeId}
+          onSelectNode={onSelectNode}
+          onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
+          onOpenNodeDialog={onOpenNodeDialog}
+          onToggleMoveMode={onToggleMoveMode}
+          containerId={containerId}
+          childIndex={childIndex}
+          showDropSlots={showDropSlots}
+          containerAxis={containerAxis}
+          isMoveMode={isMoveMode}
           dragHandleProps={{
             setActivatorNodeRef,
             attributes,
             listeners
           }}
         />
-      </Box>
-    );
-  }
-
-  return (
-    <BlockNode
-      node={node}
-      parentMode={parentMode}
-      isRootParent={isRootParent}
-      selectedNodeId={selectedNodeId}
-      onSelectNode={onSelectNode}
-      onAddBlockBefore={onAddBlockBefore}
-      onAddBlockAfter={onAddBlockAfter}
-      onAddGridContainerBefore={onAddGridContainerBefore}
-      onAddGridContainerAfter={onAddGridContainerAfter}
-      onRemoveSelectedNode={onRemoveSelectedNode}
-    />
+      )}
+    </Box>
   );
 }
 
@@ -541,14 +420,15 @@ export function RootStageContent({
   document,
   selectedNodeId,
   onSelectNode,
+  onMoveSelectedNodeToTarget,
   onAppendBlockToContainer,
   onAppendGridContainerToContainer,
   onAppendFlexContainerToContainer,
-  onAddBlockBefore,
-  onAddBlockAfter,
-  onAddGridContainerBefore,
-  onAddGridContainerAfter,
-  onRemoveSelectedNode
+  onOpenNodeDialog,
+  onToggleMoveMode,
+  showDropSlots,
+  isMoveMode,
+  moveSourceParentId
 }) {
   const rootNode = document?.nodes?.[document.rootId] ?? null;
 
@@ -557,11 +437,8 @@ export function RootStageContent({
   }
 
   return (
-    <Box
-      onClick={() => onSelectNode(rootNode.id)}
-      sx={{ minHeight: 960 }}
-    >
-      <SectionSurface
+    <Box onClick={() => onSelectNode(rootNode.id)} sx={{ minHeight: 960 }}>
+      <ContainerSurface
         node={rootNode}
         nodes={document.nodes}
         rootId={rootNode.id}
@@ -570,19 +447,23 @@ export function RootStageContent({
         isRootParent
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
+        onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
         onAppendBlockToContainer={onAppendBlockToContainer}
         onAppendGridContainerToContainer={onAppendGridContainerToContainer}
         onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
-        onAddBlockBefore={onAddBlockBefore}
-        onAddBlockAfter={onAddBlockAfter}
-        onAddGridContainerBefore={onAddGridContainerBefore}
-        onAddGridContainerAfter={onAddGridContainerAfter}
-        onRemoveSelectedNode={onRemoveSelectedNode}
+        onOpenNodeDialog={onOpenNodeDialog}
+        onToggleMoveMode={onToggleMoveMode}
         dragHandleProps={{
           setActivatorNodeRef: null,
           attributes: {},
           listeners: {}
         }}
+        containerId={rootNode.id}
+        childIndex={0}
+        showDropSlots={showDropSlots}
+        containerAxis="vertical"
+        isMoveMode={isMoveMode}
+        moveSourceParentId={moveSourceParentId}
       />
     </Box>
   );

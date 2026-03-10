@@ -119,6 +119,8 @@
 - The approved phase-1 scope is intentionally minimal and not yet commercial-grade.
 - The next usability-focused improvement plan lives in:
   - `docs/contracts/test-modules-layouts-phase-2-plan.md`
+- The current post-baseline usability execution plan lives in:
+  - `docs/contracts/test-modules-layouts-improvement-pass-v1.md`
 
 ## Verification Lanes
 - Targeted:

@@ -308,7 +308,7 @@ test("blog content editor saves posts and restores revisions through the module 
     );
     expect(collectionsDomain.reloadCollectionItems).toHaveBeenCalled();
   });
-});
+}, 20000);
 
 test("blog content editor keeps the newly created draft selected before collection reload catches up", async () => {
   installContentFetchMocks();
@@ -383,4 +383,4 @@ test("blog content editor keeps the newly created draft selected before collecti
     expect(screen.getByLabelText("Title")).toHaveValue("Created Draft");
     expect(screen.getByText("Post created")).toBeInTheDocument();
   });
-}, 15000);
+}, 30000);

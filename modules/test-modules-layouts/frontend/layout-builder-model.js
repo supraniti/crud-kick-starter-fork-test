@@ -160,7 +160,143 @@ function repackGridContainer(document, containerId) {
   return next;
 }
 
-export function repackAllGridContainers(document) {
+function measureBlockHeightPx(node) {
+  return Math.max((node?.props?.minHeight ?? 160) + 72, 220);
+}
+
+function measureGridChildrenHeightPx(document, container) {
+  const gap = container.props?.gap ?? 20;
+  const columnCount = Math.max(1, container.props?.columns ?? 12);
+  let usedColumns = 0;
+  let rowHeight = 0;
+  let rowCount = 0;
+  let totalHeight = 0;
+
+  for (const childId of container.children) {
+    const child = readNode(document, childId);
+    if (!child) {
+      continue;
+    }
+
+    const childWidth = Math.max(1, Math.min(columnCount, child.placement?.grid?.w ?? 12));
+    const childHeight = measureNodeHeightPx(document, child.id);
+
+    if (usedColumns > 0 && usedColumns + childWidth > columnCount) {
+      totalHeight += rowHeight;
+      rowCount += 1;
+      usedColumns = 0;
+      rowHeight = 0;
+    }
+
+    usedColumns += childWidth;
+    rowHeight = Math.max(rowHeight, childHeight);
+  }
+
+  if (usedColumns > 0) {
+    totalHeight += rowHeight;
+    rowCount += 1;
+  }
+
+  if (rowCount > 1) {
+    totalHeight += gap * (rowCount - 1);
+  }
+
+  return totalHeight;
+}
+
+function measureFlexChildrenHeightPx(document, container) {
+  const gap = container.props?.gap ?? 20;
+  const direction = container.props?.direction ?? "column";
+  const wrap = container.props?.wrap ?? "nowrap";
+  const childHeights = container.children
+    .map((childId) => measureNodeHeightPx(document, childId))
+    .filter((height) => Number.isFinite(height) && height > 0);
+
+  if (childHeights.length === 0) {
+    return 0;
+  }
+
+  if (direction === "row" && wrap === "nowrap") {
+    return Math.max(...childHeights);
+  }
+
+  return childHeights.reduce((sum, height) => sum + height, 0) + gap * Math.max(0, childHeights.length - 1);
+}
+
+function measureContainerHeightPx(document, containerId) {
+  const container = readNode(document, containerId);
+  if (!container || container.kind !== "container") {
+    return 0;
+  }
+
+  const minHeight = container.props?.minHeight ?? 320;
+  const padding = container.props?.padding ?? 24;
+  const chromeHeight = 72;
+
+  if (!Array.isArray(container.children) || container.children.length === 0) {
+    return Math.max(minHeight, 320) + chromeHeight;
+  }
+
+  const childrenHeight = container.layoutMode === "flex"
+    ? measureFlexChildrenHeightPx(document, container)
+    : measureGridChildrenHeightPx(document, container);
+
+  return Math.max(minHeight, childrenHeight + padding * 2) + chromeHeight;
+}
+
+function measureNodeHeightPx(document, nodeId) {
+  const node = readNode(document, nodeId);
+  if (!node) {
+    return 0;
+  }
+  if (node.kind === "container") {
+    return measureContainerHeightPx(document, nodeId);
+  }
+  return measureBlockHeightPx(node);
+}
+
+function normalizeGridContainerHeights(document, containerId = document.rootId) {
+  const next = cloneDocument(document);
+
+  function visit(currentContainerId) {
+    const container = next.nodes[currentContainerId];
+    if (!container || container.kind !== "container") {
+      return;
+    }
+
+    for (const childId of container.children) {
+      const child = next.nodes[childId];
+      if (child?.kind === "container") {
+        visit(child.id);
+      }
+    }
+
+    if (container.layoutMode !== "grid") {
+      return;
+    }
+
+    const autoRows = Math.max(1, container.props?.autoRows ?? 120);
+    for (const childId of container.children) {
+      const child = next.nodes[childId];
+      if (child?.kind !== "container") {
+        continue;
+      }
+      const requiredRows = Math.max(4, Math.ceil(measureContainerHeightPx(next, child.id) / autoRows));
+      child.placement = {
+        ...child.placement,
+        grid: {
+          ...(child.placement?.grid ?? {}),
+          h: requiredRows
+        }
+      };
+    }
+  }
+
+  visit(containerId);
+  return next;
+}
+
+function repackGridPlacements(document) {
   let next = cloneDocument(document);
   for (const node of Object.values(next.nodes)) {
     if (node?.kind === "container" && node.layoutMode === "grid") {
@@ -168,6 +304,13 @@ export function repackAllGridContainers(document) {
     }
   }
   return next;
+}
+
+export function repackAllGridContainers(document) {
+  let next = repackGridPlacements(document);
+  next = normalizeGridContainerHeights(next);
+  next = repackGridPlacements(next);
+  return normalizeGridContainerHeights(next);
 }
 
 function insertChild(document, containerId, nodeId, targetIndex = null) {
@@ -241,11 +384,11 @@ export function addNodeToLayout(document, target, kind, overrides = {}) {
   const defaultPlacement =
     kind === "container"
       ? {
-          grid: { w: 12, h: 3 },
+          grid: { w: 12, h: 4 },
           flex: { basis: "100%", grow: 0, shrink: 0 }
         }
       : {
-          grid: { w: 12, h: 2 },
+          grid: { w: 12, h: 3 },
           flex: { basis: "100%", grow: 0, shrink: 0 }
         };
   const defaultProps =
@@ -259,12 +402,12 @@ export function addNodeToLayout(document, target, kind, overrides = {}) {
           wrap: "nowrap"
         }
       : {
-          minHeight: 220
+          minHeight: 160
         };
   const nextNode = createLayoutNode({
     id: createLayoutDocumentId(kind === "container" ? "container" : "block"),
     kind,
-    label: overrides.label ?? (kind === "container" ? "Section" : "Content Block"),
+    label: overrides.label ?? (kind === "container" ? "Container" : "Content Block"),
     layoutMode: kind === "container" ? overrides.layoutMode ?? "grid" : undefined,
     props: {
       ...defaultProps,
@@ -343,8 +486,20 @@ export function moveNodeInLayout(document, nodeId, targetContainerId, targetInde
   }
 
   const next = cloneDocument(document);
+  const sourceIndex = next.nodes[sourceContainerId].children.indexOf(nodeId);
+  let adjustedTargetIndex = targetIndex;
+
+  if (
+    sourceContainerId === targetContainerId
+    && Number.isInteger(adjustedTargetIndex)
+    && sourceIndex >= 0
+    && sourceIndex < adjustedTargetIndex
+  ) {
+    adjustedTargetIndex -= 1;
+  }
+
   next.nodes[sourceContainerId].children = next.nodes[sourceContainerId].children.filter((childId) => childId !== nodeId);
-  return insertChild(next, targetContainerId, nodeId, targetIndex);
+  return insertChild(next, targetContainerId, nodeId, adjustedTargetIndex);
 }
 
 export function resolveInsertionTarget(document, overId) {
@@ -393,4 +548,46 @@ export function resolveInsertionTarget(document, overId) {
     containerId: parentId,
     index: parent.children.indexOf(overId) + 1
   };
+}
+
+export function resolveMoveTarget(document, activeId, overId) {
+  if (!activeId || !overId || activeId === overId) {
+    return null;
+  }
+
+  if (
+    overId.startsWith("drop:")
+    || overId.startsWith("insert:")
+    || overId.startsWith("inside:")
+    || overId.startsWith("node:")
+  ) {
+    return resolveInsertionTarget(document, overId);
+  }
+
+  const sourceContainerId = findParentContainerId(document, activeId);
+  const targetContainerId = findParentContainerId(document, overId);
+  if (!targetContainerId) {
+    return createContainerInsertionTarget(document, document.rootId, null);
+  }
+
+  const targetContainer = readNode(document, targetContainerId);
+  if (!targetContainer || targetContainer.kind !== "container") {
+    return createContainerInsertionTarget(document, document.rootId, null);
+  }
+
+  const hoveredIndex = targetContainer.children.indexOf(overId);
+  if (hoveredIndex < 0) {
+    return createContainerInsertionTarget(document, targetContainerId, null);
+  }
+
+  if (sourceContainerId && sourceContainerId === targetContainerId) {
+    const sourceContainer = readNode(document, sourceContainerId);
+    const sourceIndex = sourceContainer?.children.indexOf(activeId) ?? -1;
+    const targetIndex = sourceIndex >= 0 && sourceIndex < hoveredIndex
+      ? hoveredIndex + 1
+      : hoveredIndex;
+    return createContainerInsertionTarget(document, targetContainerId, targetIndex);
+  }
+
+  return createContainerInsertionTarget(document, targetContainerId, hoveredIndex + 1);
 }

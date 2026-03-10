@@ -514,3 +514,83 @@
   - this machine makes a simple review start look noisier than it is because stale listeners and sandbox `spawn EPERM` can mask whether the app is actually live
 - Improve:
   - treat review-process ownership as part of the task, not cleanup after the task
+
+### 2026-03-09 - Layout Builder Improvement Pass V1 Audit
+- Tasks:
+  - reran the layouts builder live after the initial layouts-module baseline was committed
+  - built a fresh multi-block layout and captured screenshots specifically to judge container readability, drag behavior, and edit affordances
+  - audited the current layouts builder code to connect the observed friction back to concrete seams before writing the next plan
+  - wrote the hard-file execution plan in `docs/contracts/test-modules-layouts-improvement-pass-v1.md`
+- Easy:
+  - the naming problem is mechanical and clear; `section` still leaks across canvas, insert rail, and inspector copy
+  - the fixed inspector-only editing problem is also clear; the UI has no in-context edit surface for a selected node
+- Hard:
+  - the screenshot review exposed a more serious issue than the original operator notes alone: populated grid containers can visually devolve into overlapping child cards and control chrome, which means the pass must fix layout structure rather than just tweak labels and buttons
+  - the current drag implementation still resolves most drop intent from a single `overId`, which is too weak for reliable in-container reorder once multiple siblings exist
+- Improve:
+  - for spatial tooling, always validate populated states with at least two siblings and one nested container before calling the canvas usable
+  - never let persistent footer controls share the same visual plane as child layout content; action chrome should not compete with containment
+  - if drag/drop behavior depends on inferring intent from a hovered node id alone, the model is probably under-specified
+
+### 2026-03-09 - Layout Builder Improvement Pass V1 Delivery
+- Tasks:
+  - replaced operator-facing `section` wording with `container` across the layouts module UI
+  - moved node editing into a module-local MUI dialog so edits can be observed without losing the selected node on canvas
+  - removed selected-container footer actions and reduced always-on canvas chrome
+  - strengthened drag/move target resolution in the layout builder model and workspace
+  - lowered default block placeholder height and retuned the canvas so populated containers stop visually collapsing around oversized placeholder cards
+  - reran focused layouts tests, then the full repo gate
+- Easy:
+  - the naming cleanup and footer-action removal immediately improved readability because the builder stopped describing containers as “sections” while also fighting its own canvas with extra button rows
+  - moving node settings into a dialog was a better fit than continuing to stuff more behavior into the inspector
+- Hard:
+  - the full gate initially failed for a non-layout reason: two `blog-content` integration tests were simply under-budgeted once the heavier frontend integration lane ran end to end
+  - browser tooling confirmed the layout direction was better, but it also exposed that test-only success would still miss spatial readability issues unless screenshots were part of the acceptance loop
+- Improve:
+  - when a UX-heavy slice changes the cost profile of the frontend test lane, be ready to separate real behavior regressions from timeout-budget issues quickly
+  - for future builder work, keep the inspector as secondary support and resist letting it become the primary editing surface again
+  - screenshot review remains mandatory for spatial tooling even after green integration and gate runs
+
+### 2026-03-10 - Layout Builder Improvement Pass V2 Start
+- Tasks:
+  - opened a fresh hard-file plan in `docs/contracts/test-modules-layouts-improvement-pass-v2.md`
+  - reframed the pass around explicit live-browser scenario completion instead of test-only confidence
+  - audited the current canvas/model code before editing
+- Easy:
+  - the core failure is specific now: explicit between-child drop slots were removed from the canvas while the model still depends on weak hovered-node inference
+- Hard:
+  - prior passes already looked “partially improved,” so the real discipline problem is resisting another premature success call before the layout builder can complete complex scenarios end to end
+- Improve:
+  - for visual-authoring tools, require named browser scenarios and screenshot evidence as part of the acceptance contract, not just as optional QA
+  - if the operator says a flow is still almost impossible to run, treat that as a functional defect even when underlying tests are green
+
+### 2026-03-10 - Layout Builder Improvement Pass V2 Mid-Run
+- Tasks:
+  - replayed the builder flows in the live browser and captured the exact nested-overflow failure with screenshots
+  - fixed a real grid-model defect where container-height normalization ran after repacking, but sibling positions were not repacked again
+  - added model coverage for both nested height growth and sibling reflow after that growth
+  - compacted nested empty-container copy after the live screenshots confirmed that instructional text itself was consuming the node space
+- Easy:
+  - the screenshot made the overlap cause legible immediately once the layout data was inspected; this was a placement-order bug, not a vague CSS problem
+- Hard:
+  - one structural fix was not enough: growing the container span without repacking the siblings simply moved the bug from “wrong height” to “wrong vertical placement”
+  - visual-authoring surfaces punish explanatory text much faster than normal admin UIs; the copy was technically helpful but functionally harmful once the node space shrank
+- Improve:
+  - when node size is user-controlled, treat in-node copy as a scarce resource; default to structure-first visuals and move help text outward
+  - for any auto-layout normalization, verify both the resized node and its affected siblings; fixing only one side of the relationship is not enough
+
+### 2026-03-10 - Layout Builder Improvement Pass V2 Closure
+- Tasks:
+  - kept the isolated browser session alive long enough to build real structures instead of stopping at screenshot inspection
+  - found the actual “narrow block” root cause: layout placement was applied to an inner box while the sortable wrapper was the real grid/flex child
+  - removed the duplicate block-level sortable wrapper, moved placement to the real sortable child, reran the live scenarios, and closed the pass with the full gate
+- Easy:
+  - once one block was given a distinct label (`Content BlockD`), reorder truth became obvious immediately in both the layers panel and the live status region
+  - the edit dialog remains the right UX choice; it made container rename/layout switching and block sizing changes easy to observe on canvas
+- Hard:
+  - repeated default labels make browser QA much weaker than it looks; identical “Content Block” rows hide reorder outcomes unless at least one node is made distinct
+  - a builder can pass tests and still be visually wrong if the direct layout child is not the same element that receives placement rules
+- Improve:
+  - for spatial UIs, always verify which actual DOM node participates in grid/flex layout before styling descendants; wrapper depth matters
+  - when manual QA depends on order changes, label at least one node distinctly before judging reorder behavior
+  - keep isolated browser contexts for drag-heavy review; shared mouse interference wastes time and muddies the signal
