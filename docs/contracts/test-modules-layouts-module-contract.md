@@ -82,6 +82,9 @@
 - The canvas itself may use thin native HTML/CSS for the rendered layout structure.
 - Native HTML controls must not replace existing MUI form controls.
 - Smooth drag/drop behavior is required; do not hand-roll a fragile pointer engine when a bounded dependency is approved.
+- Builder geometry must mirror the intended layout/output geometry as closely as possible:
+  - container frames must not distort the actual child layout surface
+  - flex and grid sizing rules must read like the eventual HTML structure, not like editor-only placeholder cards
 
 ## Dependency Rules
 - Approved phase-1 interaction dependency:
@@ -121,6 +124,8 @@
   - `docs/contracts/test-modules-layouts-phase-2-plan.md`
 - The current post-baseline usability execution plan lives in:
   - `docs/contracts/test-modules-layouts-improvement-pass-v1.md`
+  - `docs/contracts/test-modules-layouts-improvement-pass-v2.md`
+  - `docs/contracts/test-modules-layouts-layout-fidelity-pass-v1.md`
 
 ## Verification Lanes
 - Targeted:

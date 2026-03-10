@@ -950,3 +950,83 @@
         - `.codex-runtime/layout-review/v2-scenario-d-edit-stress.png`
   - next sensible step:
     - manual review / commit preparation
+
+## Layout Builder Layout Fidelity Pass V1
+- Date: `2026-03-10`
+- Status:
+  - closed in the working tree
+  - hard-file execution record lives in `docs/contracts/test-modules-layouts-layout-fidelity-pass-v1.md`
+- Trigger:
+  - manual review found two active geometry defects after the previous layouts pass was committed:
+    - a new grid container could take two direct blocks but the second block was visually missing
+    - builder geometry still drifted from believable HTML structure in row-flex layouts
+- Retained root causes:
+  - `modules/test-modules-layouts/frontend/LayoutBuilderCanvasNodes.jsx`
+    - container layout styles were still being applied to both:
+      - the outer frame
+      - the inner child-layout wrapper
+    - this made the frame itself behave like a grid/flex layout surface and distorted child visibility
+  - `modules/test-modules-layouts/frontend/layout-builder-canvas-layout.js`
+    - flex placement styling was parent-blind
+    - row-flex children were still inheriting sizing behavior that only made sense for stacked/column layouts
+- Retained fixes:
+  - `modules/test-modules-layouts/frontend/LayoutBuilderCanvasNodes.jsx`
+    - non-root container frames are now plain surfaces
+    - the actual child layout is rendered exactly once in the inner wrapper
+    - container `minHeight` lives on the frame
+    - content-area `minHeight` is derived from padding so containers still look like containers while preserving the actual child layout surface
+  - `modules/test-modules-layouts/frontend/layout-builder-canvas-layout.js`
+    - `buildPlacementStyle` now reads the actual parent container node
+    - row-flex children now use row semantics:
+      - `width: auto`
+      - `maxWidth` derived from `basis` when present
+    - column-flex children remain stretched full width
+    - row-flex percentage siblings now distribute the row gap budget across the row so `wrap` mode does not incorrectly force a second `50%` sibling onto a new line
+  - `frontend/src/tests/core/layout-builder-model.core.test.jsx`
+    - now locks the parent-aware flex placement behavior
+    - now also locks the `row + wrap + two 50% siblings` case through `calc(50% - 10px)` when the row gap is `20px`
+- Live browser closure evidence:
+  - grid proof:
+    - created a fresh layout
+    - added one new grid container
+    - added two direct blocks into that grid container
+    - both blocks remained visible on the canvas
+    - screenshots:
+      - failure reference:
+        - `.codex-runtime/layout-review/issue-grid-before.png`
+      - retained-fix result:
+        - `.codex-runtime/layout-review/issue-grid-two-blocks-visible-after-fix.png`
+  - flex-fidelity proof:
+    - switched the container to `flex`
+    - changed `Direction = row`
+    - set both child blocks to `Flex Basis = 50%`
+    - live DOM measurement after the retained fix:
+      - container width: `905px`
+      - first block width: `419px`
+      - second block width: `419px`
+    - screenshot:
+      - `.codex-runtime/layout-review/issue-flex-row-50-50-after-fix.png`
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/core/layout-builder-model.core.test.jsx`
+    - passed on `2026-03-10`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+    - passed on `2026-03-10`
+  - `pnpm quality:gate:full`
+    - passed on `2026-03-10`
+- Current state:
+  - one review pair is intentionally running for live verification:
+    - frontend: `http://localhost:3000/`
+    - backend: `http://127.0.0.1:3001/health`
+  - worktree is intentionally dirty with the retained fidelity fix, wrap follow-up, and updated progress pointers
+  - latest follow-up trigger from manual review:
+    - `row + wrap` still looked wrong when the operator put two `50%` blocks inside a flex row nested in a grid container
+  - retained wrap follow-up:
+    - `modules/test-modules-layouts/frontend/layout-builder-canvas-layout.js`
+      - row percentage siblings are now grouped into visual rows and share the row gap budget proportionally
+    - focused verification rerun on `2026-03-10`:
+      - `pnpm --filter frontend exec vitest run src/tests/core/layout-builder-model.core.test.jsx`
+        - passed
+      - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+        - passed
+  - next sensible step:
+    - operator reload / live review of the wrap-specific case

@@ -594,3 +594,34 @@
   - for spatial UIs, always verify which actual DOM node participates in grid/flex layout before styling descendants; wrapper depth matters
   - when manual QA depends on order changes, label at least one node distinctly before judging reorder behavior
   - keep isolated browser contexts for drag-heavy review; shared mouse interference wastes time and muddies the signal
+
+### 2026-03-10 - Layout Builder Layout Fidelity Pass V1
+- Tasks:
+  - reproduced the two remaining manual-review geometry complaints in the live builder:
+    - second direct block disappearing in a new grid container
+    - row-flex layouts drifting away from believable HTML structure
+  - separated the container frame from the actual child layout surface
+  - made flex item placement parent-aware and reran the full gate
+- Easy:
+  - once the browser flow was reduced to one fresh grid container plus two direct blocks, the failure was narrow and easy to diagnose
+  - live DOM measurement made the flex result objective; after both blocks were set to `50%`, the numbers immediately showed whether the row was believable
+- Hard:
+  - the remaining grid bug looked like a child-placement problem at first, but the real issue was the frame still behaving like a second layout wrapper
+  - “accurate to HTML” is not a cosmetic note; it forces the builder to stop layering editor structure on top of the actual layout semantics
+- Improve:
+  - for visual builders, treat the frame/content split as an architectural boundary, not a styling preference
+  - if the product promise is “this is what the HTML structure will feel like,” parent-aware layout semantics must be locked in code and tests early
+  - keep screenshot evidence for both the failing and fixed states; it shortens future regressions dramatically
+
+### 2026-03-10 - Layout Builder Wrap Follow-up
+- Tasks:
+  - traced the remaining manual-review complaint to the `row + wrap + percentage siblings` variant rather than the plain row-flex case
+  - updated row-flex sizing so percentage siblings share the row gap budget instead of paying the full gap on top of raw percentage basis values
+  - locked the case in the focused layout model test
+- Easy:
+  - once the operator named `wrap` explicitly, the remaining geometry bug narrowed from “flex fidelity” to one specific row-sizing rule
+- Hard:
+  - raw CSS percentage basis plus `gap` is not the same thing as operator intent; if the builder models it naively, a visually obvious two-column row can still wrap
+- Improve:
+  - when operators describe layout issues, pay attention to the exact container mode toggles; `row` and `row + wrap` are materially different products
+  - for visual builders, percentage row semantics should be tested with gap on, not only with gap-neutral cases

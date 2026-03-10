@@ -16,6 +16,21 @@ import {
   NodeHeader
 } from "./LayoutBuilderCanvasPrimitives.jsx";
 
+function resolveContainerMinHeight(node, isRoot) {
+  if (isRoot) {
+    return 0;
+  }
+  return Math.max(180, node.props?.minHeight ?? 320);
+}
+
+function resolveContainerContentMinHeight(node, isRoot) {
+  if (isRoot) {
+    return 0;
+  }
+  const padding = node.props?.padding ?? 24;
+  return Math.max(120, resolveContainerMinHeight(node, false) - padding * 2);
+}
+
 function BlockNode({
   node,
   parentMode,
@@ -119,20 +134,26 @@ function ContainerChildren({
   });
   const containerAxis = resolveDropAxis(node, isRoot);
   const showContainerSlots = showDropSlots && rootSlotsEnabled;
+  const containerPadding = isRoot ? 0 : node.props?.padding ?? 24;
+  const childrenLayoutStyle = {
+    ...buildContainerLayoutStyle(node, isRoot),
+    minHeight: resolveContainerContentMinHeight(node, isRoot),
+    padding: `${containerPadding}px`,
+    boxSizing: "border-box"
+  };
 
   return (
     <Box
       ref={setDropRef}
       sx={{
-        ...buildContainerLayoutStyle(node, isRoot),
         width: "100%",
         minWidth: 0,
+        minHeight: resolveContainerMinHeight(node, isRoot),
         borderRadius: isRoot ? 0 : 3,
         backgroundColor: isRoot ? "transparent" : "rgba(248,250,252,0.96)",
         border: isRoot ? "none" : "1px solid rgba(15,23,42,0.08)",
         boxShadow: isRoot ? "none" : "inset 0 0 0 1px rgba(255,255,255,0.6)",
-        p: isRoot ? 0 : `${node.props?.padding ?? 24}px`,
-        overflow: "hidden",
+        overflow: "clip",
         outline: isOver ? "2px solid rgba(37,99,235,0.42)" : "none"
       }}
       onClick={(event) => {
@@ -150,13 +171,14 @@ function ContainerChildren({
       ) : (
         <>
           <SortableContext items={childIds} strategy={resolveStrategy(node, isRoot)}>
-            <Box sx={buildContainerLayoutStyle(node, isRoot)}>
+            <Box sx={childrenLayoutStyle}>
               {childIds.map((childId, index) => (
                 <SortableCanvasNode
                   key={childId}
                   node={nodes[childId]}
                   nodes={nodes}
                   rootId={rootId}
+                  parentNode={node}
                   parentMode={isRoot ? "root" : node.layoutMode}
                   isRootParent={isRoot}
                   selectedNodeId={selectedNodeId}
@@ -318,6 +340,7 @@ function SortableCanvasNode({
   node,
   nodes,
   rootId,
+  parentNode,
   parentMode,
   isRootParent,
   selectedNodeId,
@@ -353,7 +376,7 @@ function SortableCanvasNode({
     <Box
       ref={setNodeRef}
       sx={{
-        ...buildPlacementStyle(node, parentMode, isRootParent),
+        ...buildPlacementStyle(node, parentNode, nodes, isRootParent),
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,

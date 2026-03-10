@@ -9,6 +9,7 @@ import {
   resolveInsertionTarget,
   resolveMoveTarget
 } from "../../../../modules/test-modules-layouts/frontend/layout-builder-model.js";
+import { buildPlacementStyle } from "../../../../modules/test-modules-layouts/frontend/layout-builder-canvas-layout.js";
 import { createInitialLayoutDocument, createLayoutNode } from "../../../../modules/test-modules-layouts/shared/layout-document.mjs";
 
 function createDocumentWithChildren() {
@@ -184,6 +185,105 @@ describe("layout builder model", () => {
 
     expect(document.nodes.gridChild.placement.grid.h).toBeGreaterThan(4);
     expect(document.nodes.flexChild.placement.grid.y).toBe(document.nodes.gridChild.placement.grid.h);
+  });
+
+  test("uses row-flex placement without forcing block width to 100 percent", () => {
+    const parent = createLayoutNode({
+      id: "row-parent",
+      kind: "container",
+      layoutMode: "flex",
+      props: {
+        direction: "row",
+        wrap: "nowrap",
+        gap: 24
+      }
+    });
+    const child = createLayoutNode({
+      id: "row-child",
+      kind: "block",
+      placement: {
+        flex: { basis: "50%", grow: 0, shrink: 0 }
+      }
+    });
+
+    expect(buildPlacementStyle(child, parent, {}, false)).toEqual(
+      expect.objectContaining({
+        flexBasis: "50%",
+        width: "auto",
+        maxWidth: "50%",
+        minWidth: 0
+      })
+    );
+  });
+
+  test("keeps column-flex children stretched to full width", () => {
+    const parent = createLayoutNode({
+      id: "column-parent",
+      kind: "container",
+      layoutMode: "flex",
+      props: {
+        direction: "column",
+        wrap: "nowrap"
+      }
+    });
+    const child = createLayoutNode({
+      id: "column-child",
+      kind: "block",
+      placement: {
+        flex: { basis: "50%", grow: 0, shrink: 0 }
+      }
+    });
+
+    expect(buildPlacementStyle(child, parent, {}, false)).toEqual(
+      expect.objectContaining({
+        flexBasis: "50%",
+        width: "100%"
+      })
+    );
+  });
+
+  test("accounts for gap budget when a wrapped row flex container uses percentage siblings", () => {
+    const parent = createLayoutNode({
+      id: "wrapped-row-parent",
+      kind: "container",
+      layoutMode: "flex",
+      props: {
+        direction: "row",
+        wrap: "wrap",
+        gap: 20
+      },
+      children: ["left", "right"]
+    });
+    const left = createLayoutNode({
+      id: "left",
+      kind: "block",
+      placement: {
+        flex: { basis: "50%", grow: 0, shrink: 0 }
+      }
+    });
+    const right = createLayoutNode({
+      id: "right",
+      kind: "block",
+      placement: {
+        flex: { basis: "50%", grow: 0, shrink: 0 }
+      }
+    });
+
+    const leftStyle = buildPlacementStyle(left, parent, { left, right }, false);
+    const rightStyle = buildPlacementStyle(right, parent, { left, right }, false);
+
+    expect(leftStyle).toEqual(
+      expect.objectContaining({
+        flexBasis: "calc(50% - 10px)",
+        maxWidth: "calc(50% - 10px)"
+      })
+    );
+    expect(rightStyle).toEqual(
+      expect.objectContaining({
+        flexBasis: "calc(50% - 10px)",
+        maxWidth: "calc(50% - 10px)"
+      })
+    );
   });
 
   test("builds breadcrumbs through the container tree", () => {
