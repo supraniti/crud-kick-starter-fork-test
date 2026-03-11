@@ -35,6 +35,7 @@ function resolveRequiredDomainsForModule(moduleId, moduleRuntimeItems) {
 
 function resolveActiveModuleViewContext({
   route,
+  navigate,
   moduleRuntimeItems,
   moduleStateItems,
   selectedCategoryIds,
@@ -47,6 +48,7 @@ function resolveActiveModuleViewContext({
 }) {
   return resolveActiveModuleViewState({
     route,
+    navigate,
     moduleRuntimeItems,
     moduleStateItems,
     selectedCategoryIds,
@@ -62,9 +64,7 @@ function resolveActiveModuleViewContext({
   });
 }
 
-function useAppController({ api = defaultApiClients }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => readAuthSession());
-  const [route, setRoute] = useState(() => parseRouteFromLocation());
+function useRuntimeSettingsState() {
   const [runtimeSettingsOpen, setRuntimeSettingsOpen] = useState(false);
   const handleOpenRuntimeSettings = useCallback(() => {
     setRuntimeSettingsOpen(true);
@@ -72,6 +72,24 @@ function useAppController({ api = defaultApiClients }) {
   const handleCloseRuntimeSettings = useCallback(() => {
     setRuntimeSettingsOpen(false);
   }, []);
+
+  return {
+    setRuntimeSettingsOpen,
+    runtimeSettingsOpen,
+    handleOpenRuntimeSettings,
+    handleCloseRuntimeSettings
+  };
+}
+
+function useAppController({ api = defaultApiClients }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => readAuthSession());
+  const [route, setRoute] = useState(() => parseRouteFromLocation());
+  const {
+    setRuntimeSettingsOpen,
+    runtimeSettingsOpen,
+    handleOpenRuntimeSettings,
+    handleCloseRuntimeSettings
+  } = useRuntimeSettingsState();
   const remotesDeployDomain = useRemotesDeployDomain({
     api,
     isAuthenticated,
@@ -150,6 +168,7 @@ function useAppController({ api = defaultApiClients }) {
   });
   const { routeUrl, activeModuleView } = resolveActiveModuleViewContext({
     route,
+    navigate,
     moduleRuntimeItems,
     moduleStateItems: moduleState.items,
     selectedCategoryIds,

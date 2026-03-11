@@ -7,16 +7,27 @@ export const TAGS_COLLECTION_ID = "blog-tags";
 export const PAGES_COLLECTION_ID = "blog-pages";
 export const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
 export const LAYOUTS_COLLECTION_ID = "page-layouts";
+export const DEPLOYMENT_ARTIFACTS_COLLECTION_ID = "page-deployment-artifacts";
 
 export const PAGE_KIND_SET = new Set(["standalone", "content-detail", "listing", "profile"]);
 export const PAGE_STATUS_SET = new Set(["draft", "in-review", "scheduled", "published", "archived"]);
 export const SOURCE_TYPE_SET = new Set(["none", "blog-post", "blog-author", "blog-category", "blog-tag"]);
 export const PRIMARY_SOURCE_TYPE_SET = new Set(["blog-post", "blog-author", "blog-category", "blog-tag"]);
+export const DEPLOYMENT_MODE_SET = new Set(["single-page", "per-record"]);
+export const SOURCE_SELECTION_MODE_SET = new Set(["none", "specific-record", "all-records"]);
 export const DATA_SOURCE_KIND_SET = new Set([
   "record-by-id",
   "posts-by-author",
   "posts-by-category",
   "posts-by-tag"
+]);
+export const DEPLOYMENT_STATUS_SET = new Set(["clean", "stale", "missing", "error"]);
+export const DEPLOYMENT_ARTIFACT_STATUS_SET = new Set([
+  "synced",
+  "stale",
+  "missing",
+  "orphaned",
+  "error"
 ]);
 export const DATA_SOURCE_SORT_KEY_SET = new Set(["updatedOn", "publishedOn", "title"]);
 export const DATA_SOURCE_SORT_DIRECTION_SET = new Set(["asc", "desc"]);
@@ -127,6 +138,22 @@ export function normalizePageKind(value, fallback = "standalone") {
 
 export function normalizePageStatus(value, fallback = "draft") {
   return normalizeEnumValue(value, PAGE_STATUS_SET, fallback);
+}
+
+export function normalizeDeploymentMode(value, fallback = "single-page") {
+  return normalizeEnumValue(value, DEPLOYMENT_MODE_SET, fallback);
+}
+
+export function normalizeSourceSelectionMode(value, fallback = "none") {
+  return normalizeEnumValue(value, SOURCE_SELECTION_MODE_SET, fallback);
+}
+
+export function normalizeDeploymentStatus(value, fallback = "missing") {
+  return normalizeEnumValue(value, DEPLOYMENT_STATUS_SET, fallback);
+}
+
+export function normalizeDeploymentArtifactStatus(value, fallback = "missing") {
+  return normalizeEnumValue(value, DEPLOYMENT_ARTIFACT_STATUS_SET, fallback);
 }
 
 export function normalizePrimarySourceType(value, fallback = "none") {
@@ -249,4 +276,8 @@ export function buildDefaultPrimarySource(sourceType = "none", itemId = null) {
 
 export function isPagePublished(status) {
   return normalizePageStatus(status) === "published";
+}
+
+export function isPerRecordDeploymentMode(value) {
+  return normalizeDeploymentMode(value) === "per-record";
 }

@@ -1030,3 +1030,252 @@
         - passed
   - next sensible step:
     - operator reload / live review of the wrap-specific case
+
+## Posts Template Deployment Flow Planning
+- Date: `2026-03-10`
+- Status:
+  - planning in progress
+  - no code implementation started yet
+  - hard-file plan saved in `docs/contracts/test-modules-pages-posts-template-deployment-flow-plan.md`
+- Task:
+  - design a coherent end-to-end flow where one reusable page definition can deploy one HTML artifact per eligible blog post into repo-root `deployment/`
+  - keep the implementation module-first and centered on existing `content`, `pages`, and `layouts` responsibilities
+- Current-state findings locked before planning:
+  - `test-modules-content` already owns canonical posts/revisions and should stay deployment-agnostic
+  - `test-modules-pages` already owns standalone page records, layout references, delivery payload resolution, and single-page HTML deployment
+  - the current pages deployment model is one-page-to-one-artifact and cannot yet express a reusable post-detail template that expands across many posts
+  - `test-modules-pages` defines module settings (`appMountTagName`) but its custom Pages desk does not currently surface module settings in the UI
+  - `test-modules-pages` can select a layout but does not yet support a clean page -> layout builder -> same page return flow
+- Recommended design direction captured in the plan:
+  - keep current single-page behavior intact
+  - add a bounded `per-record` page-template mode inside `test-modules-pages`
+  - add a pages-owned artifact registry for per-generated-file status and stale detection
+  - treat post edits, layout edits, and pages-module settings changes as deployment-drift signals until an explicit sync is run
+  - support route/path patterns for generated post pages with bounded tokens, not freeform expressions
+- Recommended assumptions awaiting operator approval:
+  - eligible source posts for the new flow are `status = published`
+  - per-record templates are explicit-sync, not silent auto-redeploy
+  - phase-1 path pattern tokens are `{slug}` and `{id}`
+  - page SEO on per-record templates acts as fallback/default, not forced override across every generated page
+- Next sensible step:
+  - operator approval or redirection on the plan assumptions above
+  - only after approval: begin Slice A schema and contract groundwork inside `test-modules-pages`
+
+## Posts Template Deployment Flow Planning Clarification
+- Date: `2026-03-10`
+- Status:
+  - still planning only
+  - no implementation started yet
+- Clarified operator intent:
+  - this feature must not collapse into “there is a button that runs generation”
+  - deployment must be a visible system state embedded in the normal operator workflow across `content`, `pages`, and `layouts`
+  - operators should naturally understand:
+    - what template is live
+    - whether deployment is stale or missing
+    - which post/layout/settings change caused drift
+    - what the natural next step is
+- Plan update applied:
+  - the hard-file plan now centers on an embedded status model and cross-module awareness, not just a batch-generation route
+  - explicit sync still exists as an engine/action, but it is not treated as the product itself
+- Next sensible step:
+  - operator approval of the clarified plan direction
+  - only then start Slice A implementation
+
+## Posts Template Deployment Flow Milestone 1
+- Date: `2026-03-10`
+- Status:
+  - Milestone 1 implemented in the working tree
+  - ready for first operator approval checkpoint
+- Delivered slice:
+  - `blog-pages` now supports:
+    - `deploymentMode`
+    - `sourceSelectionMode`
+    - `pathPattern`
+    - deployment summary fields:
+      - `deploymentStatus`
+      - `deploymentTargetCount`
+      - `deploymentSyncedCount`
+      - `deploymentStaleCount`
+      - `deploymentMissingCount`
+      - `deploymentLastRunOn`
+  - `page-deployment-artifacts` collection is declared in `test-modules-pages` for the next sync-state slice
+  - server validation now preserves old single-page defaults while allowing bounded per-record templates:
+    - `deploymentMode = per-record`
+    - `primarySourceType = blog-post`
+    - `sourceSelectionMode = all-records`
+    - `pathPattern = /posts/{slug}` style bounded patterns
+  - page delivery preview now supports template-instance preview by concrete `sourceItemId`
+  - pages route surface now exposes:
+    - `GET /api/reference/modules/test-modules-pages/pages/:pageId/preview-sources`
+    - `GET /api/reference/modules/test-modules-pages/pages/:pageId/delivery?preview=true&sourceItemId=<postId>`
+  - Pages desk now edits and previews:
+    - deployment mode
+    - source selection mode
+    - path pattern
+    - preview source picker for per-record templates
+    - deployment summary status chips/counts
+- Important implementation files:
+  - `modules/test-modules-pages/module.json`
+  - `modules/test-modules-pages/server/distribution-shared-runtime.mjs`
+  - `modules/test-modules-pages/server/distribution-handler-shared-runtime.mjs`
+  - `modules/test-modules-pages/server/distribution-page-handler-runtime.mjs`
+  - `modules/test-modules-pages/server/page-delivery-runtime.mjs`
+  - `modules/test-modules-pages/server/routes.mjs`
+  - `modules/test-modules-pages/frontend/page-workspace-support.js`
+  - `modules/test-modules-pages/frontend/useBlogDistributionWorkspace.js`
+  - `modules/test-modules-pages/frontend/BlogDistributionPagePanels.jsx`
+  - `modules/test-modules-pages/frontend/BlogDistributionPanels.jsx`
+- Verification completed on `2026-03-10`:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.integration.test.jsx`
+    - passed
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+    - passed
+  - `pnpm lint:function-shape`
+    - passed
+- Explicitly not delivered yet:
+  - artifact-registry population during sync
+  - stale/missing/orphaned deployment truth
+  - cross-module deployment-awareness surfaces
+  - page -> layout builder -> same page return flow
+- Next step after checkpoint approval:
+  - implement artifact-registry sync and page-level deployment status derived from actual per-record outputs
+
+## Posts Template Deployment Flow Milestone 2
+- Date: `2026-03-10`
+- Status:
+  - Milestone 2 implemented in the working tree
+  - ready for second operator approval checkpoint
+- Delivered slice:
+  - per-record deployment sync now writes one output per eligible published `blog-post`
+  - `page-deployment-artifacts` now stores per-generated-output truth for `test-modules-pages`
+  - live deployment evaluation now rolls artifact truth up to the parent page template:
+    - `deploymentStatus`
+    - `deploymentTargetCount`
+    - `deploymentSyncedCount`
+    - `deploymentStaleCount`
+    - `deploymentMissingCount`
+    - `deploymentLastRunOn`
+  - deployment instances are visible in the Pages desk with per-output status and stale reasons
+  - per-record template preview remains source-instance aware through preview-source selection
+  - per-record sync is explicit, but the operator-facing workflow is now state-first:
+    - queue rows show synced/stale/missing counts
+    - summary cards surface synced/stale/missing outputs
+    - the sync action appears as the natural next step after visible drift
+- Important implementation files:
+  - `modules/test-modules-pages/module.json`
+  - `modules/test-modules-pages/server/page-delivery-runtime.mjs`
+  - `modules/test-modules-pages/server/page-deployment-runtime.mjs`
+  - `modules/test-modules-pages/server/page-deployment-render-runtime.mjs`
+  - `modules/test-modules-pages/server/page-deployment-state-runtime.mjs`
+  - `modules/test-modules-pages/server/distribution-page-handler-runtime.mjs`
+  - `modules/test-modules-pages/server/routes.mjs`
+  - `modules/test-modules-pages/frontend/useBlogDistributionWorkspace.js`
+  - `modules/test-modules-pages/frontend/blog-distribution-workspace-support.js`
+  - `modules/test-modules-pages/frontend/BlogDistributionView.jsx`
+  - `modules/test-modules-pages/frontend/BlogDistributionPanels.jsx`
+  - `modules/test-modules-pages/frontend/BlogDistributionDeploymentPanels.jsx`
+  - `frontend/src/tests/app-integration/blog-distribution.integration.test.jsx`
+  - `frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx`
+  - `server/test/module-conformance/blog-distribution.module-conformance.test.js`
+- Verification completed on `2026-03-10`:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.integration.test.jsx src/tests/app-integration/blog-distribution.per-record.integration.test.jsx`
+    - passed
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Explicitly not delivered yet:
+  - cross-module deployment-awareness surfaces in `Content`
+  - cross-module deployment-awareness surfaces in `Layouts`
+  - page -> layout builder -> same page return flow
+  - Pages desk module-settings surface for deployment-impact visibility
+- Next step after checkpoint approval:
+  - build the cross-module awareness + layout round-trip slice on top of the now-verified per-record deployment truth
+
+## Posts Template Deployment Flow Milestone 3
+- Date: `2026-03-10`
+- Status:
+  - Milestone 3 implemented in the working tree
+  - ready for third operator approval checkpoint
+- Delivered slice:
+  - Pages desk now surfaces deployment-relevant module settings inside the custom view
+  - Pages view is route-aware and can open the selected reusable layout with return context:
+    - `moduleId: test-modules-layouts`
+    - `layoutId`
+    - `returnModuleId: test-modules-pages`
+    - `returnPageId`
+    - `returnTab: overview`
+  - Layouts view now surfaces deployment-impact awareness for the selected layout:
+    - total referenced page templates
+    - clean/stale/missing counts
+    - `Return To Page` action when the layout was opened from Pages
+  - Content view now surfaces deployment-impact awareness for published blog posts and can route to the affected Pages desk context
+  - frontend route/navigate context is now available to custom module views through a thin controller seam, with no broad routing rewrite
+- Important implementation files:
+  - `frontend/src/app/parts/03-use-app-controller.js`
+  - `frontend/src/app/parts/03-use-app-controller.helpers.js`
+  - `modules/test-modules-pages/frontend/view-entrypoint.jsx`
+  - `modules/test-modules-pages/frontend/BlogDistributionView.jsx`
+  - `modules/test-modules-pages/frontend/useBlogDistributionWorkspace.js`
+  - `modules/test-modules-pages/frontend/BlogDistributionPagePresentationSections.jsx`
+  - `modules/test-modules-layouts/frontend/view-entrypoint.jsx`
+  - `modules/test-modules-layouts/frontend/useLayoutsWorkspace.js`
+  - `modules/test-modules-layouts/frontend/layouts-workspace-support.js`
+  - `modules/test-modules-layouts/frontend/LayoutsView.jsx`
+  - `modules/test-modules-content/frontend/view-entrypoint.jsx`
+  - `modules/test-modules-content/frontend/useBlogContentWorkspace.js`
+  - `modules/test-modules-content/frontend/blog-content-deployment-awareness.js`
+  - `modules/test-modules-content/frontend/BlogContentDeploymentImpactPanel.jsx`
+  - `modules/test-modules-content/frontend/BlogContentEditorPanel.jsx`
+  - `modules/test-modules-content/frontend/BlogContentView.jsx`
+  - `frontend/src/tests/app-integration/blog-content.integration.test.jsx`
+  - `frontend/src/tests/app-integration/blog-distribution.integration.test.jsx`
+  - `frontend/src/tests/app-integration/layouts.integration.test.jsx`
+- Verification completed on `2026-03-10`:
+  - focused frontend slice:
+    - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-content.integration.test.jsx src/tests/app-integration/blog-distribution.integration.test.jsx src/tests/app-integration/layouts.integration.test.jsx`
+      - passed
+  - repo gate:
+    - `pnpm quality:gate:full`
+      - passed
+  - protocol:
+    - `pnpm quality:protocol`
+      - passed
+- Current state:
+  - no app pair is intentionally running after verification
+  - worktree is intentionally dirty with Milestone 3
+  - next sensible step after approval is live browser rehearsal of the full operator flow before commit
+
+## 2026-03-11 - Pages Desk Deployment Truth Fix
+- Context:
+  - during the live `per-record` demo, `Sync Deployment` generated the correct HTML files and the deployment-instance rows showed `synced`
+  - but the Pages desk summary cards and page row still showed `stale`
+- Root cause:
+  - the Pages desk was loading page rows through the generic collection list surface
+  - those list-shaped rows carried denormalized relation label fields such as `layoutTitle`
+  - the per-record deployment evaluator compared artifact tokens against that list-shaped page object, which made freshly synced outputs look stale
+- Retained fix:
+  - added a Pages-owned desk route in `modules/test-modules-pages/server/routes.mjs`
+    - `GET /api/reference/modules/test-modules-pages/pages/desk-items`
+  - the desk route resolves canonical page records by id before applying live deployment evaluation
+  - switched the Pages desk support loader in `modules/test-modules-pages/frontend/blog-distribution-workspace-support.js` to use the module route first, with fallback to the generic collection API if the route is unavailable
+- Verified live:
+  - `Demo Posts Template` now reloads as:
+    - `clean`
+    - `2/2 synced`
+    - `0 stale`
+    - `0 missing`
+  - top summary cards also show:
+    - `SYNCED OUTPUTS = 2`
+    - `STALE OUTPUTS = 0`
+    - `MISSING OUTPUTS = 0`
+  - deployment output remains on disk:
+    - `deployment/demo-posts/launch-rollout-story/index.html`
+    - `deployment/demo-posts/launch-window-update-928325/index.html`
+- Verification completed on `2026-03-11`:
+  - `pnpm test:frontend:integration:dynamic`
+    - passed
+  - `pnpm quality:protocol`
+    - passed

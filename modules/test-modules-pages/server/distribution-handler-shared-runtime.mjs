@@ -4,6 +4,9 @@ import {
   buildDefaultLayoutModel,
   buildDefaultRenderPolicy,
   cloneJsonValue,
+  isPerRecordDeploymentMode,
+  normalizeDeploymentMode,
+  normalizeDeploymentStatus,
   normalizeHttpCode,
   normalizeOptionalText,
   normalizePageKind,
@@ -15,6 +18,7 @@ import {
   normalizeScriptUrlList,
   normalizeSortDirection,
   normalizeSortKey,
+  normalizeSourceSelectionMode,
   normalizeSourcePath,
   toTimestamp
 } from "./distribution-shared-runtime.mjs";
@@ -43,7 +47,24 @@ function pickInputValue(input, currentItem, fieldId, fallback = null) {
   return input?.[fieldId] ?? currentItem?.[fieldId] ?? fallback;
 }
 
-function normalizePrimarySource(inputSource, primarySourceType) {
+function normalizeOptionalPatternPath(value) {
+  const normalized = normalizeOptionalText(value);
+  return normalized ? normalizePagePath(normalized) : null;
+}
+
+function resolveSourceSelectionMode(deploymentMode, primarySourceType, inputValue) {
+  if (primarySourceType === "none") {
+    return "none";
+  }
+
+  if (isPerRecordDeploymentMode(deploymentMode)) {
+    return "all-records";
+  }
+
+  return normalizeSourceSelectionMode(inputValue, "specific-record");
+}
+
+function normalizePrimarySource(inputSource, primarySourceType, sourceSelectionMode) {
   const source = inputSource && typeof inputSource === "object" ? inputSource : null;
   const normalizedType = normalizePrimarySourceType(source?.sourceType ?? primarySourceType);
   if (normalizedType === "none") {
@@ -52,7 +73,10 @@ function normalizePrimarySource(inputSource, primarySourceType) {
 
   return {
     sourceType: normalizedType,
-    itemId: normalizeOptionalText(source?.itemId),
+    itemId:
+      sourceSelectionMode === "all-records"
+        ? null
+        : normalizeOptionalText(source?.itemId),
     bindAs: normalizeOptionalText(source?.bindAs) ?? "primary"
   };
 }
@@ -125,23 +149,53 @@ function resolvePublishedOn(status, currentItem, inputValue, timestamp) {
 export function buildPreparedPageValue(input = {}, currentItem = null) {
   const timestamp = toTimestamp();
   const pageKind = normalizePageKind(pickInputValue(input, currentItem, "pageKind", "standalone"));
+  const deploymentMode = normalizeDeploymentMode(
+    pickInputValue(input, currentItem, "deploymentMode", "single-page")
+  );
   const primarySourceType = normalizePrimarySourceType(
     pickInputValue(input, currentItem, "primarySourceType", "none")
   );
+  const sourceSelectionMode = resolveSourceSelectionMode(
+    deploymentMode,
+    primarySourceType,
+    pickInputValue(input, currentItem, "sourceSelectionMode")
+  );
   const status = normalizePageStatus(pickInputValue(input, currentItem, "status", "draft"));
+  const normalizedPath = normalizePagePath(pickInputValue(input, currentItem, "path", ""));
+  const pathPattern = normalizeOptionalPatternPath(
+    pickInputValue(input, currentItem, "pathPattern")
+  );
+  const deploymentArtifactPath = normalizeOptionalText(
+    pickInputValue(input, currentItem, "deploymentArtifactPath")
+  );
+  const deploymentSyncedOn = normalizeOptionalText(
+    pickInputValue(input, currentItem, "deploymentSyncedOn")
+  );
+  const deploymentStatus = normalizeDeploymentStatus(
+    pickInputValue(
+      input,
+      currentItem,
+      "deploymentStatus",
+      deploymentArtifactPath ? "clean" : "missing"
+    )
+  );
   return {
     ...(currentItem ?? {}),
     ...input,
     title: normalizeOptionalText(pickInputValue(input, currentItem, "title")),
     pageKind,
+    deploymentMode,
+    sourceSelectionMode,
     primarySourceType,
-    path: normalizePagePath(pickInputValue(input, currentItem, "path", "")),
+    path: isPerRecordDeploymentMode(deploymentMode) ? normalizedPath : normalizedPath,
+    pathPattern,
     layoutId: normalizeOptionalText(pickInputValue(input, currentItem, "layoutId")),
     layoutKey: normalizeOptionalText(pickInputValue(input, currentItem, "layoutKey")) ?? "page-shell",
     layoutModel: normalizeLayoutModel(pickInputValue(input, currentItem, "layoutModel"), pageKind),
     primarySource: normalizePrimarySource(
       pickInputValue(input, currentItem, "primarySource"),
-      primarySourceType
+      primarySourceType,
+      sourceSelectionMode
     ),
     dataSources: normalizeDataSources(pickInputValue(input, currentItem, "dataSources", [])),
     runtimeScriptUrls: normalizeRuntimeScriptEntries(
@@ -169,11 +223,31 @@ export function buildPreparedPageValue(input = {}, currentItem = null) {
       status === "archived"
         ? normalizeOptionalText(pickInputValue(input, currentItem, "archivedOn")) ?? timestamp
         : null,
-    deploymentArtifactPath: normalizeOptionalText(
-      pickInputValue(input, currentItem, "deploymentArtifactPath")
+    deploymentArtifactPath,
+    deploymentStatus,
+    deploymentTargetCount: normalizePositiveInteger(
+      pickInputValue(input, currentItem, "deploymentTargetCount", 0),
+      0,
+      { min: 0, max: 1000000 }
     ),
-    deploymentSyncedOn: normalizeOptionalText(
-      pickInputValue(input, currentItem, "deploymentSyncedOn")
+    deploymentSyncedCount: normalizePositiveInteger(
+      pickInputValue(input, currentItem, "deploymentSyncedCount", 0),
+      0,
+      { min: 0, max: 1000000 }
+    ),
+    deploymentStaleCount: normalizePositiveInteger(
+      pickInputValue(input, currentItem, "deploymentStaleCount", 0),
+      0,
+      { min: 0, max: 1000000 }
+    ),
+    deploymentMissingCount: normalizePositiveInteger(
+      pickInputValue(input, currentItem, "deploymentMissingCount", 0),
+      0,
+      { min: 0, max: 1000000 }
+    ),
+    deploymentSyncedOn,
+    deploymentLastRunOn: normalizeOptionalText(
+      pickInputValue(input, currentItem, "deploymentLastRunOn")
     ),
     createdOn:
       currentItem?.createdOn ?? normalizeOptionalText(pickInputValue(input, currentItem, "createdOn")) ?? timestamp,
@@ -211,8 +285,11 @@ export function buildPreparedPageUpdateBody(body, preparedValue) {
     ...body,
     title: preparedValue.title,
     pageKind: preparedValue.pageKind,
+    deploymentMode: preparedValue.deploymentMode,
+    sourceSelectionMode: preparedValue.sourceSelectionMode,
     primarySourceType: preparedValue.primarySourceType,
     path: preparedValue.path,
+    pathPattern: preparedValue.pathPattern,
     layoutId: preparedValue.layoutId,
     layoutKey: preparedValue.layoutKey,
     layoutModel: cloneJsonValue(preparedValue.layoutModel),
@@ -231,7 +308,13 @@ export function buildPreparedPageUpdateBody(body, preparedValue) {
     publishedOn: preparedValue.publishedOn,
     archivedOn: preparedValue.archivedOn,
     deploymentArtifactPath: preparedValue.deploymentArtifactPath,
+    deploymentStatus: preparedValue.deploymentStatus,
+    deploymentTargetCount: preparedValue.deploymentTargetCount,
+    deploymentSyncedCount: preparedValue.deploymentSyncedCount,
+    deploymentStaleCount: preparedValue.deploymentStaleCount,
+    deploymentMissingCount: preparedValue.deploymentMissingCount,
     deploymentSyncedOn: preparedValue.deploymentSyncedOn,
+    deploymentLastRunOn: preparedValue.deploymentLastRunOn,
     createdOn: preparedValue.createdOn,
     updatedOn: preparedValue.updatedOn
   };

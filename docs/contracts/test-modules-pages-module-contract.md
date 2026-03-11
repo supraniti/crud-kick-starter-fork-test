@@ -20,19 +20,28 @@
 - Primary entities:
   - `blog-pages`
   - `blog-redirect-rules`
+  - `page-deployment-artifacts`
 - `blog-pages` owns:
   - page identity: `title`, `path`, `status`, `layoutKey`
+  - deployment mode:
+    - `single-page`
+    - `per-record`
+  - path patterns for bounded per-record template expansion
   - SEO/publication metadata
   - declarative source selection
   - declarative bounded data-source descriptors
   - per-page runtime script URL descriptors
   - structured layout contract
   - deterministic delivery-policy contract
-  - deployment artifact tracking for published HTML output
+  - deployment summary status for published HTML output
 - `blog-redirect-rules` owns:
   - redirect source path
   - target page or direct URL
   - redirect status / reason / http code
+- `page-deployment-artifacts` owns:
+  - per-generated artifact status for per-record template sync
+  - resolved path and artifact path tracking
+  - deployment drift/error metadata
 
 ## Static Deployment Rules
 - The `publish` action must generate a static HTML artifact for a page whenever the page enters or remains in `published`.
@@ -60,12 +69,22 @@
 - A page can exist without any linked content record.
 - Content creation does not imply page creation.
 - Page source selection is declarative and optional.
+- Page modes:
+  - `single-page`
+    - one page record resolves to one route/artifact
+  - `per-record`
+    - one page record acts as a bounded template that resolves one instance per eligible source record
 - Page resolution may consume:
   - one `blog-post`
   - one `blog-author`
   - one `blog-category`
   - one `blog-tag`
   - bounded listings derived from author/category/tag context
+- Per-record template rules for the current delivery stage:
+  - supported source type is currently `blog-post`
+  - source selection mode must be `all-records`
+  - path generation is bounded to tokenized `pathPattern` values
+  - preview resolution must allow a concrete source record to be selected from the Pages desk
 - The module must reject arbitrary freeform queries or executable page logic.
 
 ## Delivery Contract Rules
@@ -129,6 +148,13 @@
 5. Query/data descriptors remain declarative and bounded.
 6. Published pages generate repo-root static HTML artifacts with configured mount tag, script list, and embedded delivery JSON.
 7. Path changes, unpublish/archive, and delete remove stale deployment artifacts automatically.
+8. Operators can create a `per-record` page template for `blog-post` records and preview a concrete generated instance from the Pages desk before sync.
+9. Per-record template sync persists one `page-deployment-artifacts` row per generated output.
+10. Editing an eligible published source record or changing the eligible source set makes the related template deployment read back as `stale` or `missing` before the next sync.
+11. The Pages desk exposes per-template deployment counts and per-output deployment-instance status.
+12. The Pages desk exposes deployment-relevant module settings without forcing the operator into a separate generic settings route.
+13. Operators can open the selected reusable layout from Pages and return to the same page context after editing it.
+14. `test-modules-content` and `test-modules-layouts` expose lightweight deployment-impact awareness without taking deployment ownership away from `test-modules-pages`.
 
 ## Extension-Level Plan
 - Level 1 changes:

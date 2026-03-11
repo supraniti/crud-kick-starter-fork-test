@@ -96,8 +96,39 @@
           "id": "path",
           "label": "Path",
           "type": "text",
-          "required": true,
+          "required": false,
           "minLength": 1,
+          "maxLength": 320
+        },
+        {
+          "id": "deploymentMode",
+          "label": "Deployment Mode",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "single-page",
+            "per-record"
+          ],
+          "defaultValue": "single-page"
+        },
+        {
+          "id": "sourceSelectionMode",
+          "label": "Source Selection Mode",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "none",
+            "specific-record",
+            "all-records"
+          ],
+          "defaultValue": "none"
+        },
+        {
+          "id": "pathPattern",
+          "label": "Path Pattern",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
           "maxLength": 320
         },
         {
@@ -494,12 +525,253 @@
           "maxLength": 500
         },
         {
+          "id": "deploymentStatus",
+          "label": "Deployment Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "clean",
+            "stale",
+            "missing",
+            "error"
+          ],
+          "defaultValue": "missing"
+        },
+        {
+          "id": "deploymentTargetCount",
+          "label": "Deployment Target Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000000,
+          "defaultValue": 0
+        },
+        {
+          "id": "deploymentSyncedCount",
+          "label": "Deployment Synced Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000000,
+          "defaultValue": 0
+        },
+        {
+          "id": "deploymentStaleCount",
+          "label": "Deployment Stale Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000000,
+          "defaultValue": 0
+        },
+        {
+          "id": "deploymentMissingCount",
+          "label": "Deployment Missing Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000000,
+          "defaultValue": 0
+        },
+        {
           "id": "deploymentSyncedOn",
           "label": "Deployment Synced On",
           "type": "text",
           "required": false,
           "minLength": 0,
           "maxLength": 40
+        },
+        {
+          "id": "deploymentLastRunOn",
+          "label": "Deployment Last Run On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    },
+    {
+      "id": "page-deployment-artifacts",
+      "label": "Page Deployment Artifacts",
+      "entitySingular": "deployment-artifact",
+      "primaryField": "resolvedPath",
+      "description": "Pages-owned artifact registry for per-record deployment outputs.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "pageId",
+          "label": "Page",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-pages",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "sourceType",
+          "label": "Source Type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "blog-post",
+            "blog-author",
+            "blog-category",
+            "blog-tag"
+          ]
+        },
+        {
+          "id": "sourceItemId",
+          "label": "Source Item ID",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 80
+        },
+        {
+          "id": "sourceLabel",
+          "label": "Source Label",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 180
+        },
+        {
+          "id": "resolvedPath",
+          "label": "Resolved Path",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 320
+        },
+        {
+          "id": "artifactRelativePath",
+          "label": "Artifact Relative Path",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "synced",
+            "stale",
+            "missing",
+            "orphaned",
+            "error"
+          ],
+          "defaultValue": "missing"
+        },
+        {
+          "id": "staleReasonSummary",
+          "label": "Stale Reason Summary",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "pageVersionToken",
+          "label": "Page Version Token",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 120
+        },
+        {
+          "id": "sourceVersionToken",
+          "label": "Source Version Token",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 120
+        },
+        {
+          "id": "layoutVersionToken",
+          "label": "Layout Version Token",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 120
+        },
+        {
+          "id": "settingsVersionToken",
+          "label": "Settings Version Token",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 120
+        },
+        {
+          "id": "payloadHash",
+          "label": "Payload Hash",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 160
+        },
+        {
+          "id": "htmlHash",
+          "label": "HTML Hash",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 160
+        },
+        {
+          "id": "lastSyncedOn",
+          "label": "Last Synced On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "lastEvaluatedOn",
+          "label": "Last Evaluated On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "lastErrorMessage",
+          "label": "Last Error Message",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 1000
         },
         {
           "id": "createdOn",

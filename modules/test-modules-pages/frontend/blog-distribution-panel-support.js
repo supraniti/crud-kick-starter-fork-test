@@ -2,6 +2,8 @@ export const PAGE_STATUS_OPTIONS = ["draft", "in-review", "scheduled", "publishe
 
 export const PAGE_KIND_OPTIONS = ["standalone", "content-detail", "listing", "profile"];
 
+export const DEPLOYMENT_MODE_OPTIONS = ["single-page", "per-record"];
+
 export const PRIMARY_SOURCE_TYPE_OPTIONS = [
   "none",
   "blog-post",
@@ -9,6 +11,8 @@ export const PRIMARY_SOURCE_TYPE_OPTIONS = [
   "blog-category",
   "blog-tag"
 ];
+
+export const SOURCE_SELECTION_MODE_OPTIONS = ["none", "specific-record", "all-records"];
 
 export const DATA_SOURCE_KIND_OPTIONS = [
   "record-by-id",
@@ -50,9 +54,13 @@ export function resolveOptionLabel(options = [], id, fallback = "Not configured"
   return options.find((option) => option.id === id)?.label ?? fallback;
 }
 
-export function resolveSourceLabel(sourceOptionsByType, sourceType, itemId) {
+export function resolveSourceLabel(sourceOptionsByType, sourceType, itemId, sourceSelectionMode = "specific-record") {
   if (!sourceType || sourceType === "none") {
     return "Standalone";
+  }
+
+  if (sourceSelectionMode === "all-records") {
+    return `All ${sourceType} records`;
   }
 
   return resolveOptionLabel(

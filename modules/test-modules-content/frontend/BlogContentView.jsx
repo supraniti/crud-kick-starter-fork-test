@@ -99,7 +99,11 @@ function WorkspaceLayout({ workspace }) {
   );
 }
 
-export function BlogContentView({ activeModuleLabel, collectionsDomain }) {
+export function BlogContentView({
+  activeModuleLabel,
+  collectionsDomain,
+  navigate = null
+}) {
   const workspace = useBlogContentWorkspace({
     collectionsDomain
   });
@@ -115,12 +119,25 @@ export function BlogContentView({ activeModuleLabel, collectionsDomain }) {
     return <Alert severity="warning">{collectionsDomain.activeCollectionUnavailableMessage}</Alert>;
   }
 
+  const openPagesDesk = () => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate(
+      {
+        moduleId: "test-modules-pages",
+        pageId: workspace.deploymentAwareness.summary.primaryPageId
+      },
+      { replace: false }
+    );
+  };
+
   return (
     <Stack spacing={2}>
       <Hero activeModuleLabel={activeModuleLabel} />
       <SummaryGrid summary={workspace.summary} />
       <ContentFilterBar collectionsDomain={collectionsDomain} authorOptions={authorOptions} />
-      <WorkspaceLayout workspace={workspace} />
+      <WorkspaceLayout workspace={{ ...workspace, openPagesDesk }} />
     </Stack>
   );
 }

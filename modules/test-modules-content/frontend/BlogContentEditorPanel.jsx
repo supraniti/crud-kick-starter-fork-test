@@ -13,6 +13,7 @@ import {
 import { memo, useMemo } from "react";
 import { SeoPreview, optionItems } from "./BlogContentPanels.jsx";
 import { StableMultilineTextField } from "./StableMultilineTextField.jsx";
+import { BlogContentDeploymentImpactPanel } from "./BlogContentDeploymentImpactPanel.jsx";
 
 const ToggleChipField = memo(function ToggleChipField({ label, options, values, onToggle }) {
   return (
@@ -408,7 +409,12 @@ export function BlogContentEditorPanel({ workspace }) {
   return (
     <Stack spacing={2}>
       <EditorHeader workspace={workspace} />
-      <Alert severity="info">Standalone pages are managed in the Pages module.</Alert>
+      <BlogContentDeploymentImpactPanel
+        impactedTemplates={workspace.deploymentAwareness.impactedTemplates}
+        loading={workspace.deploymentAwareness.state.loading}
+        errorMessage={workspace.deploymentAwareness.state.errorMessage}
+        onOpenPages={workspace.openPagesDesk}
+      />
       {workspace.saveState.errorMessage ? <Alert severity="error">{workspace.saveState.errorMessage}</Alert> : null}
       {workspace.saveState.successMessage ? <Alert severity="success">{workspace.saveState.successMessage}</Alert> : null}
       <EssentialsSection workspace={workspace} />

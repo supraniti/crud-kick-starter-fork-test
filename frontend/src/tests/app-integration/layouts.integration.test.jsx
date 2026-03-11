@@ -226,3 +226,78 @@ test("layout builder can compose container and block structures through the live
   expect(screen.getAllByText("Card Row").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Content Block").length).toBeGreaterThan(1);
 }, 15000);
+
+test("layout builder surfaces deployment impact and can return to the calling page", async () => {
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "page-layouts") {
+      return {
+        items: [
+          {
+            id: "layout-001",
+            title: "Landing Shell",
+            layoutKey: "landing-shell",
+            summary: "Reusable layout",
+            status: "ready",
+            layoutDocument: createLayoutDocument(),
+            rootLayoutMode: "grid"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-pages") {
+      return {
+        items: [
+          {
+            id: "page-020",
+            title: "Posts Page",
+            layoutId: "layout-001",
+            status: "published",
+            deploymentStatus: "stale"
+          },
+          {
+            id: "page-021",
+            title: "Landing Page",
+            layoutId: "layout-001",
+            status: "published",
+            deploymentStatus: "clean"
+          }
+        ]
+      };
+    }
+
+    return { items: [] };
+  });
+
+  const navigate = vi.fn();
+
+  render(
+    <LayoutsView
+      activeModuleLabel="Layouts"
+      navigate={navigate}
+      route={{
+        moduleId: "test-modules-layouts",
+        layoutId: "layout-001",
+        returnModuleId: "test-modules-pages",
+        returnPageId: "page-020",
+        returnTab: "overview"
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText(/published page templates reference this layout/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 clean,\s*1 stale,\s*0 missing\./i)).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Return To Page" }));
+
+  expect(navigate).toHaveBeenCalledWith(
+    {
+      moduleId: "test-modules-pages",
+      pageId: "page-020",
+      tab: "overview"
+    },
+    { replace: false }
+  );
+}, 15000);

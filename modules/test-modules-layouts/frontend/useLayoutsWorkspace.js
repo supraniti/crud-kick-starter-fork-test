@@ -20,6 +20,10 @@ import {
   resolveMoveTarget,
   updateNodeInLayout
 } from "./layout-builder-model.js";
+import {
+  useLayoutDeploymentImpact,
+  useLayoutRouteSync
+} from "./layouts-workspace-support.js";
 
 const LAYOUTS_COLLECTION_ID = "page-layouts";
 const PAGES_COLLECTION_ID = "blog-pages";
@@ -398,23 +402,7 @@ function useLayoutDocumentActions(selection) {
   };
 }
 
-export function useLayoutsWorkspace() {
-  const { supportState, reload } = useLayoutsSupportData();
-  const layouts = useMemo(
-    () => [...supportState.layouts].sort((left, right) => String(left.title ?? "").localeCompare(String(right.title ?? ""))),
-    [supportState.layouts]
-  );
-  const usageCountByLayoutId = useMemo(() => {
-    const next = new Map();
-    for (const page of supportState.pages) {
-      if (page.layoutId) {
-        next.set(page.layoutId, (next.get(page.layoutId) ?? 0) + 1);
-      }
-    }
-    return next;
-  }, [supportState.pages]);
-  const selection = useLayoutSelection(layouts);
-  const selectedLayout = layouts.find((item) => item.id === selection.selectedLayoutId) ?? null;
+function useSelectedNodeState(selection) {
   const selectedNode = selection.draft.layoutDocument?.nodes?.[selection.selectedNodeId] ?? null;
   const selectedParentNode = useMemo(() => {
     const parentId = findParentContainerId(selection.draft.layoutDocument, selection.selectedNodeId);
@@ -433,20 +421,17 @@ export function useLayoutsWorkspace() {
     () => buildNodePath(selection.draft.layoutDocument, selection.selectedNodeId),
     [selection.draft.layoutDocument, selection.selectedNodeId]
   );
-  const persistence = useLayoutPersistence(selection, reload);
-  const documentActions = useLayoutDocumentActions(selection);
 
   return {
-    supportState,
-    layouts,
-    usageCountByLayoutId,
-    selectedLayout,
     selectedNode,
-    selectedPathIds,
-    ...selection,
-    ...persistence,
-    ...documentActions,
     selectedParentNode,
+    selectedSiblingIndex,
+    selectedPathIds
+  };
+}
+
+function createSelectionActions({ selection, selectedNode, selectedParentNode, selectedSiblingIndex, documentActions }) {
+  return {
     isSelectedNodeMovable: Boolean(selectedNode && selectedNode.id !== selection.draft.layoutDocument.rootId),
     canMoveSelectedBackward: Boolean(selectedParentNode && selectedSiblingIndex > 0),
     canMoveSelectedForward: Boolean(
@@ -509,4 +494,72 @@ export function useLayoutsWorkspace() {
       selection.setActionState(createActionState());
     }
   };
+}
+
+function useLayoutsWorkspaceInternal({ navigate = null, route = {} } = {}) {
+  const { supportState, reload } = useLayoutsSupportData();
+  const layouts = useMemo(
+    () => [...supportState.layouts].sort((left, right) => String(left.title ?? "").localeCompare(String(right.title ?? ""))),
+    [supportState.layouts]
+  );
+  const usageCountByLayoutId = useMemo(() => {
+    const next = new Map();
+    for (const page of supportState.pages) {
+      if (page.layoutId) {
+        next.set(page.layoutId, (next.get(page.layoutId) ?? 0) + 1);
+      }
+    }
+    return next;
+  }, [supportState.pages]);
+  const selection = useLayoutSelection(layouts);
+  const selectedLayout = layouts.find((item) => item.id === selection.selectedLayoutId) ?? null;
+  const {
+    selectedNode,
+    selectedParentNode,
+    selectedSiblingIndex,
+    selectedPathIds
+  } = useSelectedNodeState(selection);
+  const persistence = useLayoutPersistence(selection, reload);
+  const documentActions = useLayoutDocumentActions(selection);
+  useLayoutRouteSync({
+    layouts,
+    navigate,
+    route,
+    selection
+  });
+  const { selectedLayoutDeploymentImpact, returnRoute, returnToCallingRoute } =
+    useLayoutDeploymentImpact({
+      selectedLayout,
+      pages: supportState.pages,
+      navigate,
+      route
+    });
+  const selectionActions = createSelectionActions({
+    selection,
+    selectedNode,
+    selectedParentNode,
+    selectedSiblingIndex,
+    documentActions
+  });
+
+  return {
+    supportState,
+    layouts,
+    usageCountByLayoutId,
+    selectedLayoutDeploymentImpact,
+    returnRoute,
+    returnToCallingRoute,
+    selectedLayout,
+    selectedNode,
+    selectedPathIds,
+    ...selection,
+    ...persistence,
+    ...documentActions,
+    ...selectionActions,
+    selectedParentNode,
+  };
+}
+
+export function useLayoutsWorkspace(options) {
+  return useLayoutsWorkspaceInternal(options);
 }

@@ -1,6 +1,8 @@
 import { Alert, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { ModuleSettingsPanel } from "../../../frontend/src/ui/ModuleSettingsPanel.jsx";
 import {
+  DeploymentInstancesPanel,
   DeliveryPreviewPanel,
   DistributionFilters,
   DistributionQueue,
@@ -28,10 +30,10 @@ function Hero({ activeModuleLabel }) {
         <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.75)" }}>
           {activeModuleLabel}
         </Typography>
-        <Typography variant="h4">Standalone Pages Desk</Typography>
+        <Typography variant="h4">Pages Desk</Typography>
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
-          Build standalone pages, bind them to approved content sources, and inspect the delivery
-          JSON that downstream renderers will consume.
+          Build single pages and reusable page templates, bind them to approved content sources,
+          and inspect the delivery JSON that downstream renderers will consume.
         </Typography>
       </Stack>
     </Paper>
@@ -43,11 +45,12 @@ function SummaryGrid({ summary }) {
     <Stack
       direction={{ xs: "column", md: "row" }}
       spacing={2}
-      sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}
+      sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(5, 1fr)" } }}
     >
-      <SummaryCard label="Scheduled Pages" value={summary.scheduled} tone="attention" />
-      <SummaryCard label="Published" value={summary.published} />
-      <SummaryCard label="Pages With Warnings" value={summary.warnings} tone="attention" />
+      <SummaryCard label="Published Pages" value={summary.published} />
+      <SummaryCard label="Synced Outputs" value={summary.syncedOutputs} />
+      <SummaryCard label="Stale Outputs" value={summary.staleOutputs} tone="attention" />
+      <SummaryCard label="Missing Outputs" value={summary.missingOutputs} tone="attention" />
       <SummaryCard label="Active Redirects" value={summary.activeRedirects} />
     </Stack>
   );
@@ -88,7 +91,20 @@ function OverviewTab({ workspace }) {
         </Stack>
         <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
           <ReadinessPanel workspace={workspace} />
+          <DeploymentInstancesPanel workspace={workspace} />
           <DeliveryPreviewPanel workspace={workspace} />
+          {workspace.moduleSettingsDomain?.isActiveModuleSettingsAvailable ? (
+            <ModuleSettingsPanel
+              moduleId={workspace.moduleSettingsDomain.moduleSettingsState.moduleId}
+              moduleSettingsState={workspace.moduleSettingsDomain.moduleSettingsState}
+              moduleSettingsMeta={workspace.moduleSettingsDomain.activeModuleSettingsMeta}
+              moduleSettingsPersistencePolicy={
+                workspace.moduleSettingsDomain.activeModuleSettingsPersistencePolicy
+              }
+              onChangeField={workspace.moduleSettingsDomain.handleSettingsFieldChange}
+              onSave={workspace.saveModuleSettings}
+            />
+          ) : null}
         </Stack>
       </Stack>
     </Stack>
@@ -135,11 +151,86 @@ function RedirectsTab({ workspace }) {
   );
 }
 
-export function BlogDistributionView({ activeModuleLabel, collectionsDomain }) {
+export function BlogDistributionView({
+  activeModuleLabel,
+  collectionsDomain,
+  moduleSettingsDomain = null,
+  navigate = null,
+  route = {}
+}) {
   const [tab, setTab] = useState("overview");
   const workspace = useBlogDistributionWorkspace({
     collectionsDomain
   });
+  const routePageId = typeof route?.pageId === "string" ? route.pageId : "";
+
+  useEffect(() => {
+    if (
+      workspace.isCreatingNewPage
+      || routePageId.length === 0
+      || routePageId === workspace.selectedPageId
+    ) {
+      return;
+    }
+    if (!workspace.pages.some((page) => page.id === routePageId)) {
+      return;
+    }
+    workspace.selectPage(routePageId);
+  }, [
+    routePageId,
+    workspace.isCreatingNewPage,
+    workspace.pages,
+    workspace.selectPage,
+    workspace.selectedPageId
+  ]);
+
+  useEffect(() => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    const nextPageId = workspace.isCreatingNewPage ? "" : workspace.selectedPageId ?? "";
+    if (routePageId === nextPageId) {
+      return;
+    }
+    navigate(
+      {
+        ...route,
+        pageId: nextPageId
+      },
+      { replace: true }
+    );
+  }, [navigate, route, routePageId, workspace.isCreatingNewPage, workspace.selectedPageId]);
+
+  const openLayoutBuilder = useCallback(() => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate(
+      {
+        moduleId: "test-modules-layouts",
+        layoutId: workspace.pageDraft.layoutId,
+        returnModuleId: "test-modules-pages",
+        returnPageId: workspace.selectedPageId ?? "",
+        returnTab: "overview"
+      },
+      { replace: false }
+    );
+  }, [navigate, workspace.pageDraft.layoutId, workspace.selectedPageId]);
+
+  const saveModuleSettings = useCallback(async () => {
+    if (!moduleSettingsDomain || typeof moduleSettingsDomain.handleSaveModuleSettings !== "function") {
+      return;
+    }
+    await moduleSettingsDomain.handleSaveModuleSettings();
+    await workspace.reloadSupportData();
+  }, [moduleSettingsDomain, workspace]);
+
+  const viewWorkspace = {
+    ...workspace,
+    moduleSettingsDomain,
+    openLayoutBuilder,
+    saveModuleSettings
+  };
 
   if (
     !collectionsDomain.isActiveCollectionAvailable &&
@@ -158,8 +249,8 @@ export function BlogDistributionView({ activeModuleLabel, collectionsDomain }) {
           <Tab value="redirects" label="Redirect Manager" />
         </Tabs>
       </Paper>
-      {tab === "overview" ? <OverviewTab workspace={workspace} /> : null}
-      {tab === "redirects" ? <RedirectsTab workspace={workspace} /> : null}
+      {tab === "overview" ? <OverviewTab workspace={viewWorkspace} /> : null}
+      {tab === "redirects" ? <RedirectsTab workspace={viewWorkspace} /> : null}
     </Stack>
   );
 }

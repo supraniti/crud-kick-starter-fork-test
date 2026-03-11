@@ -8,6 +8,7 @@ import {
   TAGS_COLLECTION_ID,
   buildDefaultPrimarySource,
   cloneJsonValue,
+  isPerRecordDeploymentMode,
   isPagePublished,
   normalizeScriptUrlList,
   normalizeOptionalText,
@@ -26,6 +27,14 @@ function toArray(value) {
 
 function createDependencyKey(collectionId, itemId = null) {
   return itemId ? `${collectionId}:${itemId}` : `${collectionId}:*`;
+}
+
+function escapePathTokenSegment(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9-_]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function readDisplayLabel(item = {}) {
@@ -88,7 +97,14 @@ async function findHandlerItem(handler, itemId) {
   return handler.findById(itemId);
 }
 
-function buildPrimarySourceDescriptor(page = {}) {
+function resolveSourceDescriptorItemId(page = {}, sourceRecord = null) {
+  if (sourceRecord?.id) {
+    return sourceRecord.id;
+  }
+  return page.primarySource?.itemId ?? null;
+}
+
+function buildPrimarySourceDescriptor(page = {}, sourceRecord = null) {
   const fallback = buildDefaultPrimarySource(page.primarySourceType, null);
   const source = page.primarySource && typeof page.primarySource === "object" ? page.primarySource : fallback;
   if (!source) {
@@ -103,9 +119,35 @@ function buildPrimarySourceDescriptor(page = {}) {
   return {
     kind: "record-by-id",
     sourceType,
-    itemId: normalizeOptionalText(source.itemId),
+    itemId: normalizeOptionalText(resolveSourceDescriptorItemId(page, sourceRecord)),
     bindAs: normalizeOptionalText(source.bindAs) ?? "primary"
   };
+}
+
+function resolvePathPattern(page = {}) {
+  return normalizeOptionalText(page.pathPattern);
+}
+
+export function buildResolvedPagePath(page = {}, sourceRecord = null) {
+  if (!isPerRecordDeploymentMode(page.deploymentMode)) {
+    return normalizePagePath(page.path);
+  }
+
+  const pattern = resolvePathPattern(page);
+  if (!pattern) {
+    return normalizePagePath(page.path);
+  }
+
+  const path = pattern.replace(/\{([a-zA-Z0-9_-]+)\}/g, (_, tokenName) => {
+    if (tokenName === "slug") {
+      return escapePathTokenSegment(sourceRecord?.slug ?? "");
+    }
+    if (tokenName === "id") {
+      return escapePathTokenSegment(sourceRecord?.id ?? "");
+    }
+    return "";
+  });
+  return normalizePagePath(path);
 }
 
 function normalizeDataSource(entry = {}, index = 0) {
@@ -153,6 +195,41 @@ async function resolveSingleRecord(collectionHandlerRegistry, descriptor) {
         }
       : null
   };
+}
+
+export async function listEligiblePrimarySourceRecords(collectionHandlerRegistry, page = {}) {
+  if (!isPerRecordDeploymentMode(page.deploymentMode)) {
+    return [];
+  }
+
+  if (normalizePrimarySourceType(page.primarySourceType) !== "blog-post") {
+    return [];
+  }
+
+  const postsHandler = collectionHandlerRegistry.get(POSTS_COLLECTION_ID);
+  const posts = await listHandlerItems(postsHandler);
+  return posts.filter((post) => post?.status === "published");
+}
+
+async function resolveRequestedSourceRecord({
+  collectionHandlerRegistry,
+  page,
+  requestedSourceItemId = null
+}) {
+  if (!isPerRecordDeploymentMode(page.deploymentMode)) {
+    return null;
+  }
+
+  const eligibleRecords = await listEligiblePrimarySourceRecords(collectionHandlerRegistry, page);
+  if (eligibleRecords.length === 0) {
+    return null;
+  }
+
+  if (requestedSourceItemId) {
+    return eligibleRecords.find((entry) => entry.id === requestedSourceItemId) ?? null;
+  }
+
+  return eligibleRecords[0] ?? null;
 }
 
 function matchPostDescriptor(post, descriptor) {
@@ -285,13 +362,16 @@ function buildResolvedSourceSummaries(primarySource, resolvedPrimary, resolvedSo
   return summaries;
 }
 
-function buildPageSummary(page = {}) {
+function buildPageSummary(page = {}, resolvedPath = null) {
   return {
     id: page.id,
     title: page.title,
-    path: normalizePagePath(page.path),
+    path: normalizePagePath(resolvedPath ?? page.path),
+    pathPattern: resolvePathPattern(page),
     status: page.status,
     pageKind: page.pageKind,
+    deploymentMode: page.deploymentMode ?? "single-page",
+    sourceSelectionMode: page.sourceSelectionMode ?? "none",
     primarySourceType: page.primarySourceType,
     layoutId: page.layoutId ?? null,
     layoutKey: page.layoutKey,
@@ -299,7 +379,13 @@ function buildPageSummary(page = {}) {
     runtimeScriptUrls: normalizeScriptUrlList(page.runtimeScriptUrls),
     renderPolicy: cloneJsonValue(page.renderPolicy ?? {}),
     deploymentArtifactPath: page.deploymentArtifactPath ?? null,
+    deploymentStatus: page.deploymentStatus ?? "missing",
+    deploymentTargetCount: page.deploymentTargetCount ?? 0,
+    deploymentSyncedCount: page.deploymentSyncedCount ?? 0,
+    deploymentStaleCount: page.deploymentStaleCount ?? 0,
+    deploymentMissingCount: page.deploymentMissingCount ?? 0,
     deploymentSyncedOn: page.deploymentSyncedOn ?? null,
+    deploymentLastRunOn: page.deploymentLastRunOn ?? null,
     updatedOn: page.updatedOn,
     createdOn: page.createdOn,
     scheduledOn: page.scheduledOn ?? null,
@@ -311,9 +397,11 @@ function buildPageSummary(page = {}) {
 export async function resolvePageDeliveryPayload({
   collectionHandlerRegistry,
   page,
-  preview = false
+  preview = false,
+  sourceRecord = null
 }) {
-  const primarySource = buildPrimarySourceDescriptor(page);
+  const resolvedPath = buildResolvedPagePath(page, sourceRecord);
+  const primarySource = buildPrimarySourceDescriptor(page, sourceRecord);
   const dataSourceDescriptors = buildDataSourceDescriptors(page);
   const resolvedPrimary = primarySource
     ? await resolveDescriptor(collectionHandlerRegistry, primarySource)
@@ -336,7 +424,7 @@ export async function resolvePageDeliveryPayload({
 
   return {
     contractVersion: 1,
-    page: buildPageSummary(page),
+    page: buildPageSummary(page, resolvedPath),
     head: buildHeadModel(page, primaryRecord),
     renderModel,
     resolvedSources: buildResolvedSourceSummaries(primarySource, resolvedPrimary, resolvedSources),
@@ -344,7 +432,7 @@ export async function resolvePageDeliveryPayload({
     followUp: {
       mode: page.renderPolicy?.followUpMode ?? "page-by-path",
       pageByIdRoute: `/api/reference/modules/${MODULE_ID}/pages/${page.id}/delivery`,
-      pageByPathRoute: `/api/reference/modules/${MODULE_ID}/delivery/resolve?path=${encodeURIComponent(page.path)}`
+      pageByPathRoute: `/api/reference/modules/${MODULE_ID}/delivery/resolve?path=${encodeURIComponent(resolvedPath)}`
     },
     versioning: {
       publishModel: page.renderPolicy?.publishModel ?? "live-reference",
@@ -373,4 +461,34 @@ export async function resolvePageByPath({ collectionHandlerRegistry, path, previ
     page,
     preview
   });
+}
+
+export async function resolvePagePreviewPayload({
+  collectionHandlerRegistry,
+  page,
+  requestedSourceItemId = null
+}) {
+  const sourceRecord = await resolveRequestedSourceRecord({
+    collectionHandlerRegistry,
+    page,
+    requestedSourceItemId
+  });
+  return resolvePageDeliveryPayload({
+    collectionHandlerRegistry,
+    page,
+    preview: true,
+    sourceRecord
+  });
+}
+
+export async function listPagePreviewSourceOptions({
+  collectionHandlerRegistry,
+  page
+}) {
+  const records = await listEligiblePrimarySourceRecords(collectionHandlerRegistry, page);
+  return records.map((record) => ({
+    id: record.id,
+    label: readDisplayLabel(record),
+    path: buildResolvedPagePath(page, record)
+  }));
 }

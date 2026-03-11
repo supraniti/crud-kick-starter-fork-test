@@ -14,6 +14,8 @@ export function registerModuleViews() {
         <BlogContentView
           activeModuleLabel={context.activeModuleLabel}
           collectionsDomain={context.collectionsDomain}
+          navigate={context.navigate}
+          route={context.route}
         />
       )
     }

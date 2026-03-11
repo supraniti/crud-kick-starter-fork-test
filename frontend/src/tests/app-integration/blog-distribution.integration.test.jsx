@@ -1,7 +1,12 @@
-import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { BlogDistributionView } from "../../../../modules/test-modules-pages/frontend/BlogDistributionView.jsx";
 import * as referenceApi from "../../api/reference.js";
+import {
+  createCollectionsDomain,
+  createJsonResponse,
+  installReferenceMocks
+} from "./blog-distribution.integration-support.jsx";
 
 vi.mock("../../api/reference.js", async () => {
   const actual = await vi.importActual("../../api/reference.js");
@@ -13,189 +18,16 @@ vi.mock("../../api/reference.js", async () => {
   };
 });
 
-function createCollectionsDomain() {
-  return {
-    collectionsState: {
-      loading: false,
-      errorMessage: null,
-      items: [
-        {
-          id: "blog-redirect-rules",
-          label: "Redirect Rules",
-          capabilities: {
-            create: true,
-            update: true,
-            delete: true
-          }
-        }
-      ]
-    },
-    collectionSchemaState: {
-      loading: false,
-      errorMessage: null,
-      collection: {
-        id: "blog-redirect-rules",
-        label: "Redirect Rules",
-        entitySingular: "redirect rule",
-        fields: []
-      }
-    },
-    collectionItemsState: {
-      loading: false,
-      errorMessage: null,
-      items: []
-    },
-    referenceOptionsState: {},
-    activeCollectionId: "blog-redirect-rules",
-    isActiveCollectionAvailable: true,
-    activeCollectionUnavailableMessage: null,
-    handleSelectCollection: vi.fn(),
-    reloadCollectionItems: vi.fn()
-  };
-}
-
-function installReferenceMocks() {
-  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
-    if (collectionId === "blog-pages") {
-      return {
-        items: [
-          {
-            id: "page-001",
-            title: "Launch Story",
-            pageKind: "content-detail",
-            primarySourceType: "blog-post",
-            path: "/stories/launch-window-update",
-            layoutKey: "story-shell",
-            primarySource: {
-              sourceType: "blog-post",
-              itemId: "post-001",
-              bindAs: "primary"
-            },
-            dataSources: [],
-            status: "scheduled",
-            scheduledOn: "2026-03-09T09:00:00.000Z",
-            seoTitle: "Launch Story",
-            seoDescription: "Launch story description",
-            ogTitle: "Launch Story",
-            ogDescription: "Launch story description",
-            ogImageMediaId: "media-001",
-            createdOn: "2026-03-08T08:00:00.000Z",
-            updatedOn: "2026-03-08T08:00:00.000Z"
-          }
-        ]
-      };
-    }
-
-    if (collectionId === "blog-redirect-rules") {
-      return {
-        items: [
-          {
-            id: "redirect-001",
-            sourcePath: "/legacy-launch",
-            targetPageId: "page-001",
-            targetUrl: null,
-            httpCode: "301",
-            status: "active",
-            reason: "Legacy permalink",
-            createdOn: "2026-03-08T08:00:00.000Z",
-            updatedOn: "2026-03-08T08:00:00.000Z"
-          }
-        ]
-      };
-    }
-
-    if (collectionId === "blog-posts") {
-      return {
-        items: [
-          {
-            id: "post-001",
-            title: "Launch Window Update",
-            slug: "launch-window-update",
-            status: "scheduled",
-            primaryAuthorId: "author-001",
-            excerpt: "Launch story description",
-            featuredMediaId: "media-001",
-            seoTitle: "Launch Window Update",
-            seoDescription: "Launch story description",
-            ogTitle: "Launch Window Update",
-            ogDescription: "Launch story description",
-            ogImageMediaId: "media-001"
-          }
-        ]
-      };
-    }
-
-    if (collectionId === "blog-authors") {
-      return {
-        items: [
-          {
-            id: "author-001",
-            displayName: "Distribution Editor",
-            role: "editor",
-            status: "active"
-          }
-        ]
-      };
-    }
-
-    if (collectionId === "blog-categories") {
-      return {
-        items: [
-          {
-            id: "cat-001",
-            name: "Releases"
-          }
-        ]
-      };
-    }
-
-    if (collectionId === "blog-tags") {
-      return {
-        items: [
-          {
-            id: "tag-001",
-            name: "Platform"
-          }
-        ]
-      };
-    }
-
-    if (collectionId === "media-items") {
-      return {
-        items: [
-          {
-            id: "media-001",
-            displayName: "Launch Hero"
-          }
-        ]
-      };
-    }
-
-    return {
-      items: []
-    };
-  });
-}
-
-function createJsonResponse(status, payload) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    async json() {
-      return payload;
-    }
-  };
-}
-
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
-
 test("pages overview renders standalone pages desk, previews delivery json, and publishes scheduled pages", async () => {
-  installReferenceMocks();
+  installReferenceMocks(referenceApi);
   const fetchMock = vi.fn(async (url) => {
+    if (String(url).includes("/pages/page-001/preview-sources")) {
+      return createJsonResponse(200, {
+        ok: true,
+        items: []
+      });
+    }
+
     if (String(url).includes("/pages/page-001/delivery")) {
       return createJsonResponse(200, {
         ok: true,
@@ -245,7 +77,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Standalone Pages Desk" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 4, name: "Pages Desk" })).toBeInTheDocument();
     expect(screen.getByText("Launch Story")).toBeInTheDocument();
   });
 
@@ -253,7 +85,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reference/modules/test-modules-pages/pages/page-001/delivery?preview=true",
+      "/api/reference/modules/test-modules-pages/pages/page-001/delivery?preview=true&sourceItemId=post-001",
       expect.objectContaining({
         method: "GET"
       })
@@ -275,7 +107,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
 }, 15000);
 
 test("pages editor creates standalone pages and redirect manager persists page-targeted redirects", async () => {
-  installReferenceMocks();
+  installReferenceMocks(referenceApi);
   referenceApi.createReferenceCollectionItem.mockImplementation(async ({ collectionId, item }) => {
     if (collectionId === "blog-pages") {
       return {
@@ -298,6 +130,13 @@ test("pages editor creates standalone pages and redirect manager persists page-t
     };
   });
   const fetchMock = vi.fn(async (url) => {
+    if (String(url).includes("/pages/page-001/preview-sources")) {
+      return createJsonResponse(200, {
+        ok: true,
+        items: []
+      });
+    }
+
     if (String(url).includes("/pages/page-001/delivery")) {
       return createJsonResponse(200, {
         ok: true,
@@ -419,3 +258,208 @@ test("pages editor creates standalone pages and redirect manager persists page-t
     });
   });
 }, 15000);
+
+test("pages desk exposes deployment settings and can open the selected layout builder with return context", async () => {
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "blog-pages") {
+      return {
+        items: [
+          {
+            id: "page-001",
+            title: "Launch Story",
+            pageKind: "content-detail",
+            deploymentMode: "single-page",
+            primarySourceType: "blog-post",
+            sourceSelectionMode: "specific-record",
+            path: "/stories/launch-window-update",
+            layoutId: "layout-001",
+            layoutKey: "story-shell",
+            primarySource: {
+              sourceType: "blog-post",
+              itemId: "post-001",
+              bindAs: "primary"
+            },
+            dataSources: [],
+            status: "published",
+            seoTitle: "Launch Story",
+            seoDescription: "Launch story description",
+            ogTitle: "Launch Story",
+            ogDescription: "Launch story description",
+            ogImageMediaId: "media-001",
+            deploymentStatus: "clean",
+            deploymentSyncedCount: 1,
+            deploymentTargetCount: 1,
+            deploymentStaleCount: 0,
+            deploymentMissingCount: 0,
+            createdOn: "2026-03-08T08:00:00.000Z",
+            updatedOn: "2026-03-08T08:00:00.000Z"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-redirect-rules") {
+      return { items: [] };
+    }
+
+    if (collectionId === "page-layouts") {
+      return {
+        items: [
+          {
+            id: "layout-001",
+            title: "Story Shell"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-posts") {
+      return {
+        items: [
+          {
+            id: "post-001",
+            title: "Launch Window Update",
+            slug: "launch-window-update",
+            status: "published",
+            primaryAuthorId: "author-001",
+            excerpt: "Launch story description",
+            featuredMediaId: "media-001"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-authors") {
+      return {
+        items: [
+          {
+            id: "author-001",
+            displayName: "Distribution Editor",
+            role: "editor",
+            status: "active"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "media-items") {
+      return {
+        items: [
+          {
+            id: "media-001",
+            displayName: "Launch Hero"
+          }
+        ]
+      };
+    }
+
+    return { items: [] };
+  });
+
+  const fetchMock = vi.fn(async (url) => {
+    if (String(url).includes("/pages/page-001/preview-sources")) {
+      return createJsonResponse(200, {
+        ok: true,
+        items: []
+      });
+    }
+
+    if (String(url).includes("/pages/page-001/delivery")) {
+      return createJsonResponse(200, {
+        ok: true,
+        payload: {
+          contractVersion: 1,
+          page: {
+            id: "page-001"
+          }
+        }
+      });
+    }
+
+    return createJsonResponse(404, {
+      ok: false,
+      error: {
+        message: "not found"
+      }
+    });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  const navigate = vi.fn();
+  const handleSaveModuleSettings = vi.fn(async () => {});
+  const moduleSettingsDomain = {
+    moduleSettingsState: {
+      loading: false,
+      saving: false,
+      errorMessage: null,
+      successMessage: null,
+      moduleId: "test-modules-pages",
+      schema: {
+        fields: [
+          {
+            id: "appMountTagName",
+            label: "App Mount Tag Name",
+            type: "text"
+          }
+        ]
+      },
+      draftValues: {
+        appMountTagName: "app-root"
+      }
+    },
+    activeModuleSettingsMeta: {
+      moduleId: "test-modules-pages",
+      state: "enabled"
+    },
+    activeModuleSettingsPersistencePolicy: null,
+    isActiveModuleSettingsAvailable: true,
+    handleSettingsFieldChange: vi.fn(),
+    handleSaveModuleSettings
+  };
+
+  render(
+    <BlogDistributionView
+      activeModuleLabel="Pages"
+      collectionsDomain={createCollectionsDomain()}
+      moduleSettingsDomain={moduleSettingsDomain}
+      navigate={navigate}
+      route={{
+        moduleId: "test-modules-pages",
+        pageId: "page-001"
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByLabelText("App Mount Tag Name")).toBeInTheDocument();
+    expect(screen.getByText("Launch Story")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getAllByText("Launch Story")[0]);
+
+  const editSelectedLayoutButton = await screen.findByRole("button", {
+    name: "Edit Selected Layout"
+  });
+
+  fireEvent.click(editSelectedLayoutButton);
+
+  await waitFor(() => {
+    expect(navigate).toHaveBeenCalledWith(
+      {
+        moduleId: "test-modules-layouts",
+        layoutId: "layout-001",
+        returnModuleId: "test-modules-pages",
+        returnPageId: "page-001",
+        returnTab: "overview"
+      },
+      { replace: false }
+    );
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Save settings" }));
+
+  await waitFor(() => {
+    expect(handleSaveModuleSettings).toHaveBeenCalled();
+  });
+}, 15000);
+

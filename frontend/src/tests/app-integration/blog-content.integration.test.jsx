@@ -130,12 +130,19 @@ function createJsonResponse(status, payload) {
   };
 }
 
-function installContentFetchMocks({ revisions = [] } = {}) {
+function installContentFetchMocks({ revisions = [], pages = [] } = {}) {
   referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
     if (collectionId === "blog-post-revisions") {
       return {
         ok: true,
         items: revisions
+      };
+    }
+
+    if (collectionId === "blog-pages") {
+      return {
+        ok: true,
+        items: pages
       };
     }
 
@@ -193,7 +200,9 @@ test("blog content view renders custom editor and revision timeline", async () =
     expect(screen.getByText("Launch Post")).toBeInTheDocument();
     expect(screen.getByText("Revision Timeline")).toBeInTheDocument();
     expect(screen.getByText("Rev 2")).toBeInTheDocument();
-    expect(screen.getByText("Standalone pages are managed in the Pages module.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Standalone pages and deployed post templates are managed in the Pages module.")
+    ).toBeInTheDocument();
   });
 });
 
@@ -384,3 +393,48 @@ test("blog content editor keeps the newly created draft selected before collecti
     expect(screen.getByText("Post created")).toBeInTheDocument();
   });
 }, 30000);
+
+test("blog content view surfaces deployment impact for published posts and routes to the pages desk", async () => {
+  installContentFetchMocks({
+    pages: [
+      {
+        id: "page-010",
+        title: "Posts Page",
+        status: "published",
+        deploymentMode: "per-record",
+        primarySourceType: "blog-post",
+        sourceSelectionMode: "all-records",
+        pathPattern: "/posts/{slug}",
+        deploymentStatus: "stale",
+        deploymentSyncedCount: 1,
+        deploymentTargetCount: 2
+      }
+    ]
+  });
+  const navigate = vi.fn();
+  const collectionsDomain = createCollectionsDomain();
+  collectionsDomain.collectionItemsState.items[0].status = "published";
+
+  render(
+    <BlogContentView
+      activeModuleLabel="Content"
+      collectionsDomain={collectionsDomain}
+      navigate={navigate}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText("Deployment Impact")).toBeInTheDocument();
+    expect(screen.getByText("Posts Page")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Open Pages Desk" }));
+
+  expect(navigate).toHaveBeenCalledWith(
+    {
+      moduleId: "test-modules-pages",
+      pageId: "page-010"
+    },
+    { replace: false }
+  );
+}, 15000);

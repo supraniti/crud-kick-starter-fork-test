@@ -50,12 +50,49 @@ function BuilderHeader({ activeModuleLabel, workspace }) {
               <Typography variant="h5">{title}</Typography>
               <Chip size="small" label={workspace.isCreatingNewLayout ? "new" : workspace.draft.status} />
               <Chip size="small" variant="outlined" label={`Selected: ${modeLabel}`} />
+              {workspace.selectedLayoutDeploymentImpact.totalTemplates > 0 ? (
+                <Chip
+                  size="small"
+                  color={
+                    workspace.selectedLayoutDeploymentImpact.staleTemplates > 0
+                    || workspace.selectedLayoutDeploymentImpact.missingTemplates > 0
+                      ? "warning"
+                      : "success"
+                  }
+                  variant="outlined"
+                  label={`${workspace.selectedLayoutDeploymentImpact.totalTemplates} page template${
+                    workspace.selectedLayoutDeploymentImpact.totalTemplates === 1 ? "" : "s"
+                  }`}
+                />
+              ) : null}
             </Stack>
             <Typography variant="body2" color="text.secondary">
               Build layouts on a dedicated page stage. Containers should read as real containers that hold space, not admin cards.
             </Typography>
+            {workspace.selectedLayoutDeploymentImpact.totalTemplates > 0 ? (
+              <Alert
+                severity={
+                  workspace.selectedLayoutDeploymentImpact.staleTemplates > 0
+                  || workspace.selectedLayoutDeploymentImpact.missingTemplates > 0
+                    ? "warning"
+                    : "info"
+                }
+              >
+                {workspace.selectedLayoutDeploymentImpact.publishedTemplates} published page template
+                {workspace.selectedLayoutDeploymentImpact.publishedTemplates === 1 ? "" : "s"} reference this layout.
+                {" "}
+                {workspace.selectedLayoutDeploymentImpact.cleanTemplates} clean,{" "}
+                {workspace.selectedLayoutDeploymentImpact.staleTemplates} stale,{" "}
+                {workspace.selectedLayoutDeploymentImpact.missingTemplates} missing.
+              </Alert>
+            ) : null}
           </Stack>
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            {workspace.returnRoute ? (
+              <Button variant="outlined" onClick={workspace.returnToCallingRoute}>
+                Return To Page
+              </Button>
+            ) : null}
             <Button variant="outlined" onClick={workspace.startNewLayout}>
               New Layout
             </Button>
@@ -79,8 +116,11 @@ function BuilderHeader({ activeModuleLabel, workspace }) {
   );
 }
 
-export function LayoutsView({ activeModuleLabel }) {
-  const workspace = useLayoutsWorkspace();
+export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) {
+  const workspace = useLayoutsWorkspace({
+    navigate,
+    route
+  });
   const parentNode = workspace.selectedNodeId
     ? workspace.draft.layoutDocument.nodes[
         findParentContainerId(workspace.draft.layoutDocument, workspace.selectedNodeId) ?? ""

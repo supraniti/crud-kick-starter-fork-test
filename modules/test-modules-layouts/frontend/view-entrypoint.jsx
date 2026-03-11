@@ -13,7 +13,13 @@ export function registerModuleViews() {
         mode: "immersive"
       },
       routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
-      render: (context) => <LayoutsView activeModuleLabel={context.activeModuleLabel} />
+      render: (context) => (
+        <LayoutsView
+          activeModuleLabel={context.activeModuleLabel}
+          navigate={context.navigate}
+          route={context.route}
+        />
+      )
     }
   ];
 }

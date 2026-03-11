@@ -480,6 +480,7 @@ function useAppDomains({
 
 function resolveActiveModuleViewState({
   route,
+  navigate,
   moduleRuntimeItems,
   moduleStateItems,
   selectedCategoryIds,
@@ -501,6 +502,7 @@ function resolveActiveModuleViewState({
     route.moduleId;
   const activeModuleView = renderActiveModuleView({
     route,
+    navigate,
     activeModuleLabel,
     moduleRuntimeItems,
     selectedCategoryIds,

@@ -1,12 +1,15 @@
 import { badRequestWithConflicts } from "../../../server/src/domains/reference/collections/services/reference-collection-route-shared-domain-service.js";
 import {
   LAYOUTS_COLLECTION_ID,
+  DEPLOYMENT_MODE_SET,
   PAGE_KIND_SET,
   PAGE_STATUS_SET,
   PRIMARY_SOURCE_TYPE_SET,
+  SOURCE_SELECTION_MODE_SET,
   cloneJsonValue,
   hasUnsafePathSegments,
   hasUrlProtocol,
+  isPerRecordDeploymentMode,
   normalizePagePath
 } from "./distribution-shared-runtime.mjs";
 import {
@@ -18,11 +21,13 @@ import {
   validatePrepared
 } from "./distribution-handler-shared-runtime.mjs";
 import {
+  mergeLivePageDeploymentState,
   removeDeletedPageDeploymentArtifact,
   syncPageDeploymentArtifact
 } from "./page-deployment-runtime.mjs";
 
 const PAGE_OPTIONAL_TEXT_FIELD_IDS = Object.freeze([
+  "pathPattern",
   "canonicalUrl",
   "seoTitle",
   "seoDescription",
@@ -32,7 +37,8 @@ const PAGE_OPTIONAL_TEXT_FIELD_IDS = Object.freeze([
   "publishedOn",
   "archivedOn",
   "deploymentArtifactPath",
-  "deploymentSyncedOn"
+  "deploymentSyncedOn",
+  "deploymentLastRunOn"
 ]);
 
 function normalizeOptionalPageText(value) {
@@ -53,9 +59,20 @@ function normalizeExposedPageItem(item) {
   return normalizedItem;
 }
 
+async function normalizeExposedPageItemWithDeploymentState(item, context = {}) {
+  const normalizedItem = normalizeExposedPageItem(item);
+  return mergeLivePageDeploymentState({
+    page: normalizedItem,
+    collectionHandlerRegistry: context.registry,
+    resolveSettingsRepository: context.resolveSettingsRepository,
+    settingsDefinition: context.manifest?.settings ?? null
+  });
+}
+
 function collectPrimarySourceConflicts(preparedValue) {
   const conflicts = [];
   const primarySource = preparedValue.primarySource;
+  const isPerRecordMode = isPerRecordDeploymentMode(preparedValue.deploymentMode);
 
   if (preparedValue.primarySourceType === "none" && primarySource !== null) {
     conflicts.push(
@@ -102,11 +119,21 @@ function collectPrimarySourceConflicts(preparedValue) {
     );
   }
 
-  if (primarySource.itemId === null) {
+  if (preparedValue.sourceSelectionMode === "specific-record" && primarySource.itemId === null) {
     conflicts.push(
       buildConflict(
         "PAGE_PRIMARY_SOURCE_ITEM_REQUIRED",
         "Primary source item is required when a source type is selected",
+        "primarySource"
+      )
+    );
+  }
+
+  if (isPerRecordMode && primarySource.itemId !== null) {
+    conflicts.push(
+      buildConflict(
+        "PAGE_PRIMARY_SOURCE_ITEM_FORBIDDEN",
+        "Per-record templates cannot store a specific primary source item",
         "primarySource"
       )
     );
@@ -185,15 +212,29 @@ function collectDataSourceConflicts(preparedValue) {
   return conflicts;
 }
 
-function collectPageFieldConflicts(preparedValue) {
+function collectPageIdentityConflicts(preparedValue, isPerRecordMode) {
   const conflicts = [];
   if (preparedValue.title === null) {
     conflicts.push(buildConflict("PAGE_TITLE_REQUIRED", "Page title is required", "title"));
   }
-  if (preparedValue.path.length === 0) {
+  if (!DEPLOYMENT_MODE_SET.has(preparedValue.deploymentMode)) {
+    conflicts.push(
+      buildConflict("PAGE_DEPLOYMENT_MODE_INVALID", "Deployment mode is invalid", "deploymentMode")
+    );
+  }
+  if (!SOURCE_SELECTION_MODE_SET.has(preparedValue.sourceSelectionMode)) {
+    conflicts.push(
+      buildConflict(
+        "PAGE_SOURCE_SELECTION_MODE_INVALID",
+        "Source selection mode is invalid",
+        "sourceSelectionMode"
+      )
+    );
+  }
+  if (!isPerRecordMode && preparedValue.path.length === 0) {
     conflicts.push(buildConflict("PAGE_PATH_REQUIRED", "Page path is required", "path"));
   }
-  if (hasUrlProtocol(preparedValue.path)) {
+  if (preparedValue.path.length > 0 && hasUrlProtocol(preparedValue.path)) {
     conflicts.push(
       buildConflict(
         "PAGE_PATH_INVALID",
@@ -202,7 +243,7 @@ function collectPageFieldConflicts(preparedValue) {
       )
     );
   }
-  if (hasUnsafePathSegments(preparedValue.path)) {
+  if (preparedValue.path.length > 0 && hasUnsafePathSegments(preparedValue.path)) {
     conflicts.push(
       buildConflict(
         "PAGE_PATH_UNSAFE",
@@ -235,20 +276,35 @@ function collectPageFieldConflicts(preparedValue) {
       )
     );
   }
+  return conflicts;
+}
 
-  conflicts.push(...collectPrimarySourceConflicts(preparedValue));
-  conflicts.push(...collectDataSourceConflicts(preparedValue));
+function collectSourceSelectionConflicts(preparedValue, isPerRecordMode) {
+  const conflicts = [];
 
   if (
-    preparedValue.pageKind !== "standalone" &&
     preparedValue.primarySourceType === "none" &&
-    preparedValue.dataSources.length === 0
+    preparedValue.sourceSelectionMode !== "none"
   ) {
     conflicts.push(
       buildConflict(
-        "PAGE_SOURCE_REQUIRED",
-        "Non-standalone pages must define a primary source or at least one data source",
-        "primarySourceType"
+        "PAGE_SOURCE_SELECTION_MODE_CONFLICT",
+        "Source selection mode must be none when no primary source type is configured",
+        "sourceSelectionMode"
+      )
+    );
+  }
+
+  if (
+    preparedValue.primarySourceType !== "none" &&
+    !isPerRecordMode &&
+    preparedValue.sourceSelectionMode === "none"
+  ) {
+    conflicts.push(
+      buildConflict(
+        "PAGE_SOURCE_SELECTION_MODE_REQUIRED",
+        "Pages with a primary source type must choose how the source is selected",
+        "sourceSelectionMode"
       )
     );
   }
@@ -256,7 +312,98 @@ function collectPageFieldConflicts(preparedValue) {
   return conflicts;
 }
 
+function collectPerRecordTemplateConflicts(preparedValue, isPerRecordMode) {
+  if (!isPerRecordMode) {
+    return [];
+  }
+
+  const conflicts = [];
+  if (preparedValue.primarySourceType !== "blog-post") {
+    conflicts.push(
+      buildConflict(
+        "PAGE_DEPLOYMENT_SOURCE_TYPE_UNSUPPORTED",
+        "Per-record templates currently support only blog-post sources",
+        "primarySourceType"
+      )
+    );
+  }
+  if (preparedValue.sourceSelectionMode !== "all-records") {
+    conflicts.push(
+      buildConflict(
+        "PAGE_SOURCE_SELECTION_MODE_CONFLICT",
+        "Per-record templates must select all records from the source type",
+        "sourceSelectionMode"
+      )
+    );
+  }
+  if (!preparedValue.pathPattern) {
+    conflicts.push(
+      buildConflict(
+        "PAGE_PATH_PATTERN_REQUIRED",
+        "Per-record templates require a path pattern",
+        "pathPattern"
+      )
+    );
+    return conflicts;
+  }
+
+  if (hasUrlProtocol(preparedValue.pathPattern)) {
+    conflicts.push(
+      buildConflict(
+        "PAGE_PATH_PATTERN_INVALID",
+        "Path pattern must be a relative path, not a full URL",
+        "pathPattern"
+      )
+    );
+  }
+  if (hasUnsafePathSegments(preparedValue.pathPattern)) {
+    conflicts.push(
+      buildConflict(
+        "PAGE_PATH_PATTERN_UNSAFE",
+        "Path pattern cannot contain '.' or '..' path segments",
+        "pathPattern"
+      )
+    );
+  }
+
+  return conflicts;
+}
+
+function collectRequiredSourceConflicts(preparedValue) {
+  if (
+    preparedValue.pageKind !== "standalone" &&
+    preparedValue.primarySourceType === "none" &&
+    preparedValue.dataSources.length === 0
+  ) {
+    return [
+      buildConflict(
+        "PAGE_SOURCE_REQUIRED",
+        "Non-standalone pages must define a primary source or at least one data source",
+        "primarySourceType"
+      )
+    ];
+  }
+
+  return [];
+}
+
+function collectPageFieldConflicts(preparedValue) {
+  const isPerRecordMode = isPerRecordDeploymentMode(preparedValue.deploymentMode);
+  return [
+    ...collectPageIdentityConflicts(preparedValue, isPerRecordMode),
+    ...collectPrimarySourceConflicts(preparedValue),
+    ...collectDataSourceConflicts(preparedValue),
+    ...collectSourceSelectionConflicts(preparedValue, isPerRecordMode),
+    ...collectPerRecordTemplateConflicts(preparedValue, isPerRecordMode),
+    ...collectRequiredSourceConflicts(preparedValue)
+  ];
+}
+
 function collectPageUniquenessConflicts({ existingPages, currentItem, preparedValue }) {
+  if (isPerRecordDeploymentMode(preparedValue.deploymentMode) || preparedValue.path.length === 0) {
+    return [];
+  }
+
   const hasPathDuplicate = existingPages.some(
     (page) => page.id !== currentItem?.id && normalizePagePath(page.path) === preparedValue.path
   );
@@ -358,7 +505,7 @@ function createPageDeploymentCoordinator(handler, context = {}) {
         const removedPage = removedPagesByItemId.get(input.itemId) ?? null;
         removedPagesByItemId.delete(input.itemId);
         if (removedPage) {
-          await removeDeletedPageDeploymentArtifact(removedPage);
+          await removeDeletedPageDeploymentArtifact(removedPage, context.registry);
         }
         return;
       }
@@ -392,11 +539,16 @@ export function wrapPagesHandler(handler, context = {}) {
       return {
         ...payload,
         items: Array.isArray(payload?.items)
-          ? payload.items.map(normalizeExposedPageItem)
+          ? await Promise.all(
+              payload.items.map((item) =>
+                normalizeExposedPageItemWithDeploymentState(item, context)
+              )
+            )
           : []
       };
     },
-    findById: async (itemId) => normalizeExposedPageItem(await handler.findById(itemId)),
+    findById: async (itemId) =>
+      normalizeExposedPageItemWithDeploymentState(await handler.findById(itemId), context),
     validateInput: async (input, options = {}) => {
       if (options.partial === true) {
         return handler.validateInput(input, options);

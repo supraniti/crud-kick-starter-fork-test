@@ -10,6 +10,7 @@ import {
   createEmptyDraft,
   normalizeDraftFromSources
 } from "./publication-support.js";
+import { useContentDeploymentAwareness } from "./blog-content-deployment-awareness.js";
 
 const MODULE_ID = "test-modules-content";
 const POSTS_COLLECTION_ID = "blog-posts";
@@ -273,6 +274,7 @@ async function savePost({
   setDraft,
   setIsCreatingNew,
   setPendingPostId,
+  reloadDeploymentAwareness,
   setSelectedPostId,
   setSaveState
 }) {
@@ -310,6 +312,7 @@ async function savePost({
     }
 
     collectionsDomain.reloadCollectionItems();
+    await reloadDeploymentAwareness();
     setSaveSuccess(setSaveState, selectedPostId ? "Post updated" : "Post created");
     return {
       ok: true,
@@ -326,6 +329,7 @@ async function restoreRevision({
   draft,
   loadRevisions,
   postId,
+  reloadDeploymentAwareness,
   revisionId,
   setDraft,
   setSaveState
@@ -344,6 +348,7 @@ async function restoreRevision({
       setDraft(normalizeDraftFromSources(result.item));
     }
     await loadRevisions(postId);
+    await reloadDeploymentAwareness();
     setSaveSuccess(setSaveState, "Revision restored");
   } catch (error) {
     setSaveFailure(setSaveState, "Failed to restore revision", error);
@@ -426,6 +431,7 @@ function useWorkspaceActions({
   draft,
   isCreatingNew,
   loadRevisions,
+  reloadDeploymentAwareness,
   selectedPost,
   selectedPostId,
   setDraft,
@@ -453,6 +459,7 @@ function useWorkspaceActions({
         selectedPostId,
         collectionsDomain,
         loadRevisions,
+        reloadDeploymentAwareness,
         setDraft,
         setIsCreatingNew,
         setPendingPostId,
@@ -464,6 +471,7 @@ function useWorkspaceActions({
       draft,
       isCreatingNew,
       loadRevisions,
+      reloadDeploymentAwareness,
       selectedPost,
       selectedPostId,
       setDraft,
@@ -497,12 +505,13 @@ function useWorkspaceActions({
         draft,
         loadRevisions,
         postId: selectedPostId,
+        reloadDeploymentAwareness,
         revisionId,
         setDraft,
         setSaveState
       });
     },
-    [collectionsDomain, draft, loadRevisions, selectedPostId, setDraft, setSaveState]
+    [collectionsDomain, draft, loadRevisions, reloadDeploymentAwareness, selectedPostId, setDraft, setSaveState]
   );
 
   return {
@@ -516,6 +525,9 @@ function useWorkspaceActions({
 export function useBlogContentWorkspace({ collectionsDomain }) {
   const [saveState, setSaveState] = useState(createSaveState);
   const selection = usePostSelection(collectionsDomain);
+  const deploymentAwareness = useContentDeploymentAwareness({
+    selectedPost: selection.selectedPost
+  });
   const revisions = useRevisionTimeline(selection.selectedPostId);
   const summary = useMemo(() => buildSummary(selection.posts), [selection.posts]);
   const postHealthMap = useMemo(
@@ -527,6 +539,7 @@ export function useBlogContentWorkspace({ collectionsDomain }) {
     draft: selection.draft,
     isCreatingNew: selection.isCreatingNew,
     loadRevisions: revisions.loadRevisions,
+    reloadDeploymentAwareness: deploymentAwareness.reload,
     selectedPost: selection.selectedPost,
     selectedPostId: selection.selectedPostId,
     setDraft: selection.setDraft,
@@ -551,6 +564,7 @@ export function useBlogContentWorkspace({ collectionsDomain }) {
     selectedRevision: revisions.selectedRevision,
     summary,
     referenceOptions: collectionsDomain.referenceOptionsState ?? {},
+    deploymentAwareness,
     postHealthMap,
     selectPost,
     startNew: actions.startNew,

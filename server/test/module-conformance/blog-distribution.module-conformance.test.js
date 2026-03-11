@@ -27,6 +27,18 @@ function buildDeliveryRoute(pageId) {
   return `/api/reference/modules/${MODULE_ID}/pages/${pageId}/delivery`;
 }
 
+function buildPreviewSourcesRoute(pageId) {
+  return `/api/reference/modules/${MODULE_ID}/pages/${pageId}/preview-sources`;
+}
+
+function buildSyncDeploymentRoute(pageId) {
+  return `/api/reference/modules/${MODULE_ID}/pages/${pageId}/sync-deployment`;
+}
+
+function buildDeploymentInstancesRoute(pageId) {
+  return `/api/reference/modules/${MODULE_ID}/pages/${pageId}/deployment-instances`;
+}
+
 function buildPathDeliveryRoute(path, preview = false) {
   return `/api/reference/modules/${MODULE_ID}/delivery/resolve?path=${encodeURIComponent(path)}${preview ? "&preview=true" : ""}`;
 }
@@ -268,6 +280,286 @@ test("pages create standalone records and resolve deterministic delivery payload
     expect(pathWithoutPreview.statusCode).toBe(404);
   } finally {
     await server.close();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("pages support per-record post templates and preview a concrete generated path", async () => {
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const firstPost = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Launch Window Update",
+      status: "published",
+      publishedOn: "2026-03-09T08:30:00.000Z",
+      seoTitle: "Launch Window Update",
+      seoDescription: "Launch window update description",
+      ogTitle: "Launch Window Update",
+      ogDescription: "Launch window update description"
+    });
+    const secondPost = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Quarterly Review",
+      status: "published",
+      publishedOn: "2026-03-09T10:30:00.000Z",
+      seoTitle: "Quarterly Review",
+      seoDescription: "Quarterly review description",
+      ogTitle: "Quarterly Review",
+      ogDescription: "Quarterly review description"
+    });
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/posts",
+      pathPattern: "/posts/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "draft"
+    });
+    expect(templatePage.statusCode).toBe(201);
+    expect(templatePage.body.item).toEqual(
+      expect.objectContaining({
+        deploymentMode: "per-record",
+        sourceSelectionMode: "all-records",
+        pathPattern: "/posts/{slug}"
+      })
+    );
+
+    const previewSources = await injectJson(
+      server,
+      "GET",
+      buildPreviewSourcesRoute(templatePage.body.item.id)
+    );
+    expect(previewSources.statusCode).toBe(200);
+    expect(previewSources.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: firstPost.id,
+          path: "/posts/launch-window-update"
+        }),
+        expect.objectContaining({
+          id: secondPost.id,
+          path: "/posts/quarterly-review"
+        })
+      ])
+    );
+
+    const previewPayload = await injectJson(
+      server,
+      "GET",
+      `${buildDeliveryRoute(templatePage.body.item.id)}?preview=true&sourceItemId=${encodeURIComponent(firstPost.id)}`
+    );
+    expect(previewPayload.statusCode).toBe(200);
+    expect(previewPayload.body.payload).toEqual(
+      expect.objectContaining({
+        page: expect.objectContaining({
+          id: templatePage.body.item.id,
+          path: "/posts/launch-window-update",
+          pathPattern: "/posts/{slug}",
+          deploymentMode: "per-record"
+        }),
+        data: expect.objectContaining({
+          primary: expect.objectContaining({
+            collectionId: "blog-posts",
+            itemId: firstPost.id
+          })
+        })
+      })
+    );
+  } finally {
+    await server.close();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("pages sync per-record deployment outputs and surface stale or missing state after content changes", async () => {
+  const sandbox = await createDeploymentSandbox();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const firstPost = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Launch Window Update",
+      status: "published",
+      publishedOn: "2026-03-09T08:30:00.000Z",
+      seoTitle: "Launch Window Update",
+      seoDescription: "Launch window update description",
+      ogTitle: "Launch Window Update",
+      ogDescription: "Launch window update description"
+    });
+    const secondPost = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Quarterly Review",
+      status: "published",
+      publishedOn: "2026-03-09T09:30:00.000Z",
+      seoTitle: "Quarterly Review",
+      seoDescription: "Quarterly review description",
+      ogTitle: "Quarterly Review",
+      ogDescription: "Quarterly review description"
+    });
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/posts",
+      pathPattern: "/posts/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-09T10:00:00.000Z",
+      seoTitle: "Posts Page",
+      seoDescription: "Posts page description",
+      ogTitle: "Posts Page",
+      ogDescription: "Posts page description"
+    });
+    expect(templatePage.statusCode).toBe(201);
+
+    const syncResponse = await injectJson(
+      server,
+      "POST",
+      buildSyncDeploymentRoute(templatePage.body.item.id),
+      {}
+    );
+    expect(syncResponse.statusCode).toBe(200);
+    expect(syncResponse.body.item).toEqual(
+      expect.objectContaining({
+        id: templatePage.body.item.id,
+        deploymentStatus: "clean",
+        deploymentTargetCount: 2,
+        deploymentSyncedCount: 2,
+        deploymentStaleCount: 0,
+        deploymentMissingCount: 0
+      })
+    );
+
+    const instancesResponse = await injectJson(
+      server,
+      "GET",
+      buildDeploymentInstancesRoute(templatePage.body.item.id)
+    );
+    expect(instancesResponse.statusCode).toBe(200);
+    expect(instancesResponse.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceItemId: firstPost.id,
+          resolvedPath: "/posts/launch-window-update",
+          artifactRelativePath: "posts/launch-window-update/index.html",
+          status: "synced"
+        }),
+        expect.objectContaining({
+          sourceItemId: secondPost.id,
+          resolvedPath: "/posts/quarterly-review",
+          artifactRelativePath: "posts/quarterly-review/index.html",
+          status: "synced"
+        })
+      ])
+    );
+
+    await expect(
+      readDeploymentHtml(sandbox.deploymentRootDir, "posts/launch-window-update/index.html")
+    ).resolves.toContain("Launch Window Update");
+    await expect(
+      readDeploymentHtml(sandbox.deploymentRootDir, "posts/quarterly-review/index.html")
+    ).resolves.toContain("Quarterly Review");
+
+    const updatedFirstPost = await injectJson(
+      server,
+      "PUT",
+      buildItemRoute("blog-posts", firstPost.id),
+      {
+        title: "Launch Window Update Revised",
+        updatedByAuthorId: editor.id
+      }
+    );
+    expect(updatedFirstPost.statusCode).toBe(200);
+
+    const stalePage = await injectJson(
+      server,
+      "GET",
+      buildItemRoute("blog-pages", templatePage.body.item.id)
+    );
+    expect(stalePage.statusCode).toBe(200);
+    expect(stalePage.body.item).toEqual(
+      expect.objectContaining({
+        deploymentStatus: "stale",
+        deploymentTargetCount: 2,
+        deploymentSyncedCount: 1,
+        deploymentStaleCount: 1,
+        deploymentMissingCount: 0
+      })
+    );
+
+    const thirdPost = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Platform Health Review",
+      status: "published",
+      publishedOn: "2026-03-09T10:30:00.000Z",
+      seoTitle: "Platform Health Review",
+      seoDescription: "Platform health review description",
+      ogTitle: "Platform Health Review",
+      ogDescription: "Platform health review description"
+    });
+
+    const missingPage = await injectJson(
+      server,
+      "GET",
+      buildItemRoute("blog-pages", templatePage.body.item.id)
+    );
+    expect(missingPage.statusCode).toBe(200);
+    expect(missingPage.body.item).toEqual(
+      expect.objectContaining({
+        deploymentStatus: "missing",
+        deploymentTargetCount: 3,
+        deploymentSyncedCount: 1,
+        deploymentStaleCount: 1,
+        deploymentMissingCount: 1
+      })
+    );
+
+    const refreshedInstances = await injectJson(
+      server,
+      "GET",
+      buildDeploymentInstancesRoute(templatePage.body.item.id)
+    );
+    expect(refreshedInstances.statusCode).toBe(200);
+    expect(refreshedInstances.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceItemId: firstPost.id,
+          status: "stale",
+          staleReasonSummary: expect.stringContaining("Source record changed")
+        }),
+        expect.objectContaining({
+          sourceItemId: secondPost.id,
+          status: "synced"
+        }),
+        expect.objectContaining({
+          sourceItemId: thirdPost.id,
+          status: "missing",
+          staleReasonSummary: expect.stringContaining("No deployed artifact exists")
+        })
+      ])
+    );
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 

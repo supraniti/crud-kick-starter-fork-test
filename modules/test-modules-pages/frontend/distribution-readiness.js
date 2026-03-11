@@ -17,27 +17,34 @@ function toTimestampValue(value) {
 
 export function buildReadinessIssues(page = {}) {
   const issues = [];
+  const isPerRecordMode = page.deploymentMode === "per-record";
+  const requiredMetadataChecks = [
+    ["seoTitle", "Missing SEO title"],
+    ["seoDescription", "Missing SEO description"],
+    ["ogTitle", "Missing OpenGraph title"],
+    ["ogDescription", "Missing OpenGraph description"],
+    ["ogImageMediaId", "Missing OpenGraph image"]
+  ];
 
-  if (!page.path) {
+  if (!isPerRecordMode && !page.path) {
     issues.push("Missing page path");
+  }
+  if (isPerRecordMode && !page.pathPattern) {
+    issues.push("Missing path pattern");
   }
   if (!page.layoutKey) {
     issues.push("Missing layout key");
   }
-  if (!page.seoTitle) {
-    issues.push("Missing SEO title");
+  for (const [fieldId, message] of requiredMetadataChecks) {
+    if (!page[fieldId]) {
+      issues.push(message);
+    }
   }
-  if (!page.seoDescription) {
-    issues.push("Missing SEO description");
+  if (isPerRecordMode && page.primarySourceType !== "blog-post") {
+    issues.push("Per-record templates require blog-post source type");
   }
-  if (!page.ogTitle) {
-    issues.push("Missing OpenGraph title");
-  }
-  if (!page.ogDescription) {
-    issues.push("Missing OpenGraph description");
-  }
-  if (!page.ogImageMediaId) {
-    issues.push("Missing OpenGraph image");
+  if (isPerRecordMode && page.sourceSelectionMode !== "all-records") {
+    issues.push("Per-record templates must select all source records");
   }
   if (page.pageKind !== "standalone" && page.primarySourceType === "none" && (!Array.isArray(page.dataSources) || page.dataSources.length === 0)) {
     issues.push("No source or data query configured");
@@ -116,11 +123,12 @@ export function matchesRedirectFilters(rule, filters) {
 }
 
 export function buildDistributionSummary({ pages, redirects, readinessMap }) {
-  const warningCount = pages.filter((page) => (readinessMap.get(page.id) ?? []).length > 0).length;
   return {
-    scheduled: pages.filter((page) => page.status === "scheduled").length,
     published: pages.filter((page) => page.status === "published").length,
-    warnings: warningCount,
+    syncedOutputs: pages.reduce((total, page) => total + Number(page.deploymentSyncedCount ?? 0), 0),
+    staleOutputs: pages.reduce((total, page) => total + Number(page.deploymentStaleCount ?? 0), 0),
+    missingOutputs: pages.reduce((total, page) => total + Number(page.deploymentMissingCount ?? 0), 0),
+    warnings: pages.filter((page) => (readinessMap.get(page.id) ?? []).length > 0).length,
     activeRedirects: redirects.filter((rule) => rule.status === "active").length
   };
 }

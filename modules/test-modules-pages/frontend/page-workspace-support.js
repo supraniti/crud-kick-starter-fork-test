@@ -5,6 +5,7 @@ export function toArray(value) {
 export function createActionState() {
   return {
     saving: false,
+    syncingDeployment: false,
     errorMessage: null,
     successMessage: null
   };
@@ -33,6 +34,14 @@ export function createDeliveryState() {
   };
 }
 
+export function createDeploymentInstancesState() {
+  return {
+    loading: false,
+    errorMessage: null,
+    items: []
+  };
+}
+
 export function createEmptyDataSourceDraft(index = 0) {
   return {
     key: `source-${index + 1}`,
@@ -50,9 +59,12 @@ export function createEmptyPageDraft() {
   return {
     title: "",
     pageKind: "standalone",
+    deploymentMode: "single-page",
     primarySourceType: "none",
+    sourceSelectionMode: "none",
     primarySourceItemId: "",
     path: "",
+    pathPattern: "",
     layoutId: "",
     layoutKey: "page-shell",
     templateKey: "page-shell",
@@ -71,7 +83,15 @@ export function createEmptyPageDraft() {
     ogTitle: "",
     ogDescription: "",
     ogImageMediaId: "",
-    scheduledOn: ""
+    scheduledOn: "",
+    deploymentStatus: "missing",
+    deploymentTargetCount: 0,
+    deploymentSyncedCount: 0,
+    deploymentStaleCount: 0,
+    deploymentMissingCount: 0,
+    deploymentSyncedOn: "",
+    deploymentLastRunOn: "",
+    previewSourceItemId: ""
   };
 }
 
@@ -105,6 +125,24 @@ function readSeoDraft(page = {}) {
   };
 }
 
+function readDeploymentDraft(page = {}) {
+  return {
+    deploymentMode: page.deploymentMode ?? "single-page",
+    sourceSelectionMode:
+      page.sourceSelectionMode ??
+      (page.primarySourceType === "none" ? "none" : "specific-record"),
+    pathPattern: page.pathPattern ?? "",
+    deploymentStatus: page.deploymentStatus ?? "missing",
+    deploymentTargetCount: page.deploymentTargetCount ?? 0,
+    deploymentSyncedCount: page.deploymentSyncedCount ?? 0,
+    deploymentStaleCount: page.deploymentStaleCount ?? 0,
+    deploymentMissingCount: page.deploymentMissingCount ?? 0,
+    deploymentSyncedOn: page.deploymentSyncedOn ?? "",
+    deploymentLastRunOn: page.deploymentLastRunOn ?? "",
+    previewSourceItemId: page.primarySource?.itemId ?? ""
+  };
+}
+
 export function createPageDraftFromItem(page = {}) {
   return {
     title: page.title ?? "",
@@ -113,6 +151,7 @@ export function createPageDraftFromItem(page = {}) {
     primarySourceItemId: page.primarySource?.itemId ?? "",
     path: page.path ?? "",
     layoutId: page.layoutId ?? "",
+    ...readDeploymentDraft(page),
     ...readLayoutDraft(page),
     dataSources: toArray(page.dataSources).map((entry, index) => ({
       ...createEmptyDataSourceDraft(index),
@@ -148,7 +187,10 @@ function buildPrimarySourcePayload(draft) {
   }
   return {
     sourceType: draft.primarySourceType,
-    itemId: normalizeOptionalText(draft.primarySourceItemId),
+    itemId:
+      draft.sourceSelectionMode === "all-records"
+        ? null
+        : normalizeOptionalText(draft.primarySourceItemId),
     bindAs: draft.heroBinding || "primary"
   };
 }
@@ -183,8 +225,11 @@ export function buildPageMutationPayload(draft) {
   return {
     title: draft.title,
     pageKind: draft.pageKind,
+    deploymentMode: draft.deploymentMode,
     primarySourceType: draft.primarySourceType,
+    sourceSelectionMode: draft.sourceSelectionMode,
     path: draft.path,
+    pathPattern: normalizeOptionalText(draft.pathPattern),
     layoutId: normalizeOptionalText(draft.layoutId),
     layoutKey: draft.layoutKey,
     layoutModel: {

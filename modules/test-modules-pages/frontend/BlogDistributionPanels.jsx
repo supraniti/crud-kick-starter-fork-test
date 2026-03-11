@@ -15,7 +15,11 @@ import {
   resolveSourceLabel
 } from "./blog-distribution-panel-support.js";
 
-export { DeliveryPreviewPanel, ReadinessPanel } from "./BlogDistributionPagePanels.jsx";
+export {
+  DeliveryPreviewPanel,
+  DeploymentInstancesPanel,
+  ReadinessPanel
+} from "./BlogDistributionPagePanels.jsx";
 export {
   RedirectEditorPanel,
   RedirectFilters,
@@ -142,6 +146,8 @@ export function DistributionQueue({ pages, selectedPageId, sourceOptionsByType, 
                     <Typography variant="subtitle2">{page.title}</Typography>
                     <Chip size="small" label={page.status} />
                     <Chip size="small" label={page.pageKind} variant="outlined" />
+                    <Chip size="small" label={page.deploymentMode ?? "single-page"} variant="outlined" />
+                    <Chip size="small" label={page.deploymentStatus ?? "missing"} variant="outlined" />
                     <Chip
                       size="small"
                       label={`${issues.length} warning${issues.length === 1 ? "" : "s"}`}
@@ -150,15 +156,23 @@ export function DistributionQueue({ pages, selectedPageId, sourceOptionsByType, 
                     />
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
-                    {page.path}
+                    {page.deploymentMode === "per-record" ? page.pathPattern || page.path : page.path}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {resolveSourceLabel(
                       sourceOptionsByType,
                       page.primarySourceType,
-                      page.primarySource?.itemId ?? ""
+                      page.primarySource?.itemId ?? "",
+                      page.sourceSelectionMode
                     )}
                   </Typography>
+                  {page.deploymentMode === "per-record" ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {`${page.deploymentSyncedCount ?? 0}/${page.deploymentTargetCount ?? 0} synced`}
+                      {` · ${page.deploymentStaleCount ?? 0} stale`}
+                      {` · ${page.deploymentMissingCount ?? 0} missing`}
+                    </Typography>
+                  ) : null}
                 </Stack>
               </Paper>
             );

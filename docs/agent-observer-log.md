@@ -625,3 +625,97 @@
 - Improve:
   - when operators describe layout issues, pay attention to the exact container mode toggles; `row` and `row + wrap` are materially different products
   - for visual builders, percentage row semantics should be tested with gap on, not only with gap-neutral cases
+
+### 2026-03-10 - Posts Template Deployment Flow Planning
+- Tasks:
+  - inspected the current `content`, `pages`, and `layouts` module contracts plus the actual page-delivery/page-deployment/page-workspace runtime files before planning
+  - confirmed the real gap is not HTML generation itself; it is the missing one-template-to-many-artifacts model plus missing deployment-drift visibility
+  - wrote the hard-file plan at `docs/contracts/test-modules-pages-posts-template-deployment-flow-plan.md`
+  - updated `handoff.md` so the task can survive compaction before any code work starts
+- Easy:
+  - the repo boundaries are good enough for this feature; the clean center of gravity is clearly `test-modules-pages`, not a new shared deployment core
+- Hard:
+  - current Pages behavior mixes three concerns that now need to be disentangled cleanly in the design:
+    - standalone single-page publishing
+    - reusable per-record page templates
+    - deployment-state observability
+  - the current custom Pages desk hides module settings even though settings already participate in deployed HTML, which would make staleness around settings invisible unless the UI is fixed as part of the plan
+- Improve:
+  - when a feature depends on operator trust in deployment state, plan the status model and drift model before writing routes; retrofitting status after artifacts exist usually produces messy UX
+  - keep template expansion bounded and declarative; do not let a straightforward posts-page flow turn into a premature generic query engine
+
+### 2026-03-10 - Posts Template Deployment Flow Planning Clarification
+- Tasks:
+  - tightened the plan after operator clarification that the target is not a detached generation button, but a coherent embedded workflow
+  - rewrote the plan to center deployment state, drift visibility, and cross-module awareness instead of action-first mechanics
+- Easy:
+  - the current repo shape supports this direction well because `content`, `pages`, and `layouts` already have clear ownership boundaries
+- Hard:
+  - it is easy to design this feature as a technically correct batch route and still miss the product intent entirely; the hard part is making deployment feel native to the system rather than bolted on
+- Improve:
+  - when the operator says “this should be embedded in the system,” translate that immediately into state surfaces, drift signals, and cross-module awareness, not just different button wording
+
+### 2026-03-10 - Posts Template Deployment Flow Milestone 1
+- Tasks:
+  - implemented the first bounded slice of per-record page templates inside `test-modules-pages`
+  - added the data model for `deploymentMode`, `sourceSelectionMode`, `pathPattern`, and deployment summary fields
+  - added template-instance preview support so a single page template can preview a concrete generated post page by source item
+  - repaired a server-default regression where missing `sourceSelectionMode` started rejecting old single-page page creation
+  - repaired a malformed conformance test insertion before closing the milestone checkpoint
+- Easy:
+  - once the product slice was constrained to “represent template semantics and preview one concrete generated instance,” the pages module stayed well bounded
+  - keeping old single-page behavior as an invariant made the correct server default obvious: missing source-selection must still normalize to `specific-record` for normal page flows
+- Hard:
+  - the subtle regression came from an apparently harmless fallback value; defaulting a missing enum to `none` changed product behavior for every existing single-page content-detail route
+  - test-file surgery is easy to get wrong under iterative patching; a syntactically valid but structurally broken test file can still waste time and weaken trust
+- Improve:
+  - when extending enums in an existing flow, protect the old implicit default explicitly in code and tests
+  - after inserting a new focused test into a long file, re-open the surrounding region immediately instead of trusting the patch result
+
+### 2026-03-10 - Posts Template Deployment Flow Milestone 2
+- Tasks:
+  - implemented per-record deployment sync truth in `test-modules-pages` through `page-deployment-artifacts`
+  - split the expanding deployment runtime and Pages desk files before the repo LOC gate became the blocker
+  - added a deployment-instances surface so the operator can inspect output-level status instead of only page-level summaries
+  - fixed the split frontend-test support so each integration file owns its own API mock while still reusing shared fixtures
+- Easy:
+  - once the page template model was in place, per-output truth fit cleanly into a pages-owned artifact collection without touching core
+  - the operator-facing summary shape became obvious after the artifact rows existed: synced/stale/missing counts belong both in summary cards and in queue rows
+- Hard:
+  - the first frontend split was brittle because the shared support file also owned the `vi.mock`, and that broke once the integration tests were divided into two files
+  - live drift truth had to normalize template/layout/settings tokens carefully; small `null` vs empty-string differences made freshly synced outputs look stale
+- Improve:
+  - when splitting Vitest files, keep the shared fixtures shared but keep the module mock local to each test file unless there is a proven common harness
+  - if a feature is explicitly workflow-first, make the operator-visible status surface part of the same implementation slice as the runtime truth; doing the runtime first and the UX later weakens the product signal
+
+### 2026-03-10 - Posts Template Deployment Flow Milestone 3
+- Tasks:
+  - added a thin `route` / `navigate` seam for custom module views instead of introducing a larger routing abstraction
+  - wired Pages -> Layouts -> Pages round-trip behavior into the custom desks
+  - surfaced deployment-impact awareness in `Content` and `Layouts`
+  - surfaced deployment-relevant module settings directly inside the custom Pages desk
+  - repaired the last Pages integration test by making it follow the real selection flow before asserting layout-edit actions
+  - trimmed two function-shape regressions that appeared after the new route-aware view wiring
+- Easy:
+  - the product boundary was still clean: `Pages` remained the owner of deployment truth while `Content` and `Layouts` only needed lightweight awareness panels
+  - the failing test was not a product defect; it was an overly eager assertion that skipped the real row-selection step
+- Hard:
+  - route-aware custom views are deceptively small changes; even a thin seam can trip shape-lint if the controller and workspace files are already near their limits
+  - the right UX here was not “more actions everywhere”; it was using routing context to preserve operator continuity between desks
+- Improve:
+  - when adding cross-desk navigation, update the tests to follow the actual operator click path instead of relying on implicit selection
+  - thin shared seams are worth the effort, but they still need immediate gate discipline because they touch high-centrality files
+
+### 2026-03-11 - Pages Desk Deployment Truth Fix
+- Tasks:
+  - reproduced the live mismatch where `Sync Deployment` wrote the correct HTML files and per-output rows showed `synced`, but the Pages desk row still showed `stale`
+  - traced the mismatch to the Pages desk loading list-shaped collection rows instead of canonical page records for live deployment evaluation
+  - added a Pages-owned `desk-items` route and switched the custom desk loader to use it first
+- Easy:
+  - the deployment-instance route already proved the evaluator was correct; the problem was which page shape fed that evaluator
+- Hard:
+  - the stale state was not a runtime write failure; it was a read-model bug caused by denormalized label fields like `layoutTitle` contaminating version-token comparisons
+  - because the generated HTML files were already correct, it was easy to chase the wrong side of the system
+- Improve:
+  - when a custom desk owns workflow truth, prefer a desk-owned read model instead of assuming the generic collection list shape is stable enough for derived-status logic
+  - when a mismatch appears between row summaries and instance details, compare the exact record shapes entering each evaluator before changing write logic

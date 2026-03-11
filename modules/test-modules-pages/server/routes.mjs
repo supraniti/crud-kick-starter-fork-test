@@ -1,4 +1,5 @@
 import {
+  isPagePublished,
   MODULE_ID,
   PAGES_COLLECTION_ID,
   POSTS_COLLECTION_ID,
@@ -6,7 +7,17 @@ import {
   normalizePrimarySourceType,
   toTimestamp
 } from "./distribution-shared-runtime.mjs";
-import { resolvePageByPath, resolvePageDeliveryPayload } from "./page-delivery-runtime.mjs";
+import {
+  listPagePreviewSourceOptions,
+  resolvePageByPath,
+  resolvePageDeliveryPayload,
+  resolvePagePreviewPayload
+} from "./page-delivery-runtime.mjs";
+import {
+  evaluatePageDeploymentState,
+  listPageDeploymentInstances,
+  runExplicitPageDeploymentSync
+} from "./page-deployment-runtime.mjs";
 
 function buildPayload(payload) {
   return {
@@ -38,13 +49,20 @@ function readUpdatedByAuthorId(body) {
   return typeof body?.updatedByAuthorId === "string" ? body.updatedByAuthorId.trim() : "";
 }
 
-function createRouteContext({ manifest, moduleRegistry, collectionHandlerRegistry }) {
+function createRouteContext({
+  manifest,
+  moduleRegistry,
+  collectionHandlerRegistry,
+  resolveSettingsRepository
+}) {
   const moduleId = manifest?.id ?? MODULE_ID;
   return {
     moduleId,
     pagesBasePath: `/api/reference/modules/${moduleId}/pages`,
     deliveryBasePath: `/api/reference/modules/${moduleId}/delivery`,
     moduleRegistry,
+    manifest,
+    resolveSettingsRepository,
     collectionHandlerRegistry,
     pagesHandler: collectionHandlerRegistry.get(PAGES_COLLECTION_ID),
     postsHandler: collectionHandlerRegistry.get(POSTS_COLLECTION_ID)
@@ -54,6 +72,12 @@ function createRouteContext({ manifest, moduleRegistry, collectionHandlerRegistr
 function parsePreviewFlag(request) {
   const rawValue = request.query?.preview;
   return rawValue === true || rawValue === "true" || rawValue === "1";
+}
+
+function readSourceItemIdQuery(request) {
+  return typeof request.query?.sourceItemId === "string"
+    ? request.query.sourceItemId.trim()
+    : "";
 }
 
 async function loadPage(pagesHandler, pageId, reply) {
@@ -251,15 +275,166 @@ function createPageDeliveryHandler(routeContext) {
       return page;
     }
 
-    const payload = await resolvePageDeliveryPayload({
-      collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
-      page,
-      preview: parsePreviewFlag(request) || page.status !== "published"
-    });
+    const preview = parsePreviewFlag(request) || page.status !== "published";
+    const payload = preview
+      ? await resolvePagePreviewPayload({
+          collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+          page,
+          requestedSourceItemId: readSourceItemIdQuery(request) || null
+        })
+      : await resolvePageDeliveryPayload({
+          collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+          page,
+          preview: false
+        });
 
     return buildPayload({
       ok: true,
       payload
+    });
+  };
+}
+
+function createPagePreviewSourcesHandler(routeContext) {
+  return async function pagePreviewSourcesRoute(request, reply) {
+    const moduleAvailability = ensureModuleEnabled(
+      routeContext.moduleRegistry,
+      routeContext.moduleId,
+      reply
+    );
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+
+    const page = await loadPage(routeContext.pagesHandler, request.params?.pageId, reply);
+    if (page?.ok === false) {
+      return page;
+    }
+
+    const items = await listPagePreviewSourceOptions({
+      collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+      page
+    });
+    return buildPayload({
+      ok: true,
+      items
+    });
+  };
+}
+
+function createPagesDeskItemsHandler(routeContext) {
+  return async function pagesDeskItemsRoute(_request, reply) {
+    const moduleAvailability = ensureModuleEnabled(
+      routeContext.moduleRegistry,
+      routeContext.moduleId,
+      reply
+    );
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+
+    const payload = await routeContext.pagesHandler.list({
+      limit: 500,
+      offset: 0
+    });
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const liveItems = await Promise.all(
+      items.map(async (page) => {
+        const canonicalPage = page?.id
+          ? await routeContext.pagesHandler.findById(page.id)
+          : page;
+        const evaluation = await evaluatePageDeploymentState({
+          page: canonicalPage ?? page,
+          collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+          resolveSettingsRepository: routeContext.resolveSettingsRepository,
+          settingsDefinition: routeContext.manifest?.settings ?? null
+        });
+        return evaluation.page ?? canonicalPage ?? page;
+      })
+    );
+
+    return buildPayload({
+      ok: true,
+      items: liveItems
+    });
+  };
+}
+
+function createSyncDeploymentHandler(routeContext) {
+  return async function syncDeploymentRoute(request, reply) {
+    const moduleAvailability = ensureModuleEnabled(
+      routeContext.moduleRegistry,
+      routeContext.moduleId,
+      reply
+    );
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+
+    const page = await loadPage(routeContext.pagesHandler, request.params?.pageId, reply);
+    if (page?.ok === false) {
+      return page;
+    }
+    if (!isPagePublished(page.status)) {
+      reply.code(409);
+      return errorPayload(
+        "PAGE_DEPLOYMENT_SYNC_STATUS_INVALID",
+        "Only published pages can sync deployment outputs"
+      );
+    }
+
+    await runExplicitPageDeploymentSync({
+      handler: routeContext.pagesHandler,
+      page,
+      previousPage: page,
+      collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+      resolveSettingsRepository: routeContext.resolveSettingsRepository,
+      settingsDefinition: routeContext.manifest?.settings ?? null
+    });
+
+    const item = await routeContext.pagesHandler.findById(page.id);
+    const instances = await listPageDeploymentInstances({
+      page: item,
+      collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+      resolveSettingsRepository: routeContext.resolveSettingsRepository,
+      settingsDefinition: routeContext.manifest?.settings ?? null
+    });
+
+    return buildPayload({
+      ok: true,
+      item,
+      instances
+    });
+  };
+}
+
+function createDeploymentInstancesHandler(routeContext) {
+  return async function deploymentInstancesRoute(request, reply) {
+    const moduleAvailability = ensureModuleEnabled(
+      routeContext.moduleRegistry,
+      routeContext.moduleId,
+      reply
+    );
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+
+    const page = await loadPage(routeContext.pagesHandler, request.params?.pageId, reply);
+    if (page?.ok === false) {
+      return page;
+    }
+
+    const evaluation = await evaluatePageDeploymentState({
+      page,
+      collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+      resolveSettingsRepository: routeContext.resolveSettingsRepository,
+      settingsDefinition: routeContext.manifest?.settings ?? null
+    });
+
+    return buildPayload({
+      ok: true,
+      item: evaluation.page ?? page,
+      items: evaluation.instances
     });
   };
 }
@@ -298,14 +473,34 @@ function createPathDeliveryHandler(routeContext) {
   };
 }
 
-export function registerRoutes({ fastify, manifest, moduleRegistry, collectionHandlerRegistry }) {
+export function registerRoutes({
+  fastify,
+  manifest,
+  moduleRegistry,
+  collectionHandlerRegistry,
+  resolveSettingsRepository
+}) {
   const routeContext = createRouteContext({
     manifest,
     moduleRegistry,
-    collectionHandlerRegistry
+    collectionHandlerRegistry,
+    resolveSettingsRepository
   });
 
   fastify.post(`${routeContext.pagesBasePath}/:pageId/publish-now`, createPublishNowHandler(routeContext));
+  fastify.get(`${routeContext.pagesBasePath}/desk-items`, createPagesDeskItemsHandler(routeContext));
+  fastify.post(
+    `${routeContext.pagesBasePath}/:pageId/sync-deployment`,
+    createSyncDeploymentHandler(routeContext)
+  );
   fastify.get(`${routeContext.pagesBasePath}/:pageId/delivery`, createPageDeliveryHandler(routeContext));
+  fastify.get(
+    `${routeContext.pagesBasePath}/:pageId/preview-sources`,
+    createPagePreviewSourcesHandler(routeContext)
+  );
+  fastify.get(
+    `${routeContext.pagesBasePath}/:pageId/deployment-instances`,
+    createDeploymentInstancesHandler(routeContext)
+  );
   fastify.get(`${routeContext.deliveryBasePath}/resolve`, createPathDeliveryHandler(routeContext));
 }
