@@ -73,3 +73,4 @@
 - Minimal browser proof:
   - `client-runtime/examples/basic-runtime-proof.html`
   - `client-runtime/examples/playground.html`
+  - `client-runtime/examples/jsonplaceholder-playground.html`

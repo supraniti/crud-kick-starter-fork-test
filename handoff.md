@@ -101,6 +101,7 @@
 - Verified M03 package proof:
   - `client-runtime/examples/basic-runtime-proof.html`
   - `client-runtime/examples/playground.html`
+  - `client-runtime/examples/jsonplaceholder-playground.html`
 - Verified M03 repo lanes:
   - `pnpm test:client-runtime`
   - `pnpm build:client-runtime`

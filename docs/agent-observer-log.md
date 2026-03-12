@@ -1068,6 +1068,7 @@
   - kept all runtime logic inside the new package boundary and only touched root workspace/gate wiring
   - switched package verification to single-process scripts because forked runners/builders hit Windows sandbox `EPERM`
   - added a static browser playground so the package can be exercised without page-deployment integration
+  - added a declarative generic remote adapter path plus a JSONPlaceholder proof page for real HTTP queries/actions
 - Easy:
   - the runtime design stayed clean once the package boundary was locked first
   - the existing HTML deployment seam already proves where this artifact will attach later

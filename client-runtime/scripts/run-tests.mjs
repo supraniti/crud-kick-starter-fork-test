@@ -9,14 +9,44 @@ import {
 
 function createRuntimeHarness() {
   const storage = createMemoryDatasetStorageDriver();
+  const requests = [];
   const remote = createRemoteTransportAdapter({
-    query: async ({ definition }) => {
-      if (`${definition.resource}.${definition.query}` === "products.remoteSearch") {
-        return { items: [{ id: "p1", title: "Remote Product" }], total: 1, page: 1, pageSize: 20 };
+    baseUrl: "https://example.test",
+    fetchJson: async (url, init) => {
+      requests.push({ url, init });
+      if (url.includes("/remote-posts")) {
+        return {
+          ok: true,
+          status: 200,
+          body: { items: [{ id: "p1", title: "Remote Product" }], total: 1, page: 1, pageSize: 20 }
+        };
       }
-      throw new Error("unexpected query");
+      if (url.includes("/posts/p1") && init.method === "PATCH") {
+        return {
+          ok: true,
+          status: 200,
+          body: { id: "p1", title: "Updated title" }
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        body: {
+          items: [
+            { id: "p1", title: "Atlas", category: "books", price: 12 },
+            { id: "p2", title: "Nova", category: "books", price: 18 },
+            { id: "p3", title: "Gamma", category: "games", price: 40 }
+          ],
+          version: "1",
+          syncToken: "install"
+        }
+      };
     },
-    dispatch: async ({ definition, request }) => ({ ok: true, action: definition.action, payload: request.payload }),
+    dispatch: async ({ definition, request }) => ({
+      ok: true,
+      action: definition.action,
+      payload: request.payload
+    }),
     fetchDataset: async ({ mode }) => ({
       items: [
         { id: "p1", title: "Atlas", category: "books", price: 12 },
@@ -28,14 +58,36 @@ function createRuntimeHarness() {
     })
   });
 
-  return createClientRuntime({
+  const runtime = createClientRuntime({
+    remote: {
+      baseUrl: "https://example.test"
+    },
     queries: [
       { resource: "products", query: "search", policy: "local-first", dataset: "catalog" },
-      { resource: "products", query: "remoteSearch", policy: "cache-first" },
+      {
+        resource: "products",
+        query: "remoteSearch",
+        policy: "cache-first",
+        remote: {
+          method: "GET",
+          path: "/remote-posts",
+          queryParams: "params"
+        }
+      },
       { resource: "posts", query: "list", policy: "local-only", dataset: "posts" }
     ],
     actions: [
-      { action: "cart.addItem", policy: "remote-with-local-update", markDatasetsDirty: ["catalog"] }
+      { action: "cart.addItem", policy: "remote-with-local-update", markDatasetsDirty: ["catalog"] },
+      {
+        action: "posts.update",
+        policy: "remote-required",
+        remote: {
+          method: "PATCH",
+          path: "/posts/:id",
+          pathParams: { id: "payload.id" },
+          body: { title: "payload.title" }
+        }
+      }
     ],
     datasets: [
       { dataset: "catalog" },
@@ -53,6 +105,8 @@ function createRuntimeHarness() {
       getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
     }
   });
+
+  return { runtime, requests };
 }
 
 async function runScenario(name, fn) {
@@ -76,7 +130,7 @@ await runScenario("global shell exposes data and action layers", async () => {
 });
 
 await runScenario("local-first queries answer from installed dataset state", async () => {
-  const runtime = createRuntimeHarness();
+  const { runtime } = createRuntimeHarness();
   const installResult = await runtime.installDataset({ dataset: "catalog" });
   assert.equal(installResult.ok, true);
   const queryResult = await runtime.query({
@@ -97,7 +151,7 @@ await runScenario("local-first queries answer from installed dataset state", asy
 });
 
 await runScenario("cache-first queries reuse memory after the first remote read", async () => {
-  const runtime = createRuntimeHarness();
+  const { runtime } = createRuntimeHarness();
   const firstResult = await runtime.query({ resource: "products", query: "remoteSearch", params: { term: "atlas" } });
   const secondResult = await runtime.query({ resource: "products", query: "remoteSearch", params: { term: "atlas" } });
   assert.equal(firstResult.ok, true);
@@ -106,8 +160,20 @@ await runScenario("cache-first queries reuse memory after the first remote read"
   assert.equal(secondResult.meta.source, "memory");
 });
 
+await runScenario("declarative remote definitions resolve URL params and body payloads", async () => {
+  const { runtime, requests } = createRuntimeHarness();
+  const result = await runtime.dispatch({
+    action: "posts.update",
+    payload: { id: "p1", title: "Updated title" }
+  });
+  assert.equal(result.ok, true);
+  assert.equal(requests.at(-1).url, "https://example.test/posts/p1");
+  assert.equal(requests.at(-1).init.method, "PATCH");
+  assert.equal(requests.at(-1).init.body, JSON.stringify({ title: "Updated title" }));
+});
+
 await runScenario("remote-with-local-update marks dependent datasets dirty", async () => {
-  const runtime = createRuntimeHarness();
+  const { runtime } = createRuntimeHarness();
   await runtime.installDataset({ dataset: "catalog" });
   const actionResult = await runtime.dispatch({ action: "cart.addItem", payload: { productId: "p1", qty: 1 } });
   const status = await runtime.getDatasetStatus("catalog");
@@ -116,14 +182,14 @@ await runScenario("remote-with-local-update marks dependent datasets dirty", asy
 });
 
 await runScenario("local-only query failures are structured", async () => {
-  const runtime = createRuntimeHarness();
+  const { runtime } = createRuntimeHarness();
   const result = await runtime.query({ resource: "posts", query: "list" });
   assert.equal(result.ok, false);
   assert.equal(result.error.code, "LOCAL_DATA_UNAVAILABLE");
 });
 
 await runScenario("dataset sync updates stored metadata and record counts", async () => {
-  const runtime = createRuntimeHarness();
+  const { runtime } = createRuntimeHarness();
   await runtime.installDataset({ dataset: "posts" });
   const syncResult = await runtime.syncDataset({ dataset: "posts" });
   const status = await runtime.getDatasetStatus("posts");
