@@ -7,14 +7,14 @@
 - Remotes:
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
-- Last committed feature baseline:
-  - `9860fc4` `feat: embed remote ops into module workflows`
-- App review pair status:
-  - frontend: `http://localhost:3000/`
-  - backend health: `http://127.0.0.1:3001/health`
-  - pair is currently running for live review
+- Last committed baseline:
+  - `105c09a` `docs: archive completed execution plans`
 - Active execution target:
-  - complete repo cleanup for the just-finished remote rehearsal, commit it, push it, and then wait for the next user task
+  - deliver the standalone `client-runtime/` package from `C:\Users\cmsin\OneDrive\שולחן העבודה\M03-client-script.md`
+  - keep it outside the existing `frontend/` and `server/` libraries
+  - current slice status:
+    - standalone package scaffold delivered and verified
+    - page-deployment injection integration not started yet
 
 ## Current Product Truth
 - Blog/content flow is live through:
@@ -28,6 +28,8 @@
   - `test-modules-media-manager` -> media storage compare/sync/restore
   - `test-modules-remote-ops` -> connection, target management, compatibility analysis, provisioning, deep diagnostics
 - Browser-delivery remains validation-only; execution/provisioning for CDN/domain is not implemented yet.
+- Client runtime package now exists and is isolated under:
+  - `client-runtime/`
 
 ## Live Rehearsal Proven On 2026-03-12
 - Created and published 10 review posts:
@@ -81,14 +83,27 @@
   - `docs/contracts/test-modules-layouts-module-contract.md`
   - `docs/contracts/test-modules-media-manager-module-contract.md`
   - `docs/contracts/test-modules-remote-ops-module-contract.md`
+- Current package/task contract:
+  - `docs/contracts/client-runtime-contract.md`
+- Current execution plan:
+  - `docs/contracts/client-runtime-v1-plan.md`
 - Research/design memo:
   - `docs/research/gcp-sync-services-memo.md`
 - Archived execution plans/history:
   - `docs/contracts/archive/completed-execution-plans/`
 
 ## Repository State
-- Working tree should only carry intentional cleanup/progress-pointer changes plus any unrelated untracked `PLACEHOLDER` left untouched by the agent.
-- Before final closure for this slice:
-  - stop the live app pair
-  - keep `.codex-runtime/` out of commits
+- Current app review pair is not required for this slice and should stay down unless later browser proof is needed.
+- Keep unrelated untracked `PLACEHOLDER` untouched.
+- Verified M03 package outputs:
+  - `client-runtime/dist/client-runtime.global.js`
+  - `client-runtime/dist/client-runtime.esm.js`
+- Verified M03 package proof:
+  - `client-runtime/examples/basic-runtime-proof.html`
+  - `client-runtime/examples/playground.html`
+- Verified M03 repo lanes:
+  - `pnpm test:client-runtime`
+  - `pnpm build:client-runtime`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate`
 

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Client Runtime Proof</title>
+  </head>
+  <body>
+    <app-root data-page-key="runtime-proof"></app-root>
+    <script>
+      window.__CRUD_CLIENT_RUNTIME_CONFIG__ = {
+        queries: [
+          {
+            resource: "proof",
+            query: "hello",
+            policy: "remote-only",
+            executeRemote: async () => ({ message: "hello from remote proof" })
+          }
+        ]
+      };
+    </script>
+    <script src="../dist/client-runtime.global.js"></script>
+    <script>
+      window.dataLayer.query({ resource: "proof", query: "hello" }).then((result) => {
+        const output = document.createElement("pre");
+        output.textContent = JSON.stringify(result, null, 2);
+        document.body.appendChild(output);
+      });
+    </script>
+  </body>
+</html>

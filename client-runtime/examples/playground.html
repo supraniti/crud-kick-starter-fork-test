@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Client Runtime Playground</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4efe6;
+        --panel: #fffaf4;
+        --ink: #1e1c19;
+        --muted: #5b564f;
+        --line: #d8cfc0;
+        --accent: #1f6d62;
+        --accent-2: #d97706;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background: linear-gradient(180deg, #f7f2e8 0%, #efe7d8 100%);
+        color: var(--ink);
+      }
+      main {
+        width: min(1100px, calc(100vw - 32px));
+        margin: 24px auto;
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 18px;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(32, 26, 18, 0.06);
+      }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 30px; margin-bottom: 8px; }
+      h2 { font-size: 18px; margin-bottom: 10px; }
+      p, li, code { color: var(--muted); }
+      .stack { display: grid; gap: 12px; }
+      .actions { display: grid; gap: 10px; }
+      button {
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        background: var(--accent);
+        color: white;
+        font: inherit;
+        cursor: pointer;
+        text-align: left;
+      }
+      button.alt { background: #2f3f63; }
+      button.warn { background: var(--accent-2); }
+      button:disabled { opacity: 0.6; cursor: default; }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #ebe4d6;
+        color: #4c473f;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+      .surface {
+        min-height: 560px;
+        display: grid;
+        gap: 16px;
+      }
+      pre {
+        margin: 0;
+        padding: 16px;
+        overflow: auto;
+        border-radius: 14px;
+        background: #1d2026;
+        color: #e8edf6;
+        font-family: Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .catalog {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        background: white;
+      }
+      .card strong { display: block; margin-bottom: 6px; }
+      .empty {
+        padding: 22px;
+        border: 1px dashed var(--line);
+        border-radius: 14px;
+        text-align: center;
+      }
+      @media (max-width: 900px) {
+        main { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel stack">
+        <div>
+          <h1>Client Runtime Playground</h1>
+          <p>Static browser proof for the standalone runtime. No repo app required.</p>
+        </div>
+        <div>
+          <span class="badge">global shell</span>
+          <span class="badge">dataset install</span>
+          <span class="badge">local-first query</span>
+          <span class="badge">remote action</span>
+        </div>
+        <div class="actions">
+          <button id="install-dataset">Install Catalog Dataset</button>
+          <button id="query-local" class="alt">Run Local-First Query</button>
+          <button id="query-cache" class="alt">Run Cache-First Remote Query</button>
+          <button id="sync-dataset" class="warn">Sync Dataset</button>
+          <button id="dispatch-action">Dispatch cart.addItem</button>
+          <button id="status" class="alt">Get Dataset Status</button>
+        </div>
+        <div class="panel" style="padding: 14px;">
+          <h3 style="margin-bottom: 8px;">How to run</h3>
+          <div class="stack" style="gap: 8px; font-size: 14px;">
+            <p>1. Build the artifact with <code>pnpm build:client-runtime</code>.</p>
+            <p>2. Open this file directly in the browser or serve the <code>client-runtime/</code> folder statically.</p>
+            <p>3. Use the buttons and inspect the result log and rendered catalog.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="surface">
+        <div class="panel">
+          <h2>Rendered Catalog</h2>
+          <div id="catalog" class="catalog">
+            <div class="empty">Install the dataset or run a query to populate this view.</div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Result Log</h2>
+          <pre id="output">Awaiting action...</pre>
+        </div>
+      </section>
+    </main>
+
+    <app-root data-page-key="client-runtime-playground"></app-root>
+
+    <script>
+      const remoteCatalogInstall = [
+        { id: "p1", title: "Atlas", category: "books", price: 12, inventory: 9 },
+        { id: "p2", title: "Nova", category: "books", price: 18, inventory: 2 },
+        { id: "p3", title: "Gamma", category: "games", price: 40, inventory: 4 }
+      ];
+      const remoteCatalogSync = [
+        { id: "p1", title: "Atlas", category: "books", price: 12, inventory: 8 },
+        { id: "p2", title: "Nova", category: "books", price: 18, inventory: 2 },
+        { id: "p3", title: "Gamma", category: "games", price: 40, inventory: 4 },
+        { id: "p4", title: "Delta", category: "books", price: 22, inventory: 12 }
+      ];
+
+      window.__CRUD_CLIENT_RUNTIME_CONFIG__ = {
+        queries: [
+          {
+            resource: "products",
+            query: "search",
+            policy: "local-first",
+            dataset: "catalog"
+          },
+          {
+            resource: "products",
+            query: "remoteSearch",
+            policy: "cache-first",
+            executeRemote: async ({ request }) => ({
+              items: [
+                {
+                  id: "r1",
+                  title: `Remote result for ${request.params.term || "all"}`,
+                  category: "remote",
+                  price: 99
+                }
+              ],
+              total: 1,
+              page: 1,
+              pageSize: 20
+            })
+          }
+        ],
+        actions: [
+          {
+            action: "cart.addItem",
+            policy: "remote-with-local-update",
+            markDatasetsDirty: ["catalog"],
+            executeRemote: async ({ request }) => ({
+              accepted: true,
+              lineItem: request.payload,
+              message: "cart updated on remote"
+            })
+          }
+        ],
+        datasets: [
+          {
+            dataset: "catalog",
+            fetchInstall: async () => ({
+              items: remoteCatalogInstall,
+              version: "1",
+              syncToken: "install-1"
+            }),
+            fetchSync: async () => ({
+              items: remoteCatalogSync,
+              version: "2",
+              syncToken: "sync-2"
+            })
+          }
+        ]
+      };
+    </script>
+    <script src="../dist/client-runtime.global.js"></script>
+    <script>
+      const output = document.getElementById("output");
+      const catalog = document.getElementById("catalog");
+
+      function renderCatalog(result) {
+        const items = result?.data?.items || result?.items || [];
+        if (!items.length) {
+          catalog.innerHTML = '<div class="empty">No catalog items returned.</div>';
+          return;
+        }
+        catalog.innerHTML = items
+          .map(
+            (item) => `
+              <article class="card">
+                <strong>${item.title}</strong>
+                <div>Category: ${item.category}</div>
+                <div>Price: ${item.price}</div>
+                <div>ID: ${item.id}</div>
+              </article>
+            `
+          )
+          .join("");
+      }
+
+      function show(result) {
+        output.textContent = JSON.stringify(result, null, 2);
+      }
+
+      async function handle(action) {
+        const result = await action();
+        show(result);
+        if (result?.ok && result?.data?.items) {
+          renderCatalog(result);
+        }
+        return result;
+      }
+
+      document.getElementById("install-dataset").addEventListener("click", () =>
+        handle(() => window.dataLayer.installDataset({ dataset: "catalog" }))
+      );
+
+      document.getElementById("query-local").addEventListener("click", () =>
+        handle(() =>
+          window.dataLayer.query({
+            resource: "products",
+            query: "search",
+            params: {
+              filters: { category: "books", price: { op: "lte", value: 25 } },
+              sort: [{ field: "title", dir: "asc" }],
+              page: 1,
+              pageSize: 10
+            }
+          })
+        )
+      );
+
+      document.getElementById("query-cache").addEventListener("click", () =>
+        handle(() =>
+          window.dataLayer.query({
+            resource: "products",
+            query: "remoteSearch",
+            params: { term: "atlas" }
+          })
+        )
+      );
+
+      document.getElementById("sync-dataset").addEventListener("click", () =>
+        handle(() => window.dataLayer.syncDataset({ dataset: "catalog" }))
+      );
+
+      document.getElementById("dispatch-action").addEventListener("click", () =>
+        handle(() =>
+          window.actionLayer.dispatch({
+            action: "cart.addItem",
+            payload: { productId: "p1", qty: 2 }
+          })
+        )
+      );
+
+      document.getElementById("status").addEventListener("click", async () => {
+        const status = await window.dataLayer.getDatasetStatus("catalog");
+        show(status);
+      });
+    </script>
+  </body>
+</html>

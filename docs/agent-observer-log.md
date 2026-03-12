@@ -1050,3 +1050,31 @@
   - embedded desks should surface destructive-sync policy more explicitly when a compare result contains only deletes, otherwise the operator can misread "execute succeeded" as "remote is now clean"
   - live rehearsal remains the fastest way to find these workflow-level gaps; tests alone would not have exposed the operator confusion around policy-vs-sync-result
 
+### 2026-03-12 - Client Runtime M03 Kickoff
+- Tasks:
+  - read `C:\Users\cmsin\OneDrive\שולחן העבודה\M03-client-script.md`
+  - mapped the existing page-deployment/runtime-script seam before choosing package boundaries
+  - opened a new contract and execution plan for a standalone `client-runtime/` package
+- Easy:
+  - the repo already has the right HTML seam: deployed pages inject mount tags, runtime script URLs, and the page payload JSON
+- Hard:
+  - the current delivery contract did not permit a new top-level package until it was explicitly formalized
+- Improve:
+  - when a new library/package is introduced outside the established `frontend/`/`server/` surfaces, formalize the repo boundary first so later implementation does not look like structural drift
+
+### 2026-03-12 - Client Runtime V1 Package Delivery
+- Tasks:
+  - delivered the standalone `client-runtime/` workspace package with a browser-ready global artifact
+  - kept all runtime logic inside the new package boundary and only touched root workspace/gate wiring
+  - switched package verification to single-process scripts because forked runners/builders hit Windows sandbox `EPERM`
+  - added a static browser playground so the package can be exercised without page-deployment integration
+- Easy:
+  - the runtime design stayed clean once the package boundary was locked first
+  - the existing HTML deployment seam already proves where this artifact will attach later
+- Hard:
+  - common JS tooling choices (`vitest`, `esbuild`) assumed process spawning that is unreliable in this environment
+  - a custom single-process test harness was the pragmatic fix; fighting the sandbox would have wasted time
+- Improve:
+  - for future standalone packages in this repo, decide early whether the environment can tolerate worker/fork based tooling
+  - keep the first package artifact and browser proof inside the package itself before integrating it into wider product flows
+

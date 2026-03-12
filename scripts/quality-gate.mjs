@@ -56,6 +56,11 @@ const STEP_CATALOG = {
     args: ["test:frontend:integration:dynamic"],
     env: getDynamicLaneEnv()
   },
+  "lane-client-runtime": {
+    id: "lane-client-runtime",
+    command: "pnpm",
+    args: ["test:client-runtime"]
+  },
   "protocol-integrity": {
     id: "protocol-integrity",
     command: "node",
@@ -83,6 +88,11 @@ const STEP_CATALOG = {
     command: "pnpm",
     args: ["--filter", "frontend", "build"]
   },
+  "client-runtime-build": {
+    id: "client-runtime-build",
+    command: "pnpm",
+    args: ["build:client-runtime"]
+  },
   "mission-replay-gate": {
     id: "mission-replay-gate",
     command: "pnpm",
@@ -99,6 +109,8 @@ const PROFILE_STEP_IDS = {
     "lane-server-conformance",
     "lane-frontend-core",
     "lane-frontend-conformance"
+    ,
+    "lane-client-runtime"
   ],
   "pr-standard": [
     "lint-repo-loc-max-600",
@@ -109,7 +121,8 @@ const PROFILE_STEP_IDS = {
     "lane-server-runtime-integration",
     "lane-frontend-core",
     "lane-frontend-conformance",
-    "lane-frontend-integration"
+    "lane-frontend-integration",
+    "lane-client-runtime"
   ],
   "release-full": [
     "lint-repo-loc-max-600",
@@ -121,10 +134,12 @@ const PROFILE_STEP_IDS = {
     "lane-frontend-core",
     "lane-frontend-conformance",
     "lane-frontend-integration",
+    "lane-client-runtime",
     "lane-e2e-smoke",
     "m22-api-runner",
     "m26-api-runner",
     "frontend-build",
+    "client-runtime-build",
     "mission-replay-gate"
   ]
 };

@@ -8,6 +8,7 @@
 2. `docs/contracts/quality-gate-contract.md`
 3. `docs/contracts/blog-management-module-set-contract.md`
 4. `docs/contracts/test-modules-remote-ops-module-contract.md`
+5. `docs/contracts/client-runtime-contract.md`
 
 ## Active Artifacts
 1. `docs/contracts/artifacts/server-lane-manifest-v1.json`

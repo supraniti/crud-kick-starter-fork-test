@@ -6,6 +6,7 @@
 ## Included Delivery Surfaces
 - `server/`
 - `frontend/`
+- `client-runtime/`
 - `modules/`
 - `e2e/`
 - `scripts/`
