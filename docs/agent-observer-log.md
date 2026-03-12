@@ -410,7 +410,7 @@
   - reviewed the first live layout-builder pass against operator feedback
   - audited the current canvas/inspector implementation to confirm the exact causes of the insertion and discoverability problems
   - researched common builder UX patterns from Builder.io, Webflow, and Wix before writing the next plan
-  - wrote the hard-file improvement plan in `docs/contracts/test-modules-layouts-phase-2-plan.md`
+  - wrote the hard-file improvement plan in `docs/contracts/archive/completed-execution-plans/test-modules-layouts-phase-2-plan.md`
 - Easy:
   - the reported friction aligns directly with the current implementation shape: one narrow container drop strip, full-card drag listeners, and inspector-only actions
   - the external tools are consistent about the right answer: insert surface, layers surface, inspector surface, and contextual actions
@@ -520,7 +520,7 @@
   - reran the layouts builder live after the initial layouts-module baseline was committed
   - built a fresh multi-block layout and captured screenshots specifically to judge container readability, drag behavior, and edit affordances
   - audited the current layouts builder code to connect the observed friction back to concrete seams before writing the next plan
-  - wrote the hard-file execution plan in `docs/contracts/test-modules-layouts-improvement-pass-v1.md`
+  - wrote the hard-file execution plan in `docs/contracts/archive/completed-execution-plans/test-modules-layouts-improvement-pass-v1.md`
 - Easy:
   - the naming problem is mechanical and clear; `section` still leaks across canvas, insert rail, and inspector copy
   - the fixed inspector-only editing problem is also clear; the UI has no in-context edit surface for a selected node
@@ -553,7 +553,7 @@
 
 ### 2026-03-10 - Layout Builder Improvement Pass V2 Start
 - Tasks:
-  - opened a fresh hard-file plan in `docs/contracts/test-modules-layouts-improvement-pass-v2.md`
+  - opened a fresh hard-file plan in `docs/contracts/archive/completed-execution-plans/test-modules-layouts-improvement-pass-v2.md`
   - reframed the pass around explicit live-browser scenario completion instead of test-only confidence
   - audited the current canvas/model code before editing
 - Easy:
@@ -630,7 +630,7 @@
 - Tasks:
   - inspected the current `content`, `pages`, and `layouts` module contracts plus the actual page-delivery/page-deployment/page-workspace runtime files before planning
   - confirmed the real gap is not HTML generation itself; it is the missing one-template-to-many-artifacts model plus missing deployment-drift visibility
-  - wrote the hard-file plan at `docs/contracts/test-modules-pages-posts-template-deployment-flow-plan.md`
+  - wrote the hard-file plan at `docs/contracts/archive/completed-execution-plans/test-modules-pages-posts-template-deployment-flow-plan.md`
   - updated `handoff.md` so the task can survive compaction before any code work starts
 - Easy:
   - the repo boundaries are good enough for this feature; the clean center of gravity is clearly `test-modules-pages`, not a new shared deployment core
@@ -1035,3 +1035,18 @@
 - Improve:
   - when embedding procedure-driven flows, write the tests in operator sequence from the start instead of relying on simultaneous clicks
   - when a slice adds settings capability to a module, update runtime-discovery expectations in the same pass; otherwise the final gate fails late for a predictable reason
+
+### 2026-03-12 - Live Embedded Remote Flow Rehearsal
+- Tasks:
+  - exercised the real `Pages`, `Content`, and `Media Manager` remote workflows against `merchant-guild` using the embedded desks, not just `Remote Ops`
+  - proved local fan-out of 10 published post pages, remote deployment sync, Firestore projection sync, and media sync
+- Easy:
+  - once the target bindings were in place, the embedded desks were workable and the remote state changes were legible without dropping into provider-specific code paths
+  - deployment and media storage behaved predictably as mirror-style object targets
+- Hard:
+  - Firestore looked "synced" at first but still kept two stale remote-only documents because the target policy had `allowDeletes: false`
+  - that was not a runtime failure; it was a target-policy truth that had to be corrected in `Remote Ops`
+- Improve:
+  - embedded desks should surface destructive-sync policy more explicitly when a compare result contains only deletes, otherwise the operator can misread "execute succeeded" as "remote is now clean"
+  - live rehearsal remains the fastest way to find these workflow-level gaps; tests alone would not have exposed the operator confusion around policy-vs-sync-result
+
