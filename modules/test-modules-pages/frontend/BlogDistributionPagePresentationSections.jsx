@@ -13,6 +13,9 @@ import {
 function PagePresentationSection({ workspace }) {
   const usingReusableLayout = Boolean(workspace.pageDraft.layoutId);
   const openLayoutLabel = usingReusableLayout ? "Edit Selected Layout" : "Open Layouts";
+  const safeLayoutId = workspace.layoutOptions.some((option) => option.id === workspace.pageDraft.layoutId)
+    ? workspace.pageDraft.layoutId
+    : "";
 
   return (
     <Stack spacing={2}>
@@ -20,7 +23,7 @@ function PagePresentationSection({ workspace }) {
         <TextField
           select
           label="Layout Record"
-          value={workspace.pageDraft.layoutId}
+          value={safeLayoutId}
           onChange={(event) => workspace.changePageField("layoutId", event.target.value)}
           sx={{ minWidth: 240 }}
           helperText="Reusable layouts are managed from the Layouts module."

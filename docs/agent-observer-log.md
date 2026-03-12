@@ -1009,3 +1009,29 @@
 - Improve:
   - after any provisioning action, refresh or guide the operator back into target-level validation explicitly so the desk cannot look stale when the remote is actually fixed
   - keep all provider path-building logic covered with nested-key proofs; live storage APIs are unforgiving about object-name encoding details
+
+### 2026-03-12 - Remote Ops Step 4 Embedding Start
+- Tasks:
+  - closed the kitchensink milestone with a real commit/push
+  - started the embedding slice with a dedicated hard plan instead of continuing ad hoc from Step 3 notes
+- Easy:
+  - the right Step 4 rule is clear: embedded modules consume remote-ops state/actions, but remote-ops keeps ownership of provider logic
+- Hard:
+  - the integration risk now is duplication, not missing capability; `Pages`, `Content`, and `Media Manager` already have their own local-state workflows and it is easy to smear remote logic across them if the contract is not explicit first
+- Improve:
+  - whenever a dedicated operations module graduates into product embedding, write the “owner vs consumer” boundary first and keep it visible in handoff/plan files before touching UI code
+
+### 2026-03-12 - Remote Ops Step 4 Embedding Closure
+- Tasks:
+  - embedded remote compare/execute/restore workflows into Pages, Content, and Media Manager without moving GCP/provider logic out of `test-modules-remote-ops`
+  - closed the full repo gate after fixing contract-shape issues discovered only during final verification
+- Easy:
+  - the module-local helper boundary worked; once embedded modules only consumed target/run/procedure helpers, the provider ownership line stayed clean
+- Hard:
+  - async operator procedures made the first integration tests too optimistic; the tests had to follow the real sequence (`compare`, wait, then `execute`/`restore`) instead of clicking through instantly
+  - repo-shape contracts became real blockers at the end of the slice:
+    - a Pages test file crossed the 600-line limit
+    - runtime discovery still expected only the old module-settings owners
+- Improve:
+  - when embedding procedure-driven flows, write the tests in operator sequence from the start instead of relying on simultaneous clicks
+  - when a slice adds settings capability to a module, update runtime-discovery expectations in the same pass; otherwise the final gate fails late for a predictable reason

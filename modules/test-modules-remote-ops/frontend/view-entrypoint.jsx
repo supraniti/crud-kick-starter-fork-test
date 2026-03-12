@@ -10,7 +10,13 @@ export function registerModuleViews() {
       usesCollectionsDomain: true,
       requiredDomains: ["collections"],
       routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
-      render: (context) => <RemoteOpsView activeModuleLabel={context.activeModuleLabel} />
+      render: (context) => (
+        <RemoteOpsView
+          activeModuleLabel={context.activeModuleLabel}
+          navigate={context.navigate}
+          route={context.route}
+        />
+      )
     }
   ];
 }

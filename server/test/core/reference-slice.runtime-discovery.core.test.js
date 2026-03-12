@@ -26,7 +26,9 @@ const ACTIVE_MODULE_IDS = Object.freeze([
   "test-modules-taxonomy"
 ]);
 const MODULE_SETTINGS_IDS = Object.freeze([
+  "test-modules-content",
   "test-modules-crud-core",
+  "test-modules-media-manager",
   "test-modules-operations-dispatch",
   "test-modules-pages",
   "test-modules-relations-taxonomy",

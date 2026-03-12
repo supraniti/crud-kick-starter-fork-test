@@ -438,3 +438,168 @@ test("blog content view surfaces deployment impact for published posts and route
     { replace: false }
   );
 }, 15000);
+
+test("blog content view embeds remote projection compare and sync actions", async () => {
+  installContentFetchMocks({
+    pages: [
+      {
+        id: "page-010",
+        title: "Posts Page",
+        status: "published",
+        deploymentMode: "per-record",
+        primarySourceType: "blog-post",
+        sourceSelectionMode: "all-records",
+        pathPattern: "/posts/{slug}",
+        deploymentStatus: "clean",
+        deploymentSyncedCount: 2,
+        deploymentTargetCount: 2
+      }
+    ]
+  });
+
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "blog-post-revisions") {
+      return { ok: true, items: [] };
+    }
+    if (collectionId === "blog-pages") {
+      return {
+        ok: true,
+        items: [
+          {
+            id: "page-010",
+            title: "Posts Page",
+            status: "published",
+            deploymentMode: "per-record",
+            primarySourceType: "blog-post",
+            sourceSelectionMode: "all-records",
+            pathPattern: "/posts/{slug}",
+            deploymentStatus: "clean",
+            deploymentSyncedCount: 2,
+            deploymentTargetCount: 2
+          }
+        ]
+      };
+    }
+    if (collectionId === "remote-target-profiles") {
+      return {
+        ok: true,
+        items: [
+          {
+            id: "target-firestore",
+            title: "Posts Projection",
+            targetKind: "firestore-projection",
+            adapterMode: "live-gcp",
+            targetStatus: "validated",
+            compareSummary: {
+              createCount: 0,
+              updateCount: 1,
+              deleteCount: 0,
+              localOnlyCount: 0,
+              remoteOnlyCount: 0
+            }
+          }
+        ]
+      };
+    }
+    if (collectionId === "remote-operation-runs") {
+      return {
+        ok: true,
+        items: [
+          {
+            id: "run-010",
+            targetProfileId: "target-firestore",
+            procedureType: "compare",
+            status: "succeeded",
+            finishedOn: "2026-03-12T12:00:00.000Z"
+          }
+        ]
+      };
+    }
+    if (collectionId === "remote-connection-profiles") {
+      return {
+        ok: true,
+        items: []
+      };
+    }
+    return { ok: true, items: [] };
+  });
+
+  const fetchMock = vi.fn(async (url) => {
+    if (String(url).includes("/targets/target-firestore/compare")) {
+      return createJsonResponse(200, {
+        ok: true,
+        message: "Compared projection"
+      });
+    }
+    if (String(url).includes("/targets/target-firestore/execute")) {
+      return createJsonResponse(200, {
+        ok: true,
+        message: "Synced projection"
+      });
+    }
+    return createJsonResponse(200, { ok: true, item: { id: "noop" } });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  const navigate = vi.fn();
+  const collectionsDomain = createCollectionsDomain();
+  collectionsDomain.collectionItemsState.items[0].status = "published";
+  const moduleSettingsDomain = {
+    moduleSettingsState: {
+      loading: false,
+      saving: false,
+      errorMessage: null,
+      successMessage: null,
+      moduleId: "test-modules-content",
+      schema: { fields: [] },
+      draftValues: {
+        remoteProjectionTargetProfileId: "target-firestore"
+      }
+    },
+    activeModuleSettingsMeta: { moduleId: "test-modules-content", state: "enabled" },
+    activeModuleSettingsPersistencePolicy: null,
+    isActiveModuleSettingsAvailable: true,
+    handleSettingsFieldChange: vi.fn(),
+    handleSaveModuleSettings: vi.fn(async () => {})
+  };
+
+  render(
+    <BlogContentView
+      activeModuleLabel="Content"
+      collectionsDomain={collectionsDomain}
+      moduleSettingsDomain={moduleSettingsDomain}
+      navigate={navigate}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Compare Projection" })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Compare Projection" }));
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-remote-ops/targets/target-firestore/compare",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Sync Projection" }));
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-remote-ops/targets/target-firestore/execute",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Open Remote Ops" }));
+
+  expect(navigate).toHaveBeenCalledWith(
+    {
+      moduleId: "test-modules-remote-ops",
+      tab: "targets",
+      targetId: "target-firestore"
+    },
+    { replace: false }
+  );
+}, 15000);

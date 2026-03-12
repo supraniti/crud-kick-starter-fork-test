@@ -462,4 +462,3 @@ test("pages desk exposes deployment settings and can open the selected layout bu
     expect(handleSaveModuleSettings).toHaveBeenCalled();
   });
 }, 15000);
-

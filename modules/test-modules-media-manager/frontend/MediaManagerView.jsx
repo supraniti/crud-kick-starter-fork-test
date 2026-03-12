@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 import { useMemo, useRef } from "react";
 import { useMediaManagerWorkspace } from "./useMediaManagerWorkspace.js";
+import { MediaManagerRemotePanel } from "./MediaManagerRemotePanel.jsx";
+import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 
 const USAGE_LABEL_OPTIONS = [
   "editorial",
@@ -311,12 +313,42 @@ function OperationsPanel({
 
 export function MediaManagerView({
   activeModuleLabel,
-  collectionsDomain
+  collectionsDomain,
+  moduleSettingsDomain = null,
+  navigate = null
 }) {
   const fileInputRef = useRef(null);
   const workspace = useMediaManagerWorkspace({
     collectionsDomain
   });
+  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
+  const remoteMediaTargetId =
+    moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteMediaTargetProfileId ?? "";
+  const remoteMediaTargets = remoteOpsSupport.getTargetsByKind("media-storage");
+  const remoteMediaTarget = remoteOpsSupport.getTargetById(remoteMediaTargetId);
+  const remoteMediaLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteMediaTargetId);
+
+  const openRemoteOpsTarget = () => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate(
+      {
+        moduleId: "test-modules-remote-ops",
+        tab: "targets",
+        targetId: remoteMediaTargetId
+      },
+      { replace: false }
+    );
+  };
+
+  const saveModuleSettings = async () => {
+    if (!moduleSettingsDomain || typeof moduleSettingsDomain.handleSaveModuleSettings !== "function") {
+      return;
+    }
+    await moduleSettingsDomain.handleSaveModuleSettings();
+    await remoteOpsSupport.reload();
+  };
 
   return (
     <Stack spacing={2}>
@@ -499,6 +531,19 @@ export function MediaManagerView({
             operationState={workspace.operationState}
             onRunPreset={workspace.handleRunPreset}
             onDeleteSelected={workspace.handleDeleteSelected}
+          />
+          <MediaManagerRemotePanel
+            latestRun={remoteMediaLatestRun}
+            moduleSettingsDomain={moduleSettingsDomain}
+            onCompare={() => remoteOpsSupport.compareTarget(remoteMediaTargetId)}
+            onExecute={() => remoteOpsSupport.executeTarget(remoteMediaTargetId)}
+            onOpenRemoteOps={openRemoteOpsTarget}
+            onRestore={() => remoteOpsSupport.restoreTarget(remoteMediaTargetId)}
+            onSaveSettings={saveModuleSettings}
+            onValidate={() => remoteOpsSupport.validateTarget(remoteMediaTargetId)}
+            procedureState={remoteOpsSupport.procedureState}
+            selectedTarget={remoteMediaTarget}
+            targetOptions={remoteMediaTargets}
           />
         </Stack>
       </Box>

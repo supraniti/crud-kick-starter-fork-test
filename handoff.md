@@ -2113,3 +2113,50 @@
     - compare and execute deployment/media storage
     - restore a bounded missing local storage object from remote
   - browser-delivery provisioning/execution is still not implemented; it remains diagnostics/validation only
+
+## 2026-03-12 - Remote Ops Step 4 Embedding Start
+- Status:
+  - remote-ops milestone committed and pushed:
+    - `2a43114 feat: add remote ops gcp workflows`
+  - Step 4 embedding is now the active slice
+- Hard plan:
+  - `docs/contracts/test-modules-remote-ops-step-4-embedded-flows-plan.md`
+- Active goal:
+  - embed the proven remote procedures into:
+    - `test-modules-pages`
+    - `test-modules-content`
+    - `test-modules-media-manager`
+  - while keeping provider/runtime logic owned by `test-modules-remote-ops`
+- Immediate execution order:
+  - map module integration seams
+  - implement `Pages` remote deployment embedding first
+  - then `Content` Firestore projection awareness
+  - then `Media Manager` remote media embedding
+- Boundary reminder:
+  - browser-delivery stays validation-only until its runtime exists
+  - no provider logic should leak into shared/core layers for this slice
+
+## 2026-03-12 - Remote Ops Step 4 Embedding Closed
+- Status:
+  - Step 4 embedding is complete in the worktree and fully verified
+  - final gate status:
+    - `pnpm quality:gate:full` passed
+- Delivered:
+  - `Pages` now embeds remote deployment and browser-delivery target workflows through module settings and desk panels
+  - `Content` now embeds Firestore projection target workflows through module settings and desk panels
+  - `Media Manager` now embeds remote media target workflows through module settings and desk panels
+  - provider/runtime logic remains owned by `test-modules-remote-ops`
+- Important verification fixes required during closure:
+  - embedded-flow frontend tests were made sequential to match real operator procedure flow (`compare -> wait -> execute/restore`)
+  - select fields now suppress MUI out-of-range warnings while option lists are still loading
+  - the new Pages embedded-remote test was split into `blog-distribution.remote.integration.test.jsx` to satisfy the repo LOC contract
+  - runtime discovery core expectations were updated so module-settings ownership includes:
+    - `test-modules-content`
+    - `test-modules-media-manager`
+- Current product truth:
+  - operators can stay inside `Pages`, `Content`, and `Media Manager` for the common remote actions
+  - `Remote Ops` remains the deep-diagnostics and target-management desk
+  - browser-delivery is still validation-only until its execution runtime exists
+- Repo state:
+  - worktree is dirty and ready to commit
+  - no review pair intentionally running

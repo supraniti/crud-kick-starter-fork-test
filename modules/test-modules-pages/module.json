@@ -28,6 +28,22 @@
         "required": true,
         "defaultValue": "app-root",
         "description": "Custom element or tag name injected into published HTML as the application mount point."
+      },
+      {
+        "id": "remoteDeploymentTargetProfileId",
+        "label": "Remote Deployment Target Profile ID",
+        "type": "text",
+        "required": false,
+        "defaultValue": "",
+        "description": "Selected Remote Ops deployment storage target used by the Pages desk for remote compare and sync."
+      },
+      {
+        "id": "remoteBrowserDeliveryTargetProfileId",
+        "label": "Remote Browser Delivery Target Profile ID",
+        "type": "text",
+        "required": false,
+        "defaultValue": "",
+        "description": "Selected Remote Ops browser-delivery validation target used by the Pages desk."
       }
     ]
   },

@@ -1,6 +1,5 @@
 import { Alert, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
-import { ModuleSettingsPanel } from "../../../frontend/src/ui/ModuleSettingsPanel.jsx";
 import {
   DeploymentInstancesPanel,
   DeliveryPreviewPanel,
@@ -12,7 +11,13 @@ import {
   RedirectList,
   SummaryCard
 } from "./BlogDistributionPanels.jsx";
+import {
+  PagesBrowserDeliveryPanel,
+  PagesRemoteDeploymentPanel,
+  PagesRemoteSettingsPanel
+} from "./BlogDistributionRemotePanels.jsx";
 import { useBlogDistributionWorkspace } from "./useBlogDistributionWorkspace.js";
+import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 
 const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
 
@@ -91,20 +96,34 @@ function OverviewTab({ workspace }) {
         </Stack>
         <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
           <ReadinessPanel workspace={workspace} />
+          <PagesRemoteSettingsPanel
+            appMountTagName={workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.appMountTagName ?? ""}
+            deploymentTargets={workspace.remoteDeploymentTargets}
+            browserTargets={workspace.remoteBrowserTargets}
+            onChangeField={workspace.moduleSettingsDomain?.handleSettingsFieldChange ?? (() => {})}
+            onSave={workspace.saveModuleSettings}
+            saveDisabled={!workspace.moduleSettingsDomain}
+            settingsState={workspace.moduleSettingsDomain?.moduleSettingsState}
+          />
+          <PagesRemoteDeploymentPanel
+            latestRun={workspace.remoteDeploymentLatestRun}
+            onCompare={workspace.compareRemoteDeployment}
+            onExecute={workspace.executeRemoteDeployment}
+            onOpenRemoteOps={workspace.openRemoteDeploymentTarget}
+            onValidate={workspace.validateRemoteDeployment}
+            page={workspace.selectedPage}
+            procedureState={workspace.remoteOpsSupport.procedureState}
+            selectedTarget={workspace.remoteDeploymentTarget}
+          />
+          <PagesBrowserDeliveryPanel
+            latestRun={workspace.remoteBrowserLatestRun}
+            onOpenRemoteOps={workspace.openRemoteBrowserTarget}
+            onValidate={workspace.validateRemoteBrowserTarget}
+            procedureState={workspace.remoteOpsSupport.procedureState}
+            selectedTarget={workspace.remoteBrowserTarget}
+          />
           <DeploymentInstancesPanel workspace={workspace} />
           <DeliveryPreviewPanel workspace={workspace} />
-          {workspace.moduleSettingsDomain?.isActiveModuleSettingsAvailable ? (
-            <ModuleSettingsPanel
-              moduleId={workspace.moduleSettingsDomain.moduleSettingsState.moduleId}
-              moduleSettingsState={workspace.moduleSettingsDomain.moduleSettingsState}
-              moduleSettingsMeta={workspace.moduleSettingsDomain.activeModuleSettingsMeta}
-              moduleSettingsPersistencePolicy={
-                workspace.moduleSettingsDomain.activeModuleSettingsPersistencePolicy
-              }
-              onChangeField={workspace.moduleSettingsDomain.handleSettingsFieldChange}
-              onSave={workspace.saveModuleSettings}
-            />
-          ) : null}
         </Stack>
       </Stack>
     </Stack>
@@ -162,6 +181,7 @@ export function BlogDistributionView({
   const workspace = useBlogDistributionWorkspace({
     collectionsDomain
   });
+  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
   const routePageId = typeof route?.pageId === "string" ? route.pageId : "";
 
   useEffect(() => {
@@ -225,11 +245,60 @@ export function BlogDistributionView({
     await workspace.reloadSupportData();
   }, [moduleSettingsDomain, workspace]);
 
+  const remoteDeploymentTargetId =
+    moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteDeploymentTargetProfileId ?? "";
+  const remoteBrowserTargetId =
+    moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteBrowserDeliveryTargetProfileId ?? "";
+  const remoteDeploymentTargets = remoteOpsSupport.getTargetsByKind("deployment-storage");
+  const remoteBrowserTargets = remoteOpsSupport.getTargetsByKind("browser-delivery");
+  const remoteDeploymentTarget = remoteOpsSupport.getTargetById(remoteDeploymentTargetId);
+  const remoteBrowserTarget = remoteOpsSupport.getTargetById(remoteBrowserTargetId);
+  const remoteDeploymentLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteDeploymentTargetId);
+  const remoteBrowserLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteBrowserTargetId);
+
+  const openRemoteTarget = useCallback(
+    (targetId) => {
+      if (typeof navigate !== "function") {
+        return;
+      }
+      navigate(
+        {
+          moduleId: "test-modules-remote-ops",
+          tab: "targets",
+          targetId: targetId || ""
+        },
+        { replace: false }
+      );
+    },
+    [navigate]
+  );
+
+  const openRemoteDeploymentTarget = useCallback(() => {
+    openRemoteTarget(remoteDeploymentTargetId);
+  }, [openRemoteTarget, remoteDeploymentTargetId]);
+
+  const openRemoteBrowserTarget = useCallback(() => {
+    openRemoteTarget(remoteBrowserTargetId);
+  }, [openRemoteTarget, remoteBrowserTargetId]);
+
   const viewWorkspace = {
     ...workspace,
     moduleSettingsDomain,
     openLayoutBuilder,
-    saveModuleSettings
+    saveModuleSettings,
+    remoteOpsSupport,
+    remoteDeploymentTargets,
+    remoteBrowserTargets,
+    remoteDeploymentTarget,
+    remoteBrowserTarget,
+    remoteDeploymentLatestRun,
+    remoteBrowserLatestRun,
+    openRemoteDeploymentTarget,
+    openRemoteBrowserTarget,
+    validateRemoteDeployment: () => remoteOpsSupport.validateTarget(remoteDeploymentTargetId),
+    compareRemoteDeployment: () => remoteOpsSupport.compareTarget(remoteDeploymentTargetId),
+    executeRemoteDeployment: () => remoteOpsSupport.executeTarget(remoteDeploymentTargetId),
+    validateRemoteBrowserTarget: () => remoteOpsSupport.validateTarget(remoteBrowserTargetId)
   };
 
   if (

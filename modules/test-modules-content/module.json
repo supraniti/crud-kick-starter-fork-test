@@ -6,6 +6,7 @@
   "capabilities": [
     "crud.collection",
     "schema",
+    "settings",
     "ui.route"
   ],
   "lifecycle": {
@@ -16,6 +17,19 @@
     "collectionHandlers": "./server/collection-handlers.mjs",
     "persistence": "./server/persistence-plugins.mjs",
     "routes": "./server/routes.mjs"
+  },
+  "settings": {
+    "contractVersion": 1,
+    "fields": [
+      {
+        "id": "remoteProjectionTargetProfileId",
+        "label": "Remote Projection Target Profile ID",
+        "type": "text",
+        "required": false,
+        "defaultValue": "",
+        "description": "Selected Remote Ops Firestore target used by the Content desk for remote compare and sync."
+      }
+    ]
   },
   "ui": {
     "navigation": {

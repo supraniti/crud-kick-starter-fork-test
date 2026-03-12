@@ -9,6 +9,7 @@ import {
 } from "./BlogContentPanels.jsx";
 import { BlogContentEditorPanel } from "./BlogContentEditorPanel.jsx";
 import { useBlogContentWorkspace } from "./useBlogContentWorkspace.js";
+import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 
 const POSTS_COLLECTION_ID = "blog-posts";
 
@@ -102,15 +103,22 @@ function WorkspaceLayout({ workspace }) {
 export function BlogContentView({
   activeModuleLabel,
   collectionsDomain,
+  moduleSettingsDomain = null,
   navigate = null
 }) {
   const workspace = useBlogContentWorkspace({
     collectionsDomain
   });
+  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
   const authorOptions = useMemo(
     () => optionItems(workspace.referenceOptions, "blog-authors"),
     [workspace.referenceOptions]
   );
+  const remoteProjectionTargetId =
+    moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteProjectionTargetProfileId ?? "";
+  const remoteProjectionTargets = remoteOpsSupport.getTargetsByKind("firestore-projection");
+  const remoteProjectionTarget = remoteOpsSupport.getTargetById(remoteProjectionTargetId);
+  const remoteProjectionLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteProjectionTargetId);
 
   if (
     !collectionsDomain.isActiveCollectionAvailable &&
@@ -132,12 +140,46 @@ export function BlogContentView({
     );
   };
 
+  const openRemoteOpsTarget = () => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate(
+      {
+        moduleId: "test-modules-remote-ops",
+        tab: "targets",
+        targetId: remoteProjectionTargetId
+      },
+      { replace: false }
+    );
+  };
+
+  const saveModuleSettings = async () => {
+    if (!moduleSettingsDomain || typeof moduleSettingsDomain.handleSaveModuleSettings !== "function") {
+      return;
+    }
+    await moduleSettingsDomain.handleSaveModuleSettings();
+    await remoteOpsSupport.reload();
+  };
+
   return (
     <Stack spacing={2}>
       <Hero activeModuleLabel={activeModuleLabel} />
       <SummaryGrid summary={workspace.summary} />
       <ContentFilterBar collectionsDomain={collectionsDomain} authorOptions={authorOptions} />
-      <WorkspaceLayout workspace={{ ...workspace, openPagesDesk }} />
+      <WorkspaceLayout
+        workspace={{
+          ...workspace,
+          moduleSettingsDomain,
+          remoteOpsSupport,
+          remoteProjectionTarget,
+          remoteProjectionTargets,
+          remoteProjectionLatestRun,
+          openPagesDesk,
+          openRemoteOpsTarget,
+          saveModuleSettings
+        }}
+      />
     </Stack>
   );
 }

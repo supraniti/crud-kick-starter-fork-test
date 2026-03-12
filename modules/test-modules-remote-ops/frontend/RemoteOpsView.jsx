@@ -1,14 +1,21 @@
 import { Alert, Box, Paper, Stack, Tab, Tabs } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RemoteOpsConnectionSetupCard } from "./RemoteOpsConnectionSetupCard.jsx";
 import { ConnectionEditor, ConnectionList } from "./RemoteOpsConnectionPanels.jsx";
 import { Hero, SummaryCard } from "./RemoteOpsSharedPanels.jsx";
 import { RunsPanel, TargetEditor, TargetList } from "./RemoteOpsTargetPanels.jsx";
 import { useRemoteOpsWorkspace } from "./useRemoteOpsWorkspace.js";
 
-export function RemoteOpsView({ activeModuleLabel }) {
+const VALID_TABS = new Set(["connections", "targets", "runs"]);
+
+function resolveRouteTab(route) {
+  const routeTab = typeof route?.tab === "string" ? route.tab : "";
+  return VALID_TABS.has(routeTab) ? routeTab : "connections";
+}
+
+export function RemoteOpsView({ activeModuleLabel, navigate = null, route = null }) {
   const workspace = useRemoteOpsWorkspace();
-  const [tab, setTab] = useState("connections");
+  const [tab, setTab] = useState(() => resolveRouteTab(route));
   const headerAlert = useMemo(
     () => (
       <Alert severity="info">
@@ -19,6 +26,71 @@ export function RemoteOpsView({ activeModuleLabel }) {
     ),
     []
   );
+
+  useEffect(() => {
+    if (typeof route?.tab !== "string") {
+      return;
+    }
+    const nextTab = resolveRouteTab(route);
+    if (nextTab !== tab) {
+      setTab(nextTab);
+    }
+  }, [route, tab]);
+
+  useEffect(() => {
+    const routeTargetId = typeof route?.targetId === "string" ? route.targetId : "";
+    if (!routeTargetId || workspace.isCreatingTarget || workspace.selectedTargetId === routeTargetId) {
+      return;
+    }
+    if (!workspace.targets.some((target) => target.id === routeTargetId)) {
+      return;
+    }
+    workspace.selectTarget(routeTargetId);
+    setTab("targets");
+  }, [
+    route,
+    workspace.isCreatingTarget,
+    workspace.selectedTargetId,
+    workspace.selectTarget,
+    workspace.targets
+  ]);
+
+  useEffect(() => {
+    const routeConnectionId = typeof route?.connectionId === "string" ? route.connectionId : "";
+    if (
+      !routeConnectionId ||
+      workspace.isCreatingConnection ||
+      workspace.selectedConnectionId === routeConnectionId
+    ) {
+      return;
+    }
+    if (!workspace.connections.some((connection) => connection.id === routeConnectionId)) {
+      return;
+    }
+    workspace.selectConnection(routeConnectionId);
+    if (!route?.targetId) {
+      setTab("connections");
+    }
+  }, [
+    route,
+    workspace.connections,
+    workspace.isCreatingConnection,
+    workspace.selectConnection,
+    workspace.selectedConnectionId
+  ]);
+
+  const handleChangeTab = (_, nextTab) => {
+    setTab(nextTab);
+    if (typeof navigate === "function") {
+      navigate(
+        {
+          ...route,
+          tab: nextTab
+        },
+        { replace: true }
+      );
+    }
+  };
 
   return (
     <Stack spacing={2}>
@@ -37,7 +109,7 @@ export function RemoteOpsView({ activeModuleLabel }) {
         <SummaryCard label="Operation Runs" value={workspace.summary.runs} />
       </Stack>
       <Paper variant="outlined" sx={{ px: 2 }}>
-        <Tabs value={tab} onChange={(_, nextValue) => setTab(nextValue)}>
+        <Tabs value={tab} onChange={handleChangeTab}>
           <Tab value="connections" label="Connections" />
           <Tab value="targets" label="Targets" />
           <Tab value="runs" label="Runs" />

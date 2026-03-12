@@ -292,3 +292,153 @@ test("media manager filters call the collection domain with field id and value",
     "true"
   );
 });
+
+test("media manager embeds remote media compare, sync, and restore procedures", async () => {
+  const collectionsDomain = createCollectionsDomain();
+  const fetchMock = vi.fn(async (url, options = {}) => {
+    const method = options.method ?? "GET";
+
+    if (url === "/api/reference/missions/jobs" && method === "GET") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [EXISTING_JOB]
+      });
+    }
+
+    if (url === "/api/reference/modules/test-modules-remote-ops/targets/target-media/compare" && method === "POST") {
+      return createJsonResponse(200, {
+        ok: true,
+        message: "Compared media target"
+      });
+    }
+
+    if (url === "/api/reference/modules/test-modules-remote-ops/targets/target-media/execute" && method === "POST") {
+      return createJsonResponse(200, {
+        ok: true,
+        message: "Synced media target"
+      });
+    }
+
+    if (url === "/api/reference/modules/test-modules-remote-ops/targets/target-media/restore" && method === "POST") {
+      return createJsonResponse(200, {
+        ok: true,
+        message: "Restored media target"
+      });
+    }
+
+    throw new Error(`Unexpected fetch request: ${method} ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  const navigate = vi.fn();
+  const moduleSettingsDomain = {
+    moduleSettingsState: {
+      loading: false,
+      saving: false,
+      errorMessage: null,
+      successMessage: null,
+      moduleId: "test-modules-media-manager",
+      schema: { fields: [] },
+      draftValues: {
+        remoteMediaTargetProfileId: "target-media"
+      }
+    },
+    activeModuleSettingsMeta: { moduleId: "test-modules-media-manager", state: "enabled" },
+    activeModuleSettingsPersistencePolicy: null,
+    isActiveModuleSettingsAvailable: true,
+    handleSettingsFieldChange: vi.fn(),
+    handleSaveModuleSettings: vi.fn(async () => {})
+  };
+
+  const actualReferenceApi = await vi.importActual("../../api/reference.js");
+  vi.spyOn(actualReferenceApi, "fetchReferenceCollectionItems").mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "remote-target-profiles") {
+      return {
+        items: [
+          {
+            id: "target-media",
+            title: "Media Bucket",
+            targetKind: "media-storage",
+            adapterMode: "live-gcp",
+            targetStatus: "validated",
+            compareSummary: {
+              createCount: 0,
+              updateCount: 1,
+              deleteCount: 0,
+              localOnlyCount: 0,
+              remoteOnlyCount: 1
+            }
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "remote-operation-runs") {
+      return {
+        items: [
+          {
+            id: "run-media",
+            targetProfileId: "target-media",
+            procedureType: "compare",
+            status: "succeeded",
+            finishedOn: "2026-03-12T12:00:00.000Z"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "remote-connection-profiles") {
+      return { items: [] };
+    }
+
+    return { items: [] };
+  });
+
+  render(
+    <MediaManagerView
+      activeModuleLabel="Media Manager"
+      collectionsDomain={collectionsDomain}
+      moduleSettingsDomain={moduleSettingsDomain}
+      navigate={navigate}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Compare Remote" })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Compare Remote" }));
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-remote-ops/targets/target-media/compare",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Sync Remote Media" }));
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-remote-ops/targets/target-media/execute",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Restore Missing Local File" }));
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-remote-ops/targets/target-media/restore",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Open Remote Ops" }));
+
+  expect(navigate).toHaveBeenCalledWith(
+    {
+      moduleId: "test-modules-remote-ops",
+      tab: "targets",
+      targetId: "target-media"
+    },
+    { replace: false }
+  );
+}, 15000);
