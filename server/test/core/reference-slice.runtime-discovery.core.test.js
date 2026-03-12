@@ -20,6 +20,7 @@ const ACTIVE_MODULE_IDS = Object.freeze([
   "test-modules-operations-dispatch",
   "test-modules-pages",
   "test-modules-relations-taxonomy",
+  "test-modules-remote-ops",
   "test-modules-remotes-publish",
   "test-modules-settings-policy",
   "test-modules-taxonomy"
@@ -89,6 +90,10 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         expect.objectContaining({
           id: "test-modules-media-manager",
           label: "Media Manager"
+        }),
+        expect.objectContaining({
+          id: "test-modules-remote-ops",
+          label: "Remote Ops"
         }),
         expect.objectContaining({
           id: "test-modules-operations-dispatch",
@@ -297,12 +302,16 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "blog-comments",
         "page-layouts",
         "blog-pages",
+        "page-deployment-artifacts",
         "blog-post-revisions",
         "blog-posts",
         "blog-redirect-rules",
         "blog-authors",
         "blog-categories",
         "blog-tags",
+        "remote-connection-profiles",
+        "remote-target-profiles",
+        "remote-operation-runs",
         "media-items",
         "records",
         "notes",
@@ -322,6 +331,9 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "blog-authors": "test-modules-editorial",
         "blog-tags": "test-modules-taxonomy",
         "blog-categories": "test-modules-taxonomy",
+        "remote-connection-profiles": "test-modules-remote-ops",
+        "remote-target-profiles": "test-modules-remote-ops",
+        "remote-operation-runs": "test-modules-remote-ops",
         records: "test-modules-crud-core",
         "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
@@ -341,6 +353,9 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "blog-authors": "test-modules-editorial",
         "blog-tags": "test-modules-taxonomy",
         "blog-categories": "test-modules-taxonomy",
+        "remote-connection-profiles": "test-modules-remote-ops",
+        "remote-target-profiles": "test-modules-remote-ops",
+        "remote-operation-runs": "test-modules-remote-ops",
         records: "test-modules-crud-core",
         "media-items": "test-modules-media-manager",
         dispatches: "test-modules-operations-dispatch",
@@ -371,6 +386,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "test-modules-layouts-persistence": "test-modules-layouts",
         "test-modules-editorial-authors-persistence": "test-modules-editorial",
         "test-modules-taxonomy-taxonomy-persistence": "test-modules-taxonomy",
+        "test-modules-remote-ops-persistence": "test-modules-remote-ops",
         "test-modules-crud-core-records-persistence": "test-modules-crud-core",
         "test-modules-media-manager-media-persistence": "test-modules-media-manager",
         "test-modules-operations-dispatch-dispatches-persistence":
@@ -390,6 +406,7 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
         "test-modules-layouts": expect.any(String),
         "test-modules-editorial": expect.any(String),
         "test-modules-taxonomy": expect.any(String),
+        "test-modules-remote-ops": expect.any(String),
         "test-modules-crud-core": expect.any(String),
         "test-modules-media-manager": expect.any(String),
         "test-modules-operations-dispatch": expect.any(String),
@@ -429,6 +446,15 @@ export function registerReferenceSliceRuntimeLifecycleDiscoverySuite() {
           id: "test-modules-taxonomy",
           state: "enabled",
           collectionIds: expect.arrayContaining(["blog-tags", "blog-categories"])
+        }),
+        expect.objectContaining({
+          id: "test-modules-remote-ops",
+          state: "enabled",
+          collectionIds: expect.arrayContaining([
+            "remote-connection-profiles",
+            "remote-target-profiles",
+            "remote-operation-runs"
+          ])
         }),
         expect.objectContaining({
           id: "test-modules-crud-core",

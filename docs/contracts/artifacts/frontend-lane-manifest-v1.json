@@ -1,7 +1,7 @@
 {
   "schema_version": "lane-manifest-v1",
   "owner_surface": "frontend",
-  "generated_on": "2026-03-08",
+  "generated_on": "2026-03-11",
   "source_artifacts": [
     "docs/contracts/contract-index.md",
     "docs/contracts/quality-gate-contract.md"
@@ -21,7 +21,8 @@
       "test-modules-operations-dispatch",
       "test-modules-remotes-publish",
       "test-modules-editorial",
-      "test-modules-taxonomy"
+      "test-modules-taxonomy",
+      "test-modules-remote-ops"
     ],
     "module_id_alias_map": "docs/contracts/artifacts/module-id-alias-map-v1.json"
   },
@@ -308,7 +309,30 @@
         "layouts-builder-save-ui"
       ],
       "migration_phase": "phase-3"
+    },
+    {
+      "test_file_path": "frontend/src/tests/app-integration/remote-ops.connections.integration.test.jsx",
+      "lane": "frontend-integration",
+      "flow_ids": [
+        "FLOW-FE-REMOTE-OPS-001"
+      ],
+      "capability_tags": [
+        "remote-ops-kitchensink-connection-ui",
+        "remote-ops-kitchensink-compatibility-analysis-ui"
+      ],
+      "migration_phase": "phase-3"
+    },
+    {
+      "test_file_path": "frontend/src/tests/app-integration/remote-ops.targets.integration.test.jsx",
+      "lane": "frontend-integration",
+      "flow_ids": [
+        "FLOW-FE-REMOTE-OPS-002"
+      ],
+      "capability_tags": [
+        "remote-ops-kitchensink-target-procedure-ui",
+        "remote-ops-kitchensink-run-history-ui"
+      ],
+      "migration_phase": "phase-3"
     }
   ]
 }
-

@@ -719,3 +719,293 @@
 - Improve:
   - when a custom desk owns workflow truth, prefer a desk-owned read model instead of assuming the generic collection list shape is stable enough for derived-status logic
   - when a mismatch appears between row summaries and instance details, compare the exact record shapes entering each evaluator before changing write logic
+
+### 2026-03-11 - GCP Sync Research Memo
+- Tasks:
+  - converted the first-pass GCP service discussion into a hard memo before context compaction
+- Easy:
+  - the current repo/product shape strongly suggests a one-way projection model rather than dual-write
+- Hard:
+  - the dangerous part of this discussion is choosing infrastructure before locking authority and sync-direction rules
+- Improve:
+  - when discussing cloud integrations, capture service recommendation and operating procedure in the same memo so later sessions do not lose the rationale and jump straight to implementation
+
+### 2026-03-11 - GCP Sync Research Memo Follow-up
+- Tasks:
+  - refined the GCP direction after operator input
+  - shifted the default remote DB recommendation toward Firestore
+  - reframed deployment/media around one storage+CDN platform with controlled operator workflows
+- Easy:
+  - once the operator clarified that sync should be structured and human-controlled, the correct model stopped looking like background automation and started looking like explicit reconciliation tooling
+- Hard:
+  - it is easy to say “single solution” and accidentally collapse distinct operational domains that still need different lifecycle and access rules
+- Improve:
+  - in future architecture discussions, separate “single platform” from “single bucket/single resource” early; those are not the same decision
+
+### 2026-03-11 - GCP Sync Research Memo Local App Update
+- Tasks:
+  - updated the memo after clarifying that the product runs locally for now, likely inside Electron
+  - shifted the auth recommendation accordingly toward installed-app OAuth
+- Easy:
+  - once the runtime assumption became “local operator app,” the auth recommendation became much clearer
+- Hard:
+  - cloud-auth advice changes significantly depending on whether code runs locally, on GCP, or on an external server; mixing those cases leads to bad defaults
+- Improve:
+  - lock the runtime/deployment assumption early in future cloud discussions before recommending auth and IAM patterns
+
+### 2026-03-11 - GCP Sync Memo Completion
+- Tasks:
+  - rewrote the memo into one final recommendation document instead of leaving it as layered discussion notes
+  - captured the operator-driven procedure model and the two-step implementation strategy
+- Easy:
+  - once the product was framed as a local operator tool, the correct center of gravity became clear: connection profiles, validation, diff, explicit execution, and verification
+- Hard:
+  - the tricky part was separating “single cloud platform” from “single storage target” without losing the user’s simplicity goal
+  - it was also important to keep the memo future-flexible without accidentally broadening the first implementation into infrastructure orchestration
+- Improve:
+  - for future research tickets, rewrite exploratory memos into one final recommendation before handoff; accumulated research notes age badly and make the next ticket harder to write cleanly
+
+### 2026-03-11 - GCP Remote Operations Ticket
+- Tasks:
+  - converted the approved memo into an executable implementation ticket
+  - aligned the ticket with the user's requested two-step rollout:
+    - kitchensink first
+    - embedded workflows second
+- Easy:
+  - once the memo was normalized, the ticket structure followed naturally from the approved operating model
+- Hard:
+  - the important discipline was not letting the ticket drift into broad cloud orchestration; it needed to stay product-centered and module-first
+- Improve:
+  - when a user explicitly wants staged delivery, encode the milestone approval gates directly into the ticket so the execution phase does not skip them later
+
+### 2026-03-11 - Remote Ops Step 1 Milestone 1
+- Tasks:
+  - implemented the additive `test-modules-remote-ops` kitchensink module
+  - added simulated connection, validation, compare, execute, and restore procedures
+  - wired focused server/frontend tests plus discovery/manifest updates
+  - closed the final repo gate blocker by splitting the simulated target/diff runtime into a helper module
+- Easy:
+  - the product model was already clear from the memo and ticket: explicit operator procedures, simulated adapter, module-local surface
+  - once the collections and route seams existed, the UI flow followed the same compare/execute/verify pattern cleanly
+- Hard:
+  - the sharp edge was not business logic; it was contract pressure:
+    - active-module discovery expectations
+    - alias-map counts
+    - lane manifests
+    - repo LOC ceilings
+  - splitting the runtime late introduced two validator regressions (`ensureDir`, `pathExists`) that were easy to miss because only one focused server branch used them
+- Improve:
+  - when extracting helpers to satisfy repo-shape contracts, rerun the narrowest failing procedure test immediately before trusting broader green signals
+  - for future additive modules, treat alias-map/lane-manifest/discovery updates as part of the first slice rather than cleanup at the end
+
+### 2026-03-11 - Remote Ops Real Connect Reset
+- Tasks:
+  - re-scoped Step 1 after operator feedback that the simulated kitchensink was not a meaningful review surface
+  - promoted the next milestone to real Google auth, project discovery, and live target validation
+- Easy:
+  - the operator feedback was correct and specific: the missing value was not another mock flow, it was trust against a real project
+- Hard:
+  - the tempting mistake here is to keep layering more simulated UX because the groundwork already exists; that would waste time and still not make the feature reviewable
+- Improve:
+  - for cloud/integration work, a milestone is only truly reviewable once the operator can exercise it against a real remote system, even if later execute flows remain simulated
+
+### 2026-03-11 - Remote Ops Real Connect Implementation
+- Tasks:
+  - implemented real installed-app OAuth with PKCE, local live-session storage, project discovery, and live target validation inside `test-modules-remote-ops`
+  - split the remote-ops server routes and frontend workspace again to stay inside repo LOC and function-shape boundaries while the live-connect slice grew
+  - verified the live-connect frontend flow and then narrowed the remaining failures to the focused server conformance harness
+- Easy:
+  - once the live/simulated boundary was made explicit (`live-gcp` vs `simulated-gcp`), the product behavior became much easier to express cleanly
+  - the frontend flow was straightforward after the popup callback and project-loading routes existed
+- Hard:
+  - the remaining failures are not reproducing in direct one-off server diagnostics, which means the hard part is now harness-specific behavior rather than obvious product logic
+  - cloud-integration slices hit repo-shape contracts fast; route/workspace files became too large before the feature was even finished
+- Improve:
+  - for integration-heavy modules, keep route-group and hook-helper extraction ahead of time instead of waiting for LOC lint to force the split
+  - when a focused test fails but the same flow works in a direct server repro, record that divergence immediately in `handoff.md`; it changes the debugging strategy from “fix runtime” to “fix harness assumptions”
+
+### 2026-03-11 - Remote Ops Real Connect Verification Closure
+- Tasks:
+  - closed the remaining focused server conformance failures for the real-connect milestone
+  - reran the full repo gate outside the sandbox and got a clean pass
+- Easy:
+  - once the failing tests were treated as isolation issues instead of feature issues, the fix path was narrow and clear
+- Hard:
+  - deterministic ids plus persisted local runtime state are a dangerous combination in module-conformance tests; the product was right, but the harness was lying
+  - a hybrid simulated/live feature needs the activation boundary to be explicit in code, not inferred from a single metadata field
+- Improve:
+  - any future module that persists local runtime state outside collections should have test-harness cleanup built in from the first conformance test
+  - when a feature can operate in both simulated and live modes, gate the live path on actual live credentials/state, not on configuration intent alone
+
+### 2026-03-11 - Remote Ops Real Connect UX Recovery
+- Tasks:
+  - reclassified the real-connect milestone from “green and reviewable” to “technically green but operator-rejected”
+  - locked the next recovery slice around connection usability rather than more backend capability
+- Easy:
+  - the operator feedback was precise; the missing value is not more auth mechanics, it is a usable setup procedure
+- Hard:
+  - a technically correct OAuth flow is still a product failure if the first required field depends on outside Google-console knowledge that the desk does not explain
+- Improve:
+  - for external-service integrations, “review-ready” must mean the operator can reasonably complete the first-run setup from the UI with bounded, explicit instructions
+
+### 2026-03-11 - Remote Ops Real Connect UX Recovery Closure
+- Tasks:
+  - delivered the missing operator setup surface for Google auth
+  - converted the connection procedure from “know the magic field” into a visible ordered flow
+  - reran the full repo gate after the recovery slice
+- Easy:
+  - once the problem was framed correctly, the right solution was mostly UX and workflow wiring, not more auth plumbing
+- Hard:
+  - even a good backend milestone is still unusable if the first-run setup assumes provider knowledge the UI never teaches
+- Improve:
+  - for any external-auth flow, the setup card should exist in the first reviewable slice, not as a follow-up repair
+
+### 2026-03-11 - Remote Ops First-Run Usability Tightening
+- Tasks:
+  - removed the stale-profile-first landing by making fresh browser sessions open in `New Connection Profile` mode
+  - reset stale validation state when connection inputs or project selection change
+  - auto-selected the obvious discovered project after Google project loading
+- Easy:
+  - once the desk opened in a clean new-profile state, the rest of the setup sequence read much more naturally
+- Hard:
+  - existing saved test profiles can pollute the perception of a workflow even when the underlying connect implementation is already correct
+- Improve:
+  - operator-first integrations should default to a clean creation flow and treat existing test/demo records as optional context, not the starting state
+
+### 2026-03-11 - GCP Auth Direction Correction
+- Tasks:
+  - corrected the GCP auth architecture after clarifying that the app should act through a stable service identity on the operator's machine
+  - updated the research memo and handoff to treat service-account credentials as the main connection path
+  - rewrote the Desktop implementation ticket to match the service-account-first architecture
+- Easy:
+  - once the use case was stated precisely, the service-account fit was direct
+- Hard:
+  - it is easy to confuse delegated end-user OAuth with “local app does work for me on my cloud account”
+- Improve:
+  - separate these design questions early:
+    - who is the operational identity
+    - where the credential lives
+    - what the user-facing connection flow should be
+
+### 2026-03-11 - Remote Ops Service-Account Step 1 Closure
+- Tasks:
+  - replaced the OAuth-first operator flow with a service-account-key connection path
+  - implemented local key-file loading, metadata extraction, JWT bearer token exchange, live project validation, and live target validation
+  - rewrote the focused frontend and server tests to guard the real service-account procedure instead of the deprecated popup flow
+  - reran the full repo gate after the auth reset
+- Easy:
+  - once the auth model matched the real use case, the operator flow became much simpler and the tests became easier to reason about
+- Hard:
+  - the main risk was leaving mixed OAuth and service-account assumptions across UI, routes, and tests; the reset only became trustworthy after every layer said the same thing
+  - frontend integration mocks needed to return fresh array copies so selection effects behaved like the real API instead of sticking on stale references
+- Improve:
+  - when an auth architecture is corrected, rewrite the entire user procedure and focused tests in the same pass; partial migration leaves a deceptive green surface
+  - for local credential flows, prefer metadata-first collection storage and explicit warnings about sensitive files from the first usable milestone
+
+### 2026-03-11 - Remote Ops Service-Account Key Chooser
+- Tasks:
+  - replaced the brittle path textbox flow with a real JSON key chooser
+  - added a backend import route that copies the chosen file into a module-owned untracked runtime area
+  - rewrote the focused frontend/server tests to guard the chooser/import flow instead of the old path string
+- Easy:
+  - once the boundary was clear, the backend model was straightforward: import file, validate JSON, store only the resulting reference plus metadata
+- Hard:
+  - a normal browser cannot safely hand the app a reusable absolute local path, so “proper input” needed to mean import semantics, not just a prettier text field
+- Improve:
+  - for local-file-backed credentials, design the storage contract around import/reference from the start; path-textbox workflows are fragile and poor UX in browser-hosted apps
+
+### 2026-03-11 - Remote Ops Live Target Inspection
+- Tasks:
+  - inspected the first real saved live connection/target state after operator review
+  - verified that the current target issue is a real remote config/permission failure, not a broken validation route
+  - translated the operator’s next requirement into a dedicated live-procedures plan
+- Easy:
+  - once the saved rows and run history were inspected directly, it was obvious the runtime was already hitting GCP correctly
+- Hard:
+  - placeholder defaults like `media-bucket` are acceptable in simulated mode but actively misleading in live mode
+- Improve:
+  - live target forms should not seed placeholder bucket names that look deployable; they should force explicit real configuration or visibly mark the fields as placeholders
+
+### 2026-03-12 - Remote Ops Live Procedures Closure
+- Tasks:
+  - replaced the live compare/execute/restore placeholders with real Firestore and storage procedure runtimes
+  - exposed the live procedure controls in the kitchensink UI instead of keeping them artificially disabled
+  - added focused server/frontend proof for live Firestore push and live storage sync/restore
+  - fixed a real nested-file hash bug discovered while proving live storage sync
+- Easy:
+  - once the service-account validation path already existed, the live procedure layer had a clean place to attach
+- Hard:
+  - storage compare looked correct at the top level but was wrong for nested files because the recursive hash collector silently dropped the requested algorithm/encoding
+  - repo-wide gate review can get polluted by unrelated existing integration timeouts, so the checkpoint needed a clear distinction between remote-ops proof and unrelated red lanes
+- Improve:
+  - whenever a compare routine depends on a shared recursive helper, add at least one nested-path proof case immediately
+  - when a milestone is review-ready but the full gate is red outside the slice, record the exact failing files so the next session does not conflate product regressions with harness debt
+
+### 2026-03-12 - Remote Ops Unified Provisioning Direction
+- Tasks:
+  - converted the remote-ops goal from “validate and sync targets” to “make the remote compatible with our full supported flows”
+  - locked the new boundary rule that all remote/GCP logic should stay inside strict module-local files/folders unless a reusable primitive is genuinely proven
+  - started Slice A with a canonical GCP provisioning model and route
+- Easy:
+  - the right first move was a canonical model, not another UI guess
+- Hard:
+  - provisioning design can sprawl into core abstractions quickly if the file/module boundaries are not stated explicitly before coding
+- Improve:
+  - for infrastructure-heavy features, start with one module-local compatibility model that names resources, permissions, and safeguard rules before wiring inventory/provisioning logic
+
+### 2026-03-12 - Remote Ops Unified Provisioning Compatibility Analysis
+- Tasks:
+  - implemented a real module-local GCP compatibility report instead of another static/procedural guess
+  - split the remote-ops desk and test files while adding the new analysis surface so the module stayed inside repo shape constraints
+  - proved the new slice with focused server/frontend checks before looking at the broader gate
+- Easy:
+  - the provisioning model paid off immediately; once the canonical bundle/permission/resource model existed, the analysis runtime stayed coherent
+- Hard:
+  - the repo-wide gate still carries unrelated frontend integration failures, so it is important to distinguish “remote-ops slice is green” from “repo gate is green”
+  - UI/test splitting is not optional in this repo; if it is left until the end of an infra-heavy slice, shape contracts become the real blocker
+- Improve:
+  - for future remote/provider work, pair every new backend capability with a module-local operator report in the same slice; backend-only milestones are hard to evaluate
+  - when a slice is green but the repo gate is red elsewhere, write the exact failing files into the handoff immediately so the next session does not waste time rediscovering them
+
+### 2026-03-12 - Remote Ops Unified Provisioning Execution
+- Tasks:
+  - added the connection-scoped `provision-missing` flow with explicit safeguard confirmation
+  - kept provisioning strictly inside `test-modules-remote-ops` and limited it to supported resources that are actually configured
+  - closed the full repo gate again after the provisioning/UI/test changes
+- Easy:
+  - the compatibility report made a good execution boundary; once the ready-now actions were explicit, provisioning logic stayed narrow
+- Hard:
+  - provisioning cannot trust a single report pass when APIs are disabled, because the missing resource behind that API is invisible until the API is enabled
+  - if bundles with no live targets are treated like missing infrastructure, the product starts recommending unnecessary resource creation and violates the minimum-footprint rule
+- Improve:
+  - for provider provisioning flows, build the runtime around iterative `analyze -> act -> re-analyze` rather than a single static action list
+  - treat `not configured` as a first-class state in operator tooling; otherwise compatibility UIs naturally drift toward over-provisioning
+
+### 2026-03-12 - Remote Ops Live Rehearsal Findings
+- Tasks:
+  - rehearsed the real browser/operator flow against the `merchant-guild` GCP project instead of trusting the green automated slice
+  - fixed a real live-only failure in browser-delivery permission diagnostics
+  - proved Firestore live compare/execute end to end and captured the real storage IAM blocker
+- Easy:
+  - once the service-account connection was valid, the Firestore live path exercised cleanly: validate -> compare -> execute -> clean
+- Hard:
+  - a single invalid provider permission string (`certificatemanager.certificates.*`) collapsed the whole compatibility report even though the rest of the live runtime was fine
+  - storage provisioning can look like a product bug when it is actually a real IAM boundary; the UI currently proves the block but does not yet turn it into strong operator guidance
+- Improve:
+  - every provider/infrastructure milestone needs one real browser rehearsal before being called review-ready; synthetic tests were not enough to catch the bad Certificate Manager permission ids
+  - blocked live bundles should explain the next operator action in role/permission terms, not only echo the raw missing permission names
+
+### 2026-03-12 - Remote Ops Live Rehearsal After IAM Update
+- Tasks:
+  - reran the real `merchant-guild` flow after the operator granted the precise storage/datastore/service-usage roles
+  - proved provisioning + sync for both deployment storage and media storage against real GCP buckets
+  - exercised a real bounded media restore from GCP back to the local `media/` root
+- Easy:
+  - once IAM was correct, the compatibility model behaved as intended: missing buckets moved from blocked/permission noise to `action-required` with ready-now create actions
+  - the same workflow shape held across Firestore, deployment storage, and media storage
+- Hard:
+  - target-level screens can stay stale after connection-level provisioning until the operator re-validates the target; the product truth was right, but the desk state needed one more explicit refresh step
+  - a live-only restore defect survived the green tests because nested storage object names were encoded incorrectly in the JSON API path
+- Improve:
+  - after any provisioning action, refresh or guide the operator back into target-level validation explicitly so the desk cannot look stale when the remote is actually fixed
+  - keep all provider path-building logic covered with nested-key proofs; live storage APIs are unforgiving about object-name encoding details

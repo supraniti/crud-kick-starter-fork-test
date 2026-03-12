@@ -23,8 +23,8 @@ describe("Collections CRUD validation and diagnostics", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { level: 5, name: "Records" })).toBeInTheDocument();
-      expect(screen.getByText("Launch Checklist")).toBeInTheDocument();
     });
+    expect(await screen.findByText("Launch Checklist", {}, { timeout: 5000 })).toBeInTheDocument();
 
     expect(
       screen.queryByText("Field 'slug' uses unsupported type 'computed'. Rendering is blocked.")

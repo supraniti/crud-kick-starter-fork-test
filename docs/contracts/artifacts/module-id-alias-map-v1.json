@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-08T16:00:00.000Z",
+  "timestamp": "2026-03-11T12:30:00.000Z",
   "sourceModulesDir": "modules",
   "extraMappingModuleIds": [],
   "targetModuleSet": [
@@ -14,7 +14,8 @@
     "test-modules-layouts",
     "test-modules-engagement",
     "test-modules-editorial",
-    "test-modules-taxonomy"
+    "test-modules-taxonomy",
+    "test-modules-remote-ops"
   ],
   "mapping": {
     "records": "test-modules-crud-core",
@@ -64,7 +65,10 @@
     "blog-authors": "test-modules-editorial",
     "blog-tags": "test-modules-taxonomy",
     "blog-categories": "test-modules-taxonomy",
-    "blog-comments": "test-modules-engagement"
+    "blog-comments": "test-modules-engagement",
+    "remote-connection-profiles": "test-modules-remote-ops",
+    "remote-target-profiles": "test-modules-remote-ops",
+    "remote-operation-runs": "test-modules-remote-ops"
   },
   "groupedTargets": {
     "test-modules-crud-core": [
@@ -138,10 +142,14 @@
     ],
     "test-modules-engagement": [
       "blog-comments"
+    ],
+    "test-modules-remote-ops": [
+      "remote-connection-profiles",
+      "remote-target-profiles",
+      "remote-operation-runs"
     ]
   },
-  "sourceModuleCount": 48,
-  "mappedSourceModuleCount": 48,
+  "sourceModuleCount": 51,
+  "mappedSourceModuleCount": 51,
   "unmappedSourceModuleIds": []
 }
-

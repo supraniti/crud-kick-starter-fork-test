@@ -8,6 +8,7 @@ Active modules:
 - `modules/test-modules-content`
 - `modules/test-modules-pages`
 - `modules/test-modules-layouts`
+- `modules/test-modules-remote-ops`
 - `modules/test-modules-engagement`
 - `modules/test-modules-editorial`
 - `modules/test-modules-taxonomy`

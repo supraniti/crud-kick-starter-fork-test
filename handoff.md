@@ -1279,3 +1279,837 @@
     - passed
   - `pnpm quality:protocol`
     - passed
+
+## 2026-03-11 - GCP Sync Research Memo
+- Status:
+  - research-only discussion started
+  - no implementation work started
+- Hard memo saved:
+  - `docs/research/gcp-sync-services-memo.md`
+- Current recommendation snapshot:
+  - collections sync:
+    - `Cloud SQL for PostgreSQL` as the default
+    - `Firestore` only if the intentional target is a document-style read model
+  - deployment sync:
+    - `Cloud Storage` + external Application Load Balancer/backend bucket + `Cloud CDN`
+    - with `Certificate Manager` and `Cloud DNS`
+  - media sync:
+    - dedicated `Cloud Storage` bucket + `Cloud CDN`
+  - orchestration:
+    - `Cloud Run Jobs` + `Pub/Sub` + `Cloud Scheduler` + `Secret Manager`
+- Main architectural guidance:
+  - do not start with bidirectional sync
+  - treat remote DB, deployment, and media delivery as one-way projections from this system
+- Next discussion topics:
+  - choose between `Cloud SQL` and `Firestore` for the remote collection target
+  - decide whether remote DB should contain all collections or only published/read-model projections
+  - decide whether deployment/media should target bucket+CDN only, or whether there is a true requirement for a remote machine origin
+
+## 2026-03-11 - GCP Sync Research Memo Follow-up
+- Status:
+  - research discussion continued
+  - still no implementation work
+- Decision direction updated:
+  - remote DB preference shifted from `Cloud SQL` to `Firestore`
+  - deployment and media should likely consolidate onto one storage/CDN platform
+  - sync should be structured and human-controlled, not fully automatic
+- Current refined recommendation:
+  - remote DB:
+    - `Firestore` as a consumer-facing projection
+  - deployment + media platform:
+    - `Cloud Storage` as the shared artifact platform
+    - `Cloud CDN` as the shared delivery layer
+    - likely separate buckets for deployment HTML and media even if the platform is consolidated
+  - browser delivery/domain layer:
+    - `Cloud DNS`
+    - `Certificate Manager`
+    - external Application Load Balancer
+  - server authentication to GCP:
+    - `Application Default Credentials` with attached service account if running on GCP
+    - `Workload Identity Federation` preferred for external/on-prem workloads
+    - service account keys only as fallback
+- Product/procedure direction:
+  - deployment should be an explicit reconciliation procedure
+  - backup/restore/sync should be operator-controlled at bounded scopes
+  - remote state management is part of the product workflow, not hidden automation
+- Hard memo updated:
+  - `docs/research/gcp-sync-services-memo.md`
+
+## 2026-03-11 - GCP Sync Research Memo Local App Update
+- Status:
+  - research discussion continued with an important runtime assumption
+  - still no implementation work
+- New assumption:
+  - both client and server are local-only for now
+  - likely wrapped in Electron or similar
+  - GCP operations are initiated from the local app, not from a deployed server workload
+- Impact on recommendation:
+  - primary auth direction should shift to desktop OAuth installed-app flow
+  - ADC / attached service account is no longer the first recommendation for the current scope
+  - service account import can exist as an advanced mode later, but not as the default UX
+- Product direction reinforced:
+  - sync should be operator-driven and structured
+  - deployment should largely reflect the already-prepared local `deployment/` folder
+  - Firestore and artifact delivery should receive locally-shaped outputs designed for their own usage
+  - domain and pipeline configuration should allow broad future flexibility
+- Hard memo updated:
+  - `docs/research/gcp-sync-services-memo.md`
+
+## 2026-03-11 - GCP Sync Memo Completion
+- Status:
+  - research memo completed and normalized into one final recommendation document
+  - no implementation started yet
+- Hard memo:
+  - `docs/research/gcp-sync-services-memo.md`
+- Locked current-scope recommendation:
+  - remote DB:
+    - `Firestore` as a consumer-facing projection store
+  - remote artifacts:
+    - `Cloud Storage` as the shared artifact platform
+    - separate targets, preferably separate buckets, for deployment HTML and media
+  - browser delivery:
+    - `Cloud CDN`
+    - external Application Load Balancer
+    - `Cloud DNS`
+    - `Certificate Manager`
+  - auth:
+    - installed-app OAuth with PKCE as the primary mode
+    - service-account import only as an advanced mode
+  - operating model:
+    - explicit operator-controlled compare/deploy/sync/restore procedures
+    - no hidden automatic sync
+- Product-model recommendation:
+  - introduce a `GCP connection profile`
+  - introduce configurable remote target profiles
+  - center the UX around:
+    - connect
+    - validate
+    - compare
+    - execute
+    - verify
+- Recommended implementation strategy for the next ticket:
+  - Step 1:
+    - build a `kitchensink` or remote-ops surface to prove auth, validation, diffing, deploy/sync/restore smoke flows, and target configuration
+  - Step 2:
+    - embed the validated workflows into real module surfaces:
+      - `Pages`
+      - `Content`
+      - `Media Manager`
+      - settings/configuration flows
+- Next expected stage:
+  - operator approval of the memo
+  - then write the implementation ticket from this memo
+
+## 2026-03-11 - GCP Remote Operations Ticket Written
+- Status:
+  - memo approved by the operator
+  - implementation ticket written
+  - no product implementation started yet
+- External ticket:
+  - `C:\Users\cmsin\OneDrive\שולחן העבודה\gcp-remote-operations-agent-ticket.md`
+- Ticket intent:
+  - deliver operator-first GCP remote operations in two steps:
+    - Step 1:
+      - a dedicated `kitchensink` / remote-ops surface proving auth, validation, compare, deploy/sync/restore smoke flows, and target configuration
+    - Step 2:
+      - embed the validated workflows into `Pages`, `Media Manager`, `Content`, and configuration/settings surfaces
+- Locked execution guidance from the ticket:
+  - recommend a new module:
+    - `test-modules-remote-ops`
+  - primary auth path:
+    - installed-app OAuth with PKCE
+  - advanced auth path:
+    - service-account import
+  - remote data target:
+    - `Firestore`
+  - remote artifact platform:
+    - `Cloud Storage`
+  - remote browser-delivery layer:
+    - `Cloud CDN` + external Application Load Balancer + `Cloud DNS` + `Certificate Manager`
+  - operating model:
+    - explicit `connect -> validate -> compare -> execute -> verify`
+  - milestone approvals required:
+    - after Step 1
+    - after Step 2
+- Next expected stage:
+  - start implementation from the external ticket
+  - contract `test-modules-remote-ops` first
+
+## 2026-03-11 - Remote Ops Step 1 Milestone 1 Complete
+- Status:
+  - Step 1 is implemented in the working tree and fully verified
+  - stop here for operator approval before Step 2 embedding
+- New hard files:
+  - `docs/contracts/test-modules-remote-ops-module-contract.md`
+  - `docs/contracts/test-modules-remote-ops-step-1-plan.md`
+- Delivered module:
+  - `modules/test-modules-remote-ops`
+- Delivered collections:
+  - `remote-connection-profiles`
+  - `remote-target-profiles`
+  - `remote-operation-runs`
+- Delivered Step 1 operator procedures:
+  - simulated connect
+  - target validation
+  - compare/diff
+  - execute/sync smoke flow
+  - restore smoke flow
+  - run history recording
+- Delivered supported Step 1 targets:
+  - Firestore projection
+  - deployment storage
+  - media storage
+  - browser delivery validation
+- Repo surface updates:
+  - added remote-ops to active module discovery expectations
+  - updated `module-id-alias-map-v1.json`
+  - updated `server-lane-manifest-v1.json`
+  - updated `frontend-lane-manifest-v1.json`
+- Key implementation note:
+  - the initial blocker was only repo LOC on `remote-ops-simulated-runtime.mjs`
+  - resolved by extracting target/projection/diff helpers into:
+    - `modules/test-modules-remote-ops/server/remote-ops-simulated-target-runtime.mjs`
+- Verification completed:
+  - `pnpm lint:function-shape`
+  - focused server remote-ops conformance
+  - focused frontend remote-ops integration
+  - focused registry/discovery core tests
+  - `pnpm quality:gate:full`
+  - `pnpm quality:protocol`
+- Remaining intentionally deferred to Step 2:
+  - embed remote procedures into `Pages`
+  - embed remote procedures into `Content`
+  - embed remote procedures into `Media Manager`
+  - real GCP auth
+  - real cloud resource calls
+
+## 2026-03-11 - Remote Ops Step 1 Real Connect Milestone Started
+- Status:
+  - simulated Step 1 groundwork is no longer treated as sufficient for operator review
+  - next active milestone is real GCP connect + project discovery + live validation
+- New hard plan:
+  - `docs/contracts/test-modules-remote-ops-step-1-real-connect-plan.md`
+- Reason for the shift:
+  - the operator correctly reported that the current kitchensink cannot be meaningfully reviewed without a real GCP project
+  - the reviewable value is now:
+    - authenticate once
+    - let the app discover projects
+    - let the app validate target readiness against the selected project
+- Locked milestone target:
+  - real installed-app OAuth with PKCE
+  - local token/session persistence under `remote-runtime/`
+  - real project discovery and selection
+  - real validation for Firestore and storage targets
+  - optional real browser-delivery validation when config is present
+- Deliberate defer:
+  - full real execute/sync/push remains after the trust/auth/validation milestone
+
+## 2026-03-11 - Remote Ops Step 1 Real Connect Implementation Snapshot
+- Status:
+  - real-connect milestone is mostly implemented in the working tree
+  - not ready for operator review yet because focused server conformance is still red
+- Delivered implementation so far:
+  - `test-modules-remote-ops` now supports hybrid adapter modes:
+    - `simulated-gcp`
+    - `live-gcp`
+  - connection profiles now carry live-connect metadata:
+    - `oauthClientId`
+    - optional `projectId`
+    - `projectNumber`
+    - `projectDisplayName`
+  - module-owned local live runtime storage exists under:
+    - `remote-runtime/remote-ops-live/sessions`
+    - `remote-runtime/remote-ops-live/connections`
+  - real installed-app OAuth with PKCE is implemented through:
+    - `modules/test-modules-remote-ops/server/remote-ops-live-auth-runtime.mjs`
+    - `modules/test-modules-remote-ops/server/remote-ops-connection-routes.mjs`
+  - real project discovery is implemented through:
+    - `GET /api/reference/modules/test-modules-remote-ops/connections/:connectionId/projects`
+  - real live-target validation is implemented for:
+    - Firestore readiness
+    - Cloud Storage bucket reachability
+    - optional DNS zone existence
+    - optional Certificate Manager certificate existence
+  - compare / execute / restore remain intentionally simulated only for `live-gcp` targets:
+    - live targets return `409 REMOTE_OPS_LIVE_PROCEDURE_PENDING`
+- Structural cleanup completed during implementation:
+  - oversized `modules/test-modules-remote-ops/server/routes.mjs` was split into:
+    - `remote-ops-route-runtime.mjs`
+    - `remote-ops-connection-routes.mjs`
+    - `remote-ops-target-routes.mjs`
+  - oversized frontend workspace logic was reduced by extracting connection/target helpers
+  - repo LOC and function-shape limits are currently satisfied
+- Focused verification state:
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.integration.test.jsx`
+    - passed
+  - `pnpm quality:gate:full`
+    - blocked in this environment at `lane-server-core` by Windows worker spawning:
+      - `spawn EPERM`
+  - focused server conformance still has two failing assertions:
+    - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - failure 1:
+      - simulated validate path expects `connectionStatus=validated`
+      - current observed result in Vitest is `connectionStatus=error`
+    - failure 2:
+      - live connect path expects `/connect` to return `200`
+      - current observed result in Vitest is `400`
+- Important debugging truth:
+  - both failing flows succeed in direct one-off `buildServer()` repro outside the test file:
+    - simulated connect + validate returns `validated`
+    - live connect route returns `200` with a real Google auth URL
+  - current evidence points to a test-harness-specific mismatch, not a confirmed runtime logic failure
+- Known correctness concern still worth hardening:
+  - in injected/test environments, the callback origin builder can currently resolve to `http://localhost:80/...` when `request.headers.host` is absent or generic
+  - likely seam to inspect next:
+    - `modules/test-modules-remote-ops/server/remote-ops-connection-routes.mjs`
+- Exact next step:
+  - make the focused server conformance green by isolating the Vitest-vs-direct-server mismatch in:
+    - simulated connection validation path
+    - live OAuth start path
+  - then rerun:
+    - focused server conformance
+    - focused frontend integration
+    - `pnpm quality:protocol`
+    - repo gate as far as the environment allows
+
+## 2026-03-11 - Remote Ops Step 1 Real Connect Verification Closure
+- Status:
+  - the focused remote-ops blocker is closed
+  - the real-connect milestone is technically green but not yet operator-usable
+- Retained fixes:
+  - connection validation now uses the live path only when a real stored OAuth session exists for that connection
+    - having an `oauthClientId` alone no longer forces live validation
+  - backend origin / callback redirect-uri resolution is hardened for injected/test environments:
+    - host header first
+    - bound server address fallback second
+    - deterministic local fallback last
+  - focused server conformance now clears:
+    - `remote-runtime/remote-ops-live/connections`
+    - `remote-runtime/remote-ops-live/sessions`
+    - before and after tests so deterministic connection ids do not inherit stale live state
+  - live server conformance now seeds the required OAuth client metadata explicitly
+- Root cause of the earlier false failures:
+  - the test harness reused deterministic connection ids such as `remoteco-001`
+  - stale live OAuth state on disk caused simulated validation to take the live path unexpectedly
+  - one live test also omitted the required OAuth client id even though the product correctly requires it
+- Verified on `2026-03-11`:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.integration.test.jsx`
+    - passed
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed when run outside the sandbox on this Windows machine
+- Current milestone truth:
+  - the runtime/test surface is working:
+    - installed-app OAuth start
+    - callback completion
+    - local credential persistence
+    - accessible project discovery
+    - live target validation
+  - but the operator-facing setup flow is still rejected:
+    - the desk asks for `OAuth Client ID` without making the acquisition/setup procedure understandable enough
+    - the operator cannot meaningfully review the feature without hidden Google-console knowledge
+  - compare / execute / restore for `live-gcp` targets remain intentionally deferred and still return `REMOTE_OPS_LIVE_PROCEDURE_PENDING`
+- Next expected step:
+  - recover the connection UX before any further milestone claim:
+    - support pasted Google desktop OAuth client JSON
+    - show the setup steps explicitly in the desk
+    - make the connect flow feel like an ordered guided procedure rather than a raw field + button
+  - only then stop again for operator review before starting Step 2 embedding
+
+## 2026-03-11 - Remote Ops Real Connect UX Recovery Closure
+- Status:
+  - the real-connect milestone is now technically green and operator-usable enough for review
+- Retained UX changes:
+  - the connection desk now includes a dedicated Google setup card
+  - operators can paste downloaded Google Desktop OAuth JSON instead of manually hunting for a client id
+  - the desk auto-fills:
+    - `oauthClientId`
+    - suggested `projectId`
+  - the desk now exposes the exact local callback route used by the app
+  - the connect flow is now ordered and explicit:
+    - create/select Desktop OAuth client in GCP
+    - paste JSON
+    - save connection
+    - connect to Google
+    - load projects
+    - select project
+    - validate
+  - `Connect To Google`, `Load Projects`, and `Validate Connection` now persist the current connection draft first so the operator is not forced into a hidden save step
+- New implementation files:
+  - `modules/test-modules-remote-ops/frontend/RemoteOpsConnectionSetupCard.jsx`
+  - `modules/test-modules-remote-ops/frontend/remote-ops-oauth-client-import.js`
+  - `modules/test-modules-remote-ops/frontend/useRemoteOpsConnectionProcedures.js`
+- Additional route/support changes:
+  - `GET /api/reference/modules/test-modules-remote-ops/oauth/setup`
+    - returns current setup guidance, callback URI, and credentials-console link
+  - frontend support now loads setup info through:
+    - `modules/test-modules-remote-ops/frontend/remote-ops-workspace-support.js`
+- Verification completed on `2026-03-11`:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.integration.test.jsx`
+    - passed
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Next expected step:
+  - bring the app back up for operator review of the recovered connection flow
+  - current UX tightening already completed after the first recovery review:
+    - fresh browser sessions open `Remote Ops` in `New Connection Profile` mode by default
+    - editing connection fields resets stale validation summaries back to pending guidance
+    - project discovery auto-selects the imported matching project or the sole discovered project
+    - focused frontend remote-ops integration passed again after the tightening
+
+## 2026-03-11 - GCP Auth Architecture Correction
+- Status:
+  - research direction corrected after clarifying the true product use case
+- Corrected decision:
+  - primary GCP connection path should be service-account-based
+  - the operator provides a local path to a service-account key file already controlled on their machine
+  - per-user OAuth client creation / consent-screen setup is not acceptable as the main product flow
+- Clarification:
+  - ADC is not the user-facing auth model here
+  - if used at all, ADC is only an internal credential-loading mechanism
+- Saved source of truth:
+  - `docs/research/gcp-sync-services-memo.md`
+- Corrected implementation ticket written:
+  - `C:\Users\cmsin\OneDrive\שולחן העבודה\gcp-remote-operations-agent-ticket.md`
+  - ticket now treats service-account key import as the primary connection model and deprecates OAuth-first language for the main flow
+
+## 2026-03-11 - Remote Ops Service-Account Step 1 Verification Closure
+- Status:
+  - service-account-first Step 1 is implemented in the working tree
+  - focused lanes and full repo gate are green
+  - ready for operator review before Step 2 embedding
+- Corrected auth model:
+  - primary connection path is `service-account-key`
+  - operator supplies a local path to a Google service-account JSON key file
+  - the app stores only path/reference plus extracted metadata in collection rows
+  - OAuth client / consent-screen setup is no longer part of the main path
+- Delivered operator flow:
+  - create or select a remote connection profile
+  - paste the local service-account key file path
+  - `Save & Load Key`
+  - review extracted metadata:
+    - service account email
+    - service account key id
+    - suggested project id
+  - optionally override project id
+  - `Validate Connection`
+  - validate target profiles live against Firestore / Storage / optional browser-delivery resources
+- Main implementation files:
+  - `modules/test-modules-remote-ops/server/remote-ops-service-account-auth-runtime.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-live-validation-runtime.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-connection-routes.mjs`
+  - `modules/test-modules-remote-ops/frontend/RemoteOpsConnectionSetupCard.jsx`
+  - `modules/test-modules-remote-ops/frontend/RemoteOpsView.jsx`
+  - `modules/test-modules-remote-ops/frontend/useRemoteOpsConnectionProcedures.js`
+  - `modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js`
+  - `frontend/src/tests/app-integration/remote-ops.integration.test.jsx`
+  - `server/test/module-conformance/remote-ops.module-conformance.test.js`
+- Contract/plan sources updated:
+  - `docs/contracts/test-modules-remote-ops-module-contract.md`
+  - `docs/contracts/test-modules-remote-ops-step-1-real-connect-plan.md`
+  - `docs/research/gcp-sync-services-memo.md`
+- Verification completed on 2026-03-11:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.integration.test.jsx`
+    - passed
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+- Scope intentionally still deferred after this review checkpoint:
+  - real live compare / execute / restore against GCP targets
+  - Step 2 embedding into `Pages`, `Content`, and `Media Manager`
+- Worktree state:
+  - intentionally dirty with the remote-ops Step 1 service-account milestone
+  - no commit created yet
+
+## 2026-03-11 - Remote Ops Service-Account Key Chooser UX Fix
+- Status:
+  - the operator-reported key-path friction is closed in the working tree
+  - focused remote-ops lanes are green again
+- Retained fix:
+  - the connection desk no longer expects the operator to type a filesystem path manually
+  - operators now choose the service-account JSON file through a real file input
+  - the backend imports the chosen file into:
+    - `remote-runtime/remote-ops-live/credentials/<connectionId>/...`
+  - collection rows still store metadata only:
+    - stored key reference path
+    - credential label
+    - extracted service-account email
+    - extracted service-account key id
+- Main implementation files:
+  - `modules/test-modules-remote-ops/frontend/RemoteOpsView.jsx`
+  - `modules/test-modules-remote-ops/frontend/RemoteOpsConnectionSetupCard.jsx`
+  - `modules/test-modules-remote-ops/frontend/useRemoteOpsConnectionProcedures.js`
+  - `modules/test-modules-remote-ops/frontend/remote-ops-workspace-support.js`
+  - `modules/test-modules-remote-ops/server/remote-ops-connection-routes.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-service-account-auth-runtime.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-root.mjs`
+  - `frontend/src/tests/app-integration/remote-ops.integration.test.jsx`
+  - `server/test/module-conformance/remote-ops.module-conformance.test.js`
+- Verification completed on `2026-03-11`:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.integration.test.jsx`
+    - passed
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+- Next expected step:
+  - restart the review pair so the operator can test the new chooser-based flow instead of the old path-textbox build
+
+## 2026-03-11 - Remote Ops Live Procedures Planning
+- Status:
+  - operator clarified the next required capability:
+    - real create/update from the app to Firestore
+    - real create/update for media and other storage-backed remotes
+  - current inspection shows live validation works; current saved target failure is configuration/permission only, not a broken target runtime
+- Inspection evidence:
+  - connection `remoteco-012`
+    - validated against project `merchant-guild`
+  - target `remoteta-002`
+    - kind `media-storage`
+    - adapter `live-gcp`
+    - failed with:
+      - missing or inaccessible `storage.buckets.get` on bucket `media-bucket`
+  - this proves:
+    - live target validation executes correctly
+    - the next missing capability is live `compare / execute / restore`
+- New hard plan:
+  - `docs/contracts/test-modules-remote-ops-step-2-live-procedures-plan.md`
+- Next expected step:
+  - implement live Firestore compare/execute
+  - implement live storage compare/execute/restore
+  - remove misleading placeholder defaults for live targets
+
+## 2026-03-12 - Remote Ops Live Procedures Review Checkpoint
+- Status:
+  - live Firestore/storage procedures are review-ready in the working tree
+  - no commit created yet
+- Delivered:
+  - real live compare/execute for `firestore-projection`
+  - real live compare/execute/restore for:
+    - `deployment-storage`
+    - `media-storage`
+  - browser-delivery remains validation-only
+  - live target UX no longer claims compare/execute/restore are simulated-only
+  - placeholder live defaults were tightened:
+    - Firestore path defaults to `publishedPosts`
+    - live bucket/domain fields default to blank
+- Main implementation files:
+  - `modules/test-modules-remote-ops/server/remote-ops-live-google-runtime.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-live-firestore-runtime.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-live-storage-runtime.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-live-runtime.mjs`
+  - `modules/test-modules-remote-ops/server/remote-ops-target-routes.mjs`
+  - `modules/test-modules-remote-ops/frontend/RemoteOpsView.jsx`
+  - `frontend/src/tests/app-integration/remote-ops.integration.test.jsx`
+  - `server/test/module-conformance/remote-ops.module-conformance.test.js`
+- Important closure fix:
+  - nested storage compare was hashing child files with the wrong algorithm because recursive collection dropped the requested hash options
+  - retained fix lives in:
+    - `modules/test-modules-remote-ops/server/remote-ops-simulated-target-runtime.mjs`
+- Focused verification completed on `2026-03-12`:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.integration.test.jsx`
+    - passed
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+- Repo-wide verification note:
+  - `pnpm quality:gate:full` is not green at this checkpoint
+  - current failures are outside the remote-ops slice and sit in frontend integration:
+    - `src/tests/app-integration/app-shell-routing.actions.integration.test.jsx`
+    - `src/tests/app-integration/blog-content.integration.test.jsx`
+    - `src/tests/app-integration/blog-distribution.integration.test.jsx`
+    - `src/tests/app-integration/layouts.integration.test.jsx`
+    - `src/tests/app-integration/module-lifecycle-collection-availability.integration.test.jsx`
+    - `src/tests/app-integration/products-taxonomies.integration.test.jsx`
+- Next expected step:
+  - operator review of the `Remote Ops` kitchensink live procedures
+  - then decide whether to:
+    - commit this milestone
+    - or continue directly into embedding the procedures into `Pages`, `Content`, and `Media Manager`
+
+## 2026-03-12 - Remote Ops Unified Provisioning Kickoff
+- Status:
+  - operator expanded the goal from target-level sync to full remote compatibility management
+  - this includes:
+    - understand existing remote state
+    - detect missing resources/services
+    - detect missing permissions
+    - explain permission expansion steps
+    - create missing supported resources
+    - warn on possible cost
+    - avoid duplicate/surplus resources
+- Standing directive:
+  - keep all remote/GCP functionality inside strict module-local boundaries for readability, maintainability, agentability, and future enhancement safety
+  - this is a boundary rule, not a refactor request
+- Hard plan:
+  - `docs/contracts/test-modules-remote-ops-step-3-unified-provisioning-plan.md`
+- Execution started:
+  - Slice A foundation added:
+    - `modules/test-modules-remote-ops/server/remote-ops-gcp-provisioning-model.mjs`
+    - `modules/test-modules-remote-ops/server/remote-ops-provisioning-routes.mjs`
+  - route added:
+    - `GET /api/reference/modules/test-modules-remote-ops/gcp/provisioning-model`
+- Purpose of the new foundation:
+  - define one canonical module-local model for what “compatible with our flows” means on GCP
+  - cover:
+    - Firestore projection
+    - deployment storage
+    - media storage
+    - browser delivery
+  - include:
+    - required APIs
+    - required permissions
+    - provisionable resources
+    - safeguard/cost categories
+- Next expected step:
+  - implement real remote inventory against that model
+  - then add permission diagnostics and provisioning actions on top of the inventory layer
+
+## 2026-03-12 - Remote Ops Unified Provisioning Compatibility Analysis
+- Status:
+  - Slice B and Slice C are closed in the working tree
+  - the module now produces a real live GCP compatibility report for the selected connection/project
+  - no commit created yet
+- Delivered:
+  - module-local live compatibility runtime:
+    - `modules/test-modules-remote-ops/server/remote-ops-gcp-compatibility-runtime.mjs`
+  - module-local analysis route:
+    - `POST /api/reference/modules/test-modules-remote-ops/connections/:connectionId/analyze-compatibility`
+  - module-local UI/report surface:
+    - `modules/test-modules-remote-ops/frontend/RemoteOpsConnectionPanels.jsx`
+    - `modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js`
+    - `modules/test-modules-remote-ops/frontend/remote-ops-workspace-support.js`
+  - compatibility analysis now reports, per supported bundle:
+    - required API state
+    - existing/missing resources
+    - permission diagnostics
+    - provisionable actions
+    - safeguard/cost notes
+  - supported bundles:
+    - `firestore-projection`
+    - `deployment-storage`
+    - `media-storage`
+    - `browser-delivery`
+- Structural cleanup completed during this slice:
+  - the remote-ops desk view was split into module-local panel files:
+    - `RemoteOpsSharedPanels.jsx`
+    - `RemoteOpsConnectionPanels.jsx`
+    - `RemoteOpsTargetPanels.jsx`
+  - the remote-ops frontend integration coverage was split into:
+    - `frontend/src/tests/app-integration/remote-ops.connections.integration.test.jsx`
+    - `frontend/src/tests/app-integration/remote-ops.targets.integration.test.jsx`
+  - helper file added:
+    - `frontend/src/tests/app-integration/remote-ops-test-helpers.js`
+  - lane manifest updated:
+    - `docs/contracts/artifacts/frontend-lane-manifest-v1.json`
+- Focused verification completed on `2026-03-12`:
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm lint:repo-loc`
+    - passed
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.connections.integration.test.jsx src/tests/app-integration/remote-ops.targets.integration.test.jsx`
+    - passed
+  - `pnpm test:frontend:integration:dynamic`
+    - passed
+- Repo-wide verification note:
+  - `pnpm quality:gate:full` is still red at this checkpoint
+  - current red step is outside the remote-ops slice:
+    - `lane-frontend-integration`
+  - currently failing files are unrelated existing integration failures/timeouts:
+    - `src/tests/app-integration/app-shell-routing.actions.integration.test.jsx`
+    - `src/tests/app-integration/blog-content.integration.test.jsx`
+    - `src/tests/app-integration/blog-distribution.integration.test.jsx`
+    - `src/tests/app-integration/module-lifecycle-collection-availability.integration.test.jsx`
+    - `src/tests/app-integration/products-taxonomies.integration.test.jsx`
+- Next expected step:
+  - implement Slice D and Slice E inside `test-modules-remote-ops`:
+    - explicit provisioning execution for missing supported resources
+    - cost/safeguard confirmation handling
+    - singleton-safe create behavior for Firestore and storage resources
+
+## 2026-03-12 - Remote Ops Unified Provisioning Execution Closure
+- Status:
+  - Slice D and Slice E are now closed in the working tree
+  - the full repo gate is green again
+  - no commit created yet
+- Delivered:
+  - connection-scoped provisioning execution route:
+    - `POST /api/reference/modules/test-modules-remote-ops/connections/:connectionId/provision-missing`
+  - module-local provisioning executor:
+    - `modules/test-modules-remote-ops/server/remote-ops-gcp-provisioning-execution-runtime.mjs`
+  - Remote Ops desk now supports:
+    - safeguard confirmation
+    - `Provision Missing Resources`
+    - post-provision compatibility refresh
+  - provisioning currently creates only supported missing resources that are ready now:
+    - required APIs for configured bundles
+    - default Firestore database for configured Firestore targets
+    - deployment/media buckets for configured storage targets
+  - browser-delivery remains validation-only and diagnostic-only in this step
+- Important behavioral refinement:
+  - compatibility analysis now treats bundles with no configured live targets as `compatible` with `not-configured` API notes
+  - this prevents the app from pushing unnecessary API/resource creation for flows the operator has not configured
+- Provisioning guarantees in this slice:
+  - explicit safeguard confirmation is required:
+    - `cost-confirmation`
+    - `singleton-hygiene`
+    - `minimum-footprint`
+  - provisioning is iterative:
+    - enable API
+    - re-analyze
+    - create newly-unblocked database/bucket resources
+  - singleton-safe behavior is retained:
+    - default Firestore database is created only through the missing-resource path
+    - storage buckets are created only for configured targets with missing buckets
+- Focused verification completed on `2026-03-12`:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/remote-ops.connections.integration.test.jsx`
+    - passed
+  - `pnpm lint:function-shape`
+    - passed
+  - `pnpm lint:repo-loc`
+    - passed
+  - `pnpm test:frontend:integration:dynamic`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+  - `pnpm quality:gate:full`
+    - passed
+- Next expected step:
+  - operator review of the Step 3 provisioning flow in `Remote Ops`
+  - then decide whether to:
+    - commit the remote-ops Step 3 milestone
+    - or continue directly into Step 2 embedding in `Pages`, `Content`, and `Media Manager`
+
+## 2026-03-12 - Remote Ops Live Operator Rehearsal
+- Status:
+  - live browser rehearsal completed against the real `merchant-guild` GCP project
+  - app pair is running and healthy on:
+    - `http://localhost:3000/`
+    - `http://127.0.0.1:3001/health`
+- Real results:
+  - service-account connection `Connection test` validated successfully
+  - live compatibility analysis initially failed because the browser-delivery permission model used invalid Certificate Manager permission ids
+    - fixed in:
+      - `modules/test-modules-remote-ops/server/remote-ops-gcp-provisioning-model.mjs`
+    - corrected:
+      - `certificatemanager.certificates.get -> certificatemanager.certs.get`
+      - `certificatemanager.certificates.create -> certificatemanager.certs.create`
+  - after the fix, live compatibility analysis succeeded
+- Firestore rehearsal:
+  - created real live target:
+    - `Merchant Guild Posts Projection`
+    - adapter: `live-gcp`
+    - collection path: `publishedPosts`
+  - target validation passed against:
+    - `projects/merchant-guild/databases/(default)`
+  - compare found:
+    - `2 create`
+    - `0 update`
+    - `0 delete`
+  - execute sync succeeded
+  - compare re-ran clean after sync
+- Storage rehearsal:
+  - existing live media target still fails on real permissions/config:
+    - bundle result: blocked
+    - missing permissions surfaced:
+      - `storage.buckets.get`
+      - `storage.objects.list`
+  - created real live deployment target:
+    - `Merchant Guild Deployment Storage`
+    - bucket: `merchant-guild-deployment-679134333951`
+    - prefix: `site`
+  - target validation correctly reported:
+    - `The specified bucket does not exist.`
+  - connection-level compatibility analysis then reported deployment storage as blocked by missing storage inspect permissions:
+    - `storage.buckets.get`
+    - `storage.objects.list`
+  - current live result:
+    - storage create/sync cannot proceed yet because the service account does not currently have the storage permissions required for inspect/compare/provision paths
+- Product judgment from rehearsal:
+  - Firestore live flow is proven end-to-end
+  - storage live flow is functioning correctly as a diagnostic/protection flow, but is currently blocked by real IAM on the project
+  - next useful product improvement is clearer permission guidance in the UI for blocked storage bundles/targets
+
+## 2026-03-12 - Remote Ops Live Rehearsal After IAM Update
+- Status:
+  - the live `merchant-guild` rehearsal is now proven end-to-end for the currently implemented real scopes:
+    - Firestore projection
+    - deployment storage
+    - media storage
+  - app pair is still running and healthy on:
+    - `http://localhost:3000/`
+    - `http://127.0.0.1:3001/health`
+- GCP-side change confirmed by operator:
+  - service account `merchant-guild@appspot.gserviceaccount.com` now has:
+    - `Cloud Datastore Owner`
+    - `Storage Admin`
+    - `Service Usage Admin`
+- Live real results:
+  - Firestore:
+    - real target `Merchant Guild Posts Projection`
+    - validate -> compare -> execute -> clean all succeeded
+  - deployment storage:
+    - real target `Merchant Guild Deployment Storage`
+    - compatibility correctly surfaced missing bucket
+    - app provisioned bucket `merchant-guild-deployment-679134333951`
+    - validate -> compare -> execute -> clean all succeeded
+  - media storage:
+    - real target `Merchant Guild Media Storage`
+    - compatibility correctly surfaced missing bucket
+    - app provisioned bucket `merchant-guild-media-679134333951`
+    - validate -> compare -> execute -> clean all succeeded
+    - bounded restore was also proven:
+      - one local media file was moved out of `media/`
+      - compare showed `Remote Only 1`
+      - `Restore From Remote` restored the file locally
+      - compare returned clean
+- Real defect fixed during rehearsal:
+  - live storage restore for nested object names was broken because object-name encoding preserved `/` in the JSON API object path
+  - fixed in:
+    - `modules/test-modules-remote-ops/server/remote-ops-live-storage-runtime.mjs`
+  - behavior after fix:
+    - restore route returned success
+    - compare returned clean
+    - local file existence re-checked on disk
+- Focused verification after the fix:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+    - passed
+  - `pnpm quality:protocol`
+    - passed
+- Current product truth:
+  - for the implemented Step 2 real scope, the operator can now:
+    - connect with a service-account key
+    - validate connection
+    - analyze remote compatibility
+    - provision missing Firestore/storage resources
+    - compare and execute Firestore projection
+    - compare and execute deployment/media storage
+    - restore a bounded missing local storage object from remote
+  - browser-delivery provisioning/execution is still not implemented; it remains diagnostics/validation only

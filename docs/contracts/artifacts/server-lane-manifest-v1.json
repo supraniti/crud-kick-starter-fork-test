@@ -1,7 +1,7 @@
 {
   "schema_version": "lane-manifest-v1",
   "owner_surface": "server",
-  "generated_on": "2026-03-08",
+  "generated_on": "2026-03-11",
   "source_artifacts": [
     "docs/contracts/contract-index.md",
     "docs/contracts/quality-gate-contract.md"
@@ -21,7 +21,8 @@
       "test-modules-operations-dispatch",
       "test-modules-remotes-publish",
       "test-modules-editorial",
-      "test-modules-taxonomy"
+      "test-modules-taxonomy",
+      "test-modules-remote-ops"
     ],
     "module_id_alias_map": "docs/contracts/artifacts/module-id-alias-map-v1.json"
   },
@@ -604,7 +605,19 @@
         "layouts-page-delivery-reference"
       ],
       "migration_phase": "phase-2"
+    },
+    {
+      "test_file_path": "server/test/module-conformance/remote-ops.module-conformance.test.js",
+      "lane": "module-conformance",
+      "flow_ids": [
+        "FLOW-RS-REMOTE-OPS-001"
+      ],
+      "capability_tags": [
+        "remote-ops-simulated-connect-validation",
+        "remote-ops-firestore-projection-procedures",
+        "remote-ops-storage-restore-smoke"
+      ],
+      "migration_phase": "phase-2"
     }
   ]
 }
-

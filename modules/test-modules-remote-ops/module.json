@@ -1,0 +1,765 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-remote-ops",
+  "version": "0.1.0",
+  "name": "Test Modules Remote Ops",
+  "capabilities": [
+    "crud.collection",
+    "schema",
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-remote-ops.install",
+    "uninstall": "test-modules-remote-ops.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs",
+    "routes": "./server/routes.mjs"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Remote Ops",
+      "icon": "cloud_sync",
+      "order": 530
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "collections": [
+    {
+      "id": "remote-connection-profiles",
+      "label": "Remote Connection Profiles",
+      "entitySingular": "connection-profile",
+      "primaryField": "profileName",
+      "description": "Operator-managed remote connection profiles for the remote-ops kitchensink.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "profileName",
+          "label": "Profile Name",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 120
+        },
+        {
+          "id": "provider",
+          "label": "Provider",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "gcp"
+          ],
+          "defaultValue": "gcp"
+        },
+        {
+          "id": "environmentLabel",
+          "label": "Environment Label",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 80
+        },
+        {
+          "id": "authMode",
+          "label": "Auth Mode",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "service-account-key"
+          ],
+          "defaultValue": "service-account-key"
+        },
+        {
+          "id": "credentialPathHint",
+          "label": "Credential File Path",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 400
+        },
+        {
+          "id": "serviceAccountEmail",
+          "label": "Service Account Email",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 240
+        },
+        {
+          "id": "serviceAccountKeyId",
+          "label": "Service Account Key ID",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 160
+        },
+        {
+          "id": "projectId",
+          "label": "Project ID",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 120
+        },
+        {
+          "id": "projectNumber",
+          "label": "Project Number",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "projectDisplayName",
+          "label": "Project Display Name",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 160
+        },
+        {
+          "id": "operatorEmail",
+          "label": "Operator Email",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 160
+        },
+        {
+          "id": "region",
+          "label": "Region",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 80
+        },
+        {
+          "id": "credentialLabel",
+          "label": "Credential Label",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 160
+        },
+        {
+          "id": "connectionStatus",
+          "label": "Connection Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "draft",
+            "connected",
+            "validated",
+            "warning",
+            "error"
+          ],
+          "defaultValue": "draft"
+        },
+        {
+          "id": "lastConnectedOn",
+          "label": "Last Connected On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "lastValidatedOn",
+          "label": "Last Validated On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "validationSummary",
+          "label": "Validation Summary",
+          "type": "structured-object",
+          "required": false,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "state",
+                  "label": "State",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "unknown",
+                    "validated",
+                    "warning",
+                    "error"
+                  ]
+                },
+                {
+                  "id": "message",
+                  "label": "Message",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "id": "checkedItems",
+                  "label": "Checked Items",
+                  "type": "string-list",
+                  "required": false
+                },
+                {
+                  "id": "warnings",
+                  "label": "Warnings",
+                  "type": "string-list",
+                  "required": false
+                },
+                {
+                  "id": "canProceed",
+                  "label": "Can Proceed",
+                  "type": "boolean",
+                  "required": false
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    },
+    {
+      "id": "remote-target-profiles",
+      "label": "Remote Target Profiles",
+      "entitySingular": "target-profile",
+      "primaryField": "title",
+      "description": "Target definitions for Firestore projection, deployment sync, media sync, and browser delivery validation.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Target Title",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 140
+        },
+        {
+          "id": "connectionProfileId",
+          "label": "Connection Profile",
+          "type": "reference",
+          "required": true,
+          "collectionId": "remote-connection-profiles",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "targetKind",
+          "label": "Target Kind",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "firestore-projection",
+            "deployment-storage",
+            "media-storage",
+            "browser-delivery"
+          ],
+          "defaultValue": "firestore-projection"
+        },
+        {
+          "id": "adapterMode",
+          "label": "Adapter Mode",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "simulated-gcp",
+            "live-gcp"
+          ],
+          "defaultValue": "simulated-gcp"
+        },
+        {
+          "id": "config",
+          "label": "Config",
+          "type": "structured-object",
+          "required": true,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "projectionScope",
+                  "label": "Projection Scope",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "published-blog-posts",
+                    "published-pages"
+                  ]
+                },
+                {
+                  "id": "firestoreCollectionPath",
+                  "label": "Firestore Collection Path",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "bucketName",
+                  "label": "Bucket Name",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "prefix",
+                  "label": "Prefix",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "localRootHint",
+                  "label": "Local Root Hint",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "hostname",
+                  "label": "Hostname",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "dnsZone",
+                  "label": "DNS Zone",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "certificateName",
+                  "label": "Certificate Name",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "urlMapHint",
+                  "label": "URL Map Hint",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "policy",
+          "label": "Policy",
+          "type": "structured-object",
+          "required": true,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "allowDeletes",
+                  "label": "Allow Deletes",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "id": "allowRestore",
+                  "label": "Allow Restore",
+                  "type": "boolean",
+                  "required": false
+                },
+                {
+                  "id": "requireDryRunFirst",
+                  "label": "Require Dry Run First",
+                  "type": "boolean",
+                  "required": false
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "targetStatus",
+          "label": "Target Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "draft",
+            "validated",
+            "warning",
+            "error"
+          ],
+          "defaultValue": "draft"
+        },
+        {
+          "id": "lastValidatedOn",
+          "label": "Last Validated On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "lastComparedOn",
+          "label": "Last Compared On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "validationSummary",
+          "label": "Validation Summary",
+          "type": "structured-object",
+          "required": false,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "state",
+                  "label": "State",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "unknown",
+                    "validated",
+                    "warning",
+                    "error"
+                  ]
+                },
+                {
+                  "id": "message",
+                  "label": "Message",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "id": "checkedItems",
+                  "label": "Checked Items",
+                  "type": "string-list",
+                  "required": false
+                },
+                {
+                  "id": "warnings",
+                  "label": "Warnings",
+                  "type": "string-list",
+                  "required": false
+                },
+                {
+                  "id": "canProceed",
+                  "label": "Can Proceed",
+                  "type": "boolean",
+                  "required": false
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "compareSummary",
+          "label": "Compare Summary",
+          "type": "structured-object",
+          "required": false,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "state",
+                  "label": "State",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "unknown",
+                    "clean",
+                    "drift",
+                    "error"
+                  ]
+                },
+                {
+                  "id": "message",
+                  "label": "Message",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "id": "createCount",
+                  "label": "Create Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "updateCount",
+                  "label": "Update Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "deleteCount",
+                  "label": "Delete Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "localOnlyCount",
+                  "label": "Local Only Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "remoteOnlyCount",
+                  "label": "Remote Only Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "sampleKeys",
+                  "label": "Sample Keys",
+                  "type": "string-list",
+                  "required": false
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    },
+    {
+      "id": "remote-operation-runs",
+      "label": "Remote Operation Runs",
+      "entitySingular": "operation-run",
+      "primaryField": "title",
+      "description": "History of compare, execute, validate, and restore procedures from the remote-ops desk.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": false,
+        "delete": false
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Run Title",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 160
+        },
+        {
+          "id": "connectionProfileId",
+          "label": "Connection Profile",
+          "type": "reference",
+          "required": false,
+          "collectionId": "remote-connection-profiles",
+          "onDelete": "nullify"
+        },
+        {
+          "id": "targetProfileId",
+          "label": "Target Profile",
+          "type": "reference",
+          "required": false,
+          "collectionId": "remote-target-profiles",
+          "onDelete": "nullify"
+        },
+        {
+          "id": "procedureType",
+          "label": "Procedure Type",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "connect",
+            "validate",
+            "compare",
+            "execute",
+            "restore"
+          ],
+          "defaultValue": "validate"
+        },
+        {
+          "id": "scopeKind",
+          "label": "Scope Kind",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "connection",
+            "firestore",
+            "deployment",
+            "media",
+            "browser-delivery"
+          ],
+          "defaultValue": "connection"
+        },
+        {
+          "id": "direction",
+          "label": "Direction",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "validate",
+            "compare",
+            "push",
+            "restore"
+          ],
+          "defaultValue": "validate"
+        },
+        {
+          "id": "dryRun",
+          "label": "Dry Run",
+          "type": "boolean",
+          "required": true,
+          "defaultValue": true
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "succeeded",
+            "warning",
+            "failed"
+          ],
+          "defaultValue": "succeeded"
+        },
+        {
+          "id": "message",
+          "label": "Message",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 240
+        },
+        {
+          "id": "summary",
+          "label": "Summary",
+          "type": "structured-object",
+          "required": false,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "createCount",
+                  "label": "Create Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "updateCount",
+                  "label": "Update Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "deleteCount",
+                  "label": "Delete Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "restoredCount",
+                  "label": "Restored Count",
+                  "type": "number",
+                  "required": false,
+                  "min": 0,
+                  "max": 1000000
+                },
+                {
+                  "id": "sampleKeys",
+                  "label": "Sample Keys",
+                  "type": "string-list",
+                  "required": false
+                },
+                {
+                  "id": "warnings",
+                  "label": "Warnings",
+                  "type": "string-list",
+                  "required": false
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "startedOn",
+          "label": "Started On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "finishedOn",
+          "label": "Finished On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof"
+  }
+}
