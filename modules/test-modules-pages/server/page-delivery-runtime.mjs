@@ -20,6 +20,8 @@ import {
   toTimestamp
 } from "./distribution-shared-runtime.mjs";
 import { parseStoredLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
+import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference-runtime.mjs";
+import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function toArray(value) {
   return Array.isArray(value) ? value : [];
@@ -126,6 +128,20 @@ function buildPrimarySourceDescriptor(page = {}, sourceRecord = null) {
 
 function resolvePathPattern(page = {}) {
   return normalizeOptionalText(page.pathPattern);
+}
+
+function resolveArtifactRelativePathFromResolvedPath(pagePath) {
+  const normalizedPath = normalizePagePath(pagePath);
+  if (!normalizedPath || normalizedPath === "/") {
+    return "index.html";
+  }
+  return [
+    ...normalizedPath
+      .split("/")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+    "index.html"
+  ].join("/");
 }
 
 export function buildResolvedPagePath(page = {}, sourceRecord = null) {
@@ -394,11 +410,54 @@ function buildPageSummary(page = {}, resolvedPath = null) {
   };
 }
 
+function applyBrowserDeliveryToPayload({
+  payload,
+  settings,
+  resolvedPath
+}) {
+  if (!settings?.browserDeliveryState?.browserTarget) {
+    return payload;
+  }
+
+  const browserDelivery = resolveBrowserDeliveryPayloadState({
+    browserDeliveryState: settings.browserDeliveryState,
+    pagePath: payload?.page?.path ?? resolvedPath ?? payload?.page?.path,
+    artifactRelativePath: resolveArtifactRelativePathFromResolvedPath(
+      payload?.page?.path ?? resolvedPath
+    )
+  });
+  if (!browserDelivery) {
+    return payload;
+  }
+
+  const nextPayload = {
+    ...payload,
+    delivery: {
+      ...(payload?.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
+      accessMode: browserDelivery.accessMode,
+      dnsMode: browserDelivery.dnsMode,
+      publicOrigin: browserDelivery.publicOrigin,
+      publicUrl: browserDelivery.publicUrl,
+      temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
+      temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
+    }
+  };
+  if (browserDelivery.publicUrl) {
+    nextPayload.head = {
+      ...(nextPayload.head && typeof nextPayload.head === "object" ? nextPayload.head : {}),
+      canonicalUrl: browserDelivery.publicUrl
+    };
+  }
+  return nextPayload;
+}
+
 export async function resolvePageDeliveryPayload({
   collectionHandlerRegistry,
   page,
   preview = false,
-  sourceRecord = null
+  sourceRecord = null,
+  resolveSettingsRepository = null,
+  settingsDefinition = null
 }) {
   const resolvedPath = buildResolvedPagePath(page, sourceRecord);
   const primarySource = buildPrimarySourceDescriptor(page, sourceRecord);
@@ -422,7 +481,7 @@ export async function resolvePageDeliveryPayload({
     ? [...new Set([...dependencyKeys, createDependencyKey(LAYOUTS_COLLECTION_ID, page.layoutId)])]
     : dependencyKeys;
 
-  return {
+  const payload = {
     contractVersion: 1,
     page: buildPageSummary(page, resolvedPath),
     head: buildHeadModel(page, primaryRecord),
@@ -441,9 +500,30 @@ export async function resolvePageDeliveryPayload({
     },
     resolvedAt: toTimestamp()
   };
+
+  if (typeof resolveSettingsRepository !== "function") {
+    return payload;
+  }
+
+  const settings = await readPagesModuleSettings({
+    resolveSettingsRepository,
+    settingsDefinition,
+    collectionHandlerRegistry
+  });
+  return applyBrowserDeliveryToPayload({
+    payload,
+    settings,
+    resolvedPath
+  });
 }
 
-export async function resolvePageByPath({ collectionHandlerRegistry, path, preview = false }) {
+export async function resolvePageByPath({
+  collectionHandlerRegistry,
+  path,
+  preview = false,
+  resolveSettingsRepository = null,
+  settingsDefinition = null
+}) {
   const pagesHandler = collectionHandlerRegistry.get("blog-pages");
   const pages = await listHandlerItems(pagesHandler, {
     path: normalizePagePath(path)
@@ -459,14 +539,18 @@ export async function resolvePageByPath({ collectionHandlerRegistry, path, previ
   return resolvePageDeliveryPayload({
     collectionHandlerRegistry,
     page,
-    preview
+    preview,
+    resolveSettingsRepository,
+    settingsDefinition
   });
 }
 
 export async function resolvePagePreviewPayload({
   collectionHandlerRegistry,
   page,
-  requestedSourceItemId = null
+  requestedSourceItemId = null,
+  resolveSettingsRepository = null,
+  settingsDefinition = null
 }) {
   const sourceRecord = await resolveRequestedSourceRecord({
     collectionHandlerRegistry,
@@ -477,7 +561,9 @@ export async function resolvePagePreviewPayload({
     collectionHandlerRegistry,
     page,
     preview: true,
-    sourceRecord
+    sourceRecord,
+    resolveSettingsRepository,
+    settingsDefinition
   });
 }
 

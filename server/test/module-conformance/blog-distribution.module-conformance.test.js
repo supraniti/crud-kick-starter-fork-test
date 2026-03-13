@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vitest";
 import {
+  buildReferenceModuleSettingsPath,
   createEphemeralReferenceServer,
   createSharedReferenceStatePersistence,
   injectJson
@@ -110,6 +111,32 @@ async function seedTag(server, overrides = {}) {
     description: "Platform category",
     color: "#3355aa",
     visibility: "public",
+    ...overrides
+  });
+  expect(response.statusCode).toBe(201);
+  return response.body.item;
+}
+
+async function seedRemoteConnectionProfile(server, overrides = {}) {
+  const response = await injectJson(server, "POST", buildItemsRoute("remote-connection-profiles"), {
+    profileName: "Merchant Guild",
+    provider: "gcp",
+    authMode: "service-account-key",
+    connectionStatus: "validated",
+    projectId: "merchant-guild",
+    ...overrides
+  });
+  expect(response.statusCode).toBe(201);
+  return response.body.item;
+}
+
+async function seedRemoteTargetProfile(server, overrides = {}) {
+  const response = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+    title: "Target",
+    connectionProfileId: "missing-connection",
+    targetKind: "deployment-storage",
+    adapterMode: "live-gcp",
+    config: {},
     ...overrides
   });
   expect(response.statusCode).toBe(201);
@@ -556,6 +583,164 @@ test("pages sync per-record deployment outputs and surface stale or missing stat
           staleReasonSummary: expect.stringContaining("No deployed artifact exists")
         })
       ])
+    );
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("pages sync existing per-record artifacts after browser-delivery settings change and emit domain-aware html", async () => {
+  const sandbox = await createDeploymentSandbox();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Launch Window Update",
+      status: "published",
+      publishedOn: "2026-03-09T08:30:00.000Z",
+      seoTitle: "Launch Window Update",
+      seoDescription: "Launch window update description",
+      ogTitle: "Launch Window Update",
+      ogDescription: "Launch window update description"
+    });
+
+    const connection = await seedRemoteConnectionProfile(server);
+    const deploymentTarget = await seedRemoteTargetProfile(server, {
+      title: "Deployment Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "content.example.com",
+        prefix: ""
+      }
+    });
+    const mediaTarget = await seedRemoteTargetProfile(server, {
+      title: "Media Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "content-example-media",
+        prefix: "library"
+      }
+    });
+    const browserDeliveryTarget = await seedRemoteTargetProfile(server, {
+      title: "Delivery Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "custom-domain",
+        dnsMode: "external",
+        hostname: "content.example.com",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath(MODULE_ID),
+      {
+        remoteBrowserDeliveryTargetProfileId: browserDeliveryTarget.id
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+    expect(settingsResponse.body.settings.values.remoteBrowserDeliveryTargetProfileId).toBe(
+      browserDeliveryTarget.id
+    );
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/posts",
+      pathPattern: "/posts/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-09T10:00:00.000Z",
+      seoTitle: "Posts Page",
+      seoDescription: "Posts page description",
+      ogTitle: "Posts Page",
+      ogDescription: "Posts page description"
+    });
+    expect(templatePage.statusCode).toBe(201);
+
+    const firstSyncResponse = await injectJson(
+      server,
+      "POST",
+      buildSyncDeploymentRoute(templatePage.body.item.id),
+      {}
+    );
+    expect(firstSyncResponse.statusCode).toBe(200);
+    expect(firstSyncResponse.body.item).toEqual(
+      expect.objectContaining({
+        deploymentStatus: "clean",
+        deploymentTargetCount: 1,
+        deploymentSyncedCount: 1,
+        deploymentStaleCount: 0,
+        deploymentMissingCount: 0
+      })
+    );
+
+    const secondSyncResponse = await injectJson(
+      server,
+      "POST",
+      buildSyncDeploymentRoute(templatePage.body.item.id),
+      {}
+    );
+    expect(secondSyncResponse.statusCode).toBe(200);
+    expect(secondSyncResponse.body.item).toEqual(
+      expect.objectContaining({
+        deploymentStatus: "clean",
+        deploymentTargetCount: 1,
+        deploymentSyncedCount: 1,
+        deploymentStaleCount: 0,
+        deploymentMissingCount: 0
+      })
+    );
+
+    const deploymentHtml = await readDeploymentHtml(
+      sandbox.deploymentRootDir,
+      "posts/launch-window-update/index.html"
+    );
+    expect(deploymentHtml).toContain("http://content.example.com/posts/launch-window-update");
+    expect(deploymentHtml).toContain("\"publicOrigin\":\"http://content.example.com\"");
+    expect(deploymentHtml).toContain("\"temporaryMediaBaseUrl\":\"https://storage.googleapis.com/content-example-media/library\"");
+
+    const deliveryResponse = await injectJson(
+      server,
+      "GET",
+      `${buildDeliveryRoute(templatePage.body.item.id)}?preview=true&sourceItemId=${post.id}`
+    );
+    expect(deliveryResponse.statusCode).toBe(200);
+    expect(deliveryResponse.body.payload.delivery).toEqual(
+      expect.objectContaining({
+        accessMode: "custom-domain",
+        dnsMode: "external",
+        publicOrigin: "http://content.example.com",
+        publicUrl: "http://content.example.com/posts/launch-window-update",
+        temporaryDeploymentBaseUrl: "https://storage.googleapis.com/content.example.com",
+        temporaryMediaBaseUrl: "https://storage.googleapis.com/content-example-media/library"
+      })
+    );
+    expect(deliveryResponse.body.payload.head.canonicalUrl).toBe(
+      "http://content.example.com/posts/launch-window-update"
     );
   } finally {
     await server.close();

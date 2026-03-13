@@ -176,6 +176,43 @@ function CompatibilityReport({ report, actionState }) {
                     </Stack>
                   </Alert>
                 ) : null}
+                {bundle.deliveryReports?.length > 0 ? (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Delivery Views
+                    </Typography>
+                    <Stack spacing={0.75} sx={{ mt: 0.5 }}>
+                      {bundle.deliveryReports.map((deliveryReport) => (
+                        <Paper key={deliveryReport.targetId} variant="outlined" sx={{ p: 1 }}>
+                          <Stack spacing={0.5}>
+                            <Typography variant="body2">{deliveryReport.title}</Typography>
+                            {deliveryReport.publicOrigin ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Public origin: {deliveryReport.publicOrigin}
+                              </Typography>
+                            ) : null}
+                            {deliveryReport.publicUrl ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Example page URL: {deliveryReport.publicUrl}
+                              </Typography>
+                            ) : null}
+                            {deliveryReport.temporaryMediaBaseUrl ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Temporary media base: {deliveryReport.temporaryMediaBaseUrl}
+                              </Typography>
+                            ) : null}
+                            {deliveryReport.dnsInstruction ? (
+                              <Typography variant="caption" color="text.secondary">
+                                DNS: {deliveryReport.dnsInstruction.recordType} {deliveryReport.dnsInstruction.recordName}{" "}
+                                {"->"} {deliveryReport.dnsInstruction.recordValue}
+                              </Typography>
+                            ) : null}
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </Box>
+                ) : null}
                 {bundle.permissionDiagnostics?.length > 0 ? (
                   <Alert severity="error">
                     <Stack spacing={0.75}>
@@ -286,8 +323,8 @@ function ProvisioningPanel({ workspace, report }) {
             <Chip size="small" variant="outlined" label={`Blocked ${blockedActionCount}`} />
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            This creates only missing supported resources that are ready now for the selected connection. Browser-delivery
-            stack provisioning remains planned until that runtime is implemented.
+            This creates only missing supported resources that are ready now for the selected connection. Full browser-delivery
+            stack orchestration remains planned, but direct-storage browser-delivery requirements can now be provisioned here.
           </Typography>
           {actionState.errorMessage ? <Alert severity="error">{actionState.errorMessage}</Alert> : null}
           {actionState.successMessage ? <Alert severity="success">{actionState.successMessage}</Alert> : null}

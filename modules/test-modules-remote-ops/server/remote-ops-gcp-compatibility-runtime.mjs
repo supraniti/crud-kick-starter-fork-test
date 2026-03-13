@@ -1,4 +1,5 @@
 import { buildGcpProvisioningModel } from "./remote-ops-gcp-provisioning-model.mjs";
+import { analyzeBrowserDeliveryBundle } from "./remote-ops-gcp-browser-delivery-compatibility-runtime.mjs";
 import { requestGoogleJson } from "./remote-ops-live-google-runtime.mjs";
 import { getServiceAccountAccessToken } from "./remote-ops-service-account-auth-runtime.mjs";
 import { normalizeAdapterMode, normalizeOptionalText, normalizeTargetConfig } from "./remote-ops-shared-runtime.mjs";
@@ -32,7 +33,8 @@ function createBundleReport(bundle, targets = []) {
     missingResources: [],
     configurationWarnings: [],
     costWarnings: bundle.costWarnings,
-    notes: []
+    notes: [],
+    deliveryReports: []
   };
 }
 
@@ -167,6 +169,13 @@ async function loadFirestoreDatabase(projectId, accessToken) {
 async function loadStorageBucket(bucketName, accessToken) {
   return requestGoogleJson(
     `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}`,
+    accessToken
+  );
+}
+
+async function loadBucketIamPolicy(bucketName, accessToken) {
+  return requestGoogleJson(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}/iam`,
     accessToken
   );
 }
@@ -505,75 +514,6 @@ async function analyzeStorageBundle(report, bundle, targetProfiles, accessToken,
   return updateBundleState(report);
 }
 
-async function inspectBrowserResource(report, definition, loader) {
-  const { kind, label, resourceName } = definition;
-  if (!resourceName) {
-    return;
-  }
-  try {
-    const resource = await loader();
-    report.resourceChecks.push({
-      kind,
-      state: "present",
-      label,
-      resourceName: resource?.name ?? resourceName
-    });
-  } catch (error) {
-    report.resourceChecks.push({
-      kind,
-      state: error?.statusCode === 404 ? "missing" : "error",
-      label,
-      resourceName,
-      details: error?.message ?? `Failed to inspect ${kind}`
-    });
-  }
-}
-
-async function inspectBrowserTarget(report, targetProfile, project, accessToken) {
-  const config = normalizeTargetConfig(targetProfile.config, targetProfile.targetKind);
-  if (!config.hostname) {
-    report.configurationWarnings.push(`${targetProfile.title}: hostname is not configured.`);
-  }
-  await inspectBrowserResource(
-    report,
-    {
-      kind: "dns-zone",
-      label: `${targetProfile.title} DNS zone`,
-      resourceName: config.dnsZone
-    },
-    () => loadDnsZone(project.projectId, config.dnsZone, accessToken)
-  );
-  await inspectBrowserResource(
-    report,
-    {
-      kind: "certificate",
-      label: `${targetProfile.title} certificate`,
-      resourceName: config.certificateName
-    },
-    () => loadCertificate(project.projectId, config.certificateName, accessToken)
-  );
-  await inspectBrowserResource(
-    report,
-    {
-      kind: "url-map",
-      label: `${targetProfile.title} URL map`,
-      resourceName: config.urlMapHint
-    },
-    () => loadUrlMap(project.projectId, config.urlMapHint, accessToken)
-  );
-}
-
-async function analyzeBrowserDeliveryBundle(report, bundle, targetProfiles, accessToken, projectPermissions, project) {
-  if (targetProfiles.length === 0) {
-    return markBundleNotConfigured(report, bundle);
-  }
-  await analyzeApiStates(bundle, report, project, accessToken, projectPermissions);
-  for (const targetProfile of targetProfiles) {
-    await inspectBrowserTarget(report, targetProfile, project, accessToken);
-  }
-  return updateBundleState(report);
-}
-
 export async function analyzeGcpCompatibility({ connectionProfile, targetProfiles }) {
   const model = buildGcpProvisioningModel();
   const normalizedProjectId = normalizeOptionalText(connectionProfile.projectId);
@@ -610,7 +550,15 @@ export async function analyzeGcpCompatibility({ connectionProfile, targetProfile
       continue;
     }
     bundles.push(
-      await analyzeBrowserDeliveryBundle(report, bundle, bundleTargets, accessToken, projectPermissions, project)
+      await analyzeBrowserDeliveryBundle({
+        report,
+        bundle,
+        targetProfiles: bundleTargets,
+        accessToken,
+        projectPermissions,
+        project,
+        markBundleNotConfigured
+      })
     );
   }
 

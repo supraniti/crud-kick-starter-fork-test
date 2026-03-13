@@ -245,6 +245,28 @@ async function buildReferenceRuntimeRouteContext({
     resolveModuleSettingsDefinitions
   });
 
+  return buildReferenceRuntimeRouteContextPayload({
+    state,
+    moduleRuntime,
+    referenceOptionsProviderPolicy,
+    moduleIdTranslation,
+    remotesDeployRepository: repositories.remotesDeployRepository,
+    jobsRuntime,
+    infrastructure,
+    resolvers
+  });
+}
+
+function buildReferenceRuntimeRouteContextPayload({
+  state,
+  moduleRuntime,
+  referenceOptionsProviderPolicy,
+  moduleIdTranslation,
+  remotesDeployRepository,
+  jobsRuntime,
+  infrastructure,
+  resolvers
+}) {
   return {
     state,
     moduleRegistry: infrastructure.moduleRegistry,
@@ -256,12 +278,14 @@ async function buildReferenceRuntimeRouteContext({
     referenceOptionsProviderRegistry: infrastructure.referenceOptionsProviderRegistry,
     referenceOptionsProviderPolicy,
     moduleIdTranslation,
-    remotesDeployRepository: repositories.remotesDeployRepository,
+    remotesDeployRepository,
     missionRegistry: infrastructure.missionRegistry,
     serviceRegistry: infrastructure.serviceRegistry,
     jobRunner: jobsRuntime.jobRunner,
     jobLogStore: jobsRuntime.jobLogStore,
     pushJobLogWithPersistence: jobsRuntime.pushJobLogWithPersistence,
+    resolveSettingsRepository: (moduleId) =>
+      infrastructure.persistencePluginRegistry.getSettingsRepository(moduleId),
     resolvers
   };
 }

@@ -8,6 +8,7 @@ import {
 } from "./remote-ops-live-google-runtime.mjs";
 import { validateFirestoreCollectionPath } from "./remote-ops-live-firestore-runtime.mjs";
 import { normalizeOptionalText } from "./remote-ops-shared-runtime.mjs";
+import { normalizeBrowserDeliveryConfig } from "../shared/browser-delivery-support.mjs";
 
 function createValidationResult(nextStatus, message, checkedItems, warnings = [], canProceed = false) {
   return {
@@ -140,23 +141,51 @@ async function validateBrowserDeliveryTarget(targetProfile, connectionProfile, a
     );
   }
 
-  const hostname = normalizeOptionalText(targetProfile.config?.hostname);
-  const dnsZone = normalizeOptionalText(targetProfile.config?.dnsZone);
-  const certificateName = normalizeOptionalText(targetProfile.config?.certificateName);
+  const config = normalizeBrowserDeliveryConfig(targetProfile.config);
+  const hostname = config.hostname;
+  const dnsZone = config.dnsZone;
+  const certificateName = config.certificateName;
   const warnings = [];
 
+  checkedItems.push(`access mode: ${config.accessMode}`);
+
+  if (config.accessMode === "gcp-temporary") {
+    if (!config.deploymentTargetProfileId) {
+      return createValidationResult(
+        "error",
+        "Select a linked deployment target before using GCP temporary delivery.",
+        checkedItems,
+        [],
+        false
+      );
+    }
+    checkedItems.push("deployment target link");
+    if (!config.mediaTargetProfileId) {
+      warnings.push("No linked media target configured. Media temporary URLs will be unavailable.");
+    }
+    return createValidationResult(
+      warnings.length > 0 ? "warning" : "validated",
+      "GCP temporary browser delivery is configured.",
+      checkedItems,
+      warnings,
+      true
+    );
+  }
+
   if (!hostname) {
-    return createValidationResult("error", "Hostname is required for browser delivery targets.", checkedItems, [], false);
+    return createValidationResult("error", "Hostname is required for custom-domain browser delivery.", checkedItems, [], false);
   }
 
   checkedItems.push("hostname");
 
-  if (dnsZone) {
+  if (config.dnsMode === "gcp-managed" && dnsZone) {
     await requestGoogleJson(
       `https://dns.googleapis.com/dns/v1/projects/${connectionProfile.projectId}/managedZones/${encodeURIComponent(dnsZone)}`,
       accessToken
     );
     checkedItems.push("dns zone");
+  } else if (config.dnsMode === "gcp-managed") {
+    warnings.push("No DNS zone configured. GCP-managed DNS validation was skipped.");
   } else {
     warnings.push("No DNS zone configured. DNS validation was skipped.");
   }
@@ -174,8 +203,8 @@ async function validateBrowserDeliveryTarget(targetProfile, connectionProfile, a
   const nextStatus = warnings.length > 0 ? "warning" : "validated";
   const message =
     warnings.length > 0
-      ? `Browser delivery partially validated for '${hostname}'.`
-      : `Browser delivery is ready for '${hostname}'.`;
+      ? `Custom-domain browser delivery partially validated for '${hostname}'.`
+      : `Custom-domain browser delivery is ready for '${hostname}'.`;
   return createValidationResult(nextStatus, message, checkedItems, warnings, warnings.length === 0);
 }
 

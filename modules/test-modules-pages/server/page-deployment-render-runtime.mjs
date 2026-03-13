@@ -1,16 +1,13 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { resolveGeneratedModuleSettingsValues } from "../../../server/src/core/shared/capability-contracts/local-kernel/generated-proof-runtime/module-settings-runtime-helpers.mjs";
 import {
   DEFAULT_APP_MOUNT_TAG_NAME,
   DEPLOYMENT_ARTIFACTS_COLLECTION_ID,
   LAYOUTS_COLLECTION_ID,
-  MODULE_ID,
   hasUnsafePathSegments,
   isPagePublished,
   isPerRecordDeploymentMode,
-  normalizeAppMountTagName,
   normalizePagePath,
   normalizeScriptUrlList,
   normalizeTrimmedText,
@@ -22,6 +19,10 @@ import {
   resolvePageDeliveryPayload
 } from "./page-delivery-runtime.mjs";
 import { resolvePageDeploymentRootDir } from "./page-deployment-root.mjs";
+import {
+  resolveBrowserDeliveryPayloadState,
+} from "./browser-delivery-reference-runtime.mjs";
+import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function escapeHtmlText(value) {
   return String(value ?? "")
@@ -253,21 +254,6 @@ function resolveKnownArtifactPath(page = {}) {
   }
 }
 
-async function readPagesModuleSettings({ resolveSettingsRepository, settingsDefinition }) {
-  const values = await resolveGeneratedModuleSettingsValues({
-    moduleId: MODULE_ID,
-    settingsDefinition,
-    resolveSettingsRepository
-  });
-
-  return {
-    appMountTagName: normalizeAppMountTagName(
-      values?.appMountTagName,
-      DEFAULT_APP_MOUNT_TAG_NAME
-    )
-  };
-}
-
 function hashValue(value) {
   return crypto
     .createHash("sha1")
@@ -299,7 +285,8 @@ function buildRecordVersionToken(record = null) {
 
 function buildSettingsVersionToken(settings = {}) {
   return hashValue({
-    appMountTagName: settings.appMountTagName ?? DEFAULT_APP_MOUNT_TAG_NAME
+    appMountTagName: settings.appMountTagName ?? DEFAULT_APP_MOUNT_TAG_NAME,
+    browserDeliveryState: settings.browserDeliveryState ?? null
   });
 }
 
@@ -437,6 +424,7 @@ async function upsertArtifactRecord(artifactHandler, body, existingArtifact = nu
   if (existingArtifact) {
     const result = await artifactHandler.update({
       body,
+      value: body,
       item: existingArtifact
     });
     return result?.item ?? null;
@@ -484,6 +472,28 @@ async function writeArtifactDocument({
     preview: false,
     sourceRecord
   });
+  const browserDelivery = resolveBrowserDeliveryPayloadState({
+    browserDeliveryState: settings.browserDeliveryState,
+    pagePath: payload?.page?.path ?? page.path,
+    artifactRelativePath
+  });
+  if (browserDelivery) {
+    payload.delivery = {
+      ...(payload.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
+      accessMode: browserDelivery.accessMode,
+      dnsMode: browserDelivery.dnsMode,
+      publicOrigin: browserDelivery.publicOrigin,
+      publicUrl: browserDelivery.publicUrl,
+      temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
+      temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
+    };
+    if (browserDelivery.publicUrl) {
+      payload.head = {
+        ...(payload.head && typeof payload.head === "object" ? payload.head : {}),
+        canonicalUrl: browserDelivery.publicUrl
+      };
+    }
+  }
   const htmlDocument = renderStaticPageDocument({
     payload,
     mountTagName: settings.appMountTagName,

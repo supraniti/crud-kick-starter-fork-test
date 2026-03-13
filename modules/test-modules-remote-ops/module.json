@@ -343,6 +343,26 @@
                   "maxLength": 80
                 },
                 {
+                  "id": "accessMode",
+                  "label": "Access Mode",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "gcp-temporary",
+                    "custom-domain"
+                  ]
+                },
+                {
+                  "id": "dnsMode",
+                  "label": "DNS Mode",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "external",
+                    "gcp-managed"
+                  ]
+                },
+                {
                   "id": "hostname",
                   "label": "Hostname",
                   "type": "text",
@@ -373,6 +393,22 @@
                   "required": false,
                   "minLength": 0,
                   "maxLength": 160
+                },
+                {
+                  "id": "deploymentTargetProfileId",
+                  "label": "Deployment Target Profile ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "mediaTargetProfileId",
+                  "label": "Media Target Profile ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
                 }
               ]
             }

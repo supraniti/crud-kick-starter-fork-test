@@ -117,6 +117,10 @@ async function updateSourcePostStatus({
       status: nextStatus,
       updatedByAuthorId
     },
+    value: {
+      status: nextStatus,
+      updatedByAuthorId
+    },
     item: post,
     reply
   });
@@ -234,8 +238,10 @@ function createPublishNowHandler(routeContext) {
       return postPublishResult;
     }
 
+    const publishUpdate = buildPagePublishUpdate(page);
     const updateResult = await routeContext.pagesHandler.update({
-      body: buildPagePublishUpdate(page),
+      body: publishUpdate,
+      value: publishUpdate,
       item: page,
       reply
     });
@@ -280,12 +286,16 @@ function createPageDeliveryHandler(routeContext) {
       ? await resolvePagePreviewPayload({
           collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
           page,
-          requestedSourceItemId: readSourceItemIdQuery(request) || null
+          requestedSourceItemId: readSourceItemIdQuery(request) || null,
+          resolveSettingsRepository: routeContext.resolveSettingsRepository,
+          settingsDefinition: routeContext.manifest?.settings ?? null
         })
       : await resolvePageDeliveryPayload({
           collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
           page,
-          preview: false
+          preview: false,
+          resolveSettingsRepository: routeContext.resolveSettingsRepository,
+          settingsDefinition: routeContext.manifest?.settings ?? null
         });
 
     return buildPayload({
@@ -383,7 +393,7 @@ function createSyncDeploymentHandler(routeContext) {
       );
     }
 
-    await runExplicitPageDeploymentSync({
+    const syncResult = await runExplicitPageDeploymentSync({
       handler: routeContext.pagesHandler,
       page,
       previousPage: page,
@@ -392,13 +402,16 @@ function createSyncDeploymentHandler(routeContext) {
       settingsDefinition: routeContext.manifest?.settings ?? null
     });
 
-    const item = await routeContext.pagesHandler.findById(page.id);
-    const instances = await listPageDeploymentInstances({
-      page: item,
-      collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
-      resolveSettingsRepository: routeContext.resolveSettingsRepository,
-      settingsDefinition: routeContext.manifest?.settings ?? null
-    });
+    const item = syncResult?.page ?? (await routeContext.pagesHandler.findById(page.id));
+    const instances =
+      Array.isArray(syncResult?.instances)
+        ? syncResult.instances
+        : await listPageDeploymentInstances({
+            page: item,
+            collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+            resolveSettingsRepository: routeContext.resolveSettingsRepository,
+            settingsDefinition: routeContext.manifest?.settings ?? null
+          });
 
     return buildPayload({
       ok: true,
@@ -459,7 +472,9 @@ function createPathDeliveryHandler(routeContext) {
     const payload = await resolvePageByPath({
       collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
       path,
-      preview: parsePreviewFlag(request)
+      preview: parsePreviewFlag(request),
+      resolveSettingsRepository: routeContext.resolveSettingsRepository,
+      settingsDefinition: routeContext.manifest?.settings ?? null
     });
     if (payload) {
       return buildPayload({

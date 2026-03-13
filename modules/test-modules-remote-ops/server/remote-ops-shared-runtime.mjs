@@ -1,3 +1,9 @@
+import {
+  normalizeBrowserDeliveryAccessMode,
+  normalizeBrowserDeliveryConfig,
+  normalizeBrowserDeliveryDnsMode
+} from "../shared/browser-delivery-support.mjs";
+
 export const MODULE_ID = "test-modules-remote-ops";
 export const CONNECTIONS_COLLECTION_ID = "remote-connection-profiles";
 export const TARGETS_COLLECTION_ID = "remote-target-profiles";
@@ -22,6 +28,11 @@ export const TARGET_KIND_SET = new Set([
   "media-storage",
   "browser-delivery"
 ]);
+export {
+  normalizeBrowserDeliveryAccessMode,
+  normalizeBrowserDeliveryConfig,
+  normalizeBrowserDeliveryDnsMode
+} from "../shared/browser-delivery-support.mjs";
 
 export function toTimestamp(value = new Date()) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -211,10 +222,14 @@ export function createDefaultTargetConfig(targetKind = "firestore-projection") {
         bucketName: null,
         prefix: null,
         localRootHint: "deployment",
+        accessMode: "gcp-temporary",
+        dnsMode: "external",
         hostname: null,
         dnsZone: null,
         certificateName: null,
-        urlMapHint: null
+        urlMapHint: null,
+        deploymentTargetProfileId: null,
+        mediaTargetProfileId: null
       };
     case "firestore-projection":
     default:
@@ -232,22 +247,70 @@ export function createDefaultTargetConfig(targetKind = "firestore-projection") {
   }
 }
 
+function pickConfigValue(config, defaults, fieldId) {
+  return Object.prototype.hasOwnProperty.call(config, fieldId) ? config[fieldId] : defaults[fieldId];
+}
+
+function normalizeCommonTargetConfig(config, defaults) {
+  return {
+    projectionScope: normalizeOptionalText(pickConfigValue(config, defaults, "projectionScope")),
+    firestoreCollectionPath: normalizeOptionalText(
+      pickConfigValue(config, defaults, "firestoreCollectionPath")
+    ),
+    bucketName: normalizeOptionalText(pickConfigValue(config, defaults, "bucketName")),
+    prefix: normalizeOptionalText(pickConfigValue(config, defaults, "prefix")),
+    localRootHint: normalizeOptionalText(pickConfigValue(config, defaults, "localRootHint"))
+  };
+}
+
+function normalizeDefaultTargetConfig(config, defaults) {
+  return {
+    ...normalizeCommonTargetConfig(config, defaults),
+    accessMode: normalizeOptionalText(pickConfigValue(config, defaults, "accessMode")),
+    dnsMode: normalizeOptionalText(pickConfigValue(config, defaults, "dnsMode")),
+    hostname: normalizeOptionalText(pickConfigValue(config, defaults, "hostname")),
+    dnsZone: normalizeOptionalText(pickConfigValue(config, defaults, "dnsZone")),
+    certificateName: normalizeOptionalText(pickConfigValue(config, defaults, "certificateName")),
+    urlMapHint: normalizeOptionalText(pickConfigValue(config, defaults, "urlMapHint")),
+    deploymentTargetProfileId: normalizeOptionalText(
+      pickConfigValue(config, defaults, "deploymentTargetProfileId")
+    ),
+    mediaTargetProfileId: normalizeOptionalText(
+      pickConfigValue(config, defaults, "mediaTargetProfileId")
+    )
+  };
+}
+
+function normalizeBrowserOnlyTargetConfig(config, defaults) {
+  const browserDeliveryConfig = normalizeBrowserDeliveryConfig({
+    accessMode: pickConfigValue(config, defaults, "accessMode"),
+    dnsMode: pickConfigValue(config, defaults, "dnsMode"),
+    hostname: pickConfigValue(config, defaults, "hostname"),
+    dnsZone: pickConfigValue(config, defaults, "dnsZone"),
+    certificateName: pickConfigValue(config, defaults, "certificateName"),
+    urlMapHint: pickConfigValue(config, defaults, "urlMapHint"),
+    deploymentTargetProfileId: pickConfigValue(config, defaults, "deploymentTargetProfileId"),
+    mediaTargetProfileId: pickConfigValue(config, defaults, "mediaTargetProfileId")
+  });
+  return {
+    ...normalizeCommonTargetConfig(config, defaults),
+    accessMode: browserDeliveryConfig.accessMode,
+    dnsMode: browserDeliveryConfig.dnsMode,
+    hostname: browserDeliveryConfig.hostname,
+    dnsZone: browserDeliveryConfig.dnsZone,
+    certificateName: browserDeliveryConfig.certificateName,
+    urlMapHint: browserDeliveryConfig.urlMapHint,
+    deploymentTargetProfileId: browserDeliveryConfig.deploymentTargetProfileId,
+    mediaTargetProfileId: browserDeliveryConfig.mediaTargetProfileId
+  };
+}
+
 export function normalizeTargetConfig(value, targetKind = "firestore-projection") {
   const config = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const defaults = createDefaultTargetConfig(targetKind);
-  return {
-    projectionScope: normalizeOptionalText(config.projectionScope ?? defaults.projectionScope),
-    firestoreCollectionPath: normalizeOptionalText(
-      config.firestoreCollectionPath ?? defaults.firestoreCollectionPath
-    ),
-    bucketName: normalizeOptionalText(config.bucketName ?? defaults.bucketName),
-    prefix: normalizeOptionalText(config.prefix ?? defaults.prefix),
-    localRootHint: normalizeOptionalText(config.localRootHint ?? defaults.localRootHint),
-    hostname: normalizeOptionalText(config.hostname ?? defaults.hostname),
-    dnsZone: normalizeOptionalText(config.dnsZone ?? defaults.dnsZone),
-    certificateName: normalizeOptionalText(config.certificateName ?? defaults.certificateName),
-    urlMapHint: normalizeOptionalText(config.urlMapHint ?? defaults.urlMapHint)
-  };
+  return targetKind === "browser-delivery"
+    ? normalizeBrowserOnlyTargetConfig(config, defaults)
+    : normalizeDefaultTargetConfig(config, defaults);
 }
 
 export function createDefaultTargetPolicy() {

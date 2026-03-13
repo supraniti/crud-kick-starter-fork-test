@@ -101,13 +101,23 @@ function buildStorageBundle({
       buildPermissionGroup(
         inspectGroupId,
         `Inspect ${label.toLowerCase()} readiness`,
-        ["serviceusage.services.get", "storage.buckets.get", "storage.objects.list"],
+        [
+          "serviceusage.services.get",
+          "storage.buckets.get",
+          "storage.buckets.getIamPolicy",
+          "storage.objects.list"
+        ],
         `Needed to validate the bucket and compare remote ${id === "deployment-storage" ? "objects" : "media objects"}.`
       ),
       buildPermissionGroup(
         provisionGroupId,
         `Create ${label.toLowerCase()} bucket`,
-        ["serviceusage.services.enable", "storage.buckets.create"],
+        [
+          "serviceusage.services.enable",
+          "storage.buckets.create",
+          "storage.buckets.update",
+          "storage.buckets.setIamPolicy"
+        ],
         `Needed only when the configured ${label.toLowerCase()} bucket does not exist.`
       ),
       buildPermissionGroup(
@@ -180,13 +190,19 @@ function buildBrowserDeliveryBundle() {
     requiredApis: ["dns.googleapis.com", "certificatemanager.googleapis.com", "compute.googleapis.com"],
     provisionableResources: [
       buildProvisioningAction("dns-zone", "Cloud DNS managed zone", "planned", true, [
-        "Requires a real domain strategy and operator confirmation."
+        "Required only when DNS is managed on GCP."
       ]),
       buildProvisioningAction("managed-certificate", "Certificate Manager certificate", "planned", true, [
         "Domain ownership and DNS readiness must be satisfied first."
       ]),
       buildProvisioningAction("load-balancer-stack", "External load balancer and CDN delivery stack", "planned", true, [
         "This is part of the supported target model but not yet implemented in runtime procedures."
+      ]),
+      buildProvisioningAction("bucket-website", "Deployment bucket website settings", "execution-started", true, [
+        "Needed for the current direct-storage custom-domain path."
+      ]),
+      buildProvisioningAction("public-read", "Public object read access", "execution-started", true, [
+        "Needed for browser clients to fetch deployed HTML or media directly."
       ])
     ],
     permissionGroups: [
@@ -198,7 +214,9 @@ function buildBrowserDeliveryBundle() {
           "dns.managedZones.get",
           "certificatemanager.certs.get",
           "compute.backendBuckets.get",
-          "compute.urlMaps.get"
+          "compute.urlMaps.get",
+          "storage.buckets.get",
+          "storage.buckets.getIamPolicy"
         ],
         "Needed to inspect the existing delivery stack."
       ),
@@ -213,7 +231,9 @@ function buildBrowserDeliveryBundle() {
           "compute.urlMaps.create",
           "compute.targetHttpProxies.create",
           "compute.targetHttpsProxies.create",
-          "compute.globalForwardingRules.create"
+          "compute.globalForwardingRules.create",
+          "storage.buckets.update",
+          "storage.buckets.setIamPolicy"
         ],
         "Needed to create the browser-delivery stack for supported domains."
       )

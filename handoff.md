@@ -1,7 +1,7 @@
 # Agent Handoff
 
 ## Current Status
-- Date: 2026-03-12
+- Date: 2026-03-13
 - Repository: `crud-kick-starter-fork-test`
 - Branch: `crud-kick-starter-fork-test`
 - Remotes:
@@ -10,11 +10,13 @@
 - Last committed baseline:
   - `105c09a` `docs: archive completed execution plans`
 - Active execution target:
-  - deliver the standalone `client-runtime/` package from `C:\Users\cmsin\OneDrive\שולחן העבודה\M03-client-script.md`
-  - keep it outside the existing `frontend/` and `server/` libraries
+  - browser-delivery/domain artifact management and domain-aware page output
+  - bounded inside:
+    - `test-modules-remote-ops`
+    - `test-modules-pages`
   - current slice status:
-    - standalone package scaffold delivered and verified
-    - page-deployment injection integration not started yet
+    - planning locked in `docs/contracts/test-modules-remote-ops-step-5-browser-delivery-plan.md`
+    - implementation completed and verified
 
 ## Current Product Truth
 - Blog/content flow is live through:
@@ -27,9 +29,45 @@
   - `test-modules-pages` -> deployment storage sync
   - `test-modules-media-manager` -> media storage compare/sync/restore
   - `test-modules-remote-ops` -> connection, target management, compatibility analysis, provisioning, deep diagnostics
-- Browser-delivery remains validation-only; execution/provisioning for CDN/domain is not implemented yet.
+- Browser-delivery now exists as a real operator-facing target shape with:
+  - `custom-domain`
+  - `gcp-temporary`
+  - linked deployment/media targets
+  - DNS instructions / temporary URL previews
+- Pages output is now domain-aware from the selected browser-delivery target:
+  - delivery payload JSON includes browser-delivery metadata
+  - canonical URL follows the selected public delivery contract
+  - deployed HTML mirrors the same domain-aware payload/head state
 - Client runtime package now exists and is isolated under:
   - `client-runtime/`
+
+## Active Browser Delivery Goal
+- Operator can configure a browser-delivery target with one of two states:
+  - custom domain
+  - GCP temporary access
+- The app must show:
+  - exact DNS instructions for the supported custom-domain path
+  - GCP temporary URLs for the linked deployment/media targets
+- Generated page HTML must become domain-aware from the selected Pages browser-delivery target.
+- This slice intentionally does **not** claim full CDN/load-balancer execution.
+- The delivered contract is the bounded direct-storage path plus domain-aware page output.
+
+## Browser Delivery Slice Closure On 2026-03-13
+- Operator can configure a browser-delivery target with two states:
+  - custom domain
+  - GCP temporary access
+- `Remote Ops` shows:
+  - public origin preview
+  - example page URL
+  - exact DNS record instructions for the supported direct-storage path
+  - temporary deployment/media URLs
+  - readiness warnings and bounded provisioning actions
+- `Pages` now resolves the selected browser-delivery target through module settings and emits domain-aware output for both:
+  - delivery API payloads
+  - deployed HTML artifacts
+- Important contract boundary:
+  - custom-domain direct-storage is treated as the current supported path and remains HTTP-oriented unless a future HTTPS delivery stack is added
+  - full CDN / load-balancer execution remains future work
 
 ## Live Rehearsal Proven On 2026-03-12
 - Created and published 10 review posts:
@@ -83,28 +121,22 @@
   - `docs/contracts/test-modules-layouts-module-contract.md`
   - `docs/contracts/test-modules-media-manager-module-contract.md`
   - `docs/contracts/test-modules-remote-ops-module-contract.md`
+- Active execution plan:
+  - `docs/contracts/test-modules-remote-ops-step-5-browser-delivery-plan.md`
 - Current package/task contract:
   - `docs/contracts/client-runtime-contract.md`
-- Current execution plan:
-  - `docs/contracts/client-runtime-v1-plan.md`
 - Research/design memo:
   - `docs/research/gcp-sync-services-memo.md`
 - Archived execution plans/history:
   - `docs/contracts/archive/completed-execution-plans/`
 
 ## Repository State
-- Current app review pair is not required for this slice and should stay down unless later browser proof is needed.
+- Current app review pair is down.
+- Before long verification lanes on this machine, stop any live review pair on `3000/3001`; the frontend integration lane is sensitive to those extra processes.
 - Keep unrelated untracked `PLACEHOLDER` untouched.
-- Verified M03 package outputs:
-  - `client-runtime/dist/client-runtime.global.js`
-  - `client-runtime/dist/client-runtime.esm.js`
-- Verified M03 package proof:
-  - `client-runtime/examples/basic-runtime-proof.html`
-  - `client-runtime/examples/playground.html`
-  - `client-runtime/examples/jsonplaceholder-playground.html`
-- Verified M03 repo lanes:
-  - `pnpm test:client-runtime`
-  - `pnpm build:client-runtime`
-  - `pnpm quality:protocol`
-  - `pnpm quality:gate`
+- Last pushed repo state before this slice:
+  - remote ops live flows proven for Firestore, deployment storage, and media storage
+  - client-runtime delivered and pushed
+- Start this slice from clean git state except:
+  - unrelated untracked `PLACEHOLDER`
 

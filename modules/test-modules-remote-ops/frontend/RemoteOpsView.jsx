@@ -20,8 +20,9 @@ export function RemoteOpsView({ activeModuleLabel, navigate = null, route = null
     () => (
       <Alert severity="info">
         Service-account connection, target validation, compare, execute, and compatibility analysis now run
-        inside the remote-ops module. Browser-delivery remains validation-only until its provisioning/runtime
-        slice is implemented.
+        inside the remote-ops module. Browser-delivery now supports custom-domain instructions, GCP
+        temporary URL previews, and bounded direct-storage provisioning while full CDN/load-balancer
+        orchestration remains future work.
       </Alert>
     ),
     []

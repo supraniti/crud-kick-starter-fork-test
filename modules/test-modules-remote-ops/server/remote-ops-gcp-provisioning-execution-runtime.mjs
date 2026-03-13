@@ -21,7 +21,9 @@ function sortProvisionableActions(actions) {
   const priority = new Map([
     ["api", 0],
     ["firestore-database", 1],
-    ["bucket", 2]
+    ["bucket", 2],
+    ["bucket-website", 3],
+    ["public-read", 4]
   ]);
   return [...actions].sort((left, right) => {
     const leftPriority = priority.get(left.resourceKind) ?? 10;
@@ -101,6 +103,69 @@ async function createStorageBucket(projectId, bucketName, region, accessToken) {
   );
 }
 
+async function configureBucketWebsite(bucketName, accessToken) {
+  await requestGoogleJson(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}`,
+    accessToken,
+    {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        website: {
+          mainPageSuffix: "index.html"
+        }
+      })
+    }
+  );
+}
+
+async function loadBucketIamPolicy(bucketName, accessToken) {
+  return requestGoogleJson(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}/iam`,
+    accessToken
+  );
+}
+
+async function setBucketIamPolicy(bucketName, policy, accessToken) {
+  return requestGoogleJson(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}/iam`,
+    accessToken,
+    {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(policy)
+    }
+  );
+}
+
+async function enablePublicObjectRead(bucketName, accessToken) {
+  const policy = await loadBucketIamPolicy(bucketName, accessToken);
+  const bindings = Array.isArray(policy?.bindings) ? [...policy.bindings] : [];
+  const existingBinding = bindings.find((binding) => binding?.role === "roles/storage.objectViewer");
+  if (existingBinding) {
+    const members = new Set(Array.isArray(existingBinding.members) ? existingBinding.members : []);
+    members.add("allUsers");
+    existingBinding.members = [...members];
+  } else {
+    bindings.push({
+      role: "roles/storage.objectViewer",
+      members: ["allUsers"]
+    });
+  }
+  await setBucketIamPolicy(
+    bucketName,
+    {
+      ...policy,
+      bindings
+    },
+    accessToken
+  );
+}
+
 function normalizeFirestoreLocation(region) {
   return normalizeOptionalText(region) ?? "us-central1";
 }
@@ -167,6 +232,76 @@ function ensureSafeguardsConfirmed(model, confirmedSafeguardIds) {
 
 function findBucketTarget(targetProfiles, targetId) {
   return targetProfiles.find((targetProfile) => targetProfile.id === targetId) ?? null;
+}
+
+function findAnyTarget(targetProfiles, targetId) {
+  return targetProfiles.find((targetProfile) => targetProfile.id === targetId) ?? null;
+}
+
+async function executeBucketActions({
+  iterationActions,
+  executedActionIds,
+  executedActions,
+  targetProfiles,
+  projectId,
+  region,
+  accessToken
+}) {
+  for (const action of iterationActions.filter(
+    (entry) => entry.resourceKind === "bucket" && !executedActionIds.has(entry.id)
+  )) {
+    const targetProfile = findBucketTarget(targetProfiles, action.targetId);
+    if (!targetProfile) {
+      continue;
+    }
+    const config = normalizeTargetConfig(targetProfile.config, targetProfile.targetKind);
+    const bucketName = normalizeOptionalText(config.bucketName);
+    if (!bucketName) {
+      continue;
+    }
+    await createStorageBucket(projectId, bucketName, region, accessToken);
+    executedActionIds.add(action.id);
+    executedActions.push({
+      id: action.id,
+      label: action.label,
+      resourceKind: action.resourceKind
+    });
+  }
+}
+
+async function executeBrowserDeliveryActions({
+  iterationActions,
+  executedActionIds,
+  executedActions,
+  targetProfiles,
+  accessToken
+}) {
+  for (const action of iterationActions.filter(
+    (entry) =>
+      (entry.resourceKind === "bucket-website" || entry.resourceKind === "public-read") &&
+      !executedActionIds.has(entry.id)
+  )) {
+    const linkedTarget = findAnyTarget(targetProfiles, action.linkedTargetId);
+    if (!linkedTarget) {
+      continue;
+    }
+    const linkedConfig = normalizeTargetConfig(linkedTarget.config, linkedTarget.targetKind);
+    const bucketName = normalizeOptionalText(linkedConfig.bucketName);
+    if (!bucketName) {
+      continue;
+    }
+    if (action.resourceKind === "bucket-website") {
+      await configureBucketWebsite(bucketName, accessToken);
+    } else {
+      await enablePublicObjectRead(bucketName, accessToken);
+    }
+    executedActionIds.add(action.id);
+    executedActions.push({
+      id: action.id,
+      label: action.label,
+      resourceKind: action.resourceKind
+    });
+  }
 }
 
 export async function executeGcpProvisioning({
@@ -252,26 +387,23 @@ export async function executeGcpProvisioning({
       });
     }
 
-    for (const action of iterationActions.filter(
-      (entry) => entry.resourceKind === "bucket" && !executedActionIds.has(entry.id)
-    )) {
-      const targetProfile = findBucketTarget(targetProfiles, action.targetId);
-      if (!targetProfile) {
-        continue;
-      }
-      const config = normalizeTargetConfig(targetProfile.config, targetProfile.targetKind);
-      const bucketName = normalizeOptionalText(config.bucketName);
-      if (!bucketName) {
-        continue;
-      }
-      await createStorageBucket(projectId, bucketName, connectionProfile.region, accessToken);
-      executedActionIds.add(action.id);
-      executedActions.push({
-        id: action.id,
-        label: action.label,
-        resourceKind: action.resourceKind
-      });
-    }
+    await executeBucketActions({
+      iterationActions,
+      executedActionIds,
+      executedActions,
+      targetProfiles,
+      projectId,
+      region: connectionProfile.region,
+      accessToken
+    });
+
+    await executeBrowserDeliveryActions({
+      iterationActions,
+      executedActionIds,
+      executedActions,
+      targetProfiles,
+      accessToken
+    });
 
     workingReport = await analyzeGcpCompatibility({
       connectionProfile,

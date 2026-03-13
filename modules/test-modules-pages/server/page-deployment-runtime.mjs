@@ -57,7 +57,8 @@ async function writePublishedArtifact({
   const artifactRelativePath = resolveArtifactRelativePath(page.path);
   const settings = await readPagesModuleSettings({
     resolveSettingsRepository,
-    settingsDefinition
+    settingsDefinition,
+    collectionHandlerRegistry
   });
   await writeArtifactDocument({
     page,

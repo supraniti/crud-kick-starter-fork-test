@@ -1079,3 +1079,32 @@
   - for future standalone packages in this repo, decide early whether the environment can tolerate worker/fork based tooling
   - keep the first package artifact and browser proof inside the package itself before integrating it into wider product flows
 
+### 2026-03-12 - Browser Delivery Step 5 Kickoff
+- Tasks:
+  - converted the open “domain management” discussion into a bounded execution slice instead of jumping directly to full CDN/load-balancer orchestration
+  - locked the slice to `test-modules-remote-ops` and `test-modules-pages`
+- Easy:
+  - the current repo already has the right ownership split:
+    - remote target/provider state in `Remote Ops`
+    - page output generation in `Pages`
+- Hard:
+  - “domain management” can easily sprawl into DNS, certificates, load balancers, CDN, public ACLs, and URL mapping all at once
+  - the operator request is broader than the currently implemented GCP stack, so the first step must stay explicit about what becomes real now versus what remains future work
+- Improve:
+  - when a capability spans remote infrastructure and page rendering, lock the exact supported public-url model first; otherwise implementation drifts between “instructions only” and “full provisioning” without a crisp product claim
+
+### 2026-03-13 - Browser Delivery Step 5 Closure
+- Tasks:
+  - finished the bounded browser-delivery/domain slice inside `test-modules-remote-ops` and `test-modules-pages`
+  - made Pages delivery payloads and deployed HTML domain-aware from the selected browser-delivery target
+  - fixed discovered module route context so module-owned routes can resolve module settings through `resolveSettingsRepository`
+  - closed the full repo gate after verifying the environment-specific frontend lane behavior
+- Easy:
+  - once the browser-delivery descriptor stayed module-local, both `Remote Ops` and `Pages` could consume the same public-origin/public-url contract without inventing another shared abstraction
+- Hard:
+  - the subtle bug was not in Pages rendering, it was in route context composition: discovered module routes did not receive `resolveSettingsRepository`, so Pages routes silently could not see the selected browser-delivery target
+  - the long frontend integration lane was red once, but the failure was environmental; an active review pair on `3000/3001` was enough to tip the machine into timeout noise
+- Improve:
+  - when a module-owned route needs settings, verify the discovered-route registration context explicitly instead of assuming parity with built-in routes
+  - on this machine, stop the live review pair before `pnpm quality:gate:full`; otherwise the frontend integration lane can fail for capacity reasons even when the slice itself is correct
+

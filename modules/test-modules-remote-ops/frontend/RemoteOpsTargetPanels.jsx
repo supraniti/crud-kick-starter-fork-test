@@ -17,6 +17,7 @@ import {
   Typography
 } from "@mui/material";
 import { CompareSummary, ValidationSummary } from "./RemoteOpsSharedPanels.jsx";
+import { buildBrowserDeliveryDescriptor } from "../shared/browser-delivery-support.mjs";
 
 export function TargetList({ workspace }) {
   return (
@@ -60,6 +61,28 @@ export function TargetEditor({ workspace }) {
   const showFirestoreFields = draft.targetKind === "firestore-projection";
   const showStorageFields = draft.targetKind === "deployment-storage" || draft.targetKind === "media-storage";
   const showBrowserFields = draft.targetKind === "browser-delivery";
+  const siblingTargets = workspace.targets.filter((item) => item.id !== workspace.selectedTargetId);
+  const browserDeploymentOptions = siblingTargets.filter(
+    (item) =>
+      item.connectionProfileId === draft.connectionProfileId && item.targetKind === "deployment-storage"
+  );
+  const browserMediaOptions = siblingTargets.filter(
+    (item) =>
+      item.connectionProfileId === draft.connectionProfileId && item.targetKind === "media-storage"
+  );
+  const deliveryPreview = showBrowserFields
+    ? buildBrowserDeliveryDescriptor({
+        browserTarget: {
+          config: draft.config
+        },
+        deploymentTarget:
+          browserDeploymentOptions.find((item) => item.id === draft.config.deploymentTargetProfileId) ?? null,
+        mediaTarget:
+          browserMediaOptions.find((item) => item.id === draft.config.mediaTargetProfileId) ?? null,
+        pagePath: "/posts/example-post",
+        artifactRelativePath: "posts/example-post/index.html"
+      })
+    : null;
   const isLiveTarget = draft.adapterMode === "live-gcp";
   const liveSupportsCompare = isLiveTarget && !showBrowserFields;
   const liveSupportsRestore = isLiveTarget && showStorageFields;
@@ -105,7 +128,7 @@ export function TargetEditor({ workspace }) {
           {isLiveTarget ? (
             <Alert severity="info">
               {showBrowserFields
-                ? "Live browser-delivery targets currently support validation only."
+                ? "Live browser-delivery targets support validation, compatibility analysis, instructions, and bounded provisioning through the connection workflow. Compare/execute on the target itself still remain validation-only."
                 : "Live Firestore and storage targets now support real compare and execute flows. Restore is available for storage targets only."}
             </Alert>
           ) : null}
@@ -144,6 +167,30 @@ export function TargetEditor({ workspace }) {
           {showBrowserFields ? (
             <Stack spacing={2}>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <TextField select label="Access Mode" value={draft.config.accessMode ?? "gcp-temporary"} onChange={(event) => workspace.changeTargetConfigField("accessMode", event.target.value)} fullWidth>
+                  <MenuItem value="gcp-temporary">GCP Temporary URLs</MenuItem>
+                  <MenuItem value="custom-domain">Custom Domain</MenuItem>
+                </TextField>
+                <TextField select label="DNS Mode" value={draft.config.dnsMode ?? "external"} onChange={(event) => workspace.changeTargetConfigField("dnsMode", event.target.value)} fullWidth>
+                  <MenuItem value="external">External DNS</MenuItem>
+                  <MenuItem value="gcp-managed">GCP Managed DNS</MenuItem>
+                </TextField>
+              </Stack>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <TextField select label="Deployment Target" value={draft.config.deploymentTargetProfileId ?? ""} onChange={(event) => workspace.changeTargetConfigField("deploymentTargetProfileId", event.target.value)} fullWidth>
+                  <MenuItem value="">None</MenuItem>
+                  {browserDeploymentOptions.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>{item.title}</MenuItem>
+                  ))}
+                </TextField>
+                <TextField select label="Media Target" value={draft.config.mediaTargetProfileId ?? ""} onChange={(event) => workspace.changeTargetConfigField("mediaTargetProfileId", event.target.value)} fullWidth>
+                  <MenuItem value="">None</MenuItem>
+                  {browserMediaOptions.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>{item.title}</MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField label="Hostname" value={draft.config.hostname ?? ""} onChange={(event) => workspace.changeTargetConfigField("hostname", event.target.value)} fullWidth />
                 <TextField label="DNS Zone" value={draft.config.dnsZone ?? ""} onChange={(event) => workspace.changeTargetConfigField("dnsZone", event.target.value)} fullWidth />
               </Stack>
@@ -151,6 +198,59 @@ export function TargetEditor({ workspace }) {
                 <TextField label="Certificate Name" value={draft.config.certificateName ?? ""} onChange={(event) => workspace.changeTargetConfigField("certificateName", event.target.value)} fullWidth />
                 <TextField label="URL Map Hint" value={draft.config.urlMapHint ?? ""} onChange={(event) => workspace.changeTargetConfigField("urlMapHint", event.target.value)} fullWidth />
               </Stack>
+              {deliveryPreview ? (
+                <Paper variant="outlined" sx={{ p: 1.5 }}>
+                  <Stack spacing={1}>
+                    <Typography variant="subtitle2">Delivery Preview</Typography>
+                    {deliveryPreview.publicOrigin ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Public origin: {deliveryPreview.publicOrigin}
+                      </Typography>
+                    ) : null}
+                    {deliveryPreview.publicUrl ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Example page URL: {deliveryPreview.publicUrl}
+                      </Typography>
+                    ) : null}
+                    {deliveryPreview.temporaryMediaBaseUrl ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Temporary media base: {deliveryPreview.temporaryMediaBaseUrl}
+                      </Typography>
+                    ) : null}
+                    {deliveryPreview.dnsInstruction ? (
+                      <Alert severity="info">
+                        <Stack spacing={0.5}>
+                          <Typography variant="body2">
+                            DNS record: {deliveryPreview.dnsInstruction.recordType} {deliveryPreview.dnsInstruction.recordName}{" "}
+                            {"->"} {deliveryPreview.dnsInstruction.recordValue}
+                          </Typography>
+                          {deliveryPreview.dnsInstruction.notes.map((note) => (
+                            <Typography key={note} variant="caption" color="text.secondary">{note}</Typography>
+                          ))}
+                        </Stack>
+                      </Alert>
+                    ) : null}
+                    {deliveryPreview.notes?.length > 0 ? (
+                      <Alert severity="info">
+                        <Stack spacing={0.5}>
+                          {deliveryPreview.notes.map((note) => (
+                            <Typography key={note} variant="body2">{note}</Typography>
+                          ))}
+                        </Stack>
+                      </Alert>
+                    ) : null}
+                    {deliveryPreview.warnings?.length > 0 ? (
+                      <Alert severity="warning">
+                        <Stack spacing={0.5}>
+                          {deliveryPreview.warnings.map((warning) => (
+                            <Typography key={warning} variant="body2">{warning}</Typography>
+                          ))}
+                        </Stack>
+                      </Alert>
+                    ) : null}
+                  </Stack>
+                </Paper>
+              ) : null}
             </Stack>
           ) : null}
           <Divider />

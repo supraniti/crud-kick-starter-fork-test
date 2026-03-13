@@ -16,10 +16,10 @@ import {
   buildSettingsVersionToken,
   listArtifactRecords,
   pickLatestTimestamp,
-  readPagesModuleSettings,
   readSourceLabel,
   resolveArtifactRelativePath
 } from "./page-deployment-render-runtime.mjs";
+import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function createResolvedSourceEntry(page, sourceRecord) {
   try {
@@ -163,7 +163,8 @@ async function loadPerRecordDeploymentContext({
     : null;
   const settings = await readPagesModuleSettings({
     resolveSettingsRepository,
-    settingsDefinition
+    settingsDefinition,
+    collectionHandlerRegistry
   });
   const artifactRecords = await listArtifactRecords(artifactHandler, page.id);
 

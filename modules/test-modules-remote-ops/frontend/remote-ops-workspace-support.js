@@ -81,10 +81,14 @@ export function createEmptyTargetDraft() {
       bucketName: "",
       prefix: "",
       localRootHint: "",
+      accessMode: "gcp-temporary",
+      dnsMode: "external",
       hostname: "",
       dnsZone: "",
       certificateName: "",
-      urlMapHint: ""
+      urlMapHint: "",
+      deploymentTargetProfileId: "",
+      mediaTargetProfileId: ""
     },
     policy: {
       allowDeletes: false,
@@ -149,10 +153,14 @@ export function createTargetConfigForKind(targetKind) {
   }
   return {
     ...createEmptyTargetDraft().config,
+    accessMode: "gcp-temporary",
+    dnsMode: "external",
     hostname: "",
     dnsZone: "",
     certificateName: "",
     urlMapHint: "",
+    deploymentTargetProfileId: "",
+    mediaTargetProfileId: "",
     localRootHint: "deployment"
   };
 }

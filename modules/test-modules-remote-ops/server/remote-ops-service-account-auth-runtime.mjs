@@ -62,7 +62,17 @@ export function validateServiceAccountCredentialPayload(payload) {
 
 export async function readServiceAccountCredentialFromPath(inputPath) {
   const absolutePath = toAbsoluteCredentialPath(inputPath);
-  const rawText = await readFile(absolutePath, "utf8");
+  let rawText;
+  try {
+    rawText = await readFile(absolutePath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      throw new Error(
+        "Stored service-account key file is missing. Choose the JSON key file again to re-import it."
+      );
+    }
+    throw error;
+  }
   const parsed = parseCredentialPayload(rawText);
   const credential = validateServiceAccountCredentialPayload(parsed);
   return {
