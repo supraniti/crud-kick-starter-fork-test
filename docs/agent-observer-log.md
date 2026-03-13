@@ -1108,3 +1108,30 @@
   - when a module-owned route needs settings, verify the discovered-route registration context explicitly instead of assuming parity with built-in routes
   - on this machine, stop the live review pair before `pnpm quality:gate:full`; otherwise the frontend integration lane can fail for capacity reasons even when the slice itself is correct
 
+### 2026-03-13 - Browser Delivery Step 6 Start
+- Tasks:
+  - started the HTTPS delivery-stack evolution after closing the direct-storage/domain-aware slice
+  - kept the scope bounded to `test-modules-remote-ops` and `test-modules-pages`
+  - locked the next step in a dedicated hard plan before touching runtime behavior
+- Easy:
+  - the existing browser-delivery target already owns the right conceptual seam
+- Hard:
+  - the real gap is path compatibility and managed-resource lifecycle, not another auth flow
+- Improve:
+  - when a previous slice deliberately stops short of full infrastructure execution, start the next slice by writing the exact public URL/resource contract first so the implementation does not drift
+
+### 2026-03-13 - Browser Delivery Step 6 Closure
+- Tasks:
+  - closed the HTTPS browser-delivery stack slice inside `test-modules-remote-ops`
+  - split oversized Step 6 runtimes into smaller module-local helper files to satisfy repo LOC/function-shape gates
+  - completed a live review of the browser-delivery editor and the resulting Pages delivery payload after the full gate passed
+- Easy:
+  - the operator-facing contract was easy to verify once the target editor preview was wired correctly; switching `stackMode` immediately showed whether the slice was coherent
+  - keeping the provider logic bounded inside `test-modules-remote-ops` made the refactor straightforward even while the files were being split
+- Hard:
+  - the first structural split dropped a couple of executor/helper dependencies, so the conformance lane had to stay in the loop until the browser-delivery provisioning path was green again
+  - process cleanup on this Windows machine still requires low-level `netstat`/PID handling instead of richer process introspection because some process APIs are access-restricted
+- Improve:
+  - when splitting large module-local runtimes, extract low-level resource operations first and leave the orchestration file last; it reduces accidental dependency loss
+  - keep live review after the full gate for infrastructure-heavy slices so UI checking and structural debugging do not happen at the same time
+

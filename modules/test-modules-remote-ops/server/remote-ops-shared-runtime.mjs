@@ -1,7 +1,8 @@
 import {
   normalizeBrowserDeliveryAccessMode,
   normalizeBrowserDeliveryConfig,
-  normalizeBrowserDeliveryDnsMode
+  normalizeBrowserDeliveryDnsMode,
+  normalizeBrowserDeliveryStackMode
 } from "../shared/browser-delivery-support.mjs";
 
 export const MODULE_ID = "test-modules-remote-ops";
@@ -31,7 +32,8 @@ export const TARGET_KIND_SET = new Set([
 export {
   normalizeBrowserDeliveryAccessMode,
   normalizeBrowserDeliveryConfig,
-  normalizeBrowserDeliveryDnsMode
+  normalizeBrowserDeliveryDnsMode,
+  normalizeBrowserDeliveryStackMode
 } from "../shared/browser-delivery-support.mjs";
 
 export function toTimestamp(value = new Date()) {
@@ -223,6 +225,7 @@ export function createDefaultTargetConfig(targetKind = "firestore-projection") {
         prefix: null,
         localRootHint: "deployment",
         accessMode: "gcp-temporary",
+        stackMode: "direct-storage",
         dnsMode: "external",
         hostname: null,
         dnsZone: null,
@@ -267,6 +270,7 @@ function normalizeDefaultTargetConfig(config, defaults) {
   return {
     ...normalizeCommonTargetConfig(config, defaults),
     accessMode: normalizeOptionalText(pickConfigValue(config, defaults, "accessMode")),
+    stackMode: normalizeOptionalText(pickConfigValue(config, defaults, "stackMode")),
     dnsMode: normalizeOptionalText(pickConfigValue(config, defaults, "dnsMode")),
     hostname: normalizeOptionalText(pickConfigValue(config, defaults, "hostname")),
     dnsZone: normalizeOptionalText(pickConfigValue(config, defaults, "dnsZone")),
@@ -284,6 +288,7 @@ function normalizeDefaultTargetConfig(config, defaults) {
 function normalizeBrowserOnlyTargetConfig(config, defaults) {
   const browserDeliveryConfig = normalizeBrowserDeliveryConfig({
     accessMode: pickConfigValue(config, defaults, "accessMode"),
+    stackMode: pickConfigValue(config, defaults, "stackMode"),
     dnsMode: pickConfigValue(config, defaults, "dnsMode"),
     hostname: pickConfigValue(config, defaults, "hostname"),
     dnsZone: pickConfigValue(config, defaults, "dnsZone"),
@@ -295,6 +300,7 @@ function normalizeBrowserOnlyTargetConfig(config, defaults) {
   return {
     ...normalizeCommonTargetConfig(config, defaults),
     accessMode: browserDeliveryConfig.accessMode,
+    stackMode: browserDeliveryConfig.stackMode,
     dnsMode: browserDeliveryConfig.dnsMode,
     hostname: browserDeliveryConfig.hostname,
     dnsZone: browserDeliveryConfig.dnsZone,

@@ -1,0 +1,591 @@
+import { normalizeOptionalText, normalizeTargetConfig } from "./remote-ops-shared-runtime.mjs";
+import { buildTemporaryStorageBaseUrl } from "../shared/browser-delivery-support.mjs";
+import {
+  buildBrowserDeliveryDnsInstructions,
+  buildBrowserDeliveryPublicMediaBaseUrl,
+  loadBackendBucket,
+  loadCertificate,
+  loadCertificateMap,
+  loadCertificateMapEntry,
+  loadDnsAuthorization,
+  loadDnsZone,
+  loadGlobalAddress,
+  loadGlobalForwardingRule,
+  loadTargetHttpsProxy,
+  loadUrlMap,
+  listDnsRecordSets,
+  resolveBrowserDeliveryManagedNames,
+  validateBrowserDeliveryStackCompatibility
+} from "./remote-ops-gcp-browser-delivery-stack-runtime.mjs";
+
+async function inspectBrowserHttpsResource({
+  report,
+  kind,
+  label,
+  resourceName,
+  loader,
+  action,
+  notes = []
+}) {
+  try {
+    const resource = await loader();
+    report.resourceChecks.push({
+      kind,
+      state: "present",
+      label,
+      resourceName: resource?.name ?? resourceName
+    });
+    return resource;
+  } catch (error) {
+    if (error?.statusCode === 404) {
+      report.missingResources.push({
+        kind,
+        label,
+        resourceName
+      });
+      if (action) {
+        report.provisionableActions.push(action);
+      }
+      return null;
+    }
+    report.resourceChecks.push({
+      kind,
+      state: "error",
+      label,
+      resourceName,
+      details: error?.message ?? `Failed to inspect ${kind}`
+    });
+    if (notes.length > 0) {
+      report.configurationWarnings.push(...notes);
+    }
+    return null;
+  }
+}
+
+function buildHttpsDeliveryReport({ targetProfile, descriptor, dnsInstructions = [], nameServers = [] }) {
+  return {
+    targetId: targetProfile.id,
+    title: targetProfile.title,
+    ...descriptor,
+    dnsInstructions,
+    nameServers
+  };
+}
+
+function buildBrowserDeliveryActionId(targetProfile, suffix) {
+  return `browser-delivery-${targetProfile.id}-${suffix}`;
+}
+
+function buildHttpsAction({
+  buildProvisioningAction,
+  targetProfile,
+  suffix,
+  label,
+  resourceKind,
+  notes,
+  projectPermissions,
+  provisionGroup,
+  linkedTargetId = null
+}) {
+  return buildProvisioningAction({
+    id: buildBrowserDeliveryActionId(targetProfile, suffix),
+    label,
+    resourceKind,
+    targetId: targetProfile.id,
+    linkedTargetId,
+    notes,
+    permissionGroup: provisionGroup,
+    projectPermissions
+  });
+}
+
+function getBrowserProvisionGroup(bundle) {
+  return bundle.permissionGroups.find((group) => group.id === "browser-delivery-provision") ?? null;
+}
+
+async function inspectHttpsManagedResource({
+  report,
+  buildProvisioningAction,
+  targetProfile,
+  suffix,
+  label,
+  actionLabel,
+  resourceKind,
+  resourceName,
+  loader,
+  notes,
+  projectPermissions,
+  provisionGroup,
+  linkedTargetId = null
+}) {
+  return inspectBrowserHttpsResource({
+    report,
+    kind: resourceKind,
+    label,
+    resourceName,
+    loader,
+    action: buildHttpsAction({
+      buildProvisioningAction,
+      targetProfile,
+      suffix,
+      label: actionLabel,
+      resourceKind,
+      notes,
+      projectPermissions,
+      provisionGroup,
+      linkedTargetId
+    })
+  });
+}
+
+async function inspectHttpsApis({ report, config, project, accessToken, analyzeOptionalBrowserApi }) {
+  const dnsRequired = config.dnsMode === "gcp-managed";
+  await analyzeOptionalBrowserApi(report, "dns.googleapis.com", dnsRequired, project, accessToken);
+  await analyzeOptionalBrowserApi(report, "certificatemanager.googleapis.com", true, project, accessToken);
+  await analyzeOptionalBrowserApi(report, "compute.googleapis.com", true, project, accessToken);
+  return dnsRequired;
+}
+
+async function inspectHttpsDnsResources({
+  report,
+  buildProvisioningAction,
+  targetProfile,
+  config,
+  project,
+  accessToken,
+  names,
+  projectPermissions,
+  provisionGroup,
+  dnsRequired
+}) {
+  const dnsZone = dnsRequired
+    ? await inspectHttpsManagedResource({
+        report,
+        buildProvisioningAction,
+        targetProfile,
+        suffix: "dns-zone",
+        label: `${targetProfile.title} DNS zone`,
+        actionLabel: `Create DNS zone '${names.dnsZoneName}'`,
+        resourceKind: "dns-zone",
+        resourceName: names.dnsZoneName,
+        loader: () => loadDnsZone(project.projectId, names.dnsZoneName, accessToken),
+        notes: [`Manage zone '${names.dnsZoneDnsName ?? config.hostname ?? "hostname"}' on GCP.`],
+        projectPermissions,
+        provisionGroup
+      })
+    : null;
+
+  const dnsAuthorization = await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "dns-authorization",
+    label: `${targetProfile.title} DNS authorization`,
+    actionLabel: `Create DNS authorization '${names.dnsAuthorizationName}'`,
+    resourceKind: "dns-authorization",
+    resourceName: names.dnsAuthorizationName,
+    loader: () => loadDnsAuthorization(project.projectId, names.dnsAuthorizationName, accessToken),
+    notes: ["Required for the Google-managed HTTPS certificate."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  return {
+    dnsZone,
+    dnsAuthorization
+  };
+}
+
+async function inspectHttpsCertificateResources({
+  report,
+  buildProvisioningAction,
+  targetProfile,
+  project,
+  accessToken,
+  names,
+  projectPermissions,
+  provisionGroup
+}) {
+  const certificate = await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "managed-certificate",
+    label: `${targetProfile.title} certificate`,
+    actionLabel: `Create managed certificate '${names.certificateName}'`,
+    resourceKind: "managed-certificate",
+    resourceName: names.certificateName,
+    loader: () => loadCertificate(project.projectId, names.certificateName, accessToken),
+    notes: ["Requires DNS authorization before the certificate becomes active."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "certificate-map",
+    label: `${targetProfile.title} certificate map`,
+    actionLabel: `Create certificate map '${names.certificateMapName}'`,
+    resourceKind: "certificate-map",
+    resourceName: names.certificateMapName,
+    loader: () => loadCertificateMap(project.projectId, names.certificateMapName, accessToken),
+    notes: ["Links the managed certificate to the HTTPS proxy."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "certificate-map-entry",
+    label: `${targetProfile.title} certificate map entry`,
+    actionLabel: `Create certificate map entry '${names.certificateMapEntryName}'`,
+    resourceKind: "certificate-map-entry",
+    resourceName: names.certificateMapEntryName,
+    loader: () =>
+      loadCertificateMapEntry(project.projectId, names.certificateMapName, names.certificateMapEntryName, accessToken),
+    notes: ["Binds the hostname to the managed certificate."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  return certificate;
+}
+
+async function inspectHttpsOriginsAndRouting({
+  report,
+  buildProvisioningAction,
+  targetProfile,
+  project,
+  accessToken,
+  names,
+  projectPermissions,
+  provisionGroup,
+  deploymentTarget,
+  mediaTarget
+}) {
+  const globalAddress = await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "global-address",
+    label: `${targetProfile.title} global address`,
+    actionLabel: `Reserve global address '${names.globalAddressName}'`,
+    resourceKind: "global-address",
+    resourceName: names.globalAddressName,
+    loader: () => loadGlobalAddress(project.projectId, names.globalAddressName, accessToken),
+    notes: ["Required for the public HTTPS hostname."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  const deploymentBucketName = normalizeOptionalText(deploymentTarget?.config?.bucketName);
+  if (!deploymentBucketName) {
+    report.configurationWarnings.push(`${targetProfile.title}: linked deployment bucket is missing.`);
+  } else {
+    await inspectHttpsManagedResource({
+      report,
+      buildProvisioningAction,
+      targetProfile,
+      suffix: "deployment-backend-bucket",
+      label: `${targetProfile.title} deployment backend bucket`,
+      actionLabel: `Create deployment backend bucket '${names.deploymentBackendBucketName}'`,
+      resourceKind: "deployment-backend-bucket",
+      resourceName: names.deploymentBackendBucketName,
+      loader: () => loadBackendBucket(project.projectId, names.deploymentBackendBucketName, accessToken),
+      notes: [`Link deployment bucket '${deploymentBucketName}' into the HTTPS delivery stack.`],
+      projectPermissions,
+      provisionGroup,
+      linkedTargetId: deploymentTarget?.id ?? null
+    });
+  }
+
+  const mediaBucketName = normalizeOptionalText(mediaTarget?.config?.bucketName);
+  if (mediaBucketName) {
+    await inspectHttpsManagedResource({
+      report,
+      buildProvisioningAction,
+      targetProfile,
+      suffix: "media-backend-bucket",
+      label: `${targetProfile.title} media backend bucket`,
+      actionLabel: `Create media backend bucket '${names.mediaBackendBucketName}'`,
+      resourceKind: "media-backend-bucket",
+      resourceName: names.mediaBackendBucketName,
+      loader: () => loadBackendBucket(project.projectId, names.mediaBackendBucketName, accessToken),
+      notes: [`Link media bucket '${mediaBucketName}' into the HTTPS delivery stack.`],
+      projectPermissions,
+      provisionGroup,
+      linkedTargetId: mediaTarget?.id ?? null
+    });
+  }
+
+  await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "url-map",
+    label: `${targetProfile.title} URL map`,
+    actionLabel: `Create or update URL map '${names.urlMapName}'`,
+    resourceKind: "url-map",
+    resourceName: names.urlMapName,
+    loader: () => loadUrlMap(project.projectId, names.urlMapName, accessToken),
+    notes: ["Routes the hostname to deployment and optional media backend buckets."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "https-proxy",
+    label: `${targetProfile.title} HTTPS proxy`,
+    actionLabel: `Create HTTPS proxy '${names.httpsProxyName}'`,
+    resourceKind: "https-proxy",
+    resourceName: names.httpsProxyName,
+    loader: () => loadTargetHttpsProxy(project.projectId, names.httpsProxyName, accessToken),
+    notes: ["Terminates HTTPS and attaches the managed certificate map."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  await inspectHttpsManagedResource({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    suffix: "https-forwarding-rule",
+    label: `${targetProfile.title} HTTPS forwarding rule`,
+    actionLabel: `Create HTTPS forwarding rule '${names.httpsForwardingRuleName}'`,
+    resourceKind: "https-forwarding-rule",
+    resourceName: names.httpsForwardingRuleName,
+    loader: () => loadGlobalForwardingRule(project.projectId, names.httpsForwardingRuleName, accessToken),
+    notes: ["Publishes the hostname on TCP 443 using the reserved global IP."],
+    projectPermissions,
+    provisionGroup
+  });
+
+  return globalAddress;
+}
+
+function appendHttpsDeliveryReport({
+  report,
+  targetProfile,
+  descriptor,
+  config,
+  mediaTarget,
+  deploymentTarget,
+  dnsZone,
+  dnsAuthorization,
+  globalAddress
+}) {
+  report.deliveryReports.push(
+    buildHttpsDeliveryReport({
+      targetProfile,
+      descriptor: {
+        ...descriptor,
+        publicMediaBaseUrl: buildBrowserDeliveryPublicMediaBaseUrl(config, mediaTarget),
+        temporaryDeploymentBaseUrl: buildTemporaryStorageBaseUrl(
+          deploymentTarget?.config?.bucketName,
+          deploymentTarget?.config?.prefix
+        ),
+        temporaryMediaBaseUrl: buildTemporaryStorageBaseUrl(
+          mediaTarget?.config?.bucketName,
+          mediaTarget?.config?.prefix
+        )
+      },
+      dnsInstructions: buildBrowserDeliveryDnsInstructions({
+        config,
+        globalAddress,
+        dnsAuthorization,
+        dnsZone
+      }),
+      nameServers: Array.isArray(dnsZone?.nameServers) ? dnsZone.nameServers : []
+    })
+  );
+}
+
+async function inspectManagedZoneRecords({
+  report,
+  buildProvisioningAction,
+  targetProfile,
+  config,
+  project,
+  accessToken,
+  dnsZone,
+  globalAddress,
+  dnsAuthorization,
+  provisionGroup,
+  projectPermissions
+}) {
+  if (!dnsZone || config.dnsMode !== "gcp-managed") {
+    return;
+  }
+  const hostname = normalizeOptionalText(config.hostname);
+  if (hostname && globalAddress?.address) {
+    const trafficRecords = await listDnsRecordSets(
+      project.projectId,
+      dnsZone.name,
+      accessToken,
+      `${hostname}.`,
+      "A"
+    );
+    const hasTrafficRecord = trafficRecords.some((entry) =>
+      Array.isArray(entry?.rrdatas) && entry.rrdatas.includes(globalAddress.address)
+    );
+    if (!hasTrafficRecord) {
+      report.missingResources.push({
+        kind: "dns-a-record",
+        label: `${targetProfile.title} traffic A record`,
+        resourceName: `${hostname}.`
+      });
+      report.provisionableActions.push(
+        buildHttpsAction({
+          buildProvisioningAction,
+          targetProfile,
+          suffix: "dns-a-record",
+          label: `Create traffic A record for '${hostname}'`,
+          resourceKind: "dns-a-record",
+          notes: [`Point '${hostname}' to reserved global IP '${globalAddress.address}'.`],
+          projectPermissions,
+          provisionGroup
+        })
+      );
+    }
+  }
+  const dnsRecord = dnsAuthorization?.dnsResourceRecord;
+  if (dnsRecord?.name && dnsRecord?.type && dnsRecord?.data) {
+    const authRecords = await listDnsRecordSets(
+      project.projectId,
+      dnsZone.name,
+      accessToken,
+      dnsRecord.name,
+      dnsRecord.type
+    );
+    const hasAuthRecord = authRecords.some((entry) =>
+      Array.isArray(entry?.rrdatas) && entry.rrdatas.includes(dnsRecord.data)
+    );
+    if (!hasAuthRecord) {
+      report.missingResources.push({
+        kind: "dns-authorization-record",
+        label: `${targetProfile.title} certificate authorization record`,
+        resourceName: dnsRecord.name
+      });
+      report.provisionableActions.push(
+        buildHttpsAction({
+          buildProvisioningAction,
+          targetProfile,
+          suffix: "dns-authorization-record",
+          label: `Create certificate authorization record for '${targetProfile.title}'`,
+          resourceKind: "dns-authorization-record",
+          notes: [`Publish ${dnsRecord.type} ${dnsRecord.name} -> ${dnsRecord.data}.`],
+          projectPermissions,
+          provisionGroup
+        })
+      );
+    }
+  }
+}
+
+export async function inspectHttpsBrowserTarget({
+  report,
+  bundle,
+  buildProvisioningAction,
+  analyzeOptionalBrowserApi,
+  targetProfile,
+  project,
+  accessToken,
+  projectPermissions,
+  deploymentTarget,
+  mediaTarget,
+  descriptor
+}) {
+  const config = normalizeTargetConfig(targetProfile.config, targetProfile.targetKind);
+  const names = resolveBrowserDeliveryManagedNames(targetProfile, config);
+  const provisionGroup = getBrowserProvisionGroup(bundle);
+  const stackWarnings = validateBrowserDeliveryStackCompatibility({
+    config,
+    deploymentTarget,
+    mediaTarget,
+    reportTitle: targetProfile.title
+  });
+  report.configurationWarnings.push(...stackWarnings);
+
+  const dnsRequired = await inspectHttpsApis({
+    report,
+    config,
+    project,
+    accessToken,
+    analyzeOptionalBrowserApi
+  });
+  const { dnsZone, dnsAuthorization } = await inspectHttpsDnsResources({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    config,
+    project,
+    accessToken,
+    names,
+    projectPermissions,
+    provisionGroup,
+    dnsRequired
+  });
+  const certificate = await inspectHttpsCertificateResources({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    project,
+    accessToken,
+    names,
+    projectPermissions,
+    provisionGroup
+  });
+  const globalAddress = await inspectHttpsOriginsAndRouting({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    project,
+    accessToken,
+    names,
+    projectPermissions,
+    provisionGroup,
+    deploymentTarget,
+    mediaTarget
+  });
+
+  await inspectManagedZoneRecords({
+    report,
+    buildProvisioningAction,
+    targetProfile,
+    config,
+    project,
+    accessToken,
+    dnsZone,
+    globalAddress,
+    dnsAuthorization,
+    provisionGroup,
+    projectPermissions
+  });
+  appendHttpsDeliveryReport({
+    report,
+    targetProfile,
+    descriptor,
+    config,
+    mediaTarget,
+    deploymentTarget,
+    dnsZone,
+    dnsAuthorization,
+    globalAddress
+  });
+  report.notes.push(
+    `${targetProfile.title}: HTTPS load-balancer mode uses linked storage targets only as origins; browser traffic flows through managed delivery resources.`
+  );
+  if (certificate?.managed?.state && certificate.managed.state !== "ACTIVE") {
+    report.configurationWarnings.push(
+      `${targetProfile.title}: managed certificate state is '${certificate.managed.state}'. HTTPS may not be ready yet.`
+    );
+  }
+}
+

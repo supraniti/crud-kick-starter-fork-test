@@ -186,6 +186,11 @@ function CompatibilityReport({ report, actionState }) {
                         <Paper key={deliveryReport.targetId} variant="outlined" sx={{ p: 1 }}>
                           <Stack spacing={0.5}>
                             <Typography variant="body2">{deliveryReport.title}</Typography>
+                            {deliveryReport.stackMode ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Mode: {deliveryReport.accessMode} / {deliveryReport.stackMode}
+                              </Typography>
+                            ) : null}
                             {deliveryReport.publicOrigin ? (
                               <Typography variant="caption" color="text.secondary">
                                 Public origin: {deliveryReport.publicOrigin}
@@ -201,10 +206,33 @@ function CompatibilityReport({ report, actionState }) {
                                 Temporary media base: {deliveryReport.temporaryMediaBaseUrl}
                               </Typography>
                             ) : null}
-                            {deliveryReport.dnsInstruction ? (
+                            {deliveryReport.publicMediaBaseUrl ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Public media base: {deliveryReport.publicMediaBaseUrl}
+                              </Typography>
+                            ) : null}
+                            {Array.isArray(deliveryReport.dnsInstructions) && deliveryReport.dnsInstructions.length > 0 ? (
+                              <Stack spacing={0.25}>
+                                {deliveryReport.dnsInstructions.map((instruction) => (
+                                  <Typography
+                                    key={`${deliveryReport.targetId}-${instruction.label}-${instruction.recordName}`}
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    {instruction.label}: {instruction.recordType} {instruction.recordName} {"->"}{" "}
+                                    {instruction.recordValue}
+                                  </Typography>
+                                ))}
+                              </Stack>
+                            ) : deliveryReport.dnsInstruction ? (
                               <Typography variant="caption" color="text.secondary">
                                 DNS: {deliveryReport.dnsInstruction.recordType} {deliveryReport.dnsInstruction.recordName}{" "}
                                 {"->"} {deliveryReport.dnsInstruction.recordValue}
+                              </Typography>
+                            ) : null}
+                            {Array.isArray(deliveryReport.nameServers) && deliveryReport.nameServers.length > 0 ? (
+                              <Typography variant="caption" color="text.secondary">
+                                Name servers: {deliveryReport.nameServers.join(", ")}
                               </Typography>
                             ) : null}
                           </Stack>
@@ -323,8 +351,8 @@ function ProvisioningPanel({ workspace, report }) {
             <Chip size="small" variant="outlined" label={`Blocked ${blockedActionCount}`} />
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            This creates only missing supported resources that are ready now for the selected connection. Full browser-delivery
-            stack orchestration remains planned, but direct-storage browser-delivery requirements can now be provisioned here.
+            This creates only missing supported resources that are ready now for the selected connection, including the
+            managed HTTPS browser-delivery stack when the configured target and permissions allow it.
           </Typography>
           {actionState.errorMessage ? <Alert severity="error">{actionState.errorMessage}</Alert> : null}
           {actionState.successMessage ? <Alert severity="success">{actionState.successMessage}</Alert> : null}

@@ -553,7 +553,8 @@ export async function analyzeGcpCompatibility({ connectionProfile, targetProfile
       await analyzeBrowserDeliveryBundle({
         report,
         bundle,
-        targetProfiles: bundleTargets,
+        targetProfiles,
+        browserTargets: bundleTargets,
         accessToken,
         projectPermissions,
         project,

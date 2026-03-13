@@ -438,6 +438,7 @@ function applyBrowserDeliveryToPayload({
       dnsMode: browserDelivery.dnsMode,
       publicOrigin: browserDelivery.publicOrigin,
       publicUrl: browserDelivery.publicUrl,
+      publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,
       temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
       temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
     }

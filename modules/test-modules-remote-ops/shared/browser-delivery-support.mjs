@@ -8,6 +8,11 @@ export const BROWSER_DELIVERY_DNS_MODE_SET = new Set([
   "gcp-managed"
 ]);
 
+export const BROWSER_DELIVERY_STACK_MODE_SET = new Set([
+  "direct-storage",
+  "https-load-balancer"
+]);
+
 function normalizeText(value) {
   if (typeof value !== "string") {
     return null;
@@ -46,10 +51,15 @@ export function normalizeBrowserDeliveryDnsMode(value, fallback = "external") {
   return normalizeEnum(value, BROWSER_DELIVERY_DNS_MODE_SET, fallback);
 }
 
+export function normalizeBrowserDeliveryStackMode(value, fallback = "direct-storage") {
+  return normalizeEnum(value, BROWSER_DELIVERY_STACK_MODE_SET, fallback);
+}
+
 export function normalizeBrowserDeliveryConfig(value = {}) {
   const config = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return {
     accessMode: normalizeBrowserDeliveryAccessMode(config.accessMode),
+    stackMode: normalizeBrowserDeliveryStackMode(config.stackMode),
     dnsMode: normalizeBrowserDeliveryDnsMode(config.dnsMode),
     hostname: normalizeText(config.hostname),
     dnsZone: normalizeText(config.dnsZone),
@@ -81,7 +91,11 @@ export function buildTemporaryArtifactUrl(bucketName, prefix = null, artifactRel
 }
 
 export function resolveBrowserDeliveryScheme(config = {}) {
-  return config.certificateName || config.urlMapHint ? "https" : "http";
+  const normalizedConfig = normalizeBrowserDeliveryConfig(config);
+  if (normalizedConfig.accessMode === "custom-domain") {
+    return normalizedConfig.stackMode === "https-load-balancer" ? "https" : "http";
+  }
+  return "http";
 }
 
 export function buildCustomDomainOrigin(config = {}) {
@@ -96,6 +110,22 @@ export function buildCustomDomainDnsInstruction(config = {}) {
   const normalizedConfig = normalizeBrowserDeliveryConfig(config);
   if (!normalizedConfig.hostname) {
     return null;
+  }
+
+  if (normalizedConfig.stackMode === "https-load-balancer") {
+    return {
+      dnsMode: normalizedConfig.dnsMode,
+      recordType: "A",
+      recordName: normalizedConfig.hostname,
+      recordValue: "(reserved global IP will be shown after compatibility analysis)",
+      notes: [
+        "HTTPS load-balancer mode expects the hostname to point at the reserved global IP.",
+        "A certificate DNS-authorization record may also be required before the managed certificate becomes active.",
+        normalizedConfig.dnsMode === "gcp-managed"
+          ? "When DNS is GCP-managed, the app can maintain the required record sets inside the managed zone."
+          : "When DNS is external, create the shown records at your DNS provider."
+      ]
+    };
   }
 
   return {
@@ -114,10 +144,12 @@ export function buildCustomDomainDnsInstruction(config = {}) {
 function createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget) {
   return {
     accessMode: browserConfig.accessMode,
+    stackMode: browserConfig.stackMode,
     dnsMode: browserConfig.dnsMode,
     hostname: browserConfig.hostname,
     publicOrigin: null,
     publicUrl: null,
+    publicMediaBaseUrl: null,
     temporaryDeploymentBaseUrl: buildTemporaryStorageBaseUrl(
       deploymentTarget?.config?.bucketName,
       deploymentTarget?.config?.prefix
@@ -132,7 +164,34 @@ function createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget) {
   };
 }
 
-function applyCustomDomainDescriptor(descriptor, browserConfig, deploymentTarget, pagePath) {
+function applyDirectStorageCustomDomainWarnings(descriptor, browserConfig, deploymentTarget) {
+  const deploymentBucketName = normalizeText(deploymentTarget?.config?.bucketName);
+  const deploymentPrefix = trimSlashes(deploymentTarget?.config?.prefix);
+  if (!deploymentBucketName) {
+    descriptor.warnings.push("The linked deployment target does not define a bucket.");
+    return descriptor;
+  }
+  if (browserConfig.hostname && deploymentBucketName !== browserConfig.hostname) {
+    descriptor.warnings.push("Direct-storage custom domain mode expects the deployment bucket name to match the hostname.");
+  }
+  if (deploymentPrefix) {
+    descriptor.warnings.push("Direct-storage custom domain mode expects the deployment prefix to be empty for root path delivery.");
+  }
+  return descriptor;
+}
+
+function applyCustomDomainMediaBase(descriptor, browserConfig, mediaTarget) {
+  if (!descriptor.publicOrigin || browserConfig.stackMode !== "https-load-balancer") {
+    return descriptor;
+  }
+  const mediaPrefix = trimSlashes(mediaTarget?.config?.prefix ?? null);
+  descriptor.publicMediaBaseUrl = mediaPrefix
+    ? `${descriptor.publicOrigin}/${encodeRelativePath(mediaPrefix)}`
+    : descriptor.publicOrigin;
+  return descriptor;
+}
+
+function applyCustomDomainDescriptor(descriptor, browserConfig, deploymentTarget, pagePath, mediaTarget) {
   descriptor.publicOrigin = buildCustomDomainOrigin(browserConfig);
   descriptor.dnsInstruction = buildCustomDomainDnsInstruction(browserConfig);
   if (!browserConfig.hostname) {
@@ -140,23 +199,13 @@ function applyCustomDomainDescriptor(descriptor, browserConfig, deploymentTarget
   }
   if (!deploymentTarget) {
     descriptor.warnings.push("Custom domain mode requires a linked deployment storage target.");
-  } else {
-    const deploymentBucketName = normalizeText(deploymentTarget?.config?.bucketName);
-    const deploymentPrefix = trimSlashes(deploymentTarget?.config?.prefix);
-    if (!deploymentBucketName) {
-      descriptor.warnings.push("The linked deployment target does not define a bucket.");
-    }
-    if (deploymentBucketName && browserConfig.hostname && deploymentBucketName !== browserConfig.hostname) {
-      descriptor.warnings.push("Direct-storage custom domain mode expects the deployment bucket name to match the hostname.");
-    }
-    if (deploymentPrefix) {
-      descriptor.warnings.push("Direct-storage custom domain mode expects the deployment prefix to be empty for root path delivery.");
-    }
+  } else if (browserConfig.stackMode === "direct-storage") {
+    applyDirectStorageCustomDomainWarnings(descriptor, browserConfig, deploymentTarget);
   }
   if (descriptor.publicOrigin && pagePath) {
     descriptor.publicUrl = `${descriptor.publicOrigin}${pagePath}`;
   }
-  return descriptor;
+  return applyCustomDomainMediaBase(descriptor, browserConfig, mediaTarget);
 }
 
 function applyTemporaryDescriptor(descriptor, deploymentTarget, artifactRelativePath) {
@@ -188,7 +237,7 @@ export function buildBrowserDeliveryDescriptor({
   const browserConfig = normalizeBrowserDeliveryConfig(browserTarget?.config);
   const descriptor = createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget);
   if (browserConfig.accessMode === "custom-domain") {
-    return applyCustomDomainDescriptor(descriptor, browserConfig, deploymentTarget, pagePath);
+    return applyCustomDomainDescriptor(descriptor, browserConfig, deploymentTarget, pagePath, mediaTarget);
   }
   return applyTemporaryDescriptor(descriptor, deploymentTarget, artifactRelativePath);
 }

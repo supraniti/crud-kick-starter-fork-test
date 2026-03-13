@@ -1,5 +1,6 @@
 import { requestGoogleJson } from "./remote-ops-live-google-runtime.mjs";
 import { analyzeGcpCompatibility } from "./remote-ops-gcp-compatibility-runtime.mjs";
+import { executeHttpsBrowserDeliveryActions } from "./remote-ops-gcp-browser-delivery-provisioning-runtime.mjs";
 import { getServiceAccountAccessToken } from "./remote-ops-service-account-auth-runtime.mjs";
 import { normalizeOptionalText, normalizeTargetConfig } from "./remote-ops-shared-runtime.mjs";
 
@@ -22,8 +23,21 @@ function sortProvisionableActions(actions) {
     ["api", 0],
     ["firestore-database", 1],
     ["bucket", 2],
-    ["bucket-website", 3],
-    ["public-read", 4]
+    ["dns-zone", 3],
+    ["dns-authorization", 4],
+    ["managed-certificate", 5],
+    ["certificate-map", 6],
+    ["certificate-map-entry", 7],
+    ["global-address", 8],
+    ["deployment-backend-bucket", 9],
+    ["media-backend-bucket", 10],
+    ["url-map", 11],
+    ["https-proxy", 12],
+    ["https-forwarding-rule", 13],
+    ["dns-authorization-record", 14],
+    ["dns-a-record", 15],
+    ["bucket-website", 16],
+    ["public-read", 17]
   ]);
   return [...actions].sort((left, right) => {
     const leftPriority = priority.get(left.resourceKind) ?? 10;
@@ -234,10 +248,6 @@ function findBucketTarget(targetProfiles, targetId) {
   return targetProfiles.find((targetProfile) => targetProfile.id === targetId) ?? null;
 }
 
-function findAnyTarget(targetProfiles, targetId) {
-  return targetProfiles.find((targetProfile) => targetProfile.id === targetId) ?? null;
-}
-
 async function executeBucketActions({
   iterationActions,
   executedActionIds,
@@ -281,7 +291,7 @@ async function executeBrowserDeliveryActions({
       (entry.resourceKind === "bucket-website" || entry.resourceKind === "public-read") &&
       !executedActionIds.has(entry.id)
   )) {
-    const linkedTarget = findAnyTarget(targetProfiles, action.linkedTargetId);
+    const linkedTarget = targetProfiles.find((targetProfile) => targetProfile.id === action.linkedTargetId) ?? null;
     if (!linkedTarget) {
       continue;
     }
@@ -402,6 +412,15 @@ export async function executeGcpProvisioning({
       executedActionIds,
       executedActions,
       targetProfiles,
+      accessToken
+    });
+
+    await executeHttpsBrowserDeliveryActions({
+      iterationActions,
+      executedActionIds,
+      executedActions,
+      targetProfiles,
+      projectId,
       accessToken
     });
 

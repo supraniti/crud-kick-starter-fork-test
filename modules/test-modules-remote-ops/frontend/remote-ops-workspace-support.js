@@ -82,6 +82,7 @@ export function createEmptyTargetDraft() {
       prefix: "",
       localRootHint: "",
       accessMode: "gcp-temporary",
+      stackMode: "direct-storage",
       dnsMode: "external",
       hostname: "",
       dnsZone: "",
@@ -154,6 +155,7 @@ export function createTargetConfigForKind(targetKind) {
   return {
     ...createEmptyTargetDraft().config,
     accessMode: "gcp-temporary",
+    stackMode: "direct-storage",
     dnsMode: "external",
     hostname: "",
     dnsZone: "",

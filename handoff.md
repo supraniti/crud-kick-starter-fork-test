@@ -8,15 +8,18 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `105c09a` `docs: archive completed execution plans`
+  - `c6bf910` `feat: add browser delivery domain awareness`
 - Active execution target:
-  - browser-delivery/domain artifact management and domain-aware page output
+  - browser-delivery HTTPS delivery stack evolution
   - bounded inside:
     - `test-modules-remote-ops`
     - `test-modules-pages`
   - current slice status:
-    - planning locked in `docs/contracts/test-modules-remote-ops-step-5-browser-delivery-plan.md`
-    - implementation completed and verified
+    - Step 5 closed and pushed in `c6bf910`
+    - Step 6 planning locked in `docs/contracts/test-modules-remote-ops-step-6-browser-delivery-stack-plan.md`
+    - Step 6 implementation complete in the current worktree
+    - `pnpm quality:gate:full` passed on 2026-03-13
+    - live browser review completed on 2026-03-13
 
 ## Current Product Truth
 - Blog/content flow is live through:
@@ -41,33 +44,45 @@
 - Client runtime package now exists and is isolated under:
   - `client-runtime/`
 
-## Active Browser Delivery Goal
-- Operator can configure a browser-delivery target with one of two states:
-  - custom domain
+## Browser Delivery Status
+- Step 5 remains intact:
+  - direct-storage custom domain
   - GCP temporary access
-- The app must show:
-  - exact DNS instructions for the supported custom-domain path
-  - GCP temporary URLs for the linked deployment/media targets
-- Generated page HTML must become domain-aware from the selected Pages browser-delivery target.
-- This slice intentionally does **not** claim full CDN/load-balancer execution.
-- The delivered contract is the bounded direct-storage path plus domain-aware page output.
+  - domain-aware page output
+- Step 6 now adds the bounded HTTPS delivery stack path:
+  - `stackMode = https-load-balancer`
+  - DNS zone handling when `dnsMode = gcp-managed`
+  - DNS authorization + managed certificate
+  - global IP + backend bucket + URL map + HTTPS proxy + forwarding rule management
+  - exact DNS instructions when `dnsMode = external`
+- Provider execution logic remains bounded inside `test-modules-remote-ops`.
+- `Pages` remains a consumer of the resolved delivery contract only.
 
 ## Browser Delivery Slice Closure On 2026-03-13
 - Operator can configure a browser-delivery target with two states:
   - custom domain
   - GCP temporary access
-- `Remote Ops` shows:
+- Operator can now choose two custom-domain stack paths:
+  - `direct-storage`
+  - `https-load-balancer`
+- `Remote Ops` now shows:
   - public origin preview
   - example page URL
-  - exact DNS record instructions for the supported direct-storage path
+  - public media base when available
+  - exact DNS record instructions for direct-storage and HTTPS load-balancer modes
   - temporary deployment/media URLs
   - readiness warnings and bounded provisioning actions
 - `Pages` now resolves the selected browser-delivery target through module settings and emits domain-aware output for both:
   - delivery API payloads
   - deployed HTML artifacts
+- Step 6 implementation details:
+  - browser-delivery provisioning now executes the bounded GCP HTTPS stack resource set
+  - browser-delivery compatibility analysis resolves linked deployment/media targets correctly
+  - `Pages` payloads and rendered HTML now expose `publicMediaBaseUrl`
+  - browser-delivery preview switches cleanly between direct-storage and HTTPS load-balancer expectations
 - Important contract boundary:
-  - custom-domain direct-storage is treated as the current supported path and remains HTTP-oriented unless a future HTTPS delivery stack is added
-  - full CDN / load-balancer execution remains future work
+  - direct-storage custom domain remains HTTP-oriented
+  - the HTTPS path is a bounded GCP-managed stack, not full cross-provider CDN orchestration
 
 ## Live Rehearsal Proven On 2026-03-12
 - Created and published 10 review posts:
@@ -122,7 +137,7 @@
   - `docs/contracts/test-modules-media-manager-module-contract.md`
   - `docs/contracts/test-modules-remote-ops-module-contract.md`
 - Active execution plan:
-  - `docs/contracts/test-modules-remote-ops-step-5-browser-delivery-plan.md`
+  - `docs/contracts/test-modules-remote-ops-step-6-browser-delivery-stack-plan.md`
 - Current package/task contract:
   - `docs/contracts/client-runtime-contract.md`
 - Research/design memo:
@@ -137,6 +152,8 @@
 - Last pushed repo state before this slice:
   - remote ops live flows proven for Firestore, deployment storage, and media storage
   - client-runtime delivered and pushed
-- Start this slice from clean git state except:
-  - unrelated untracked `PLACEHOLDER`
+- Current untracked noise to leave untouched unless the user says otherwise:
+  - `PLACEHOLDER`
+  - `25344`
+  - `3124`
 

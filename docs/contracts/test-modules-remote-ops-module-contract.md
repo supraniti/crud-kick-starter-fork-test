@@ -123,8 +123,8 @@
 9. The UI clearly communicates warnings, counts, and mocked-vs-real boundaries.
 10. Step 1 remains module-local; no broad shared/core remote-ops abstraction is introduced.
 
-## Step 2 Review-Ready Extension
-- Step 2 extends the same module-local boundary and is now review-ready in the working tree.
+## Step 2 Delivered Extension
+- Step 2 extends the same module-local boundary and is already delivered.
 - Added live procedures:
   - Firestore projection:
     - compare
@@ -186,11 +186,44 @@
   - singleton-safe create behavior
   - no duplicate/surplus resource creation for supported configured flows
 
+## Step 5 Current Extension Status
+- Browser-delivery became a real operator-facing target shape with:
+  - `accessMode = gcp-temporary`
+  - `accessMode = custom-domain`
+  - linked deployment/media targets
+  - delivery previews and DNS instructions
+- `Pages` consumes the selected browser-delivery target and emits domain-aware output for:
+  - delivery payload JSON
+  - deployed HTML
+- Step 5 keeps the direct-storage custom-domain path intact and bounded.
+
+## Step 6 Current Extension Status
+- Browser-delivery now supports:
+  - `stackMode = direct-storage`
+  - `stackMode = https-load-balancer`
+- The module now executes the bounded GCP HTTPS delivery stack for browser-delivery targets:
+  - DNS managed zone when `dnsMode = gcp-managed`
+  - DNS authorization
+  - managed certificate
+  - global address
+  - backend bucket bindings
+  - URL map
+  - HTTPS proxy
+  - forwarding rule
+  - DNS records when `dnsMode = gcp-managed`
+- For `dnsMode = external`, the module renders exact operator instructions instead of forcing Cloud DNS ownership.
+- `Pages` payload and rendered HTML now expose:
+  - `publicOrigin`
+  - `publicUrl`
+  - `publicMediaBaseUrl`
+  - temporary deployment/media URLs
+- Browser-delivery provider logic remains module-local inside `test-modules-remote-ops`.
+
 ## Out Of Scope
 1. Real hosted-server auth infrastructure.
 2. Automatic background sync scheduling.
-3. Full domain provisioning/orchestration.
-4. Step 2 embedding into Pages, Content, Media Manager, and settings surfaces.
+3. Full cross-provider CDN/browser-delivery orchestration beyond the bounded GCP HTTPS stack.
+4. Further embedding beyond the current Pages, Content, Media Manager, and Remote Ops settings surfaces.
 
 ## Extension-Level Plan
 - Level 1 changes:

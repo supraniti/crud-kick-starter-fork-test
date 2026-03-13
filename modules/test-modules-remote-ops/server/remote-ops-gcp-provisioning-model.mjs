@@ -189,14 +189,44 @@ function buildBrowserDeliveryBundle() {
     targetKinds: ["browser-delivery"],
     requiredApis: ["dns.googleapis.com", "certificatemanager.googleapis.com", "compute.googleapis.com"],
     provisionableResources: [
-      buildProvisioningAction("dns-zone", "Cloud DNS managed zone", "planned", true, [
+      buildProvisioningAction("dns-zone", "Cloud DNS managed zone", "execution-started", true, [
         "Required only when DNS is managed on GCP."
       ]),
-      buildProvisioningAction("managed-certificate", "Certificate Manager certificate", "planned", true, [
+      buildProvisioningAction("dns-authorization", "Certificate Manager DNS authorization", "execution-started", true, [
+        "Required for Google-managed certificates."
+      ]),
+      buildProvisioningAction("managed-certificate", "Certificate Manager certificate", "execution-started", true, [
         "Domain ownership and DNS readiness must be satisfied first."
       ]),
-      buildProvisioningAction("load-balancer-stack", "External load balancer and CDN delivery stack", "planned", true, [
-        "This is part of the supported target model but not yet implemented in runtime procedures."
+      buildProvisioningAction("certificate-map", "Certificate Manager certificate map", "execution-started", true, [
+        "Links the managed certificate to the HTTPS proxy."
+      ]),
+      buildProvisioningAction("certificate-map-entry", "Certificate Manager certificate map entry", "execution-started", true, [
+        "Binds the hostname to the managed certificate."
+      ]),
+      buildProvisioningAction("global-address", "Global static IP", "execution-started", true, [
+        "Used as the public entrypoint for HTTPS browser delivery."
+      ]),
+      buildProvisioningAction("deployment-backend-bucket", "Deployment backend bucket", "execution-started", true, [
+        "Connects the deployment storage bucket to the HTTPS delivery stack."
+      ]),
+      buildProvisioningAction("media-backend-bucket", "Media backend bucket", "execution-started", true, [
+        "Connects the media storage bucket to the HTTPS delivery stack."
+      ]),
+      buildProvisioningAction("url-map", "URL map", "execution-started", true, [
+        "Routes public paths to deployment and media backend buckets."
+      ]),
+      buildProvisioningAction("https-proxy", "HTTPS proxy", "execution-started", true, [
+        "Terminates HTTPS and attaches the managed certificate map."
+      ]),
+      buildProvisioningAction("https-forwarding-rule", "HTTPS forwarding rule", "execution-started", true, [
+        "Publishes the hostname on TCP 443."
+      ]),
+      buildProvisioningAction("dns-a-record", "Managed traffic DNS record", "execution-started", true, [
+        "Required only when DNS is managed on GCP."
+      ]),
+      buildProvisioningAction("dns-authorization-record", "Managed certificate authorization DNS record", "execution-started", true, [
+        "Required only when DNS is managed on GCP."
       ]),
       buildProvisioningAction("bucket-website", "Deployment bucket website settings", "execution-started", true, [
         "Needed for the current direct-storage custom-domain path."
@@ -212,9 +242,16 @@ function buildBrowserDeliveryBundle() {
         [
           "serviceusage.services.get",
           "dns.managedZones.get",
+          "dns.resourceRecordSets.list",
+          "certificatemanager.dnsauthorizations.get",
           "certificatemanager.certs.get",
+          "certificatemanager.certmaps.get",
+          "certificatemanager.certmapentries.get",
+          "compute.globalAddresses.get",
           "compute.backendBuckets.get",
           "compute.urlMaps.get",
+          "compute.targetHttpsProxies.get",
+          "compute.globalForwardingRules.get",
           "storage.buckets.get",
           "storage.buckets.getIamPolicy"
         ],
@@ -226,10 +263,16 @@ function buildBrowserDeliveryBundle() {
         [
           "serviceusage.services.enable",
           "dns.managedZones.create",
+          "dns.changes.create",
           "certificatemanager.certs.create",
+          "certificatemanager.dnsauthorizations.create",
+          "certificatemanager.certmaps.create",
+          "certificatemanager.certmapentries.create",
+          "compute.globalAddresses.create",
           "compute.backendBuckets.create",
+          "compute.backendBuckets.update",
           "compute.urlMaps.create",
-          "compute.targetHttpProxies.create",
+          "compute.urlMaps.update",
           "compute.targetHttpsProxies.create",
           "compute.globalForwardingRules.create",
           "storage.buckets.update",

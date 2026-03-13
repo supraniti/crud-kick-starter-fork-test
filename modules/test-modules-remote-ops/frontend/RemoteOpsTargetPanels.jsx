@@ -171,10 +171,24 @@ export function TargetEditor({ workspace }) {
                   <MenuItem value="gcp-temporary">GCP Temporary URLs</MenuItem>
                   <MenuItem value="custom-domain">Custom Domain</MenuItem>
                 </TextField>
+                <TextField
+                  select
+                  label="Stack Mode"
+                  value={draft.config.stackMode ?? "direct-storage"}
+                  onChange={(event) => workspace.changeTargetConfigField("stackMode", event.target.value)}
+                  fullWidth
+                  disabled={(draft.config.accessMode ?? "gcp-temporary") !== "custom-domain"}
+                >
+                  <MenuItem value="direct-storage">Direct Storage</MenuItem>
+                  <MenuItem value="https-load-balancer">HTTPS Load Balancer</MenuItem>
+                </TextField>
+              </Stack>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField select label="DNS Mode" value={draft.config.dnsMode ?? "external"} onChange={(event) => workspace.changeTargetConfigField("dnsMode", event.target.value)} fullWidth>
                   <MenuItem value="external">External DNS</MenuItem>
                   <MenuItem value="gcp-managed">GCP Managed DNS</MenuItem>
                 </TextField>
+                <TextField label="Hostname" value={draft.config.hostname ?? ""} onChange={(event) => workspace.changeTargetConfigField("hostname", event.target.value)} fullWidth />
               </Stack>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField select label="Deployment Target" value={draft.config.deploymentTargetProfileId ?? ""} onChange={(event) => workspace.changeTargetConfigField("deploymentTargetProfileId", event.target.value)} fullWidth>
@@ -191,17 +205,28 @@ export function TargetEditor({ workspace }) {
                 </TextField>
               </Stack>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField label="Hostname" value={draft.config.hostname ?? ""} onChange={(event) => workspace.changeTargetConfigField("hostname", event.target.value)} fullWidth />
                 <TextField label="DNS Zone" value={draft.config.dnsZone ?? ""} onChange={(event) => workspace.changeTargetConfigField("dnsZone", event.target.value)} fullWidth />
+                <TextField label="Certificate Name" value={draft.config.certificateName ?? ""} onChange={(event) => workspace.changeTargetConfigField("certificateName", event.target.value)} fullWidth />
               </Stack>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField label="Certificate Name" value={draft.config.certificateName ?? ""} onChange={(event) => workspace.changeTargetConfigField("certificateName", event.target.value)} fullWidth />
                 <TextField label="URL Map Hint" value={draft.config.urlMapHint ?? ""} onChange={(event) => workspace.changeTargetConfigField("urlMapHint", event.target.value)} fullWidth />
+                <Stack flex={1}>
+                  {(draft.config.accessMode ?? "gcp-temporary") === "custom-domain" ? (
+                    <Alert severity={(draft.config.stackMode ?? "direct-storage") === "https-load-balancer" ? "info" : "warning"}>
+                      {(draft.config.stackMode ?? "direct-storage") === "https-load-balancer"
+                        ? "HTTPS load-balancer mode manages GCP delivery-stack resources and keeps page output on the intended HTTPS origin."
+                        : "Direct-storage mode stays on the bounded bucket-hosting path and remains HTTP-oriented until a managed HTTPS stack is configured."}
+                    </Alert>
+                  ) : null}
+                </Stack>
               </Stack>
               {deliveryPreview ? (
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
                   <Stack spacing={1}>
                     <Typography variant="subtitle2">Delivery Preview</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Mode: {deliveryPreview.accessMode} / {deliveryPreview.stackMode}
+                    </Typography>
                     {deliveryPreview.publicOrigin ? (
                       <Typography variant="body2" color="text.secondary">
                         Public origin: {deliveryPreview.publicOrigin}
@@ -215,6 +240,11 @@ export function TargetEditor({ workspace }) {
                     {deliveryPreview.temporaryMediaBaseUrl ? (
                       <Typography variant="body2" color="text.secondary">
                         Temporary media base: {deliveryPreview.temporaryMediaBaseUrl}
+                      </Typography>
+                    ) : null}
+                    {deliveryPreview.publicMediaBaseUrl ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Public media base: {deliveryPreview.publicMediaBaseUrl}
                       </Typography>
                     ) : null}
                     {deliveryPreview.dnsInstruction ? (

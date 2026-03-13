@@ -1,6 +1,7 @@
 import { requestGoogleJson } from "./remote-ops-live-google-runtime.mjs";
 import { normalizeOptionalText, normalizeTargetConfig } from "./remote-ops-shared-runtime.mjs";
 import { buildBrowserDeliveryDescriptor } from "../shared/browser-delivery-support.mjs";
+import { inspectHttpsBrowserTarget } from "./remote-ops-gcp-browser-delivery-https-compatibility-runtime.mjs";
 
 function createInstruction(permissionGroup) {
   return {
@@ -31,11 +32,34 @@ function updateBundleState(report) {
   return report;
 }
 
-async function loadServiceStatus(projectNumber, serviceName, accessToken) {
-  return requestGoogleJson(
-    `https://serviceusage.googleapis.com/v1/projects/${projectNumber}/services/${serviceName}`,
-    accessToken
-  );
+async function analyzeOptionalBrowserApi(report, serviceName, shouldInspect, project, accessToken) {
+  if (!shouldInspect) {
+    report.requiredApis = report.requiredApis.map((entry) =>
+      entry.serviceName === serviceName
+        ? createApiEntry(serviceName, "not-required", "Not required for the current browser-delivery mode.")
+        : entry
+    );
+    return;
+  }
+
+  try {
+    const service = await requestGoogleJson(
+      `https://serviceusage.googleapis.com/v1/projects/${project.projectNumber}/services/${serviceName}`,
+      accessToken
+    );
+    const isEnabled = service?.state === "ENABLED";
+    report.requiredApis = report.requiredApis.map((entry) =>
+      entry.serviceName === serviceName
+        ? createApiEntry(serviceName, isEnabled ? "enabled" : "disabled", service?.state ?? null)
+        : entry
+    );
+  } catch (error) {
+    report.requiredApis = report.requiredApis.map((entry) =>
+      entry.serviceName === serviceName
+        ? createApiEntry(serviceName, "error", error?.message ?? "Failed to inspect API state")
+        : entry
+    );
+  }
 }
 
 async function loadStorageBucket(bucketName, accessToken) {
@@ -52,74 +76,43 @@ async function loadBucketIamPolicy(bucketName, accessToken) {
   );
 }
 
-async function loadDnsZone(projectId, dnsZone, accessToken) {
-  return requestGoogleJson(
-    `https://dns.googleapis.com/dns/v1/projects/${encodeURIComponent(projectId)}/managedZones/${encodeURIComponent(dnsZone)}`,
-    accessToken
-  );
-}
-
-async function loadCertificate(projectId, certificateName, accessToken) {
-  return requestGoogleJson(
-    `https://certificatemanager.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/locations/global/certificates/${encodeURIComponent(certificateName)}`,
-    accessToken
-  );
-}
-
-async function loadUrlMap(projectId, urlMapHint, accessToken) {
-  return requestGoogleJson(
-    `https://compute.googleapis.com/compute/v1/projects/${encodeURIComponent(projectId)}/global/urlMaps/${encodeURIComponent(urlMapHint)}`,
-    accessToken
-  );
-}
-
-async function inspectBrowserResource(report, definition, loader) {
-  const { kind, label, resourceName } = definition;
-  if (!resourceName) {
-    return;
+function buildActionAvailability(permissionGroup, projectPermissions) {
+  if (!permissionGroup) {
+    return {
+      availableNow: false,
+      missingPermissions: []
+    };
   }
-  try {
-    const resource = await loader();
-    report.resourceChecks.push({
-      kind,
-      state: "present",
-      label,
-      resourceName: resource?.name ?? resourceName
-    });
-  } catch (error) {
-    report.resourceChecks.push({
-      kind,
-      state: error?.statusCode === 404 ? "missing" : "error",
-      label,
-      resourceName,
-      details: error?.message ?? `Failed to inspect ${kind}`
-    });
-  }
+  const missingPermissions = permissionGroup.permissions.filter(
+    (permission) => !projectPermissions.has(permission)
+  );
+  return {
+    availableNow: missingPermissions.length === 0,
+    missingPermissions
+  };
 }
 
-function buildBrowserProvisioningAction({
+function buildProvisioningAction({
   id,
   label,
-  notes,
+  resourceKind,
   targetId,
-  linkedTargetId,
-  projectPermissions,
-  permissionGroup
+  linkedTargetId = null,
+  notes = [],
+  permissionGroup,
+  projectPermissions
 }) {
+  const availability = buildActionAvailability(permissionGroup, projectPermissions);
   return {
     id,
     label,
+    resourceKind,
     targetId,
     linkedTargetId,
-    resourceKind: id.includes("public-read") ? "public-read" : "bucket-website",
     createSupported: true,
     phaseStatus: "execution-started",
-    availableNow: permissionGroup
-      ? permissionGroup.permissions.every((permission) => projectPermissions.has(permission))
-      : false,
-    missingPermissions: permissionGroup
-      ? permissionGroup.permissions.filter((permission) => !projectPermissions.has(permission))
-      : [],
+    availableNow: availability.availableNow,
+    missingPermissions: availability.missingPermissions,
     notes
   };
 }
@@ -144,7 +137,7 @@ function findTargetById(targetProfiles, targetId) {
   return targetProfiles.find((targetProfile) => targetProfile.id === normalizedTargetId) ?? null;
 }
 
-async function inspectBrowserLinkedBucket({
+async function inspectDirectStorageLinkedBucket({
   report,
   label,
   bucketName,
@@ -190,14 +183,15 @@ async function inspectBrowserLinkedBucket({
       bucketName: normalizedBucketName
     });
     report.provisionableActions.push(
-      buildBrowserProvisioningAction({
+      buildProvisioningAction({
         id: `${actionIdPrefix}-website`,
         label: `Configure website settings on '${normalizedBucketName}'`,
-        notes: ["Set main page suffix to index.html for direct browser delivery."],
+        resourceKind: "bucket-website",
         targetId,
         linkedTargetId,
-        projectPermissions,
-        permissionGroup: provisionPermissionGroup
+        notes: ["Set main page suffix to index.html for direct browser delivery."],
+        permissionGroup: provisionPermissionGroup,
+        projectPermissions
       })
     );
   }
@@ -211,51 +205,25 @@ async function inspectBrowserLinkedBucket({
         bucketName: normalizedBucketName
       });
       report.provisionableActions.push(
-        buildBrowserProvisioningAction({
+        buildProvisioningAction({
           id: `${actionIdPrefix}-public-read`,
           label: `Enable public object read on '${normalizedBucketName}'`,
-          notes: ["Required for browser clients to fetch deployed HTML or media directly."],
+          resourceKind: "public-read",
           targetId,
           linkedTargetId,
-          projectPermissions,
-          permissionGroup: provisionPermissionGroup
+          notes: ["Required for browser clients to fetch deployed HTML or media directly."],
+          permissionGroup: provisionPermissionGroup,
+          projectPermissions
         })
       );
     }
-  } catch (error) {
+  } catch (_error) {
     report.permissionDiagnostics.push({
       kind: "permission-missing",
       summary: `${label}: service account cannot inspect bucket IAM policy.`,
       instruction: createInstruction(inspectPermissionGroup),
       missingPermissions: inspectPermissionGroup?.permissions ?? []
     });
-  }
-}
-
-async function analyzeOptionalBrowserApi(report, serviceName, shouldInspect, project, accessToken) {
-  if (!shouldInspect) {
-    report.requiredApis = report.requiredApis.map((entry) =>
-      entry.serviceName === serviceName
-        ? createApiEntry(serviceName, "not-required", "Not required for the current browser-delivery mode.")
-        : entry
-    );
-    return;
-  }
-
-  try {
-    const service = await loadServiceStatus(project.projectNumber, serviceName, accessToken);
-    const isEnabled = service?.state === "ENABLED";
-    report.requiredApis = report.requiredApis.map((entry) =>
-      entry.serviceName === serviceName
-        ? createApiEntry(serviceName, isEnabled ? "enabled" : "disabled", service?.state ?? null)
-        : entry
-    );
-  } catch (error) {
-    report.requiredApis = report.requiredApis.map((entry) =>
-      entry.serviceName === serviceName
-        ? createApiEntry(serviceName, "error", error?.message ?? "Failed to inspect API state")
-        : entry
-    );
   }
 }
 
@@ -272,20 +240,43 @@ async function inspectBrowserTarget({
   const deploymentTarget = findTargetById(targetProfiles, config.deploymentTargetProfileId);
   const mediaTarget = findTargetById(targetProfiles, config.mediaTargetProfileId);
   const descriptor = buildBrowserDeliveryDescriptor({
-    browserTarget: targetProfile,
+    browserTarget: {
+      ...targetProfile,
+      config
+    },
     deploymentTarget,
     mediaTarget,
     pagePath: "/posts/example-post",
     artifactRelativePath: "posts/example-post/index.html"
   });
 
+  report.configurationWarnings.push(
+    ...descriptor.warnings.map((warning) => `${targetProfile.title}: ${warning}`)
+  );
+  report.notes.push(...descriptor.notes.map((note) => `${targetProfile.title}: ${note}`));
+
+  if (config.accessMode === "custom-domain" && config.stackMode === "https-load-balancer") {
+    await inspectHttpsBrowserTarget({
+      report,
+      bundle,
+      buildProvisioningAction,
+      analyzeOptionalBrowserApi,
+      targetProfile,
+      project,
+      accessToken,
+      projectPermissions,
+      deploymentTarget,
+      mediaTarget,
+      descriptor
+    });
+    return;
+  }
+
   report.deliveryReports.push({
     targetId: targetProfile.id,
     title: targetProfile.title,
     ...descriptor
   });
-  report.configurationWarnings.push(...descriptor.warnings.map((warning) => `${targetProfile.title}: ${warning}`));
-  report.notes.push(...descriptor.notes.map((note) => `${targetProfile.title}: ${note}`));
 
   const dnsRequired = config.dnsMode === "gcp-managed" && Boolean(config.dnsZone);
   const certificateRequired = Boolean(config.certificateName);
@@ -295,45 +286,12 @@ async function inspectBrowserTarget({
   await analyzeOptionalBrowserApi(report, "certificatemanager.googleapis.com", certificateRequired, project, accessToken);
   await analyzeOptionalBrowserApi(report, "compute.googleapis.com", urlMapRequired, project, accessToken);
 
-  if (dnsRequired) {
-    await inspectBrowserResource(
-      report,
-      {
-        kind: "dns-zone",
-        label: `${targetProfile.title} DNS zone`,
-        resourceName: config.dnsZone
-      },
-      () => loadDnsZone(project.projectId, config.dnsZone, accessToken)
-    );
-  }
-  if (certificateRequired) {
-    await inspectBrowserResource(
-      report,
-      {
-        kind: "certificate",
-        label: `${targetProfile.title} certificate`,
-        resourceName: config.certificateName
-      },
-      () => loadCertificate(project.projectId, config.certificateName, accessToken)
-    );
-  }
-  if (urlMapRequired) {
-    await inspectBrowserResource(
-      report,
-      {
-        kind: "url-map",
-        label: `${targetProfile.title} URL map`,
-        resourceName: config.urlMapHint
-      },
-      () => loadUrlMap(project.projectId, config.urlMapHint, accessToken)
-    );
-  }
-
   const provisionGroup = bundle.permissionGroups.find((group) => group.id === "browser-delivery-provision") ?? null;
   const inspectGroup = bundle.permissionGroups.find((group) => group.id === "browser-delivery-inspect") ?? null;
+
   if (deploymentTarget?.targetKind === "deployment-storage") {
     const deploymentConfig = normalizeTargetConfig(deploymentTarget.config, deploymentTarget.targetKind);
-    await inspectBrowserLinkedBucket({
+    await inspectDirectStorageLinkedBucket({
       report,
       label: `${targetProfile.title} deployment bucket`,
       bucketName: deploymentConfig.bucketName,
@@ -349,7 +307,7 @@ async function inspectBrowserTarget({
   }
   if (mediaTarget?.targetKind === "media-storage") {
     const mediaConfig = normalizeTargetConfig(mediaTarget.config, mediaTarget.targetKind);
-    await inspectBrowserLinkedBucket({
+    await inspectDirectStorageLinkedBucket({
       report,
       label: `${targetProfile.title} media bucket`,
       bucketName: mediaConfig.bucketName,
@@ -369,12 +327,13 @@ export async function analyzeBrowserDeliveryBundle({
   report,
   bundle,
   targetProfiles,
+  browserTargets,
   accessToken,
   projectPermissions,
   project,
   markBundleNotConfigured
 }) {
-  if (targetProfiles.length === 0) {
+  if (!Array.isArray(browserTargets) || browserTargets.length === 0) {
     report.requiredApis = bundle.requiredApis.map((serviceName) =>
       createApiEntry(serviceName, "not-configured", "No live browser-delivery target is configured yet.")
     );
@@ -384,7 +343,7 @@ export async function analyzeBrowserDeliveryBundle({
   report.requiredApis = bundle.requiredApis.map((serviceName) =>
     createApiEntry(serviceName, "not-required", "Not required for the current browser-delivery mode.")
   );
-  for (const targetProfile of targetProfiles) {
+  for (const targetProfile of browserTargets) {
     await inspectBrowserTarget({
       report,
       bundle,

@@ -353,6 +353,16 @@
                   ]
                 },
                 {
+                  "id": "stackMode",
+                  "label": "Stack Mode",
+                  "type": "enum",
+                  "required": false,
+                  "options": [
+                    "direct-storage",
+                    "https-load-balancer"
+                  ]
+                },
+                {
                   "id": "dnsMode",
                   "label": "DNS Mode",
                   "type": "enum",

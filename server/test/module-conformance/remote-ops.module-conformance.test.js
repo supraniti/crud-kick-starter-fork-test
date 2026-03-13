@@ -340,8 +340,12 @@ test("remote ops exposes a module-local GCP provisioning model for compatibility
     ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "load-balancer-stack",
-          phaseStatus: "planned"
+          id: "dns-zone",
+          phaseStatus: "execution-started"
+        }),
+        expect.objectContaining({
+          id: "https-forwarding-rule",
+          phaseStatus: "execution-started"
         })
       ])
     );
@@ -727,6 +731,592 @@ test("remote ops provisions missing supported GCP resources for configured live 
     expect(firestoreCreated).toBe(true);
     expect(mediaBucketCreated).toBe(true);
     expect(enabledServices.has("firestore.googleapis.com")).toBe(true);
+  } finally {
+    await server.close();
+  }
+}, REMOTE_OPS_TEST_TIMEOUT_MS);
+
+test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a live custom domain", async () => {
+  const server = await createRemoteOpsTestServer();
+
+  try {
+    const payload = createServiceAccountCredentialPayload();
+    const enabledServices = new Set(["storage.googleapis.com"]);
+    const dnsZones = new Map();
+    const dnsAuthorizations = new Map();
+    const certificates = new Map();
+    const certificateMaps = new Map();
+    const certificateMapEntries = new Map();
+    const globalAddresses = new Map();
+    const backendBuckets = new Map();
+    const urlMaps = new Map();
+    const httpsProxies = new Map();
+    const forwardingRules = new Map();
+    const dnsRecordsByZone = new Map();
+
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      const normalized = String(url);
+      const method = options?.method ?? "GET";
+
+      if (normalized === "https://oauth2.googleapis.com/token") {
+        return createGoogleJsonResponse(200, {
+          access_token: "access-token-browser-delivery",
+          expires_in: 3600,
+          token_type: "Bearer"
+        });
+      }
+
+      if (normalized === "https://cloudresourcemanager.googleapis.com/v3/projects/demo-project") {
+        return createGoogleJsonResponse(200, {
+          name: "projects/1234567890",
+          projectId: "demo-project",
+          projectNumber: "1234567890",
+          displayName: "Demo Project",
+          state: "ACTIVE"
+        });
+      }
+
+      if (
+        normalized === "https://cloudresourcemanager.googleapis.com/v1/projects/demo-project:testIamPermissions" &&
+        method === "POST"
+      ) {
+        const requestPayload = JSON.parse(options.body);
+        return createGoogleJsonResponse(200, {
+          permissions: requestPayload.permissions
+        });
+      }
+
+      if (
+        normalized === "https://serviceusage.googleapis.com/v1/projects/1234567890/services:batchEnable" &&
+        method === "POST"
+      ) {
+        const requestPayload = JSON.parse(options.body);
+        requestPayload.serviceIds.forEach((serviceName) => enabledServices.add(serviceName));
+        return createGoogleJsonResponse(200, {
+          name: "operations/serviceusage-batch-enable-browser-delivery"
+        });
+      }
+
+      if (normalized === "https://serviceusage.googleapis.com/v1/operations/serviceusage-batch-enable-browser-delivery") {
+        return createGoogleJsonResponse(200, {
+          done: true,
+          response: {}
+        });
+      }
+
+      if (normalized.startsWith("https://serviceusage.googleapis.com/v1/projects/1234567890/services/")) {
+        const serviceName = normalized.split("/services/")[1];
+        return createGoogleJsonResponse(200, {
+          name: `projects/1234567890/services/${serviceName}`,
+          state: enabledServices.has(serviceName) ? "ENABLED" : "DISABLED"
+        });
+      }
+
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/deployment-bucket") {
+        return createGoogleJsonResponse(200, {
+          name: "deployment-bucket",
+          location: "ME-WEST1"
+        });
+      }
+
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/media-bucket") {
+        return createGoogleJsonResponse(200, {
+          name: "media-bucket",
+          location: "ME-WEST1"
+        });
+      }
+
+      if (
+        normalized.startsWith("https://storage.googleapis.com/storage/v1/b/deployment-bucket/iam/testPermissions?") ||
+        normalized.startsWith("https://storage.googleapis.com/storage/v1/b/media-bucket/iam/testPermissions?")
+      ) {
+        const requestUrl = new URL(normalized);
+        return createGoogleJsonResponse(200, {
+          permissions: requestUrl.searchParams.getAll("permissions")
+        });
+      }
+
+      if (normalized.startsWith("https://dns.googleapis.com/dns/v1/projects/demo-project/managedZones/")) {
+        const requestUrl = new URL(normalized);
+        const relativePath = requestUrl.pathname.split("/managedZones/")[1];
+        const [zoneName, remainder] = relativePath.split("/");
+        const zone = dnsZones.get(decodeURIComponent(zoneName));
+        if (!zone) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Zone not found"
+            }
+          });
+        }
+        if (!remainder) {
+          return createGoogleJsonResponse(200, zone);
+        }
+        if (remainder === "rrsets") {
+          const key = `${requestUrl.searchParams.get("name") ?? ""}:${requestUrl.searchParams.get("type") ?? ""}`;
+          const records = dnsRecordsByZone.get(zone.name) ?? new Map();
+          const record = records.get(key);
+          return createGoogleJsonResponse(200, {
+            rrsets: record ? [record] : []
+          });
+        }
+        if (remainder === "changes" && method === "POST") {
+          const requestPayload = JSON.parse(options.body);
+          const records = dnsRecordsByZone.get(zone.name) ?? new Map();
+          (requestPayload.deletions ?? []).forEach((record) => {
+            records.delete(`${record.name}:${record.type}`);
+          });
+          (requestPayload.additions ?? []).forEach((record) => {
+            records.set(`${record.name}:${record.type}`, record);
+          });
+          dnsRecordsByZone.set(zone.name, records);
+          return createGoogleJsonResponse(200, {
+            id: "dns-change-001"
+          });
+        }
+      }
+
+      if (normalized === "https://dns.googleapis.com/dns/v1/projects/demo-project/managedZones" && method === "POST") {
+        const requestPayload = JSON.parse(options.body);
+        const zone = {
+          name: requestPayload.name,
+          dnsName: requestPayload.dnsName,
+          nameServers: ["ns-cloud-a1.googledomains.com.", "ns-cloud-a2.googledomains.com."]
+        };
+        dnsZones.set(zone.name, zone);
+        dnsRecordsByZone.set(zone.name, new Map());
+        return createGoogleJsonResponse(200, zone);
+      }
+
+      if (normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/dnsAuthorizations/")) {
+        const dnsAuthorizationName = decodeURIComponent(normalized.split("/dnsAuthorizations/")[1]);
+        const entry = dnsAuthorizations.get(dnsAuthorizationName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "DNS authorization not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (
+        normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/dnsAuthorizations?") &&
+        method === "POST"
+      ) {
+        const requestUrl = new URL(normalized);
+        const dnsAuthorizationName = requestUrl.searchParams.get("dnsAuthorizationId");
+        const requestPayload = JSON.parse(options.body);
+        dnsAuthorizations.set(dnsAuthorizationName, {
+          name: `projects/demo-project/locations/global/dnsAuthorizations/${dnsAuthorizationName}`,
+          domain: requestPayload.domain,
+          dnsResourceRecord: {
+            name: `_acme-challenge.${requestPayload.domain}.`,
+            type: "CNAME",
+            data: "auth.example.gcp."
+          }
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operations/certificatemanager.dnsauth.create-001"
+        });
+      }
+
+      if (normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/certificates/")) {
+        const certificateName = decodeURIComponent(normalized.split("/certificates/")[1]);
+        const entry = certificates.get(certificateName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Certificate not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (
+        normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/certificates?") &&
+        method === "POST"
+      ) {
+        const requestUrl = new URL(normalized);
+        const certificateName = requestUrl.searchParams.get("certificateId");
+        const requestPayload = JSON.parse(options.body);
+        certificates.set(certificateName, {
+          name: `projects/demo-project/locations/global/certificates/${certificateName}`,
+          managed: {
+            state: "ACTIVE",
+            domains: requestPayload.managed.domains
+          }
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operations/certificatemanager.certificate.create-001"
+        });
+      }
+
+      if (normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/certificateMaps/")) {
+        const suffix = normalized.split("/certificateMaps/")[1];
+        const [certificateMapName, maybeEntrySegment, entryName] = suffix.split("/");
+        if (!maybeEntrySegment) {
+          const entry = certificateMaps.get(decodeURIComponent(certificateMapName));
+          if (!entry) {
+            return createGoogleJsonResponse(404, {
+              error: {
+                message: "Certificate map not found"
+              }
+            });
+          }
+          return createGoogleJsonResponse(200, entry);
+        }
+        if (maybeEntrySegment === "certificateMapEntries") {
+          const entry = certificateMapEntries.get(decodeURIComponent(entryName));
+          if (!entry) {
+            return createGoogleJsonResponse(404, {
+              error: {
+                message: "Certificate map entry not found"
+              }
+            });
+          }
+          return createGoogleJsonResponse(200, entry);
+        }
+      }
+
+      if (
+        normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/certificateMaps?") &&
+        method === "POST"
+      ) {
+        const requestUrl = new URL(normalized);
+        const certificateMapName = requestUrl.searchParams.get("certificateMapId");
+        certificateMaps.set(certificateMapName, {
+          name: `projects/demo-project/locations/global/certificateMaps/${certificateMapName}`
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operations/certificatemanager.certmap.create-001"
+        });
+      }
+
+      if (
+        normalized.includes("/certificateMapEntries?") &&
+        method === "POST"
+      ) {
+        const requestUrl = new URL(normalized);
+        const entryName = requestUrl.searchParams.get("certificateMapEntryId");
+        const requestPayload = JSON.parse(options.body);
+        certificateMapEntries.set(entryName, {
+          name: `${normalized.split("?")[0]}/${entryName}`,
+          hostname: requestPayload.hostname,
+          certificates: requestPayload.certificates
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operations/certificatemanager.certmapentry.create-001"
+        });
+      }
+
+      if (normalized.startsWith("https://certificatemanager.googleapis.com/v1/operations/")) {
+        return createGoogleJsonResponse(200, {
+          done: true,
+          response: {}
+        });
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/addresses/")) {
+        const addressName = decodeURIComponent(normalized.split("/addresses/")[1]);
+        const address = globalAddresses.get(addressName);
+        if (!address) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Address not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, address);
+      }
+
+      if (normalized === "https://compute.googleapis.com/compute/v1/projects/demo-project/global/addresses" && method === "POST") {
+        const requestPayload = JSON.parse(options.body);
+        globalAddresses.set(requestPayload.name, {
+          name: requestPayload.name,
+          address: "203.0.113.10"
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operation-global-address-001"
+        });
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/backendBuckets/")) {
+        const backendBucketName = decodeURIComponent(normalized.split("/backendBuckets/")[1]);
+        const entry = backendBuckets.get(backendBucketName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Backend bucket not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized === "https://compute.googleapis.com/compute/v1/projects/demo-project/global/backendBuckets" && method === "POST") {
+        const requestPayload = JSON.parse(options.body);
+        backendBuckets.set(requestPayload.name, {
+          name: requestPayload.name,
+          bucketName: requestPayload.bucketName
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operation-backend-bucket-001"
+        });
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/urlMaps/")) {
+        const urlMapName = decodeURIComponent(normalized.split("/urlMaps/")[1]);
+        const entry = urlMaps.get(urlMapName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "URL map not found"
+            }
+          });
+        }
+        if (method === "PATCH") {
+          const requestPayload = JSON.parse(options.body);
+          urlMaps.set(urlMapName, {
+            ...entry,
+            ...requestPayload
+          });
+          return createGoogleJsonResponse(200, {
+            name: "operation-url-map-patch-001"
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized === "https://compute.googleapis.com/compute/v1/projects/demo-project/global/urlMaps" && method === "POST") {
+        const requestPayload = JSON.parse(options.body);
+        urlMaps.set(requestPayload.name, {
+          name: requestPayload.name,
+          defaultService: requestPayload.defaultService
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operation-url-map-create-001"
+        });
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/targetHttpsProxies/")) {
+        const suffix = normalized.split("/targetHttpsProxies/")[1];
+        const [proxyName, action] = suffix.split("/");
+        const entry = httpsProxies.get(decodeURIComponent(proxyName));
+        if (!action) {
+          if (!entry) {
+            return createGoogleJsonResponse(404, {
+              error: {
+                message: "Proxy not found"
+              }
+            });
+          }
+          return createGoogleJsonResponse(200, entry);
+        }
+        if (action === "setUrlMap" && method === "POST") {
+          const requestPayload = JSON.parse(options.body);
+          httpsProxies.set(decodeURIComponent(proxyName), {
+            ...(entry ?? { name: decodeURIComponent(proxyName) }),
+            urlMap: requestPayload.urlMap
+          });
+          return createGoogleJsonResponse(200, {
+            name: "operation-https-proxy-set-url-map-001"
+          });
+        }
+        if (action === "setCertificateMap" && method === "POST") {
+          const requestPayload = JSON.parse(options.body);
+          httpsProxies.set(decodeURIComponent(proxyName), {
+            ...(entry ?? { name: decodeURIComponent(proxyName) }),
+            certificateMap: requestPayload.certificateMap
+          });
+          return createGoogleJsonResponse(200, {
+            name: "operation-https-proxy-set-certificate-map-001"
+          });
+        }
+      }
+
+      if (normalized === "https://compute.googleapis.com/compute/v1/projects/demo-project/global/targetHttpsProxies" && method === "POST") {
+        const requestPayload = JSON.parse(options.body);
+        httpsProxies.set(requestPayload.name, {
+          name: requestPayload.name,
+          urlMap: requestPayload.urlMap
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operation-https-proxy-create-001"
+        });
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/forwardingRules/")) {
+        const ruleName = decodeURIComponent(normalized.split("/forwardingRules/")[1]);
+        const entry = forwardingRules.get(ruleName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Forwarding rule not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized === "https://compute.googleapis.com/compute/v1/projects/demo-project/global/forwardingRules" && method === "POST") {
+        const requestPayload = JSON.parse(options.body);
+        forwardingRules.set(requestPayload.name, {
+          name: requestPayload.name,
+          IPAddress: requestPayload.IPAddress,
+          target: requestPayload.target
+        });
+        return createGoogleJsonResponse(200, {
+          name: "operation-forwarding-rule-create-001"
+        });
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/operations/")) {
+        return createGoogleJsonResponse(200, {
+          status: "DONE"
+        });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${normalized}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const connection = await seedConnection(server, {
+      credentialPathHint: null,
+      projectId: "",
+      projectNumber: "",
+      projectDisplayName: ""
+    });
+    const imported = await injectJson(server, "POST", buildConnectionRoute(connection.id, "import-key-file"), {
+      fileName: "demo-browser-delivery.json",
+      fileContent: JSON.stringify(payload)
+    });
+    expect(imported.statusCode, JSON.stringify(imported.body)).toBe(200);
+
+    const validatedConnection = await injectJson(server, "POST", buildConnectionRoute(connection.id, "validate"));
+    expect(validatedConnection.statusCode, JSON.stringify(validatedConnection.body)).toBe(200);
+
+    const deploymentTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Deployment Live Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "deployment-bucket",
+        prefix: "",
+        localRootHint: "deployment"
+      },
+      policy: {
+        allowDeletes: true,
+        allowRestore: true,
+        requireDryRunFirst: true
+      }
+    });
+    expect(deploymentTarget.statusCode).toBe(201);
+
+    const mediaTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Media Live Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "media-bucket",
+        prefix: "library",
+        localRootHint: "media"
+      },
+      policy: {
+        allowDeletes: true,
+        allowRestore: true,
+        requireDryRunFirst: true
+      }
+    });
+    expect(mediaTarget.statusCode).toBe(201);
+
+    const browserTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Delivery Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "custom-domain",
+        stackMode: "https-load-balancer",
+        dnsMode: "gcp-managed",
+        hostname: "content.example.com",
+        deploymentTargetProfileId: deploymentTarget.body.item.id,
+        mediaTargetProfileId: mediaTarget.body.item.id
+      },
+      policy: {
+        allowDeletes: false,
+        allowRestore: false,
+        requireDryRunFirst: true
+      }
+    });
+    expect(browserTarget.statusCode).toBe(201);
+
+    const analyze = await injectJson(
+      server,
+      "POST",
+      `/api/reference/modules/test-modules-remote-ops/connections/${connection.id}/analyze-compatibility`
+    );
+    expect(analyze.statusCode, JSON.stringify(analyze.body)).toBe(200);
+    const browserBundle = analyze.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
+    expect(browserBundle.state).toBe("action-required");
+    expect(browserBundle.provisionableActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resourceKind: "dns-zone" }),
+        expect.objectContaining({ resourceKind: "https-forwarding-rule" })
+      ])
+    );
+    expect(browserBundle.deliveryReports).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stackMode: "https-load-balancer",
+          publicOrigin: "https://content.example.com",
+          publicUrl: "https://content.example.com/posts/example-post",
+          publicMediaBaseUrl: "https://content.example.com/library",
+          dnsInstructions: expect.arrayContaining([
+            expect.objectContaining({
+              label: "Traffic record",
+              recordType: "A"
+            })
+          ])
+        })
+      ])
+    );
+
+    const provision = await injectJson(
+      server,
+      "POST",
+      `/api/reference/modules/test-modules-remote-ops/connections/${connection.id}/provision-missing`,
+      {
+        confirmedSafeguardIds: ["cost-confirmation", "singleton-hygiene", "minimum-footprint"],
+        actionIds: null
+      }
+    );
+    expect(provision.statusCode, JSON.stringify(provision.body)).toBe(200);
+    expect(provision.body.executedActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resourceKind: "dns-zone" }),
+        expect.objectContaining({ resourceKind: "dns-authorization" }),
+        expect.objectContaining({ resourceKind: "managed-certificate" }),
+        expect.objectContaining({ resourceKind: "global-address" }),
+        expect.objectContaining({ resourceKind: "https-forwarding-rule" }),
+        expect.objectContaining({ resourceKind: "dns-a-record" }),
+        expect.objectContaining({ resourceKind: "dns-authorization-record" })
+      ])
+    );
+    const provisionedBrowserBundle = provision.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
+    expect(provisionedBrowserBundle.state).toBe("compatible");
+    expect(provisionedBrowserBundle.deliveryReports).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          publicOrigin: "https://content.example.com",
+          publicMediaBaseUrl: "https://content.example.com/library",
+          nameServers: expect.arrayContaining(["ns-cloud-a1.googledomains.com."])
+        })
+      ])
+    );
   } finally {
     await server.close();
   }

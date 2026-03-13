@@ -748,6 +748,129 @@ test("pages sync existing per-record artifacts after browser-delivery settings c
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
+test("pages emit HTTPS load-balancer browser-delivery metadata including public media base", async () => {
+  const sandbox = await createDeploymentSandbox();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "HTTPS Delivery Story",
+      status: "published",
+      publishedOn: "2026-03-09T08:30:00.000Z"
+    });
+
+    const connection = await seedRemoteConnectionProfile(server);
+    const deploymentTarget = await seedRemoteTargetProfile(server, {
+      title: "Deployment Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "content.example.com",
+        prefix: ""
+      }
+    });
+    const mediaTarget = await seedRemoteTargetProfile(server, {
+      title: "Media Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "content-example-media",
+        prefix: "library"
+      }
+    });
+    const browserDeliveryTarget = await seedRemoteTargetProfile(server, {
+      title: "Delivery Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "custom-domain",
+        stackMode: "https-load-balancer",
+        dnsMode: "external",
+        hostname: "content.example.com",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath(MODULE_ID),
+      {
+        remoteBrowserDeliveryTargetProfileId: browserDeliveryTarget.id
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/posts",
+      pathPattern: "/posts/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-09T10:00:00.000Z"
+    });
+    expect(templatePage.statusCode).toBe(201);
+
+    const syncResponse = await injectJson(
+      server,
+      "POST",
+      buildSyncDeploymentRoute(templatePage.body.item.id),
+      {}
+    );
+    expect(syncResponse.statusCode).toBe(200);
+
+    const deploymentHtml = await readDeploymentHtml(
+      sandbox.deploymentRootDir,
+      "posts/https-delivery-story/index.html"
+    );
+    expect(deploymentHtml).toContain("https://content.example.com/posts/https-delivery-story");
+    expect(deploymentHtml).toContain("\"publicOrigin\":\"https://content.example.com\"");
+    expect(deploymentHtml).toContain("\"publicMediaBaseUrl\":\"https://content.example.com/library\"");
+
+    const deliveryResponse = await injectJson(
+      server,
+      "GET",
+      `${buildDeliveryRoute(templatePage.body.item.id)}?preview=true&sourceItemId=${post.id}`
+    );
+    expect(deliveryResponse.statusCode).toBe(200);
+    expect(deliveryResponse.body.payload.delivery).toEqual(
+      expect.objectContaining({
+        accessMode: "custom-domain",
+        dnsMode: "external",
+        publicOrigin: "https://content.example.com",
+        publicUrl: "https://content.example.com/posts/https-delivery-story",
+        publicMediaBaseUrl: "https://content.example.com/library",
+        temporaryDeploymentBaseUrl: "https://storage.googleapis.com/content.example.com",
+        temporaryMediaBaseUrl: "https://storage.googleapis.com/content-example-media/library"
+      })
+    );
+    expect(deliveryResponse.body.payload.head.canonicalUrl).toBe(
+      "https://content.example.com/posts/https-delivery-story"
+    );
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
 test("pages publish from page records and redirects target standalone pages", async () => {
   const server = await createEphemeralReferenceServer();
 
