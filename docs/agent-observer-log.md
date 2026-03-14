@@ -1135,3 +1135,19 @@
   - when splitting large module-local runtimes, extract low-level resource operations first and leave the orchestration file last; it reduces accidental dependency loss
   - keep live review after the full gate for infrastructure-heavy slices so UI checking and structural debugging do not happen at the same time
 
+
+## 2026-03-13 - Current-state documentation pass
+- Started a durable repo-map/capability inventory under docs/research instead of leaving architecture understanding in handoff only.
+- Pass 1 covers runtime entrypoints, active module surfaces, and current operator workflows. Future passes should deepen route-level and field-level detail instead of rewriting the document structure.
+
+- Pass 2 on the current-state repo map added concrete server/frontend runtime topology and module-owned route matrices. Remaining work is now mostly field-level inventory and deeper deployment/remote call maps, not basic structure discovery.
+
+- Added active-module field inventory to the current-state repo map so future planning does not have to reopen manifests just to find core entities/settings.
+
+- Pass 3 closed the high-value remaining gaps:
+  - request/response summaries for module-owned custom APIs
+  - deployment/browser-delivery execution chains
+  - remote compare/execute/restore/provisioning chains
+  - explicit screen/input/action inventories for the operator desks
+- The main lesson from this documentation pass is that the repo is already too broad to keep “current state” in transient chat memory. The research doc is now the durable baseline and future architectural work should update it deliberately instead of relying on handoff accretion.
+
