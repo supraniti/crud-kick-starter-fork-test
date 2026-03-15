@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `43ac085` `feat: harden bundle release missions`
+  - `e7c2590` `feat: align editorial and moderation product views`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -200,6 +200,22 @@
         - `Posts`
         - `Authors`
       - existing moderation queue, thread inspection, and moderation actions through the product shell
+  - injected runtime comment contracts:
+    - delivered post pages now emit a bounded runtime remote contract for comments
+    - runtime context now includes:
+      - `primaryRecordId`
+      - `primarySourceType`
+      - `commentsEnabled`
+    - runtime remote config now prefers browser-delivery `publicOrigin` as `baseUrl` when available
+    - delivered post pages now expose:
+      - `comments.byPost`
+      - `comments.byId`
+      - `comments.submit`
+      - dataset `post-comments`
+    - the contract is intentionally bounded to existing repo-owned routes:
+      - `GET /api/reference/collections/blog-comments/items`
+      - `POST /api/reference/collections/blog-comments/items`
+    - `client-runtime` now normalizes collection-shaped remote query responses and supports literal string values inside declarative remote templates
 
 ## Key Files Touched
 - Product shell:
@@ -268,9 +284,11 @@
   - [server/test/module-conformance/remote-ops.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/remote-ops.module-conformance.test.js)
   - [client-runtime/src/browser/global-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/global-runtime.mjs)
   - [client-runtime/src/browser/bootstrap-config.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/bootstrap-config.mjs)
+  - [client-runtime/src/adapters/remote-request-resolver.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/adapters/remote-request-resolver.mjs)
   - [client-runtime/src/adapters/remote-transport.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/adapters/remote-transport.mjs)
   - [client-runtime/src/runtime/create-client-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/runtime/create-client-runtime.mjs)
   - [client-runtime/scripts/run-tests.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/scripts/run-tests.mjs)
+  - [server/test/module-conformance/blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
 
 ## Verification
 - Focused frontend slices:
@@ -294,9 +312,9 @@
 
 ## Current Worktree State
 - Uncommitted M04 pass present:
-  - author/comment product-shell alignment
+  - injected runtime comment contracts
 - Next likely pass:
-  - richer product-authored remote query/action contracts for injected `client-runtime`
+  - broader CMS-configurable runtime remote contracts beyond post comments
   - or stronger release observability/cost surfaces around browser delivery and remotes
 - Protocol:
   - `pnpm quality:protocol`

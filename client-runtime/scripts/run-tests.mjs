@@ -28,6 +28,36 @@ function createRuntimeHarness() {
           body: { id: "p1", title: "Updated title" }
         };
       }
+      if (url.includes("/api/reference/collections/blog-comments/items") && init.method === "GET") {
+        return {
+          ok: true,
+          status: 200,
+          body: {
+            items: [
+              { id: "comment-001", postId: "post-001", authorDisplayName: "Reader One", body: "Helpful update.", status: "approved" },
+              { id: "comment-002", postId: "post-001", authorDisplayName: "Reader Two", body: "Thanks for the details.", status: "approved" }
+            ],
+            meta: {
+              total: 2
+            }
+          }
+        };
+      }
+      if (url.includes("/api/reference/collections/blog-comments/items") && init.method === "POST") {
+        return {
+          ok: true,
+          status: 201,
+          body: {
+            item: {
+              id: "comment-003",
+              postId: "post-001",
+              authorDisplayName: "Reader Three",
+              body: "Queued for moderation.",
+              status: "pending"
+            }
+          }
+        };
+      }
       return {
         ok: true,
         status: 200,
@@ -87,10 +117,47 @@ function createRuntimeHarness() {
           pathParams: { id: "payload.id" },
           body: { title: "payload.title" }
         }
+      },
+      {
+        action: "comments.submit",
+        policy: "remote-with-local-update",
+        markDatasetsDirty: ["post-comments"],
+        remote: {
+          method: "POST",
+          path: "/api/reference/collections/blog-comments/items",
+          body: {
+            postId: "context.primaryRecordId",
+            parentCommentId: "payload.parentCommentId",
+            authorDisplayName: "payload.authorDisplayName",
+            authorEmail: "payload.authorEmail",
+            body: "payload.body"
+          }
+        }
       }
     ],
     datasets: [
       { dataset: "catalog" },
+      {
+        dataset: "post-comments",
+        remoteInstall: {
+          method: "GET",
+          path: "/api/reference/collections/blog-comments/items",
+          queryParams: {
+            postId: "context.primaryRecordId",
+            status: "approved"
+          }
+        },
+        remoteSync: {
+          method: "GET",
+          path: "/api/reference/collections/blog-comments/items",
+          queryParams: {
+            postId: "context.primaryRecordId",
+            status: "approved"
+          }
+        },
+        recordMode: "array",
+        remoteValuePath: "items"
+      },
       {
         dataset: "posts",
         fetchInstall: async () => ({ items: [{ id: "a", title: "One" }], version: "1", syncToken: "install" }),
@@ -103,6 +170,9 @@ function createRuntimeHarness() {
     },
     capabilities: {
       getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
+    },
+    context: {
+      primaryRecordId: "post-001"
     }
   });
 
@@ -363,12 +433,112 @@ await runScenario("declarative remote definitions resolve URL params and body pa
   assert.equal(requests.at(-1).init.body, JSON.stringify({ title: "Updated title" }));
 });
 
+await runScenario("collection-shaped remote queries normalize into structured results", async () => {
+  const { runtime, requests } = createRuntimeHarness();
+  const result = await runtime.query({
+    resource: "comments",
+    query: "byPost",
+    policy: "network-first",
+    params: {}
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "QUERY_NOT_FOUND");
+
+  const commentsRuntime = createClientRuntime({
+    remote: {
+      baseUrl: "https://example.test"
+    },
+    queries: [
+      {
+        resource: "comments",
+        query: "byPost",
+        policy: "network-first",
+        dataset: "post-comments",
+        remote: {
+          method: "GET",
+          path: "/api/reference/collections/blog-comments/items",
+          queryParams: {
+            postId: "context.primaryRecordId",
+            status: "approved"
+          }
+        },
+        remoteResult: {
+          type: "collection",
+          itemsPath: "items",
+          totalPath: "meta.total"
+        }
+      }
+    ],
+    datasets: [
+      {
+        dataset: "post-comments"
+      }
+    ],
+    adapters: {
+      indexedDb: createIndexedDbAdapter({ storage: createMemoryDatasetStorageDriver() }),
+      remote: createRemoteTransportAdapter({
+        baseUrl: "https://example.test",
+        fetchJson: async (url, init) => {
+          requests.push({ url, init });
+          return {
+            ok: true,
+            status: 200,
+            body: {
+              items: [
+                { id: "comment-001", postId: "post-001", body: "Helpful update." },
+                { id: "comment-002", postId: "post-001", body: "Thanks for the details." }
+              ],
+              meta: { total: 2 }
+            }
+          };
+        }
+      })
+    },
+    capabilities: {
+      getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
+    },
+    context: {
+      primaryRecordId: "post-001"
+    }
+  });
+
+  const commentsResult = await commentsRuntime.query({
+    resource: "comments",
+    query: "byPost"
+  });
+  assert.equal(commentsResult.ok, true);
+  assert.equal(commentsResult.meta.source, "remote");
+  assert.equal(commentsResult.data.total, 2);
+  assert.equal(commentsResult.data.items[0].postId, "post-001");
+  assert.equal(
+    requests.at(-1).url,
+    "https://example.test/api/reference/collections/blog-comments/items?postId=post-001&status=approved"
+  );
+});
+
 await runScenario("remote-with-local-update marks dependent datasets dirty", async () => {
   const { runtime } = createRuntimeHarness();
   await runtime.installDataset({ dataset: "catalog" });
   const actionResult = await runtime.dispatch({ action: "cart.addItem", payload: { productId: "p1", qty: 1 } });
   const status = await runtime.getDatasetStatus("catalog");
   assert.equal(actionResult.ok, true);
+  assert.equal(status.dirty, true);
+});
+
+await runScenario("comment submission actions mark the comment dataset dirty", async () => {
+  const { runtime } = createRuntimeHarness();
+  const actionResult = await runtime.dispatch({
+    action: "comments.submit",
+    payload: {
+      authorDisplayName: "Reader Three",
+      authorEmail: "reader.three@example.com",
+      body: "Queued for moderation.",
+      parentCommentId: null
+    }
+  });
+  const status = await runtime.getDatasetStatus("post-comments");
+  assert.equal(actionResult.ok, true);
+  assert.equal(actionResult.data.item.postId, "post-001");
   assert.equal(status.dirty, true);
 });
 

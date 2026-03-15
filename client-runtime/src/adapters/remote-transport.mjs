@@ -58,6 +58,37 @@ function normalizeDatasetRemoteResult(definition, body, remoteDefinition) {
   };
 }
 
+function normalizeQueryRemoteResult(definition, body, remoteDefinition) {
+  const remoteResult =
+    definition?.remoteResult && typeof definition.remoteResult === "object"
+      ? definition.remoteResult
+      : null;
+  if (!remoteResult) {
+    return resolveResponseBody(body, remoteDefinition);
+  }
+
+  const resolvedBody = resolveResponseBody(body, remoteDefinition);
+  const resultType = typeof remoteResult.type === "string" ? remoteResult.type.trim() : "";
+  if (resultType !== "collection") {
+    return resolvedBody;
+  }
+
+  const itemsSource =
+    typeof remoteResult.itemsPath === "string" && remoteResult.itemsPath.trim().length > 0
+      ? readPathValue(resolvedBody, remoteResult.itemsPath)
+      : resolvedBody;
+  const items = Array.isArray(itemsSource) ? itemsSource : [];
+  const total =
+    (typeof remoteResult.totalPath === "string" && remoteResult.totalPath.trim().length > 0
+      ? readPathValue(resolvedBody, remoteResult.totalPath)
+      : undefined) ?? items.length;
+
+  return {
+    items,
+    total: Number.isFinite(Number(total)) ? Number(total) : items.length
+  };
+}
+
 export function createRemoteTransportAdapter(options = {}) {
   const fetchImpl = options.fetchImpl || options.globalObject?.fetch || fetch;
   const fetchJson =
@@ -79,7 +110,7 @@ export function createRemoteTransportAdapter(options = {}) {
         `[client-runtime] remote request failed with status ${response.status} for ${requestDescriptor.url}`
       );
     }
-    return resolveResponseBody(response.body, remoteDefinition);
+    return response.body;
   }
 
   async function query(definition, request, context) {
@@ -87,7 +118,8 @@ export function createRemoteTransportAdapter(options = {}) {
       return definition.executeRemote({ request, context });
     }
     if (definition.remote) {
-      return runDeclarativeRemote(definition.remote, request, context);
+      const responseBody = await runDeclarativeRemote(definition.remote, request, context);
+      return normalizeQueryRemoteResult(definition, responseBody, definition.remote);
     }
     if (typeof options.query === "function") {
       return options.query({ definition, request, context, fetchJson });
@@ -100,7 +132,8 @@ export function createRemoteTransportAdapter(options = {}) {
       return definition.executeRemote({ request, context });
     }
     if (definition.remote) {
-      return runDeclarativeRemote(definition.remote, request, context);
+      const responseBody = await runDeclarativeRemote(definition.remote, request, context);
+      return resolveResponseBody(responseBody, definition.remote);
     }
     if (typeof options.dispatch === "function") {
       return options.dispatch({ definition, request, context, fetchJson });

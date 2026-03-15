@@ -1353,3 +1353,19 @@
   - when product-shell alignment should preserve route stability, prefer descriptor-level overrides over route-id churn
   - do not let proof additions bloat already-near-threshold test files; create a fresh focused test file immediately when the repo-shape gate is close
 
+### 2026-03-15 - M04 Injected Runtime Comment Contracts
+- Tasks:
+  - extended Pages delivery so published post pages emit a real comments query/action contract for injected `client-runtime`
+  - taught the runtime transport to normalize collection-shaped remote query results
+  - taught the request resolver to distinguish rooted path expressions from literal strings, which made declarative query params like `status=approved` actually possible
+- Easy:
+  - the comments seam was already real in the repo, so the runtime contract could point at existing engagement routes instead of inventing new APIs
+  - using browser-delivery `publicOrigin` as the runtime remote base was the right bounded improvement over relying only on `window.location.origin`
+- Hard:
+  - the first runtime change double-applied `responsePath` for remote queries and broke the existing page-refresh proof immediately
+  - the second failure showed that `context.primaryRecordId` was not visible where the declarative resolver expected it; the fix belonged in the shared adapter boundary, not in every emitted contract
+  - literal-string support was missing entirely from the remote resolver, which made static query params impossible until the resolver stopped treating every string as a path expression
+- Improve:
+  - when a declarative config format grows from demos into real product contracts, prove literal values and context-bound values in the same package test pass
+  - keep product-authored runtime contracts tied to routes the repo already owns; otherwise the north-star work drifts into aspirational pseudo-APIs
+

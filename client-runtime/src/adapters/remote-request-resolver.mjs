@@ -14,8 +14,21 @@ function getPathValue(source, path) {
 }
 
 function resolveTemplateValue(mapping, request, context) {
+  const requestContext = context?.context && typeof context.context === "object"
+    ? context.context
+    : context;
+  const templateScope = {
+    request,
+    context: requestContext,
+    runtime: context,
+    params: request.params,
+    payload: request.payload
+  };
+  const isPathExpression =
+    typeof mapping === "string" &&
+    /^(request|context|runtime|params|payload)(\.|$)/.test(mapping);
   if (typeof mapping === "string") {
-    return getPathValue({ request, context, params: request.params, payload: request.payload }, mapping);
+    return isPathExpression ? getPathValue(templateScope, mapping) : mapping;
   }
   if (Array.isArray(mapping)) {
     return mapping.map((entry) => resolveTemplateValue(entry, request, context));

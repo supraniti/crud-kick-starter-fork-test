@@ -426,6 +426,36 @@
       - module ids and route segments did not change
       - module collection/runtime contracts did not change
       - product descriptors now own those module ids at the frontend registry boundary
+  - Pass 15 completed in worktree:
+    - delivered post pages now emit a first-class comment runtime contract for injected `client-runtime`
+    - the contract stays bounded to real routes that already exist in the repo:
+      - `GET /api/reference/collections/blog-comments/items`
+      - `POST /api/reference/collections/blog-comments/items`
+    - post-page runtime config now emits:
+      - runtime context:
+        - `primaryRecordId`
+        - `primarySourceType`
+        - `commentsEnabled`
+      - remote base url from browser-delivery public origin when present
+      - comment queries:
+        - `comments.byPost`
+        - `comments.byId`
+      - comment dataset:
+        - `post-comments`
+      - comment action:
+        - `comments.submit`
+    - the runtime package now supports collection-shaped remote query normalization:
+      - remote query results can normalize `{ items, meta.total }` into a structured collection result
+    - the runtime request resolver now distinguishes:
+      - rooted path expressions:
+        - `context.primaryRecordId`
+        - `payload.body`
+      - literal strings:
+        - `approved`
+    - this closes the earlier gap where delivered pages only had:
+      - page payload refresh
+      - media refresh
+      and no real action-oriented runtime contract
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -434,4 +464,4 @@
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - remote billing/cost summaries are not surfaced yet
     - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and release observability
-    - generated HTML now boots `client-runtime`, and delivered pages can re-sync their page/media datasets, but richer product-authored query/action contracts are still not emitted from local CMS configuration
+    - generated HTML now boots `client-runtime`, and post pages now emit a bounded comments query/action contract, but richer runtime contracts are still not yet CMS-configurable across more page/data types

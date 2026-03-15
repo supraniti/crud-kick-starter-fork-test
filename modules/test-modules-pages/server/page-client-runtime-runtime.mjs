@@ -6,6 +6,7 @@ import { normalizeScriptUrlList } from "./distribution-shared-runtime.mjs";
 const DEFAULT_CLIENT_RUNTIME_ASSET_URL = "/assets/client-runtime.global.js";
 const DEFAULT_PAGE_PAYLOAD_DATASET = "page-payload";
 const DEFAULT_PAGE_MEDIA_DATASET = "page-media";
+const DEFAULT_POST_COMMENTS_DATASET = "post-comments";
 const DEFAULT_PAGE_REMOTE_QUERY = "currentRemote";
 
 function resolveAssetRelativePath(assetUrl) {
@@ -119,20 +120,121 @@ function createMediaDatasetDefinition(payload = {}) {
   };
 }
 
+function readPrimaryRecord(payload = {}) {
+  return payload?.data?.primary?.record && typeof payload.data.primary.record === "object"
+    ? payload.data.primary.record
+    : null;
+}
+
+function supportsCommentsRuntime(payload = {}) {
+  const primaryRecord = readPrimaryRecord(payload);
+  if (payload?.page?.primarySourceType !== "blog-post" || !primaryRecord) {
+    return false;
+  }
+  if (primaryRecord.allowComments === false) {
+    return false;
+  }
+  return primaryRecord.commentPolicy !== "closed";
+}
+
+function createCommentsRemoteDefinition() {
+  return {
+    method: "GET",
+    path: "/api/reference/collections/blog-comments/items",
+    queryParams: {
+      postId: "context.primaryRecordId",
+      status: "approved"
+    }
+  };
+}
+
+function createCommentsQueryDefinitions() {
+  return [
+    {
+      resource: "comments",
+      query: "byPost",
+      policy: "network-first",
+      dataset: DEFAULT_POST_COMMENTS_DATASET,
+      remote: createCommentsRemoteDefinition(),
+      remoteResult: {
+        type: "collection",
+        itemsPath: "items",
+        totalPath: "meta.total"
+      }
+    },
+    {
+      resource: "comments",
+      query: "byId",
+      policy: "local-first",
+      dataset: DEFAULT_POST_COMMENTS_DATASET
+    }
+  ];
+}
+
+function createCommentsDatasetDefinition() {
+  return {
+    dataset: DEFAULT_POST_COMMENTS_DATASET,
+    remoteInstall: createCommentsRemoteDefinition(),
+    remoteSync: createCommentsRemoteDefinition(),
+    recordMode: "array",
+    remoteValuePath: "items"
+  };
+}
+
+function createCommentsActionDefinitions() {
+  return [
+    {
+      action: "comments.submit",
+      policy: "remote-with-local-update",
+      markDatasetsDirty: [DEFAULT_POST_COMMENTS_DATASET],
+      remote: {
+        method: "POST",
+        path: "/api/reference/collections/blog-comments/items",
+        body: {
+          postId: "context.primaryRecordId",
+          parentCommentId: "payload.parentCommentId",
+          authorDisplayName: "payload.authorDisplayName",
+          authorEmail: "payload.authorEmail",
+          body: "payload.body"
+        }
+      }
+    }
+  ];
+}
+
 function buildRuntimeRegistries(payload = {}) {
   const remotePageQuery = createRemotePageQueryDefinition(payload);
   const registries = {
     bootstrapDatasets: [DEFAULT_PAGE_PAYLOAD_DATASET],
     queries: [createPagePayloadQueryDefinition(), ...(remotePageQuery ? [remotePageQuery] : [])],
+    actions: [],
     datasets: [createPagePayloadDatasetDefinition(payload)]
   };
   if (!hasResolvedMediaItems(payload)) {
-    return registries;
+    if (!supportsCommentsRuntime(payload)) {
+      return registries;
+    }
+    return {
+      bootstrapDatasets: registries.bootstrapDatasets,
+      queries: [...registries.queries, ...createCommentsQueryDefinitions()],
+      actions: createCommentsActionDefinitions(),
+      datasets: [...registries.datasets, createCommentsDatasetDefinition()]
+    };
   }
-  return {
+  const withMedia = {
     bootstrapDatasets: [...registries.bootstrapDatasets, DEFAULT_PAGE_MEDIA_DATASET],
     queries: [...registries.queries, ...createMediaQueryDefinitions()],
+    actions: registries.actions,
     datasets: [...registries.datasets, createMediaDatasetDefinition(payload)]
+  };
+  if (!supportsCommentsRuntime(payload)) {
+    return withMedia;
+  }
+  return {
+    bootstrapDatasets: withMedia.bootstrapDatasets,
+    queries: [...withMedia.queries, ...createCommentsQueryDefinitions()],
+    actions: createCommentsActionDefinitions(),
+    datasets: [...withMedia.datasets, createCommentsDatasetDefinition()]
   };
 }
 
@@ -141,11 +243,15 @@ function resolveMediaRegistrySize(payload = {}) {
 }
 
 function buildPageContext(payload = {}) {
+  const primaryRecord = readPrimaryRecord(payload);
   return {
     pagePayloadScriptId: "page-data",
     pageId: payload?.page?.id ?? "",
     pagePath: payload?.page?.path ?? "",
-    pageSyncPath: payload?.followUp?.pageByPathRoute ?? null
+    pageSyncPath: payload?.followUp?.pageByPathRoute ?? null,
+    primaryRecordId: primaryRecord?.id ?? null,
+    primarySourceType: payload?.page?.primarySourceType ?? "none",
+    commentsEnabled: supportsCommentsRuntime(payload)
   };
 }
 
@@ -169,6 +275,7 @@ function buildRuntimeContext(payload = {}) {
 
 export function buildClientRuntimeContract(payload = {}) {
   const runtimeRegistries = buildRuntimeRegistries(payload);
+  const publicOrigin = payload?.delivery?.publicOrigin ?? null;
 
   return {
     contractVersion: 1,
@@ -176,12 +283,13 @@ export function buildClientRuntimeContract(payload = {}) {
     bootstrapDatasets: runtimeRegistries.bootstrapDatasets,
     context: buildRuntimeContext(payload),
     remote: {
+      ...(publicOrigin ? { baseUrl: publicOrigin } : {}),
       defaultHeaders: {
         Accept: "application/json"
       }
     },
     queries: runtimeRegistries.queries,
-    actions: [],
+    actions: runtimeRegistries.actions,
     datasets: runtimeRegistries.datasets
   };
 }

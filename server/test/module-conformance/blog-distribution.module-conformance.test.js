@@ -1170,7 +1170,13 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
     expect(deliveryResponse.body.payload.runtime.clientRuntime).toEqual(
       expect.objectContaining({
         bootstrapDatasets: expect.arrayContaining(["page-payload", "page-media"]),
+        context: expect.objectContaining({
+          primaryRecordId: post.id,
+          primarySourceType: "blog-post",
+          commentsEnabled: true
+        }),
         remote: expect.objectContaining({
+          baseUrl: "https://content.example.com",
           defaultHeaders: expect.objectContaining({
             Accept: "application/json"
           })
@@ -1188,6 +1194,33 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
             resource: "media",
             query: "byId",
             dataset: "page-media"
+          }),
+          expect.objectContaining({
+            resource: "comments",
+            query: "byPost",
+            dataset: "post-comments",
+            remote: expect.objectContaining({
+              path: "/api/reference/collections/blog-comments/items",
+              queryParams: expect.objectContaining({
+                postId: "context.primaryRecordId",
+                status: "approved"
+              })
+            }),
+            remoteResult: expect.objectContaining({
+              type: "collection",
+              itemsPath: "items",
+              totalPath: "meta.total"
+            })
+          })
+        ]),
+        actions: expect.arrayContaining([
+          expect.objectContaining({
+            action: "comments.submit",
+            markDatasetsDirty: ["post-comments"],
+            remote: expect.objectContaining({
+              method: "POST",
+              path: "/api/reference/collections/blog-comments/items"
+            })
           })
         ]),
         datasets: expect.arrayContaining([
@@ -1206,6 +1239,20 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
             }),
             responsePath: "payload",
             remoteValuePath: "payload.media.items"
+          }),
+          expect.objectContaining({
+            dataset: "post-comments",
+            remoteInstall: expect.objectContaining({
+              path: "/api/reference/collections/blog-comments/items",
+              queryParams: expect.objectContaining({
+                postId: "context.primaryRecordId",
+                status: "approved"
+              })
+            }),
+            remoteSync: expect.objectContaining({
+              path: "/api/reference/collections/blog-comments/items"
+            }),
+            remoteValuePath: "items"
           })
         ])
       })
