@@ -12,6 +12,20 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Release Observability And Cost Surfacing
+- Tasks:
+  - added product-level release observability on top of the deployment bundle pipeline
+  - reused embedded Remote Ops compatibility analysis instead of duplicating provisioning/cost logic inside product Deployments
+  - tightened a fragile deployment integration test after the new observability card introduced duplicate visible bundle titles
+- Easy:
+  - the existing compatibility report structure was already rich enough to drive cost-warning, missing-resource, and provisionable-action summaries without changing server contracts
+  - keeping the new logic in a pure `product-deployment-release-observability` helper made the product desk change bounded and testable
+- Hard:
+  - adding summary UI can quietly break text-based integration selectors; once the same bundle title appeared in both the sidebar and the new card, loose `getByText(...)` assertions became ambiguous
+  - frontend architecture lint still matters late in a pass; the first observability helper version worked but exceeded the repo complexity ceiling by one point
+- Improve:
+  - prefer role-based selectors for product-shell workflow tests whenever summary cards can repeat business labels from sidebars or editors
+  - when reusing remote compatibility in product desks, keep caching/report lookup centralized in the embedded support hook so future desks do not fork their own remote analysis state
 ### 2026-03-15 - M04 Server-Owned Bundle Release And Root Alignment
 - Tasks:
   - moved deployment-bundle release execution behind a Pages-owned module route

@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `d86eb05` `feat: add injected runtime comment contracts`
+  - `50afe06` `feat: emit page runtime slot contracts`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -237,6 +237,28 @@
         - emitted runtime slots expose:
           - `primary`
           - `categoryPosts`
+  - release observability and cost surfaces:
+    - product `Deployments` now computes a first-class release-footprint view for the selected bundle
+    - the new card shows:
+      - shared remote connection
+      - selected page html output count
+      - current page deployment status
+      - browser-delivery hostname/access/stack/dns summary
+      - compare-summary lines for:
+        - posts projection
+        - categories projection
+        - tags projection
+        - media sync
+        - html deployment
+    - the Deployments desk can now analyze remote compatibility from the release surface itself
+    - compatibility reports are cached per connection in the embedded remote-ops support hook and reused by product desks
+    - release observability now exposes:
+      - cost warnings
+      - missing resources
+      - provisionable actions
+      - safeguard count
+      - blocked/action-required remote bundle areas
+    - this pass closes the previous product gap where release execution had readiness and run history, but no preflight view of remote cost/provisioning pressure
 
 ## Key Files Touched
 - Product shell:
@@ -258,6 +280,20 @@
   - [modules/test-modules-pages/frontend/BlogDistributionRemotePanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionRemotePanels.jsx)
   - [modules/test-modules-pages/frontend/page-workspace-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/page-workspace-support.js)
   - [modules/test-modules-pages/server/page-settings-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-settings-runtime.mjs)
+  - [modules/test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js)
+  - [frontend/src/app/product-shell/product-deployment-release-observability.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-release-observability.js)
+  - [frontend/src/app/product-shell/DeploymentReleaseObservabilityCard.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/DeploymentReleaseObservabilityCard.jsx)
+  - [frontend/src/app/product-shell/useProductDeploymentsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductDeploymentsWorkspace.js)
+  - [frontend/src/app/product-shell/ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+
+## Verification For Current Worktree
+- Focused proof:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx`
+- Repo constraints:
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+- All passed.
   - [modules/test-modules-pages/server/page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
   - [modules/test-modules-pages/server/page-client-runtime-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-client-runtime-runtime.mjs)
   - [modules/test-modules-pages/server/page-media-reference-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-media-reference-runtime.mjs)

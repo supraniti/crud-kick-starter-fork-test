@@ -483,8 +483,34 @@
         - `primary`
         - `categoryPosts`
   - verification for the active worktree:
-    - `pnpm quality:gate:full` passed
-    - `pnpm quality:protocol` passed
+      - `pnpm quality:gate:full` passed
+      - `pnpm quality:protocol` passed
+  - Pass 17 completed in worktree:
+    - product `Deployments` now surfaces release observability before execution instead of only readiness and historical runs
+    - the selected deployment bundle now computes one explicit release-footprint view:
+      - shared remote connection identity
+      - html output count from the selected page
+      - current page deployment status
+      - browser-delivery hostname/access/stack/dns summary
+      - compare-summary lines for:
+        - posts projection
+        - categories projection
+        - tags projection
+        - media sync
+        - html deployment
+    - product `Deployments` can now trigger remote compatibility analysis for the selected bundle's shared connection directly from the release desk
+    - embedded remote support now caches compatibility reports per connection so product desks can reuse the same report without re-implementing remote-ops loading rules
+    - release observability now surfaces:
+      - cost-warning count
+      - missing-resource count
+      - provisionable-action count
+      - safeguard-rule count
+      - blocked/action-required bundle areas from the compatibility report
+    - this closes the earlier operator gap where deployment release could be "ready" but there was no product-level view of:
+      - expected remote footprint
+      - recurring-cost warnings
+      - provisioning pressure
+      before running the mission
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:

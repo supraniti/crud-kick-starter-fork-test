@@ -29,6 +29,7 @@ vi.mock("../../../../modules/test-modules-remote-ops/frontend/remote-ops-workspa
   );
   return {
     ...actual,
+    analyzeConnectionCompatibility: vi.fn(),
     compareTarget: vi.fn(),
     executeTarget: vi.fn(),
     validateTarget: vi.fn()
@@ -360,7 +361,7 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Release Pipeline")).toBeInTheDocument();
     expect(screen.getByText("Page: page-001")).toBeInTheDocument();
   });
-  fireEvent.click(screen.getByText("Posts Release Bundle"));
+  fireEvent.click(screen.getByRole("button", { name: /Posts Release Bundle\s+Page: page-001/i }));
 
   await waitFor(() => {
     expect(screen.getByText("Bundle bindings are coherent.")).toBeInTheDocument();
@@ -379,3 +380,126 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getAllByText("Binding source: Deployment bundle").length).toBeGreaterThan(0);
   });
 }, 20000);
+
+test("product deployments desk surfaces release footprint and remote cost warnings from compatibility analysis", async () => {
+  const baseTargets = createStandardTargetSet({
+    posts: {
+      compareSummary: {
+        state: "drift",
+        createCount: 12,
+        updateCount: 3,
+        deleteCount: 0,
+        localOnlyCount: 1,
+        remoteOnlyCount: 0
+      }
+    },
+    deployment: {
+      compareSummary: {
+        state: "drift",
+        createCount: 10,
+        updateCount: 0,
+        deleteCount: 0,
+        localOnlyCount: 0,
+        remoteOnlyCount: 0
+      }
+    }
+  });
+  const bundle = {
+    id: "bundle-001",
+    title: "Posts Release Bundle",
+    pageId: "page-001",
+    postsProjectionTargetProfileId: "target-posts-001",
+    categoriesProjectionTargetProfileId: "target-categories-001",
+    tagsProjectionTargetProfileId: "target-tags-001",
+    mediaTargetProfileId: "target-media-001",
+    deploymentTargetProfileId: "target-deployment-001",
+    browserDeliveryTargetProfileId: "target-browser-001"
+  };
+
+  mockDeploymentCollections({
+    pages: [createPublishedPage()],
+    bundles: [bundle],
+    bundleRuns: [],
+    connections: [createValidatedConnection()],
+    targets: Object.values(baseTargets),
+    remoteRuns: []
+  });
+  mockModuleSettings();
+  remoteOpsSupportApi.analyzeConnectionCompatibility.mockResolvedValue({
+    bundles: [
+      {
+        id: "firestore-projection",
+        label: "Firestore projection",
+        state: "action-required",
+        costWarnings: [
+          {
+            id: "firestore-storage",
+            message: "Creating a Firestore database is a project-level decision and starts ongoing storage/read/write costs."
+          }
+        ],
+        missingResources: [{ kind: "firestore-database", label: "Default Firestore database" }],
+        provisionableActions: [{ id: "create-firestore-default-database" }]
+      },
+      {
+        id: "deployment-storage",
+        label: "Deployment storage",
+        state: "compatible",
+        costWarnings: [
+          {
+            id: "deployment-bucket",
+            message: "Creating a new bucket introduces storage, network egress, and possible CDN-related costs."
+          }
+        ],
+        missingResources: [],
+        provisionableActions: []
+      },
+      {
+        id: "media-storage",
+        label: "Media storage",
+        state: "compatible",
+        costWarnings: [],
+        missingResources: [],
+        provisionableActions: []
+      },
+      {
+        id: "browser-delivery",
+        label: "Browser delivery",
+        state: "compatible",
+        costWarnings: [],
+        missingResources: [],
+        provisionableActions: []
+      }
+    ],
+    safeguardRules: [{ id: "cost-confirmation" }]
+  });
+
+  render(<ProductDeploymentsView />);
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Release Pipeline Desk" })).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Posts Release Bundle\s+Page: page-001/i }));
+
+  await waitFor(() => {
+    expect(screen.getByText("Release Footprint")).toBeInTheDocument();
+    expect(screen.getByText("HTML outputs: 10")).toBeInTheDocument();
+    expect(screen.getByText(/Creates 12/i)).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Analyze Remote Costs" }));
+
+  await waitFor(() => {
+    expect(remoteOpsSupportApi.analyzeConnectionCompatibility).toHaveBeenCalledWith("conn-001");
+    expect(
+      screen.getByText(
+        "Firestore projection: Creating a Firestore database is a project-level decision and starts ongoing storage/read/write costs."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Deployment storage: Creating a new bucket introduces storage, network egress, and possible CDN-related costs."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 remote bundle areas still need provisioning actions.")).toBeInTheDocument();
+  });
+}, 15000);

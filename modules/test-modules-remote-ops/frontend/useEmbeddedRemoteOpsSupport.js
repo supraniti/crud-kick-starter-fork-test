@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  analyzeConnectionCompatibility,
   compareTarget,
   executeTarget,
   loadRemoteOpsSupportData,
@@ -24,6 +25,67 @@ function createProcedureState() {
     targetId: "",
     errorMessage: null,
     successMessage: null
+  };
+}
+
+function createCompatibilityState() {
+  return {
+    processing: false,
+    connectionId: "",
+    errorMessage: null,
+    reportsByConnectionId: {}
+  };
+}
+
+function useCompatibilityReports() {
+  const [compatibilityState, setCompatibilityState] = useState(createCompatibilityState);
+
+  const analyzeConnection = useCallback(async (connectionId) => {
+    if (typeof connectionId !== "string" || connectionId.length === 0) {
+      return null;
+    }
+    setCompatibilityState((previous) => ({
+      ...previous,
+      processing: true,
+      connectionId,
+      errorMessage: null
+    }));
+    try {
+      const report = await analyzeConnectionCompatibility(connectionId);
+      setCompatibilityState((previous) => ({
+        ...previous,
+        processing: false,
+        connectionId,
+        errorMessage: null,
+        reportsByConnectionId: {
+          ...previous.reportsByConnectionId,
+          [connectionId]: report
+        }
+      }));
+      return report;
+    } catch (error) {
+      setCompatibilityState((previous) => ({
+        ...previous,
+        processing: false,
+        connectionId,
+        errorMessage: error?.message ?? "Failed to analyze remote compatibility"
+      }));
+      return null;
+    }
+  }, []);
+
+  const getCompatibilityReportForConnection = useCallback(
+    (connectionId) =>
+      typeof connectionId === "string" && connectionId.length > 0
+        ? compatibilityState.reportsByConnectionId[connectionId] ?? null
+        : null,
+    [compatibilityState.reportsByConnectionId]
+  );
+
+  return {
+    compatibilityState,
+    analyzeConnection,
+    getCompatibilityReportForConnection
   };
 }
 
@@ -75,6 +137,7 @@ export function resolveLatestRemoteRun(runs, targetId) {
 export function useEmbeddedRemoteOpsSupport() {
   const [supportState, setSupportState] = useState(createSupportState);
   const [procedureState, setProcedureState] = useState(createProcedureState);
+  const compatibility = useCompatibilityReports();
 
   const reload = useCallback(async () => {
     setSupportState((previous) => ({
@@ -167,11 +230,14 @@ export function useEmbeddedRemoteOpsSupport() {
   return {
     supportState,
     procedureState,
+    compatibilityState: compatibility.compatibilityState,
     connectionById,
     reload,
     getTargetsByKind,
     getTargetById,
     getLatestRunForTarget,
+    getCompatibilityReportForConnection: compatibility.getCompatibilityReportForConnection,
+    analyzeConnection: compatibility.analyzeConnection,
     validateTarget(targetId) {
       return runTargetProcedure(targetId, "validate");
     },

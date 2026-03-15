@@ -1,5 +1,6 @@
 import { Alert, Stack } from "@mui/material";
 import { useProductDeploymentsWorkspace } from "./useProductDeploymentsWorkspace.js";
+import { DeploymentReleaseObservabilityCard } from "./DeploymentReleaseObservabilityCard.jsx";
 import {
   DeploymentBundleEditorCard,
   DeploymentBundleValidationCard,
@@ -88,6 +89,11 @@ export function ProductDeploymentsView({ navigate = null }) {
             readiness={workspace.pipelineReadiness}
             pipelineState={workspace.pipelineState}
             onRunPipeline={workspace.runReleasePipeline}
+          />
+
+          <DeploymentReleaseObservabilityCard
+            observability={workspace.releaseObservability}
+            onAnalyzeCompatibility={workspace.analyzeReleaseCompatibility}
           />
 
           <DeploymentReleaseHistoryCard

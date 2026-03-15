@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useEmbeddedRemoteOpsSupport } from "../../../../modules/test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 import { createProductRemoteHealth } from "./product-remote-health.js";
+import { createDeploymentReleaseObservability } from "./product-deployment-release-observability.js";
 import {
   useDeploymentBundleState,
   useDeploymentExecution,
@@ -28,9 +29,41 @@ export function useProductDeploymentsWorkspace() {
     deploymentTargetState: bundleState.deploymentTargetState,
     browserTargetState: bundleState.browserTargetState
   });
+  const releaseObservability = useMemo(
+    () =>
+      createDeploymentReleaseObservability({
+        selectedBundle: bundleState.bundleEditor.selectedBundle,
+        selectedPage: bundleState.selectedPage,
+        projectionTargetState: bundleState.projectionTargetState,
+        categoriesProjectionTargetState: bundleState.categoriesProjectionTargetState,
+        tagsProjectionTargetState: bundleState.tagsProjectionTargetState,
+        mediaTargetState: bundleState.mediaTargetState,
+        deploymentTargetState: bundleState.deploymentTargetState,
+        browserTargetState: bundleState.browserTargetState,
+        remoteOpsSupport
+      }),
+    [
+      bundleState.browserTargetState,
+      bundleState.bundleEditor.selectedBundle,
+      bundleState.categoriesProjectionTargetState,
+      bundleState.deploymentTargetState,
+      bundleState.mediaTargetState,
+      bundleState.projectionTargetState,
+      bundleState.selectedPage,
+      bundleState.tagsProjectionTargetState,
+      remoteOpsSupport
+    ]
+  );
   const reloadWorkspace = useCallback(async () => {
     await Promise.all([reload(), remoteOpsSupport.reload()]);
   }, [reload, remoteOpsSupport]);
+  const analyzeReleaseCompatibility = useCallback(async () => {
+    const connectionId = releaseObservability.connection.connectionId;
+    if (!connectionId) {
+      return null;
+    }
+    return remoteOpsSupport.analyzeConnection(connectionId);
+  }, [releaseObservability.connection.connectionId, remoteOpsSupport]);
 
   return {
     loading: state.loading,
@@ -50,6 +83,7 @@ export function useProductDeploymentsWorkspace() {
     selectedPage: bundleState.selectedPage,
     selectedBundleRuns: bundleState.selectedBundleRuns,
     bundleRunSummary: bundleState.bundleRunSummary,
+    releaseObservability,
     localSyncState: executionState.localSyncState,
     pipelineState: executionState.pipelineState,
     pipelineReadiness: bundleState.pipelineReadiness,
@@ -74,6 +108,7 @@ export function useProductDeploymentsWorkspace() {
     remoteOpsSupport,
     syncSelectedPage: executionState.syncSelectedPage,
     runReleasePipeline: executionState.runReleasePipeline,
+    analyzeReleaseCompatibility,
     reload: reloadWorkspace
   };
 }
