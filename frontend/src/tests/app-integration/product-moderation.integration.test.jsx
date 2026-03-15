@@ -7,6 +7,7 @@ vi.mock("../../api/reference.js", async () => {
   const actual = await vi.importActual("../../api/reference.js");
   return {
     ...actual,
+    fetchReferenceCollectionItems: vi.fn(),
     updateReferenceCollectionItem: vi.fn()
   };
 });
@@ -97,6 +98,18 @@ afterEach(() => {
 });
 
 test("product moderation view keeps comment moderation tied to the moderator roster", async () => {
+  referenceApi.fetchReferenceCollectionItems.mockResolvedValue({
+    ok: true,
+    items: [
+      {
+        id: "post-001",
+        title: "Launch Update",
+        status: "published",
+        allowComments: true,
+        commentPolicy: "open"
+      }
+    ]
+  });
   referenceApi.updateReferenceCollectionItem.mockResolvedValue({
     ok: true,
     item: {
@@ -112,6 +125,8 @@ test("product moderation view keeps comment moderation tied to the moderator ros
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Moderation Control Desk" })).toBeInTheDocument();
     expect(screen.getByText("Moderation Readiness")).toBeInTheDocument();
+    expect(screen.getByText("Remote Intake Contract")).toBeInTheDocument();
+    expect(screen.getByText("Compliance Signals")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
   });
 
@@ -137,6 +152,8 @@ test("product moderation view keeps comment moderation tied to the moderator ros
     expect(collectionsDomain.reloadCollectionItems).toHaveBeenCalled();
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "Open Authors" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "Open Authors" })[0]);
   expect(navigate).toHaveBeenCalledWith({ moduleId: "test-modules-editorial" }, { replace: false });
+  fireEvent.click(screen.getByRole("button", { name: "Open Pages" }));
+  expect(navigate).toHaveBeenCalledWith({ moduleId: "test-modules-pages" }, { replace: false });
 });

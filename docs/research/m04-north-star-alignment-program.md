@@ -663,14 +663,38 @@
       - post authoring-readiness rendering
       - taxonomy posts/pages usage visibility
       - author assignment coverage in the product desk
+  - Pass 26 completed in worktree:
+    - product `Comments` now treats moderation as remote intake moving through a bounded review pipeline:
+      - remote comment contract visibility
+      - comments-enabled published-post coverage
+      - local moderation queue tied back to source-post policy
+    - moderation/compliance cues now stay visible from one desk:
+      - pending backlog
+      - missing email
+      - reply density
+      - spam/rejected counts
+      - approved-without-moderator attribution gaps
+    - selected comments now expose lifecycle-stage visibility:
+      - submitted
+      - queued
+      - moderated
+      - source-post comment policy state
+    - queue rows now surface immediate risk chips for:
+      - reply threads
+      - missing email
+      - missing moderator attribution
+    - focused proof now covers:
+      - remote intake contract rendering on the product route
+      - moderation/compliance visibility
+      - navigation from comments into the linked product repair surfaces
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
     - generated HTML now boots `client-runtime`, and Pages now exposes the resolved runtime contract, but richer CMS-configurable remote actions and equivalent runtime inspection across more content types are still not yet exposed beyond the current page/comment/media seams
-    - comments, pages/deployments ease-of-use, broader runtime authoring, and final product-surface cleanup still need their remaining passes from the fixed completion map
+    - pages/deployments ease-of-use, broader runtime authoring, and final product-surface cleanup still need their remaining passes from the fixed completion map
 
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 26: Comments Sync And Moderation Hardening
+  - Pass 27: Pages / Deployments Ease-Of-Use Hardening

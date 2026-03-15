@@ -12,6 +12,27 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Comments Sync And Moderation Hardening
+- Tasks:
+  - hardened the product `Comments` desk so it reads as remote-originated intake moving through a moderation pipeline instead of just another CRUD collection
+  - added explicit visibility for the current runtime contract seam:
+    - dataset
+    - query
+    - action
+    - backing GET/POST routes
+  - added compliance/lifecycle cues without widening the backend comment schema
+- Easy:
+  - the existing engagement schema and handler already modeled the real moderation rules, so the pass could stay frontend-first and product-first
+  - the post collection already carried the comment-policy fields needed to explain which published posts can actually feed the queue
+- Hard:
+  - the first product proof failed on two small but real issues:
+    - JSX literal arrow tokens inside inline text
+    - a now-duplicated `Open Authors` button selector
+  - the real constraint was not backend capability; it was preserving bounded ownership while making the remote/runtime relationship explicit enough for operators
+- Improve:
+  - when a product pass is about lifecycle clarity, prefer explicit contract and stage visibility over inventing new persistence flags that do not yet exist
+  - once a product surface repeats navigation labels across cards, integration tests should move to `getAllByRole(...)[n]` or scoped queries immediately
+
 ### 2026-03-15 - M04 Posts Taxonomies Authors Hardening
 - Tasks:
   - tightened the post authoring loop by surfacing author/category/media/SEO/body readiness directly beside the content editor

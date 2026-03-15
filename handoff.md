@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `80bb309` `feat: harden product domain setup`
+  - `b834288` `feat: harden posts taxonomy authors desks`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -29,43 +29,39 @@
 ## Current review seam
 - Execute the fixed M04 pass sequence without re-planning it each turn.
 - Current next locked pass after the active worktree slice:
-  - Pass 26: comments sync and moderation hardening
+  - Pass 27: pages / deployments ease-of-use hardening
 - Remaining order is fixed in:
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
 
 ## Latest M04 worktree slice
-- Pass 25 complete in worktree:
-  - posts now expose authoring-readiness directly in the editor flow:
-    - author assignment status
-    - category assignment status
-    - featured media status
-    - SEO readiness
-    - body completeness
-    - impacted published pages
+- Pass 26 complete in worktree:
+  - product `Comments` now exposes remote-intake framing directly in the moderation desk:
+    - remote comment contract
+    - comments-enabled published-post coverage
     - direct navigation into:
-      - `Authors`
-      - `Taxonomies`
-      - `Media`
+      - `Posts`
       - `Pages`
-  - taxonomy desk now exposes posts/pages usage visibility:
-    - total post references
-    - posts missing categories
-    - referenced vs unused term counts
-    - top referenced terms
-    - category template-page visibility
-    - listing-page visibility for categories and tags
-  - product `Authors` now exposes assignment coverage and author attention state:
-    - assigned posts count
-    - published posts count
-    - posts needing author attention
-    - missing-avatar coverage
-    - inactive authors still carrying assignments
+      - `Authors`
+  - moderation/compliance visibility now stays on one surface:
+    - pending backlog
+    - missing email
+    - reply density
+    - spam and rejected counts
+    - approved-without-moderator attribution gaps
+  - selected comments now expose lifecycle-stage visibility tied to the source-post policy:
+    - submitted
+    - queued
+    - moderated
+    - source-post comments-open state
+  - queue rows now surface immediate risk chips for:
+    - reply
+    - missing email
+    - missing moderator
 
 ## Current verification note
 - Focused proofs green:
-  - `blog-content.integration`
-  - `blog-editorial-taxonomy.integration`
-  - `product-editorial.integration`
+  - `product-moderation.integration`
+  - `blog-engagement.integration`
 - `pnpm lint:repo-loc` passed
 - `pnpm lint:function-shape` passed
 - `pnpm quality:protocol` passed

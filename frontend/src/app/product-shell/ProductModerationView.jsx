@@ -12,6 +12,8 @@ import {
 } from "@mui/material";
 import { useMemo } from "react";
 import { useBlogEngagementWorkspace } from "../../../../modules/test-modules-engagement/frontend/useBlogEngagementWorkspace.js";
+import { RemoteCommentContractCard, ModerationComplianceCard, SelectedCommentLifecycleCard } from "./ProductModerationInsightsPanels.jsx";
+import { useCommentModerationAwareness } from "./useCommentModerationAwareness.js";
 
 function SummaryCard({ label, value, tone = "default" }) {
   return (
@@ -189,6 +191,12 @@ function CommentQueue({ comments, selectedCommentId, postOptions, onSelectCommen
                     label={resolveOptionLabel(postOptions, comment.postId, comment.postId)}
                     variant="outlined"
                   />
+                  {comment.parentCommentId ? <Chip size="small" label="reply" variant="outlined" /> : null}
+                  {!comment.authorEmail ? <Chip size="small" label="missing email" color="warning" /> : null}
+                  {(comment.status === "approved" || comment.status === "rejected" || comment.status === "spam") &&
+                  !comment.approvedByAuthorId ? (
+                    <Chip size="small" label="missing moderator" color="warning" />
+                  ) : null}
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
                   {String(comment.body ?? "").slice(0, 140)}
@@ -328,11 +336,19 @@ function CommentDetail({ workspace }) {
 
 export function ProductModerationView({ navigate = null, collectionsDomain }) {
   const workspace = useBlogEngagementWorkspace({ collectionsDomain });
+  const awareness = useCommentModerationAwareness({
+    selectedComment: workspace.selectedComment
+  });
   const queueTitle = useMemo(
     () => resolveOptionLabel(workspace.postOptions, workspace.selectedComment?.postId, "Comment Queue"),
     [workspace.postOptions, workspace.selectedComment?.postId]
   );
   const diagnostics = useMemo(() => buildModerationDiagnostics(workspace.comments), [workspace.comments]);
+  const moderatorLabel = resolveOptionLabel(
+    workspace.authorOptions,
+    workspace.selectedComment?.approvedByAuthorId,
+    "Not moderated"
+  );
 
   function openRoute(moduleId) {
     if (typeof navigate !== "function") {
@@ -392,6 +408,17 @@ export function ProductModerationView({ navigate = null, collectionsDomain }) {
         onOpenAuthors={() => openRoute("test-modules-editorial")}
       />
 
+      <RemoteCommentContractCard
+        awareness={awareness}
+        onOpenPosts={() => openRoute("test-modules-content")}
+        onOpenPages={() => openRoute("test-modules-pages")}
+      />
+
+      <ModerationComplianceCard
+        comments={workspace.comments}
+        onOpenAuthors={() => openRoute("test-modules-editorial")}
+      />
+
       <QueueFilters
         filters={workspace.filters}
         postOptions={workspace.postOptions}
@@ -431,6 +458,11 @@ export function ProductModerationView({ navigate = null, collectionsDomain }) {
             </Typography>
             <Typography variant="h6">{queueTitle}</Typography>
           </Paper>
+          <SelectedCommentLifecycleCard
+            comment={workspace.selectedComment}
+            selectedPost={awareness.selectedPost}
+            moderatorLabel={moderatorLabel}
+          />
           <CommentDetail workspace={workspace} />
           <ThreadPanel threadItems={workspace.threadItems} selectedCommentId={workspace.selectedCommentId} />
         </Stack>
