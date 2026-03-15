@@ -8,6 +8,10 @@ export const PAGES_COLLECTION_ID = "blog-pages";
 export const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
 export const LAYOUTS_COLLECTION_ID = "page-layouts";
 export const DEPLOYMENT_ARTIFACTS_COLLECTION_ID = "page-deployment-artifacts";
+export const DEPLOYMENT_BUNDLES_COLLECTION_ID = "page-deployment-bundles";
+export const DEPLOYMENT_BUNDLE_RUNS_COLLECTION_ID = "page-deployment-bundle-runs";
+export const REMOTE_CONNECTIONS_COLLECTION_ID = "remote-connection-profiles";
+export const REMOTE_TARGETS_COLLECTION_ID = "remote-target-profiles";
 
 export const PAGE_KIND_SET = new Set(["standalone", "content-detail", "listing", "profile"]);
 export const PAGE_STATUS_SET = new Set(["draft", "in-review", "scheduled", "published", "archived"]);

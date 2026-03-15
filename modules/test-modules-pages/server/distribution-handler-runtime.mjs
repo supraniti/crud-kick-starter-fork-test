@@ -1,4 +1,9 @@
-import { PAGES_COLLECTION_ID, REDIRECTS_COLLECTION_ID } from "./distribution-shared-runtime.mjs";
+import {
+  DEPLOYMENT_BUNDLES_COLLECTION_ID,
+  PAGES_COLLECTION_ID,
+  REDIRECTS_COLLECTION_ID
+} from "./distribution-shared-runtime.mjs";
+import { wrapDeploymentBundlesHandler } from "./distribution-bundle-handler-runtime.mjs";
 import { wrapPagesHandler } from "./distribution-page-handler-runtime.mjs";
 import { wrapRedirectsHandler } from "./distribution-redirect-handler-runtime.mjs";
 
@@ -16,6 +21,8 @@ export function createDistributionHandlerRegistry(context = {}) {
       handler:
         normalizedEntry.collectionId === PAGES_COLLECTION_ID
           ? wrapPagesHandler(normalizedEntry.handler, context)
+          : normalizedEntry.collectionId === DEPLOYMENT_BUNDLES_COLLECTION_ID
+            ? wrapDeploymentBundlesHandler(normalizedEntry.handler, context)
           : normalizedEntry.collectionId === REDIRECTS_COLLECTION_ID
             ? wrapRedirectsHandler(normalizedEntry.handler)
             : normalizedEntry.handler

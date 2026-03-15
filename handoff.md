@@ -224,7 +224,9 @@
 
 ## Current Repo State
 - Worktree is intentionally dirty with the M04 product-shell slices.
-- The current uncommitted slice is the deployment bundle observability/validation pass.
+- Latest completed slice in worktree:
+  - server-side deployment-bundle contract enforcement in `test-modules-pages`
+  - bundle create/update routes now reject invalid page/target/connection/browser-linkage contracts even if the frontend is bypassed
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
@@ -234,4 +236,4 @@
 - Continue M04 with the first data-model expansion pass, likely one of:
   - stronger author/comment product-shell alignment
   - broader product-authored remote query/action contracts for the injected client-runtime bootstrap
-  - server-side bundle contract enforcement and bundle-driven release mission hardening
+  - bundle-driven release mission hardening

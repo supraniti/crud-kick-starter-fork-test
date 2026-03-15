@@ -1536,6 +1536,142 @@ test("pages publish generates deployment html, updates old artifacts, and remove
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
+test("deployment bundles reject invalid remote target contracts on server-side save", async () => {
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const connection = await seedRemoteConnectionProfile(server, {
+      id: "conn-001"
+    });
+    const pageResponse = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Release Bundle Page",
+      pageKind: "standalone",
+      primarySourceType: "none",
+      path: "/release-bundle-page",
+      layoutKey: "landing-shell",
+      status: "published"
+    });
+    expect(pageResponse.statusCode).toBe(201);
+
+    const postsTarget = await seedRemoteTargetProfile(server, {
+      id: "target-posts-001",
+      title: "Posts Projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "published-blog-posts",
+        firestoreCollectionPath: "publishedPosts"
+      }
+    });
+    const invalidCategoriesTarget = await seedRemoteTargetProfile(server, {
+      id: "target-categories-001",
+      title: "Categories Projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "published-blog-posts",
+        firestoreCollectionPath: "publicCategories"
+      }
+    });
+    const tagsTarget = await seedRemoteTargetProfile(server, {
+      id: "target-tags-001",
+      title: "Tags Projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "public-blog-tags",
+        firestoreCollectionPath: "publicTags"
+      }
+    });
+    const mediaTarget = await seedRemoteTargetProfile(server, {
+      id: "target-media-001",
+      title: "Media Library",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        bucketName: "demo-media-bucket",
+        prefix: "library"
+      }
+    });
+    const deploymentTarget = await seedRemoteTargetProfile(server, {
+      id: "target-deployment-001",
+      title: "HTML Deployment",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        bucketName: "demo-deployment-bucket",
+        prefix: "site"
+      }
+    });
+    const browserTarget = await seedRemoteTargetProfile(server, {
+      id: "target-browser-001",
+      title: "Primary Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        accessMode: "gcp-temporary",
+        stackMode: "direct-storage",
+        dnsMode: "external",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+
+    const invalidBundle = await injectJson(server, "POST", buildItemsRoute("page-deployment-bundles"), {
+      title: "Posts Release Bundle",
+      pageId: pageResponse.body.item.id,
+      postsProjectionTargetProfileId: postsTarget.id,
+      categoriesProjectionTargetProfileId: invalidCategoriesTarget.id,
+      tagsProjectionTargetProfileId: tagsTarget.id,
+      mediaTargetProfileId: mediaTarget.id,
+      deploymentTargetProfileId: deploymentTarget.id,
+      browserDeliveryTargetProfileId: browserTarget.id
+    });
+
+    expect(invalidBundle.statusCode).toBe(400);
+    expect(invalidBundle.body.error.conflicts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "PAGE_DEPLOYMENT_BUNDLE_TARGET_SCOPE_INVALID",
+          fieldId: "categoriesProjectionTargetProfileId"
+        })
+      ])
+    );
+  } finally {
+    await server.close();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
 test("deleting a published standalone page removes its deployment artifact", async () => {
   const sandbox = await createDeploymentSandbox();
   const server = await createEphemeralReferenceServer({

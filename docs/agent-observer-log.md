@@ -1280,3 +1280,18 @@
   - when a desk grows in both behavior and diagnostics, extract view sections and test helpers in the same pass instead of waiting for the LOC gate to force it
   - keep bundle contract validation in one helper and reuse that result across save/readiness/history surfaces; otherwise the release desk will drift into parallel notions of \"valid\"
 
+### 2026-03-15 - M04 Server-Side Bundle Contract Enforcement
+- Tasks:
+  - added a Pages-module server wrapper for `page-deployment-bundles`
+  - moved the deployment-bundle contract from frontend-only enforcement to module-owned server enforcement
+  - proved the server rejects invalid bundle saves when target kinds/scopes do not match the bundle contract
+- Easy:
+  - the Pages module already owned wrapped collection handlers, so the correct seam was obvious once the bundle collection existed
+  - the bundle contract was already explicit in the product desk, so porting it server-side was mostly contract reuse, not new product design
+- Hard:
+  - the first normalization helper crossed the function-shape gate even though the behavior was right; the fix was small helper extraction, not weaker validation
+  - bundle validation touches several foreign collections, so the wrapper had to stay disciplined about lookup helpers and conflict construction or it would have drifted into an ad hoc mini-runtime
+- Improve:
+  - once a persisted object becomes the release contract, enforce it at the module-owned server boundary in the very next pass; frontend-only validity is not an acceptable resting state
+  - keep cross-collection contract constants in one shared module-local file so later bundle-driven mission work reuses the same source of truth
+

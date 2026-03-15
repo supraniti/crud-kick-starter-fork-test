@@ -336,6 +336,22 @@
       - failed release count
       - selected bundle release history
     - the release pipeline now writes bundle-run records as it progresses instead of only exposing transient UI state
+  - Pass 12 completed in worktree:
+    - server-side bundle contract enforcement now wraps `page-deployment-bundles` inside `test-modules-pages`
+    - create/update routes for deployment bundles now reject invalid contracts even when the frontend validation is bypassed:
+      - page required
+      - page must exist
+      - page must be published
+      - each bound remote target must exist
+      - each bound remote target must be validated
+      - each bound remote target must have the expected target kind
+      - posts/categories/tags projection targets must use the expected projection scope
+      - all selected targets must share one validated remote connection
+      - browser-delivery target linkage must match the selected deployment/media targets when declared
+    - the validation boundary stays module-local:
+      - `test-modules-pages` owns the contract
+      - generic reference collection routes stay unchanged
+    - the product Deployments desk is no longer the only place that knows what a valid deployment bundle is
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -346,4 +362,4 @@
     - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
     - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and bundle observability
     - generated HTML now boots `client-runtime`, and delivered pages can re-sync their page/media datasets, but richer product-authored query/action contracts are still not emitted from local CMS configuration
-    - bundle release observability is now persisted, but server-side bundle contract enforcement is still thinner than the frontend contract
+    - bundle save contracts are now enforced server-side, but bundle-driven release mission hardening is still thinner than the stricter persisted bundle contract
