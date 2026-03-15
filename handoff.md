@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `105e16d` `feat: enforce deployment bundle contracts server-side`
+  - `43ac085` `feat: harden bundle release missions`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -174,6 +174,32 @@
     - full-gate stability fixes landed alongside the pass:
       - Pages bundle-artifact assertions now use bounded file-existence polling
       - Remote Ops simulated-root cleanup now retries through transient Windows `ENOTEMPTY` / `EPERM` / `EBUSY`
+  - author/comment product-shell alignment:
+    - `Authors` route now renders a product-owned editorial desk instead of the raw module desk
+    - `Comments` route now renders a product-owned moderation desk instead of the raw module desk
+    - the route/module ids stay the same:
+      - `test-modules-editorial`
+      - `test-modules-engagement`
+    - the new product `Authors` desk now surfaces:
+      - roster summary
+      - missing-avatar coverage
+      - post readiness blockers:
+        - missing author
+        - missing categories
+        - short body
+        - missing featured media
+      - direct navigation seams into:
+        - `Posts`
+        - `Taxonomies`
+        - `Media`
+    - the new product `Comments` desk now surfaces:
+      - moderator coverage
+      - moderation backlog
+      - missing moderator attribution
+      - direct navigation seams into:
+        - `Posts`
+        - `Authors`
+      - existing moderation queue, thread inspection, and moderation actions through the product shell
 
 ## Key Files Touched
 - Product shell:
@@ -202,6 +228,9 @@
   - [ProductSystemSettingsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductSystemSettingsView.jsx)
   - [ProductDomainsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainsView.jsx)
   - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+  - [ProductEditorialView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductEditorialView.jsx)
+  - [ProductModerationView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductModerationView.jsx)
+  - [product-view-descriptors.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-view-descriptors.jsx)
   - [product-deployments-view-sections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-view-sections.jsx)
   - [useProductDeploymentsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductDeploymentsWorkspace.js)
   - [product-deployment-bundles.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-bundles.js)
@@ -226,7 +255,10 @@
 - New/updated tests:
   - [product-domains.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-domains.integration.test.jsx)
   - [product-deployments.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments.integration.test.jsx)
+  - [product-editorial.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-editorial.integration.test.jsx)
+  - [product-moderation.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-moderation.integration.test.jsx)
   - [product-deployments-test-helpers.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments-test-helpers.js)
+  - [product-view-overrides.core.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/core/product-view-overrides.core.test.jsx)
   - [product-system-settings.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-system-settings.integration.test.jsx)
   - [remote-ops.managed-bundle.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/remote-ops.managed-bundle.integration.test.jsx)
   - [e2e/smoke/specs/app-smoke.e2e.test.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/e2e/smoke/specs/app-smoke.e2e.test.mjs)
@@ -242,22 +274,30 @@
 
 ## Verification
 - Focused frontend slices:
+  - product editorial
+  - product moderation
   - remote-ops connections / managed bundle / targets / browser delivery
   - product domains
   - product deployments
   - product system settings
   - blog distribution per-record pages
+- Focused current slice:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-editorial.integration.test.jsx src/tests/app-integration/product-moderation.integration.test.jsx src/tests/core/product-view-overrides.core.test.jsx src/tests/core/view-registry.entrypoint.core.test.jsx`
 - Focused server:
   - `blog-distribution.module-conformance`
 - Function shape:
-  - `pnpm lint:function-shape`
-- Focused current slice:
-  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
   - `pnpm lint:function-shape`
 - Smoke E2E:
   - `pnpm test:e2e:smoke`
 - Full release gate:
   - `pnpm quality:gate:full`
+
+## Current Worktree State
+- Uncommitted M04 pass present:
+  - author/comment product-shell alignment
+- Next likely pass:
+  - richer product-authored remote query/action contracts for injected `client-runtime`
+  - or stronger release observability/cost surfaces around browser delivery and remotes
 - Protocol:
   - `pnpm quality:protocol`
 

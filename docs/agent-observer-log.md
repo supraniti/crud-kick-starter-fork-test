@@ -1328,3 +1328,28 @@
   - when a module mission must reuse module-owned handlers, pass the real handler registry through mission registration context instead of rebuilding CRUD logic from repositories
   - when a new pass increases filesystem churn, stabilize the test helper with bounded retry/polling instead of accepting intermittent full-gate failures
 
+### 2026-03-15 - M04 Author And Moderation Product Views
+- Tasks:
+  - replaced the raw module route surfaces for `test-modules-editorial` and `test-modules-engagement` with product-shell views at the frontend descriptor boundary
+  - kept the route/module ids stable while upgrading the actual operator experience for `Authors` and `Comments`
+  - surfaced stricter cross-module readiness in `Authors`:
+    - missing author
+    - missing categories
+    - short body
+    - missing featured media
+    - missing author avatar coverage
+  - surfaced stricter moderation framing in `Comments`:
+    - moderator coverage
+    - pending moderation backlog
+    - missing moderator attribution
+    - direct navigation back into `Posts` and `Authors`
+- Easy:
+  - the registry already allowed product descriptors to claim the same module ids before module entrypoints register, so the override seam was clean
+  - reusing `useEditorialOverview` and `useBlogEngagementWorkspace` avoided inventing another data-access layer
+- Hard:
+  - the first proof landed inside the big view-registry core test file and tripped the repo LOC gate; the correct fix was moving the new proof into its own focused test file
+  - frontend vitest still requires escalation on this machine whenever the Vite/esbuild child-process boundary is involved
+- Improve:
+  - when product-shell alignment should preserve route stability, prefer descriptor-level overrides over route-id churn
+  - do not let proof additions bloat already-near-threshold test files; create a fresh focused test file immediately when the repo-shape gate is close
+

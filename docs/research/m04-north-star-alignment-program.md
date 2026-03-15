@@ -394,6 +394,38 @@
     - test stability was tightened where the heavier release traffic exposed platform races:
       - bundle-artifact existence checks now use bounded polling in Pages conformance
       - simulated remote-root cleanup now retries through transient Windows `ENOTEMPTY` / `EPERM` / `EBUSY` races in Remote Ops conformance
+  - Pass 14 completed in worktree:
+    - product shell now overrides the raw module desks for:
+      - `Authors`
+      - `Comments`
+    - the routes stay stable:
+      - `/app/authors`
+      - `/app/comments`
+    - but the rendered views are now product-owned shells instead of direct proof-module entrypoints
+    - `Authors` now exposes:
+      - author roster summary
+      - missing-avatar coverage
+      - cross-module authoring readiness:
+        - missing primary author
+        - missing categories
+        - short body
+        - missing featured media
+      - direct navigation seams into:
+        - `Posts`
+        - `Taxonomies`
+        - `Media`
+    - `Comments` now exposes:
+      - moderator roster coverage
+      - pending moderation backlog
+      - missing moderator attribution
+      - direct navigation seams into:
+        - `Posts`
+        - `Authors`
+      - the existing moderation queue / thread / action workflow through the product shell
+    - the override stays bounded:
+      - module ids and route segments did not change
+      - module collection/runtime contracts did not change
+      - product descriptors now own those module ids at the frontend registry boundary
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -401,6 +433,5 @@
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - remote billing/cost summaries are not surfaced yet
-    - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
-    - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and bundle observability
+    - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and release observability
     - generated HTML now boots `client-runtime`, and delivered pages can re-sync their page/media datasets, but richer product-authored query/action contracts are still not emitted from local CMS configuration
