@@ -593,14 +593,40 @@
       - staged service setup rendering on the product route
       - suppression of the raw generic compatibility/provisioning panels on that route
       - retained raw remote-ops provisioning behavior
+  - Pass 23 completed in worktree:
+    - the product `Domains` route now behaves as a domain-first setup desk instead of a thin wrapper over the browser-delivery target editor
+    - the desk now surfaces explicit delivery setup sections for:
+      - access modes
+      - DNS/provider work
+      - linked HTML/media/data surfaces
+      - HTTPS stack readiness and bounded provisioning
+    - the selected browser-delivery target now drives the effective remote connection selection automatically, so compatibility analysis and provisioning stay bound to the correct remote
+    - the desk now distinguishes:
+      - owned custom domain
+      - temporary GCP access
+      - GCP-managed DNS
+      - external DNS
+    - the desk now exposes per-service visibility for:
+      - public origin and example page URL
+      - public and temporary media bases
+      - linked Firestore projection collection paths
+    - the desk now reuses the existing browser-delivery compatibility bundle for:
+      - DNS record instructions
+      - name-server delegation
+      - missing-resource visibility
+      - stage-scoped provisioning actions
+    - focused proof now covers:
+      - domain-first access-mode and service-path visibility
+      - DNS/provider instructions after compatibility analysis
+      - HTTPS stack readiness rendering on the product route
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
     - generated HTML now boots `client-runtime`, and Pages now exposes the resolved runtime contract, but richer CMS-configurable remote actions and equivalent runtime inspection across more content types are still not yet exposed beyond the current page/comment/media seams
-    - `Domains` still needs a stronger product-authored setup flow for owned-domain vs temporary-domain operation and per-service public-path visibility
+    - media, posts/taxonomies/authors, comments, pages, and runtime authoring still need their remaining product-hardening passes from the fixed completion map
 
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 23: Product Domain Setup Hardening
+  - Pass 24: Media Product Hardening

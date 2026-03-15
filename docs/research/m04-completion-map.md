@@ -11,7 +11,7 @@
 - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
 
 ## Current Position
-- Completed through M04 Pass 22.
+- Completed through M04 Pass 23.
 - Already achieved:
   - product shell routes and labels
   - product `System Settings`, `Remotes`, `Domains`, `Deployments`
@@ -53,10 +53,10 @@
 
 ## Remaining Pass Count
 - Estimated remaining implementation passes to reach the current M04 definition of done:
-  - `7` functional passes
+  - `6` functional passes
   - `1` final hardening/closeout pass
 - Total remaining passes:
-  - `8`
+  - `7`
 
 ## Locked Remaining Sequence
 

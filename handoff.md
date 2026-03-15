@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `086fdb8` `feat: expose page runtime contract preview`
+  - `282f734` `feat: stage product remotes setup`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -29,15 +29,28 @@
 ## Current review seam
 - Goals-vs-current-state review is the active discussion.
 - The most likely next M04 passes are:
-  - Pass 23: product domain setup hardening
+  - Pass 24: media product hardening
   - later passes are locked in:
     - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
 
 ## Latest M04 worktree slice
-- Pass 22 complete in worktree:
-  - product-authored staged setup cards in `Remotes`
-  - stage-level provisioning for individual managed bundles
-  - product route suppression of the raw generic compatibility/provisioning panels
+- Pass 23 complete in worktree:
+  - product-authored domain-first setup surface in `Domains`
+  - explicit access-mode visibility:
+    - owned custom domain
+    - temporary GCP access
+  - explicit DNS/provider setup visibility:
+    - GCP-managed DNS
+    - external DNS
+  - linked service visibility for:
+    - HTML delivery
+    - media delivery
+    - Firestore projection collection paths
+  - HTTPS stack readiness panel with:
+    - compatibility analysis
+    - DNS instructions
+    - stage-scoped provisioning
+    - safeguard confirmations
 
 ## Current verification note
 - Focused proofs green:
@@ -48,9 +61,7 @@
   - `product-deployments.integration`
 - `pnpm lint:function-shape` passed
 - `pnpm quality:protocol` passed
-- `pnpm quality:gate:full` is currently red on:
-  - `frontend/src/tests/app-integration/blog-distribution.integration.test.jsx`
-  - the active remotes pass did not modify the Pages files exercised by that test
+- broader gate for this pass still needs to be rerun after the updated progress pointers and current worktree slice are settled
 
 ## M04 Progress In Worktree
 - Program doc:
@@ -459,10 +470,9 @@
 
 ## Current Worktree State
 - Uncommitted M04 pass present:
-  - pages runtime contract inspection
+  - product domain setup hardening
 - Next likely pass:
-  - product-authored staged setup cards for managed services inside `Remotes`
-  - or richer CMS-configurable runtime actions beyond the current page/comment/media seams
+  - media product hardening
 - Protocol:
   - `pnpm quality:protocol`
 

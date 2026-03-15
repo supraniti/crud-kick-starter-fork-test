@@ -12,6 +12,30 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Product Domain Setup Hardening
+- Tasks:
+  - turned the product `Domains` route from a thin browser-target wrapper into a domain-first setup surface
+  - reused the existing browser-delivery descriptor and compatibility bundle instead of inventing a second domain model in the product shell
+  - kept provider/runtime/provisioning ownership inside `test-modules-remote-ops` while making the operator view center on:
+    - owned custom domain vs temporary access
+    - DNS provider work
+    - linked HTML/media/data surfaces
+    - HTTPS stack readiness
+- Easy:
+  - the existing browser-delivery compatibility report already carried the right high-value details:
+    - delivery reports
+    - DNS instructions
+    - name servers
+    - missing resources
+    - provisionable actions
+  - the selected browser-delivery target already implied the correct connection, so the main product gap was view composition, not new backend state
+- Hard:
+  - the desk legitimately repeats some values across summary and service-path sections, so strict single-match text assertions became brittle and had to be rewritten to tolerate repeated business labels
+  - keeping the desk product-first without widening module logic required resisting the temptation to duplicate browser-delivery compatibility rules in the frontend
+- Improve:
+  - when a product desk wraps a lower-level target type, make the product surface domain-first and let the raw editor remain secondary
+  - repeated operator-facing values are normal once a surface has both summary and detail panels; integration tests should use tolerant repeated-text or scoped queries from the start
+
 ### 2026-03-15 - M04 Product Remote Setup Cards
 - Tasks:
   - replaced the product `Remotes` route's dependence on the raw compatibility/provisioning panels with explicit setup-stage cards
