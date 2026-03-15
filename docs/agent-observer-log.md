@@ -1264,3 +1264,19 @@
   - once a delivered JSON contract gets richer, wire it into the injected runtime in the same pass so the new payload shape is actually consumable
   - default browser runtime remote base resolution belongs in the bootstrap layer, not in every generated page contract
 
+### 2026-03-15 - M04 Deployment Bundle Observability
+- Tasks:
+  - added persisted bundle-run history in `page-deployment-bundle-runs`
+  - surfaced bundle validation and run history in the Product Deployments desk
+  - blocked bundle save/release when the selected page/targets/browser linkage are not contract-coherent
+  - recorded step-level run state while the release pipeline executes
+- Easy:
+  - the existing deployment bundle abstraction was already the right persistence boundary, so adding run history stayed module-local to Pages
+  - the pipeline support file already had a clear step plan; persisting those steps only needed a small run-history helper instead of a new orchestration model
+- Hard:
+  - the first implementation passed behavior checks but failed the repo LOC gate; the fix was structural extraction, not feature rollback
+  - the Product Deployments integration proof became flaky when the repeated selector flow was compressed too aggressively; the correct fix was restoring async option selection, not loosening assertions
+- Improve:
+  - when a desk grows in both behavior and diagnostics, extract view sections and test helpers in the same pass instead of waiting for the LOC gate to force it
+  - keep bundle contract validation in one helper and reuse that result across save/readiness/history surfaces; otherwise the release desk will drift into parallel notions of \"valid\"
+

@@ -134,6 +134,19 @@
       - `page-payload.remoteSync`
       - `page-media.remoteSync`
       - browser bootstrap resolves the default remote base url from `window.location.origin`
+  - deployment bundle release observability:
+    - persisted bundle-run history now lives in:
+      - `page-deployment-bundle-runs`
+    - product `Deployments` now shows:
+      - bundle validation
+      - completed/failed release counts
+      - selected bundle release history
+    - bundle validation now blocks invalid save/release cases:
+      - unpublished page
+      - wrong target kinds/scopes
+      - mixed remote connections
+      - mismatched browser-delivery deployment/media linkage
+    - release pipeline now persists step-level bundle-run state as it executes
 
 ## Key Files Touched
 - Product shell:
@@ -162,13 +175,18 @@
   - [ProductSystemSettingsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductSystemSettingsView.jsx)
   - [ProductDomainsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainsView.jsx)
   - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+  - [product-deployments-view-sections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-view-sections.jsx)
   - [useProductDeploymentsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductDeploymentsWorkspace.js)
   - [product-deployment-bundles.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-bundles.js)
+  - [product-deployment-bundle-validation.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-bundle-validation.js)
+  - [product-deployment-run-history.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-run-history.js)
+  - [product-deployments-workspace-helpers.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-workspace-helpers.js)
   - [useProductSystemSettingsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductSystemSettingsWorkspace.js)
   - [product-remote-health.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-remote-health.js)
 - New/updated tests:
   - [product-domains.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-domains.integration.test.jsx)
   - [product-deployments.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments.integration.test.jsx)
+  - [product-deployments-test-helpers.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments-test-helpers.js)
   - [product-system-settings.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-system-settings.integration.test.jsx)
   - [remote-ops.managed-bundle.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/remote-ops.managed-bundle.integration.test.jsx)
   - [e2e/smoke/specs/app-smoke.e2e.test.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/e2e/smoke/specs/app-smoke.e2e.test.mjs)
@@ -206,7 +224,7 @@
 
 ## Current Repo State
 - Worktree is intentionally dirty with the M04 product-shell slices.
-- The current uncommitted slice is the media-aware page-delivery and runtime resync-contract pass.
+- The current uncommitted slice is the deployment bundle observability/validation pass.
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
@@ -216,4 +234,4 @@
 - Continue M04 with the first data-model expansion pass, likely one of:
   - stronger author/comment product-shell alignment
   - broader product-authored remote query/action contracts for the injected client-runtime bootstrap
-  - bundle-level release observability/history and stricter bundle validation/reporting
+  - server-side bundle contract enforcement and bundle-driven release mission hardening

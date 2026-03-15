@@ -936,6 +936,270 @@
       }
     },
     {
+      "id": "page-deployment-bundle-runs",
+      "label": "Deployment Bundle Runs",
+      "entitySingular": "bundle-run",
+      "primaryField": "title",
+      "description": "Persisted release history for deployment bundles, including pipeline steps and result snapshots.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Run Title",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 180
+        },
+        {
+          "id": "bundleId",
+          "label": "Deployment Bundle",
+          "type": "reference",
+          "required": true,
+          "collectionId": "page-deployment-bundles",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "bundleTitle",
+          "label": "Bundle Title",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 180
+        },
+        {
+          "id": "pageId",
+          "label": "Published Page",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-pages",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "pageTitle",
+          "label": "Page Title",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 180
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "running",
+            "completed",
+            "failed",
+            "blocked"
+          ],
+          "defaultValue": "running"
+        },
+        {
+          "id": "triggerMode",
+          "label": "Trigger Mode",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "manual-release-pipeline"
+          ],
+          "defaultValue": "manual-release-pipeline"
+        },
+        {
+          "id": "startedOn",
+          "label": "Started On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "finishedOn",
+          "label": "Finished On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "stepCount",
+          "label": "Step Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000,
+          "defaultValue": 0
+        },
+        {
+          "id": "successfulStepCount",
+          "label": "Successful Step Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000,
+          "defaultValue": 0
+        },
+        {
+          "id": "failedStepCount",
+          "label": "Failed Step Count",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "max": 1000,
+          "defaultValue": 0
+        },
+        {
+          "id": "summaryMessage",
+          "label": "Summary Message",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "bundleSnapshot",
+          "label": "Bundle Snapshot",
+          "type": "structured-object",
+          "required": true,
+          "constraints": {
+            "objectSchema": {
+              "properties": [
+                {
+                  "id": "pageId",
+                  "label": "Page ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "postsProjectionTargetProfileId",
+                  "label": "Posts Projection Target",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "categoriesProjectionTargetProfileId",
+                  "label": "Categories Projection Target",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "tagsProjectionTargetProfileId",
+                  "label": "Tags Projection Target",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "mediaTargetProfileId",
+                  "label": "Media Target",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "deploymentTargetProfileId",
+                  "label": "Deployment Target",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "browserDeliveryTargetProfileId",
+                  "label": "Browser Delivery Target",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "type": "structured-object-array",
+          "required": false,
+          "defaultValue": [],
+          "constraints": {
+            "itemLabel": "Pipeline Step",
+            "minItems": 0,
+            "maxItems": 50,
+            "itemSchema": {
+              "properties": [
+                {
+                  "id": "key",
+                  "label": "Step Key",
+                  "type": "text",
+                  "required": true,
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                {
+                  "id": "label",
+                  "label": "Label",
+                  "type": "text",
+                  "required": true,
+                  "minLength": 1,
+                  "maxLength": 180
+                },
+                {
+                  "id": "status",
+                  "label": "Status",
+                  "type": "enum",
+                  "required": true,
+                  "options": [
+                    "pending",
+                    "success",
+                    "error"
+                  ]
+                },
+                {
+                  "id": "message",
+                  "label": "Message",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 500
+                },
+                {
+                  "id": "finishedOn",
+                  "label": "Finished On",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 40
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    },
+    {
       "id": "blog-redirect-rules",
       "label": "Redirect Rules",
       "entitySingular": "redirect-rule",

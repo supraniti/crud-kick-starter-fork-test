@@ -3,9 +3,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { ProductDeploymentsView } from "../../app/product-shell/ProductDeploymentsView.jsx";
 import * as referenceApi from "../../api/reference.js";
 import {
-  createConnectionItem,
-  createTargetItem
-} from "./remote-ops-test-helpers.js";
+  createPublishedPage,
+  createValidatedConnection,
+  createValidatedTarget,
+  mockDeploymentCollections,
+  mockModuleSettings
+} from "./product-deployments-test-helpers.js";
 import * as remoteOpsSupportApi from "../../../../modules/test-modules-remote-ops/frontend/remote-ops-workspace-support.js";
 import * as blogDistributionSupport from "../../../../modules/test-modules-pages/frontend/blog-distribution-workspace-support.js";
 
@@ -42,142 +45,138 @@ vi.mock("../../../../modules/test-modules-pages/frontend/blog-distribution-works
   };
 });
 
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
+function createValidatedProjectionTarget(id, title, projectionScope, firestoreCollectionPath, extras = {}) {
+  return createValidatedTarget({
+    id,
+    title,
+    targetKind: "firestore-projection",
+    config: {
+      projectionScope,
+      firestoreCollectionPath
+    },
+    ...extras
+  });
+}
 
-test("deployment bundles can be created with typed target selectors", async () => {
-  const connectionItems = [
-    createConnectionItem({
-      id: "conn-001",
-      profileName: "Primary GCP Dev",
-      projectId: "demo-project",
-      connectionStatus: "validated"
-    })
-  ];
-  const targetItems = [
-    createTargetItem({
-      id: "target-posts-001",
-      title: "Posts Projection",
-      targetKind: "firestore-projection",
-      connectionProfileId: "conn-001",
-      targetStatus: "validated",
-      validationSummary: { state: "validated", canProceed: true, checkedItems: [], warnings: [], message: null },
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "published-blog-posts",
-        firestoreCollectionPath: "publishedPosts"
-      }
-    }),
-    createTargetItem({
-      id: "target-categories-001",
-      title: "Categories Projection",
-      targetKind: "firestore-projection",
-      connectionProfileId: "conn-001",
-      targetStatus: "validated",
-      validationSummary: { state: "validated", canProceed: true, checkedItems: [], warnings: [], message: null },
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "public-blog-categories",
-        firestoreCollectionPath: "publicCategories"
-      }
-    }),
-    createTargetItem({
-      id: "target-tags-001",
-      title: "Tags Projection",
-      targetKind: "firestore-projection",
-      connectionProfileId: "conn-001",
-      targetStatus: "validated",
-      validationSummary: { state: "validated", canProceed: true, checkedItems: [], warnings: [], message: null },
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "public-blog-tags",
-        firestoreCollectionPath: "publicTags"
-      }
-    }),
-    createTargetItem({
-      id: "target-media-001",
-      title: "Media Library",
-      targetKind: "media-storage",
-      connectionProfileId: "conn-001",
-      targetStatus: "validated",
-      validationSummary: { state: "validated", canProceed: true, checkedItems: [], warnings: [], message: null },
-      config: {
-        ...createTargetItem().config,
-        bucketName: "demo-media-bucket",
-        prefix: "library",
-        localRootHint: "media"
-      }
-    }),
-    createTargetItem({
-      id: "target-deployment-001",
-      title: "HTML Deployment",
-      targetKind: "deployment-storage",
-      connectionProfileId: "conn-001",
-      targetStatus: "validated",
-      validationSummary: { state: "validated", canProceed: true, checkedItems: [], warnings: [], message: null },
-      config: {
-        ...createTargetItem().config,
-        bucketName: "demo-deployment-bucket",
-        prefix: "site",
-        localRootHint: "deployment"
-      }
-    }),
-    createTargetItem({
-      id: "target-browser-001",
-      title: "Primary Domain",
-      targetKind: "browser-delivery",
-      connectionProfileId: "conn-001",
-      targetStatus: "validated",
-      validationSummary: { state: "validated", canProceed: true, checkedItems: [], warnings: [], message: null },
-      config: {
-        ...createTargetItem().config,
+function createValidatedStorageTarget(id, title, targetKind, bucketName, prefix, extras = {}) {
+  return createValidatedTarget({
+    id,
+    title,
+    targetKind,
+    config: {
+      bucketName,
+      prefix,
+      localRootHint: targetKind === "media-storage" ? "media" : "deployment"
+    },
+    ...extras
+  });
+}
+
+function createValidatedBrowserTarget(id, title, config = {}, extras = {}) {
+  return createValidatedTarget({
+    id,
+    title,
+    targetKind: "browser-delivery",
+    config,
+    ...extras
+  });
+}
+
+function setupCreateBundleFixture(targetItems) {
+  mockDeploymentCollections({
+    pages: [createPublishedPage()],
+    bundles: [],
+    bundleRuns: [],
+    connections: [createValidatedConnection()],
+    targets: targetItems,
+    remoteRuns: []
+  });
+  mockModuleSettings();
+}
+
+async function fillBundleEditor() {
+  fireEvent.change(screen.getByLabelText("Bundle Title"), {
+    target: { value: "Posts Release Bundle" }
+  });
+  fireEvent.mouseDown(screen.getByLabelText("Published Page"));
+  fireEvent.click(await screen.findByRole("option", { name: "Posts Page" }));
+  fireEvent.mouseDown(screen.getByLabelText("Posts Projection Target"));
+  fireEvent.click(await screen.findByRole("option", { name: "Posts Projection" }));
+  fireEvent.mouseDown(screen.getByLabelText("Categories Projection Target"));
+  fireEvent.click(await screen.findByRole("option", { name: "Categories Projection" }));
+  fireEvent.mouseDown(screen.getByLabelText("Tags Projection Target"));
+  fireEvent.click(await screen.findByRole("option", { name: "Tags Projection" }));
+  fireEvent.mouseDown(screen.getByLabelText("Media Target"));
+  fireEvent.click(await screen.findByRole("option", { name: "Media Library" }));
+  fireEvent.mouseDown(screen.getByLabelText("HTML Deployment Target"));
+  fireEvent.click(await screen.findByRole("option", { name: "HTML Deployment" }));
+  fireEvent.mouseDown(screen.getByLabelText("Browser Delivery Target"));
+  fireEvent.click(await screen.findByRole("option", { name: "Primary Domain" }));
+}
+
+function createStandardTargetSet(overrides = {}) {
+  return {
+    posts: createValidatedProjectionTarget(
+      "target-posts-001",
+      "Posts Projection",
+      "published-blog-posts",
+      "publishedPosts",
+      overrides.posts
+    ),
+    categories: createValidatedProjectionTarget(
+      "target-categories-001",
+      "Categories Projection",
+      "public-blog-categories",
+      "publicCategories",
+      overrides.categories
+    ),
+    tags: createValidatedProjectionTarget(
+      "target-tags-001",
+      "Tags Projection",
+      "public-blog-tags",
+      "publicTags",
+      overrides.tags
+    ),
+    media: createValidatedStorageTarget(
+      "target-media-001",
+      "Media Library",
+      "media-storage",
+      "demo-media-bucket",
+      "library",
+      overrides.media
+    ),
+    deployment: createValidatedStorageTarget(
+      "target-deployment-001",
+      "HTML Deployment",
+      "deployment-storage",
+      "demo-deployment-bucket",
+      "site",
+      overrides.deployment
+    ),
+    browser: createValidatedBrowserTarget(
+      "target-browser-001",
+      "Primary Domain",
+      {
         accessMode: "gcp-temporary",
         stackMode: "direct-storage",
         dnsMode: "external",
         deploymentTargetProfileId: "target-deployment-001",
         mediaTargetProfileId: "target-media-001"
-      }
-    })
-  ];
-  const pages = [
-    {
-      id: "page-001",
-      title: "Posts Page",
-      status: "published",
-      deploymentStatus: "clean",
-      deploymentSyncedCount: 10,
-      deploymentStaleCount: 0,
-      deploymentMissingCount: 0,
-      deploymentTargetCount: 10
-    }
-  ];
+      },
+      overrides.browser
+    )
+  };
+}
 
-  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
-    if (collectionId === "blog-pages") {
-      return { items: pages.map((item) => ({ ...item })) };
-    }
-    if (collectionId === "page-deployment-bundles") {
-      return { items: [] };
-    }
-    if (collectionId === "remote-connection-profiles") {
-      return { items: connectionItems.map((item) => ({ ...item })) };
-    }
-    if (collectionId === "remote-target-profiles") {
-      return { items: targetItems.map((item) => ({ ...item })) };
-    }
-    if (collectionId === "remote-operation-runs") {
-      return { items: [] };
-    }
-    return { items: [] };
-  });
-  referenceApi.readReferenceModuleSettings.mockResolvedValue({
-    ok: true,
-    settings: {
-      values: {}
-    }
-  });
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  vi.restoreAllMocks();
+});
+
+test("deployment bundles can be created with typed target selectors", async () => {
+  const targets = createStandardTargetSet();
+  setupCreateBundleFixture(Object.values(targets));
   referenceApi.createReferenceCollectionItem.mockResolvedValue({
     ok: true,
     item: {
@@ -200,24 +199,7 @@ test("deployment bundles can be created with typed target selectors", async () =
     expect(screen.getByText("No deployment bundles yet.")).toBeInTheDocument();
   });
 
-  fireEvent.change(screen.getByLabelText("Bundle Title"), {
-    target: { value: "Posts Release Bundle" }
-  });
-  fireEvent.mouseDown(screen.getByLabelText("Published Page"));
-  fireEvent.click(await screen.findByRole("option", { name: "Posts Page" }));
-  fireEvent.mouseDown(screen.getByLabelText("Posts Projection Target"));
-  fireEvent.click(await screen.findByRole("option", { name: "Posts Projection" }));
-  fireEvent.mouseDown(screen.getByLabelText("Categories Projection Target"));
-  fireEvent.click(await screen.findByRole("option", { name: "Categories Projection" }));
-  fireEvent.mouseDown(screen.getByLabelText("Tags Projection Target"));
-  fireEvent.click(await screen.findByRole("option", { name: "Tags Projection" }));
-  fireEvent.mouseDown(screen.getByLabelText("Media Target"));
-  fireEvent.click(await screen.findByRole("option", { name: "Media Library" }));
-  fireEvent.mouseDown(screen.getByLabelText("HTML Deployment Target"));
-  fireEvent.click(await screen.findByRole("option", { name: "HTML Deployment" }));
-  fireEvent.mouseDown(screen.getByLabelText("Browser Delivery Target"));
-  fireEvent.click(await screen.findByRole("option", { name: "Primary Domain" }));
-
+  await fillBundleEditor();
   fireEvent.click(screen.getByRole("button", { name: "Create Bundle" }));
 
   await waitFor(() => {
@@ -236,220 +218,131 @@ test("deployment bundles can be created with typed target selectors", async () =
     });
     expect(screen.getByText("Deployment bundle created")).toBeInTheDocument();
   });
-});
+}, 10000);
 
-test("product deployments desk runs the release pipeline across local HTML, projection, media, deployment, and browser delivery", async () => {
-  const connectionItems = [
-    createConnectionItem({
-      id: "conn-001",
-      profileName: "Primary GCP Dev",
-      projectId: "demo-project",
-      connectionStatus: "validated"
-    })
-  ];
-  const targetItems = [
-    createTargetItem({
-      id: "target-posts-001",
-      title: "Posts Projection",
-      productBindingKey: "posts-projection",
-      targetKind: "firestore-projection",
-      connectionProfileId: "conn-001",
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "published-blog-posts",
-        firestoreCollectionPath: "publishedPosts"
-      }
-    }),
-    createTargetItem({
-      id: "target-categories-001",
-      title: "Categories Projection",
-      productBindingKey: "categories-projection",
-      targetKind: "firestore-projection",
-      connectionProfileId: "conn-001",
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "public-blog-categories",
-        firestoreCollectionPath: "publicCategories"
-      }
-    }),
-    createTargetItem({
-      id: "target-tags-001",
-      title: "Tags Projection",
-      productBindingKey: "tags-projection",
-      targetKind: "firestore-projection",
-      connectionProfileId: "conn-001",
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "public-blog-tags",
-        firestoreCollectionPath: "publicTags"
-      }
-    }),
-    createTargetItem({
+test("deployment bundle validation blocks mismatched browser-delivery bindings before save", async () => {
+  const targets = createStandardTargetSet({
+    deployment: {
       id: "target-deployment-001",
-      title: "HTML Deployment",
-      productBindingKey: "deployment-storage",
-      targetKind: "deployment-storage",
-      connectionProfileId: "conn-001",
+      title: "HTML Deployment"
+    },
+    browser: {
       config: {
-        ...createTargetItem().config,
-        bucketName: "demo-deployment-bucket",
-        prefix: "site",
-        localRootHint: "deployment"
-      }
-    }),
-    createTargetItem({
-      id: "target-page-deployment-001",
-      title: "Page HTML Deployment",
-      targetKind: "deployment-storage",
-      connectionProfileId: "conn-001",
-      config: {
-        ...createTargetItem().config,
-        bucketName: "demo-page-deployment-bucket",
-        prefix: "page-site",
-        localRootHint: "deployment"
-      }
-    }),
-    createTargetItem({
-      id: "target-media-001",
-      title: "Media Library",
-      productBindingKey: "media-storage",
-      targetKind: "media-storage",
-      connectionProfileId: "conn-001",
-      config: {
-        ...createTargetItem().config,
-        bucketName: "demo-media-bucket",
-        prefix: "library",
-        localRootHint: "media"
-      }
-    }),
-    createTargetItem({
-      id: "target-browser-001",
-      title: "Primary Domain",
-      productBindingKey: "browser-delivery",
-      targetKind: "browser-delivery",
-      connectionProfileId: "conn-001",
-      config: {
-        ...createTargetItem().config,
         accessMode: "gcp-temporary",
         stackMode: "direct-storage",
         dnsMode: "external",
-        deploymentTargetProfileId: "target-deployment-001",
+        deploymentTargetProfileId: "target-other-deployment-001",
         mediaTargetProfileId: "target-media-001"
       }
-    }),
-    createTargetItem({
-      id: "target-page-browser-001",
-      title: "Page Domain",
-      targetKind: "browser-delivery",
-      connectionProfileId: "conn-001",
-      config: {
-        ...createTargetItem().config,
-        accessMode: "custom-domain",
-        stackMode: "https-load-balancer",
-        dnsMode: "external",
-        hostname: "stories.example.com",
-        deploymentTargetProfileId: "target-page-deployment-001",
-        mediaTargetProfileId: "target-media-001"
-      }
-    })
-  ];
-  const pages = [
-    {
-      id: "page-001",
-      title: "Posts Page",
-      status: "published",
-      deploymentStatus: "stale",
-      deploymentSyncedCount: 0,
-      deploymentStaleCount: 10,
-      deploymentMissingCount: 0,
-      deploymentTargetCount: 10
     }
-  ];
-  const bundles = [
-    {
-      id: "bundle-001",
-      title: "Posts Release Bundle",
-      pageId: "page-001",
-      postsProjectionTargetProfileId: "target-posts-001",
-      categoriesProjectionTargetProfileId: "target-categories-001",
-      tagsProjectionTargetProfileId: "target-tags-001",
-      mediaTargetProfileId: "target-media-001",
-      deploymentTargetProfileId: "target-page-deployment-001",
-      browserDeliveryTargetProfileId: "target-page-browser-001"
-    }
-  ];
+  });
+  const otherDeployment = createValidatedStorageTarget(
+    "target-other-deployment-001",
+    "Other HTML Deployment",
+    "deployment-storage",
+    "other-deployment-bucket",
+    "other-site"
+  );
 
-  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
-    if (collectionId === "blog-pages") {
-      return { items: pages.map((item) => ({ ...item })) };
-    }
-    if (collectionId === "page-deployment-bundles") {
-      return { items: bundles.map((item) => ({ ...item })) };
-    }
-    if (collectionId === "remote-connection-profiles") {
-      return { items: connectionItems.map((item) => ({ ...item })) };
-    }
-    if (collectionId === "remote-target-profiles") {
-      return { items: targetItems.map((item) => ({ ...item })) };
-    }
-    if (collectionId === "remote-operation-runs") {
-      return { items: [] };
-    }
-    return { items: [] };
+  setupCreateBundleFixture([...Object.values(targets), otherDeployment]);
+
+  render(<ProductDeploymentsView />);
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Release Pipeline Desk" })).toBeInTheDocument();
   });
 
-  referenceApi.readReferenceModuleSettings.mockImplementation(async ({ moduleId }) => {
-    if (moduleId === "test-modules-content") {
-      return {
-        ok: true,
-        settings: {
-          values: {
-            remoteProjectionTargetProfileId: "target-posts-001"
-          }
-        }
-      };
-    }
-    if (moduleId === "test-modules-taxonomy") {
-      return {
-        ok: true,
-        settings: {
-          values: {
-            remoteCategoriesProjectionTargetProfileId: "target-categories-001",
-            remoteTagsProjectionTargetProfileId: "target-tags-001"
-          }
-        }
-      };
-    }
-    if (moduleId === "test-modules-pages") {
-      return {
-        ok: true,
-        settings: {
-          values: {
-            remoteDeploymentTargetProfileId: "target-deployment-001",
-            remoteBrowserDeliveryTargetProfileId: "target-browser-001"
-          }
-        }
-      };
-    }
-    if (moduleId === "test-modules-media-manager") {
-      return {
-        ok: true,
-        settings: {
-          values: {
-            remoteMediaTargetProfileId: "target-media-001"
-          }
-        }
-      };
-    }
-    return {
-      ok: true,
-      settings: {
-        values: {}
-      }
-    };
+  await fillBundleEditor();
+
+  await waitFor(() => {
+    expect(
+      screen.getByText(
+        "Browser delivery target points at a different HTML deployment target than the selected bundle."
+      )
+    ).toBeInTheDocument();
   });
-  referenceApi.createReferenceCollectionItem.mockResolvedValue({ ok: true, item: { id: "bundle-002" } });
-  referenceApi.updateReferenceCollectionItem.mockResolvedValue({ ok: true, item: { id: "bundle-001" } });
+  expect(screen.getByRole("button", { name: "Create Bundle" })).toBeDisabled();
+  expect(referenceApi.createReferenceCollectionItem).not.toHaveBeenCalled();
+}, 10000);
+
+test("product deployments desk runs the release pipeline across local HTML, projection, media, deployment, and browser delivery", async () => {
+  const baseTargets = createStandardTargetSet({
+    posts: { productBindingKey: "posts-projection" },
+    categories: { productBindingKey: "categories-projection" },
+    tags: { productBindingKey: "tags-projection" },
+    media: { productBindingKey: "media-storage" },
+    deployment: { productBindingKey: "deployment-storage" },
+    browser: { productBindingKey: "browser-delivery" }
+  });
+  const pageDeployment = createValidatedStorageTarget(
+    "target-page-deployment-001",
+    "Page HTML Deployment",
+    "deployment-storage",
+    "demo-page-deployment-bucket",
+    "page-site"
+  );
+  const pageBrowser = createValidatedBrowserTarget("target-page-browser-001", "Page Domain", {
+    accessMode: "custom-domain",
+    stackMode: "https-load-balancer",
+    dnsMode: "external",
+    hostname: "stories.example.com",
+    deploymentTargetProfileId: "target-page-deployment-001",
+    mediaTargetProfileId: "target-media-001"
+  });
+  const page = createPublishedPage({
+    deploymentStatus: "stale",
+    deploymentSyncedCount: 0,
+    deploymentStaleCount: 10
+  });
+  const bundle = {
+    id: "bundle-001",
+    title: "Posts Release Bundle",
+    pageId: "page-001",
+    postsProjectionTargetProfileId: "target-posts-001",
+    categoriesProjectionTargetProfileId: "target-categories-001",
+    tagsProjectionTargetProfileId: "target-tags-001",
+    mediaTargetProfileId: "target-media-001",
+    deploymentTargetProfileId: "target-page-deployment-001",
+    browserDeliveryTargetProfileId: "target-page-browser-001"
+  };
+
+  mockDeploymentCollections({
+    pages: [page],
+    bundles: [bundle],
+    bundleRuns: [],
+    connections: [createValidatedConnection()],
+    targets: [...Object.values(baseTargets), pageDeployment, pageBrowser],
+    remoteRuns: []
+  });
+  mockModuleSettings({
+    "test-modules-content": {
+      remoteProjectionTargetProfileId: "target-posts-001"
+    },
+    "test-modules-taxonomy": {
+      remoteCategoriesProjectionTargetProfileId: "target-categories-001",
+      remoteTagsProjectionTargetProfileId: "target-tags-001"
+    },
+    "test-modules-pages": {
+      remoteDeploymentTargetProfileId: "target-deployment-001",
+      remoteBrowserDeliveryTargetProfileId: "target-browser-001"
+    },
+    "test-modules-media-manager": {
+      remoteMediaTargetProfileId: "target-media-001"
+    }
+  });
+  referenceApi.createReferenceCollectionItem.mockImplementation(async ({ collectionId, item }) => {
+    if (collectionId === "page-deployment-bundle-runs") {
+      return { ok: true, item: { id: "run-001", ...item } };
+    }
+    return { ok: true, item: { id: "bundle-002", ...item } };
+  });
+  referenceApi.updateReferenceCollectionItem.mockImplementation(async ({ itemId, item }) => ({
+    ok: true,
+    item: {
+      id: itemId,
+      ...item
+    }
+  }));
 
   blogDistributionSupport.syncSelectedPageDeployment.mockResolvedValue({
     ok: true,
@@ -473,8 +366,13 @@ test("product deployments desk runs the release pipeline across local HTML, proj
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Release Pipeline Desk" })).toBeInTheDocument();
     expect(screen.getByText("Release Pipeline")).toBeInTheDocument();
-    expect(screen.getByText("Deployment bundle: ready")).toBeInTheDocument();
-    expect(screen.getByText("Published page: ready")).toBeInTheDocument();
+    expect(screen.getByText("Page: page-001")).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByText("Posts Release Bundle"));
+
+  await waitFor(() => {
+    expect(screen.getByText("Bundle bindings are coherent.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run Release Pipeline" })).toBeEnabled();
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Run Release Pipeline" }));
@@ -498,6 +396,17 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Sync local HTML")).toBeInTheDocument();
     expect(screen.getByText("Validate browser delivery")).toBeInTheDocument();
     expect(screen.getAllByText("Binding source: Deployment bundle").length).toBeGreaterThan(0);
+    expect(referenceApi.createReferenceCollectionItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionId: "page-deployment-bundle-runs"
+      })
+    );
+    expect(referenceApi.updateReferenceCollectionItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionId: "page-deployment-bundle-runs",
+        itemId: "run-001"
+      })
+    );
   });
 
   expect(blogDistributionSupport.syncSelectedPageDeployment.mock.invocationCallOrder[0]).toBeLessThan(

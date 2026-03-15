@@ -316,14 +316,34 @@
       - `page-payload.remoteSync`
       - `page-media.remoteSync`
       - same-origin/default-origin remote base resolution in the browser bootstrap
+  - Pass 11 completed in worktree:
+    - deployment bundle releases now persist first-class run history in `page-deployment-bundle-runs`
+    - each bundle run records:
+      - bundle/page snapshot
+      - trigger mode
+      - started/finished timestamps
+      - per-step status and message
+      - completed/failed counts
+    - product `Deployments` now validates the selected bundle contract before save and before release:
+      - published page required
+      - typed target kind required
+      - expected projection scope required
+      - shared validated remote connection required across the bundle
+      - browser-delivery linkage must match the selected deployment/media targets
+    - product `Deployments` now surfaces:
+      - bundle validation card
+      - completed release count
+      - failed release count
+      - selected bundle release history
+    - the release pipeline now writes bundle-run records as it progresses instead of only exposing transient UI state
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
 
 ## Active Gap After Current Passes
-- Product shell is now closer to the north star, but several north-star behaviors are still pending:
-  - remote billing/cost summaries are not surfaced yet
-  - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
-  - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and bundle observability
-  - generated HTML now boots `client-runtime`, and delivered pages can re-sync their page/media datasets, but richer product-authored query/action contracts are still not emitted from local CMS configuration
-  - release ownership is now bundle-explicit, but bundle-level observability and history are still thin
+  - Product shell is now closer to the north star, but several north-star behaviors are still pending:
+    - remote billing/cost summaries are not surfaced yet
+    - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
+    - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and bundle observability
+    - generated HTML now boots `client-runtime`, and delivered pages can re-sync their page/media datasets, but richer product-authored query/action contracts are still not emitted from local CMS configuration
+    - bundle release observability is now persisted, but server-side bundle contract enforcement is still thinner than the frontend contract
