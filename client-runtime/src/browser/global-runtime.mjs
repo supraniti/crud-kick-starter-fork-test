@@ -1,4 +1,8 @@
 import { createClientRuntime } from "../runtime/create-client-runtime.mjs";
+import {
+  bootstrapConfiguredDatasets,
+  normalizeGlobalRuntimeOptions
+} from "./bootstrap-config.mjs";
 
 function attachRuntime(runtime, globalObject) {
   globalObject.dataLayer = {
@@ -14,15 +18,21 @@ function attachRuntime(runtime, globalObject) {
 }
 
 export function installGlobalRuntime(options = {}, globalObject = globalThis) {
-  const runtime = createClientRuntime({ ...options, globalObject });
+  const normalizedOptions = normalizeGlobalRuntimeOptions(options, globalObject);
+  const runtime = createClientRuntime({ ...normalizedOptions, globalObject });
   attachRuntime(runtime, globalObject);
+  const ready = bootstrapConfiguredDatasets(runtime, normalizedOptions).catch((error) => {
+    globalObject.console?.error?.(error);
+    throw error;
+  });
   globalObject.crudClientRuntime = {
     configure(nextOptions = {}) {
       return installGlobalRuntime(nextOptions, globalObject);
     },
     getRuntime() {
       return runtime;
-    }
+    },
+    ready
   };
   return runtime;
 }

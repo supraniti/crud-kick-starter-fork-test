@@ -129,6 +129,71 @@ await runScenario("global shell exposes data and action layers", async () => {
   assert.equal(typeof globalObject.crudClientRuntime.getRuntime, "function");
 });
 
+await runScenario("global runtime bootstraps inline page payload datasets from page-data", async () => {
+  const globalObject = {
+    document: {
+      getElementById(id) {
+        if (id !== "page-data") {
+          return null;
+        }
+        return {
+          textContent: JSON.stringify({
+            page: {
+              id: "page-001",
+              path: "/stories/launch-window-update"
+            },
+            resolvedAt: "2026-03-15T09:00:00.000Z"
+          })
+        };
+      }
+    }
+  };
+  installGlobalRuntime(
+    {
+      bootstrapDatasets: ["page-payload"],
+      queries: [
+        {
+          resource: "page",
+          query: "current",
+          policy: "local-first",
+          dataset: "page-payload"
+        }
+      ],
+      datasets: [
+        {
+          dataset: "page-payload",
+          bootstrapMode: "inline-json-script",
+          inlineScriptId: "page-data",
+          recordMode: "single-item",
+          versionPath: "resolvedAt",
+          syncTokenPath: "page.id"
+        }
+      ],
+      adapters: {
+        indexedDb: createIndexedDbAdapter({
+          storage: createMemoryDatasetStorageDriver()
+        })
+      },
+      capabilities: {
+        getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
+      }
+    },
+    globalObject
+  );
+  await globalObject.crudClientRuntime.ready;
+  const status = await globalObject.dataLayer.getDatasetStatus("page-payload");
+  const queryResult = await globalObject.dataLayer.query({
+    resource: "page",
+    query: "current"
+  });
+  assert.equal(status.installed, true);
+  assert.equal(status.version, "2026-03-15T09:00:00.000Z");
+  assert.equal(status.syncToken, "page-001");
+  assert.equal(queryResult.ok, true);
+  assert.equal(queryResult.meta.source, "indexeddb");
+  assert.equal(queryResult.data.items[0].page.id, "page-001");
+});
+
 await runScenario("local-first queries answer from installed dataset state", async () => {
   const { runtime } = createRuntimeHarness();
   const installResult = await runtime.installDataset({ dataset: "catalog" });

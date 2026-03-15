@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `c303b1d` `feat: add page-owned remote bindings`
+  - `cb9a0e6` `feat: add named deployment bundles`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -109,6 +109,14 @@
       - tags selector only offers `public-blog-tags`
       - media/deployment/browser selectors only offer matching validated target kinds
     - release-pipeline readiness now starts from the selected deployment bundle, not from loose page/default selection
+  - client-runtime delivery injection:
+    - page delivery payloads now emit a runtime bootstrap contract
+    - deployed HTML now injects:
+      - `window.__CRUD_CLIENT_RUNTIME_CONFIG__`
+      - `/assets/client-runtime.global.js`
+    - page deployment sync now copies the built runtime artifact into:
+      - `deployment/assets/client-runtime.global.js`
+    - `client-runtime` now bootstraps the inline `page-data` JSON into a local dataset automatically on global install
 
 ## Key Files Touched
 - Product shell:
@@ -131,6 +139,7 @@
   - [modules/test-modules-pages/frontend/page-workspace-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/page-workspace-support.js)
   - [modules/test-modules-pages/server/page-settings-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-settings-runtime.mjs)
   - [modules/test-modules-pages/server/page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
+  - [modules/test-modules-pages/server/page-client-runtime-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-client-runtime-runtime.mjs)
 - Product desks:
   - [ProductSystemSettingsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductSystemSettingsView.jsx)
   - [ProductDomainsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainsView.jsx)
@@ -148,6 +157,9 @@
   - [frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx)
   - [frontend/src/tests/app-integration/blog-distribution.remote.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.remote.integration.test.jsx)
   - [server/test/module-conformance/blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
+  - [client-runtime/src/browser/global-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/global-runtime.mjs)
+  - [client-runtime/src/browser/bootstrap-config.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/bootstrap-config.mjs)
+  - [client-runtime/scripts/run-tests.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/scripts/run-tests.mjs)
 
 ## Verification
 - Focused frontend slices:
@@ -161,8 +173,9 @@
 - Function shape:
   - `pnpm lint:function-shape`
 - Focused current slice:
-  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx src/tests/app-integration/product-system-settings.integration.test.jsx src/tests/app-integration/product-domains.integration.test.jsx`
-  - `pnpm lint:function-shape`
+  - `pnpm --filter client-runtime test`
+  - `pnpm build:client-runtime`
+  - `pnpm --filter server test -- test/module-conformance/blog-distribution.module-conformance.test.js`
 - Smoke E2E:
   - `pnpm test:e2e:smoke`
 - Full release gate:
@@ -172,7 +185,7 @@
 
 ## Current Repo State
 - Worktree is intentionally dirty with the M04 product-shell slices.
-- The current uncommitted slice is the named deployment-bundles pass.
+- The current uncommitted slice is the client-runtime page-injection pass.
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
@@ -181,5 +194,6 @@
 ## Next Sensible Slice
 - Continue M04 with the first data-model expansion pass, likely one of:
   - stronger author/comment product-shell alignment
+  - runtime-aware media/public URL enrichment in delivered page payloads
+  - product-authored remote query/action contracts for the injected client-runtime bootstrap
   - bundle-level release observability/history and stricter bundle validation/reporting
-  - client-runtime injection into generated HTML with remote-aware bootstrap payload

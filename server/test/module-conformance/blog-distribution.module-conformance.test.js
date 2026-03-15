@@ -269,6 +269,12 @@ test("pages create standalone records and resolve deterministic delivery payload
           id: postPage.body.item.id,
           path: "/stories/launch-window-update"
         }),
+        runtime: expect.objectContaining({
+          clientRuntime: expect.objectContaining({
+            assetUrl: "/assets/client-runtime.global.js",
+            bootstrapDatasets: ["page-payload"]
+          })
+        }),
         data: expect.objectContaining({
           primary: expect.objectContaining({
             collectionId: "blog-posts",
@@ -1327,11 +1333,17 @@ test("pages publish generates deployment html, updates old artifacts, and remove
       "stories/launch-rollout/index.html"
     );
     expect(initialHtml).toContain("<page-runtime");
+    expect(initialHtml).toContain("window.__CRUD_CLIENT_RUNTIME_CONFIG__ =");
+    expect(initialHtml).toContain("/assets/client-runtime.global.js");
+    expect(initialHtml).toContain("\"bootstrapDatasets\":[\"page-payload\"]");
     expect(initialHtml).toContain("https://cdn.example.com/runtime/app.js");
     expect(initialHtml).toContain("/assets/runtime/entry.js");
     expect(initialHtml).toContain("type=\"application/json\" id=\"page-data\"");
     expect(initialHtml).toContain("Launch Rollout SEO");
     expect(initialHtml).toContain("https://example.com/stories/launch-rollout");
+    await expect(
+      fs.access(path.join(sandbox.deploymentRootDir, "assets", "client-runtime.global.js"))
+    ).resolves.toBeUndefined();
 
     const updateResponse = await injectJson(
       server,
@@ -1375,6 +1387,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
       "stories/launch-rollout-recap/index.html"
     );
     expect(updatedHtml).toContain("Launch Rollout Recap");
+    expect(updatedHtml).toContain("/assets/client-runtime.global.js");
     expect(updatedHtml).toContain("/assets/runtime/recap.js");
     expect(updatedHtml).not.toContain("/assets/runtime/entry.js");
 

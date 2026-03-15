@@ -21,6 +21,7 @@ import {
 } from "./distribution-shared-runtime.mjs";
 import { parseStoredLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
 import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference-runtime.mjs";
+import { attachClientRuntimeContract } from "./page-client-runtime-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function toArray(value) {
@@ -544,7 +545,7 @@ export async function resolvePageDeliveryPayload({
   };
 
   if (typeof resolveSettingsRepository !== "function") {
-    return payload;
+    return attachClientRuntimeContract(payload);
   }
 
   const settings = await readPagesModuleSettings({
@@ -553,11 +554,11 @@ export async function resolvePageDeliveryPayload({
     collectionHandlerRegistry,
     page
   });
-  return applyBrowserDeliveryToPayload({
+  return attachClientRuntimeContract(applyBrowserDeliveryToPayload({
     payload,
     settings,
     resolvedPath
-  });
+  }));
 }
 
 export async function resolvePageByPath({

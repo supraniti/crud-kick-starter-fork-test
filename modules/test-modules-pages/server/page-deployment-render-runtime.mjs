@@ -22,6 +22,11 @@ import { resolvePageDeploymentRootDir } from "./page-deployment-root.mjs";
 import {
   resolveBrowserDeliveryPayloadState,
 } from "./browser-delivery-reference-runtime.mjs";
+import {
+  attachClientRuntimeContract,
+  resolvePageRuntimeScriptUrls,
+  syncClientRuntimeAsset
+} from "./page-client-runtime-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function escapeHtmlText(value) {
@@ -128,10 +133,18 @@ function buildRuntimeScriptsMarkup(scriptUrls = []) {
     .join("\n    ");
 }
 
+function buildClientRuntimeConfigMarkup(clientRuntimeConfig) {
+  if (!clientRuntimeConfig || typeof clientRuntimeConfig !== "object") {
+    return "";
+  }
+  return `window.__CRUD_CLIENT_RUNTIME_CONFIG__ = ${serializeJsonForScript(clientRuntimeConfig)};`;
+}
+
 function renderStaticPageDocument({ payload, mountTagName, runtimeScriptUrls }) {
   const payloadScriptId = "page-data";
   const headMarkup = buildHeadMarkup(payload);
   const scriptMarkup = buildRuntimeScriptsMarkup(runtimeScriptUrls);
+  const clientRuntimeConfigMarkup = buildClientRuntimeConfigMarkup(payload?.runtime?.clientRuntime);
   const mountMarkup = [
     `<${mountTagName}`,
     ` id="page-app"`,
@@ -156,6 +169,7 @@ function renderStaticPageDocument({ payload, mountTagName, runtimeScriptUrls }) 
     "      <noscript>This page requires JavaScript to render its application shell.</noscript>",
     "    </main>",
     `    <script type="application/json" id="${payloadScriptId}">${serializeJsonForScript(payload)}</script>`,
+    ...(clientRuntimeConfigMarkup ? [`    <script>${clientRuntimeConfigMarkup}</script>`] : []),
     ...(scriptMarkup ? [`    ${scriptMarkup}`] : []),
     "  </body>",
     "</html>",
@@ -459,6 +473,73 @@ async function persistDeploymentMetadata(handler, page, artifactPath) {
   });
 }
 
+function hasPayloadDeliveryMetadata(payload) {
+  return (
+    payload?.delivery &&
+    typeof payload.delivery === "object" &&
+    Object.keys(payload.delivery).length > 0
+  );
+}
+
+function buildBrowserDeliveryPayload(browserDelivery) {
+  return {
+    accessMode: browserDelivery.accessMode,
+    dnsMode: browserDelivery.dnsMode,
+    publicOrigin: browserDelivery.publicOrigin,
+    publicUrl: browserDelivery.publicUrl,
+    publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,
+    temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
+    temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
+  };
+}
+
+function buildClientRuntimeBrowserContext(payload, browserDelivery) {
+  return {
+    ...(payload?.runtime?.clientRuntime?.context ?? {}),
+    publicOrigin: browserDelivery.publicOrigin,
+    publicUrl: browserDelivery.publicUrl,
+    publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl
+  };
+}
+
+function applyFallbackBrowserDeliveryPayload(payload, settings, page, artifactRelativePath) {
+  if (hasPayloadDeliveryMetadata(payload)) {
+    return payload;
+  }
+
+  const browserDelivery = resolveBrowserDeliveryPayloadState({
+    browserDeliveryState: settings.browserDeliveryState,
+    pagePath: payload?.page?.path ?? page.path,
+    artifactRelativePath
+  });
+  if (!browserDelivery) {
+    return payload;
+  }
+
+  const nextPayload = {
+    ...payload,
+    delivery: {
+      ...(payload?.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
+      ...buildBrowserDeliveryPayload(browserDelivery)
+    },
+    runtime: {
+      ...(payload?.runtime && typeof payload.runtime === "object" ? payload.runtime : {}),
+      clientRuntime: {
+        ...payload?.runtime?.clientRuntime,
+        context: buildClientRuntimeBrowserContext(payload, browserDelivery)
+      }
+    }
+  };
+
+  if (browserDelivery.publicUrl) {
+    nextPayload.head = {
+      ...(nextPayload.head && typeof nextPayload.head === "object" ? nextPayload.head : {}),
+      canonicalUrl: browserDelivery.publicUrl
+    };
+  }
+  return nextPayload;
+}
+
 async function writeArtifactDocument({
   page,
   sourceRecord = null,
@@ -468,7 +549,7 @@ async function writeArtifactDocument({
   resolveSettingsRepository = null,
   settingsDefinition = null
 }) {
-  const payload = await resolvePageDeliveryPayload({
+  const deliveryPayload = await resolvePageDeliveryPayload({
     collectionHandlerRegistry,
     page,
     preview: false,
@@ -476,37 +557,17 @@ async function writeArtifactDocument({
     resolveSettingsRepository,
     settingsDefinition
   });
-  const hasDeliveryMetadata =
-    payload?.delivery && typeof payload.delivery === "object" && Object.keys(payload.delivery).length > 0;
-  if (!hasDeliveryMetadata) {
-    const browserDelivery = resolveBrowserDeliveryPayloadState({
-      browserDeliveryState: settings.browserDeliveryState,
-      pagePath: payload?.page?.path ?? page.path,
-      artifactRelativePath
-    });
-    if (browserDelivery) {
-      payload.delivery = {
-        ...(payload.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
-        accessMode: browserDelivery.accessMode,
-        dnsMode: browserDelivery.dnsMode,
-        publicOrigin: browserDelivery.publicOrigin,
-        publicUrl: browserDelivery.publicUrl,
-        publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,
-        temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
-        temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
-      };
-      if (browserDelivery.publicUrl) {
-        payload.head = {
-          ...(payload.head && typeof payload.head === "object" ? payload.head : {}),
-          canonicalUrl: browserDelivery.publicUrl
-        };
-      }
-    }
-  }
+  const payload = applyFallbackBrowserDeliveryPayload(
+    attachClientRuntimeContract(deliveryPayload),
+    settings,
+    page,
+    artifactRelativePath
+  );
+  await syncClientRuntimeAsset(resolvePageDeploymentRootDir(), payload?.runtime?.clientRuntime?.assetUrl);
   const htmlDocument = renderStaticPageDocument({
     payload,
     mountTagName: settings.appMountTagName,
-    runtimeScriptUrls: page.runtimeScriptUrls
+    runtimeScriptUrls: resolvePageRuntimeScriptUrls(payload, page.runtimeScriptUrls)
   });
   const artifactAbsolutePath = resolveArtifactAbsolutePath(
     resolvePageDeploymentRootDir(),

@@ -278,6 +278,19 @@
       - deployment bundle present
       - published page bound by the bundle
       - validated typed targets bound by the bundle
+  - Pass 9 completed in worktree:
+    - generated page payloads now emit a client-runtime bootstrap contract:
+      - runtime asset url
+      - bootstrap dataset list
+      - page-current query definition
+      - inline-json-script dataset definition bound to `page-data`
+      - delivery-aware runtime context
+    - generated HTML now injects:
+      - `window.__CRUD_CLIENT_RUNTIME_CONFIG__`
+      - `/assets/client-runtime.global.js`
+    - page deployment sync now writes the runtime artifact into the deployment root:
+      - `deployment/assets/client-runtime.global.js`
+    - `client-runtime` now supports declarative inline-json-script dataset bootstrapping and auto-installs configured bootstrap datasets on global install
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -286,6 +299,7 @@
 - Product shell is now closer to the north star, but several north-star behaviors are still pending:
   - remote billing/cost summaries are not surfaced yet
   - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
-  - client-runtime injection into generated HTML is still missing
   - remote/public delivery still needs stronger final-contract alignment around public media URLs, runtime bootstrap, and bundle observability
+  - generated HTML now boots `client-runtime`, but runtime-level remote query/action contracts are still generic and not yet product-authored from local CMS configuration
+  - media ids are still not resolved into first-class public media objects/URLs inside delivered page data
   - release ownership is now bundle-explicit, but bundle-level observability and history are still thin

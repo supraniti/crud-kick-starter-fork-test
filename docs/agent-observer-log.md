@@ -1229,3 +1229,20 @@
   - when a desk shifts from implicit selection to persisted release objects, add a create-flow test in the same slice; otherwise the desk can look structurally complete while only the old happy path is covered
   - keep typed target filtering near the editor hook, not scattered through the view, so later bundle validation rules stay maintainable
 
+### 2026-03-15 - M04 Client Runtime Injection
+- Tasks:
+  - connected generated page HTML to `client-runtime` instead of leaving the runtime package isolated
+  - introduced a declarative inline-json bootstrap path so page payload JSON can seed a runtime dataset without inventing the final remote API contract
+  - copied the built runtime asset into the deployment root so deployed HTML references a real local artifact
+- Easy:
+  - the existing `page-data` script tag was already the right bootstrap seam; no new page payload transport was needed
+  - keeping the browser bootstrap logic inside `client-runtime/src/browser` preserved the package boundary cleanly
+- Hard:
+  - JSON-serialized runtime config cannot carry functions, so the runtime needed a new declarative bootstrap mode instead of just reusing `fetchInstall` closures from the demos
+  - the first proof failure was not in Pages, it was in the package test harness forgetting to provide an IndexedDB-capable adapter for auto-installed datasets
+- Improve:
+  - when a standalone runtime package gets integrated into page delivery, prove both sides in the same slice:
+    - package-level bootstrap behavior
+    - deployed-page HTML contract
+  - prefer declarative bootstrap descriptors over inline function generation when config must survive HTML serialization
+
