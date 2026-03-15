@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Product Remotes Desk
+- Tasks:
+  - replaced the raw `/app/remotes` module surface with a product-owned remotes desk at the frontend descriptor boundary
+  - kept all provider/runtime behavior inside `test-modules-remote-ops` while reframing the operator experience around one selected remote, managed target coverage, compatibility status, and recent runs
+  - added a focused product-shell integration proof instead of relying on the older raw remote-ops desk coverage
+- Easy:
+  - the existing descriptor override seam was already proven by the product-owned `Authors`, `Comments`, `Domains`, and `Deployments` desks, so claiming `test-modules-remote-ops` at the same boundary was straightforward
+  - the module-local remote workspace already exposed the right state shape for a thin product view, so no new backend API was needed
+- Hard:
+  - the first implementation assumed the workspace still exposed `sortedRuns`; the real public hook contract exposes `runs`, so the failure was a view-to-hook contract mismatch, not a runtime bug
+  - the first test assertion used `getByText(\"Posts Projection\")`, but the new product desk intentionally repeats some target names across managed-target and recent-run surfaces; the proof had to move to non-unique-safe assertions
+- Improve:
+  - when building thin product-shell views on top of module-local hooks, treat the hook return shape as the only contract and avoid reaching for pre-refactor internal property names
+  - product-shell integration tests should expect repeated business labels once the desk has both summary and detail surfaces; use role/scoped queries or tolerant repeated-text assertions from the start
+
 ### 2026-03-15 - M04 Layout Render Preview
 - Tasks:
   - added a rendered base-structure preview to the Layouts builder without widening the Pages/runtime surface

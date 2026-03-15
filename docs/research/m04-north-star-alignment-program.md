@@ -527,9 +527,27 @@
         - flex order/basis/grow/shrink
     - the inspector now also exposes a generated structural markup outline so operators can see the semantic base html shape the layout implies
     - this closes the explicit north-star gap where layout authoring could build documents but not demonstrate the rendered base structure
+  - Pass 19 completed in worktree:
+    - `/app/remotes` now renders a product-owned remotes desk instead of the raw `test-modules-remote-ops` route surface
+    - the new desk keeps the provider/runtime logic inside `test-modules-remote-ops`, but changes the operator framing to:
+      - connection-first setup
+      - selected-remote health
+      - managed target coverage
+      - recent remote runs
+      - direct navigation into:
+        - `Domains`
+        - `Deployments`
+    - the product remotes desk intentionally suppresses the raw target-first framing:
+      - no standalone raw `Targets` tab emphasis
+      - managed product targets are shown as release-supporting services, not as the primary navigation model
+    - focused proof now covers the product remotes desk directly:
+      - validated selected connection
+      - managed target coverage
+      - recent run visibility
+      - raw-target-surface suppression
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
-    - `Remotes` is still primarily the raw `test-modules-remote-ops` desk rather than a stricter product-owned operator surface
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
     - generated HTML now boots `client-runtime`, and page-defined bindings now emit reusable runtime slot contracts, but richer CMS-configurable remote actions and preview/inspection of those runtime contracts are still not yet exposed across more content types
+    - the product `Remotes` surface still reuses the broad module-local connection editor; the next tightening move is to collapse that editor into stricter product-authored setup/provisioning steps without duplicating provider logic

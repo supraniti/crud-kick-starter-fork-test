@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `f3a76f0` `feat: add layout render preview`
+  - `65530fd` `docs: refresh m04 progress pointers`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -273,6 +273,17 @@
     - operators can now inspect both:
       - a styled layout base preview
       - a semantic markup outline for the same draft
+  - product-owned remotes desk:
+    - `/app/remotes` now renders a product-shell view instead of the raw `test-modules-remote-ops` desk
+    - the new desk reframes the operator flow around:
+      - selected remote status
+      - managed product target coverage
+      - recent remote runs
+      - direct navigation into:
+        - `Domains`
+        - `Deployments`
+    - provider/runtime logic remains inside `test-modules-remote-ops`
+    - the product view intentionally suppresses the old raw target-first framing
 
 ## Key Files Touched
 - Product shell:
@@ -322,6 +333,7 @@
   - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
   - [ProductEditorialView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductEditorialView.jsx)
   - [ProductModerationView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductModerationView.jsx)
+  - [ProductRemotesView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductRemotesView.jsx)
   - [product-view-descriptors.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-view-descriptors.jsx)
   - [product-deployments-view-sections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-view-sections.jsx)
   - [useProductDeploymentsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductDeploymentsWorkspace.js)
@@ -352,6 +364,7 @@
   - [product-deployments-test-helpers.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments-test-helpers.js)
   - [product-view-overrides.core.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/core/product-view-overrides.core.test.jsx)
   - [product-system-settings.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-system-settings.integration.test.jsx)
+  - [product-remotes.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-remotes.integration.test.jsx)
   - [remote-ops.managed-bundle.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/remote-ops.managed-bundle.integration.test.jsx)
   - [e2e/smoke/specs/app-smoke.e2e.test.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/e2e/smoke/specs/app-smoke.e2e.test.mjs)
   - [frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx)
@@ -373,13 +386,14 @@
 - Focused frontend slices:
   - product editorial
   - product moderation
+  - product remotes
   - remote-ops connections / managed bundle / targets / browser delivery
   - product domains
   - product deployments
   - product system settings
   - blog distribution per-record pages
 - Focused current slice:
-  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-editorial.integration.test.jsx src/tests/app-integration/product-moderation.integration.test.jsx src/tests/core/product-view-overrides.core.test.jsx src/tests/core/view-registry.entrypoint.core.test.jsx`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-remotes.integration.test.jsx`
 - Focused server:
   - `blog-distribution.module-conformance`
 - Function shape:
@@ -391,20 +405,19 @@
 
 ## Current Worktree State
 - Uncommitted M04 pass present:
-  - page-bound runtime slot contracts
+  - product-owned remotes desk
 - Next likely pass:
-  - richer CMS-configurable remote actions beyond comments
-  - or stronger release observability/cost surfaces around browser delivery and remotes
+  - tighter product-authored remote setup/provisioning steps
+  - or richer CMS-configurable runtime contract preview/actions beyond the current page/comment/media seams
 - Protocol:
   - `pnpm quality:protocol`
 
 ## Current Repo State
-- Worktree is intentionally dirty with the verified M04 mission-backed bundle-release slice and updated progress pointers.
+- Worktree is intentionally dirty with the verified product-remotes slice and updated progress pointers.
 - Latest completed slice in worktree:
-  - Pages mission-backed deployment-bundle release
-  - shared Pages route-context extraction for routes and missions
-  - mission-registration access to collection handlers
-  - full-gate stability fixes for simulated remote-root cleanup and artifact existence polling
+  - product-owned `Remotes` desk
+  - route-descriptor override for `test-modules-remote-ops`
+  - focused integration proof for the product remotes surface
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
