@@ -79,6 +79,15 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
               ],
               actions: [
                 {
+                  action: "page.refresh"
+                },
+                {
+                  action: "media.refresh"
+                },
+                {
+                  action: "comments.refresh"
+                },
+                {
                   action: "comments.submit"
                 }
               ],
@@ -146,6 +155,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
     expect(screen.getByText(/SEO title:\s*Launch Story SEO/)).toBeInTheDocument();
     expect(screen.getByLabelText("Resolved Page JSON").value).toContain("\"contractVersion\": 1");
     expect(screen.getByRole("heading", { name: "Client Runtime Contract" })).toBeInTheDocument();
+    expect(screen.getByText("page.refresh")).toBeInTheDocument();
     expect(screen.getByText("comments.submit")).toBeInTheDocument();
     expect(screen.getByDisplayValue("/assets/client-runtime.global.js")).toBeInTheDocument();
   });

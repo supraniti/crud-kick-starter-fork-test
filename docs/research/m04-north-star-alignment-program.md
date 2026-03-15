@@ -708,14 +708,34 @@
       - example public url
       - media base
     - this closes the remaining operator gap where a page or bundle could be structurally valid but still gave weak public-output visibility before release
+  - Pass 28 completed in worktree:
+    - delivered page runtime contracts now emit richer runtime-local refresh actions, not only remote comment submission:
+      - `page.refresh`
+      - `page-slot.refresh.<bindAs>`
+      - `media.refresh`
+      - `comments.refresh`
+      - existing `comments.submit`
+    - `client-runtime` now executes bounded local dataset-sync actions through the action layer, which makes the generated runtime contract materially richer without inventing new backend APIs
+    - product `Deployments` now resolves and renders a first-class `Client Runtime Release Preview` for the selected bundle/page
+    - the release preview now shows:
+      - runtime asset url
+      - runtime remote base
+      - bootstrap datasets
+      - queries
+      - actions
+      - datasets
+      - slots
+      - resolved media links
+      - raw runtime json
+    - runtime inspection is no longer confined to the Pages desk; operators can now inspect the delivery/runtime contract from the release surface before shipping
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
-    - generated HTML now boots `client-runtime`, and Pages now exposes the resolved runtime contract, but richer CMS-configurable remote actions and equivalent runtime inspection across more content types are still not yet exposed beyond the current page/comment/media seams
-    - broader runtime authoring and final product-surface cleanup still need their remaining passes from the fixed completion map
+    - proof/product surface separation still needs its final exposure cleanup pass
+    - the final closeout still needs the end-to-end practiced flow refresh and documentation cleanup from the fixed completion map
 
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 28: Client Runtime Product Alignment
+  - Pass 29: Module Exposure And Product Finalization

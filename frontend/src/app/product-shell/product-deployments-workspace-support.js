@@ -5,6 +5,10 @@ import {
   updateReferenceCollectionItem
 } from "../../api/reference.js";
 import {
+  fetchDeliveryPayload as fetchPageDeliveryPayload,
+  fetchPagePreviewSources as fetchPagePreviewSourceItems
+} from "../../../../modules/test-modules-pages/frontend/blog-distribution-workspace-support.js";
+import {
   createBundleDraft,
   createBundleDraftFromItem,
   createBundleMutationPayload,
@@ -34,6 +38,50 @@ import {
 } from "./product-deployments-workspace-helpers.js";
 
 const PAGES_COLLECTION_ID = "blog-pages";
+
+function createRuntimePreviewState() {
+  return {
+    loading: false,
+    errorMessage: null,
+    payload: null,
+    previewSource: null
+  };
+}
+
+function isPerRecordPage(page) {
+  return page?.deploymentMode === "per-record";
+}
+
+function resolveSinglePagePreviewSourceId(page) {
+  const itemId = page?.primarySource?.itemId;
+  return typeof itemId === "string" ? itemId : "";
+}
+
+async function loadRuntimePreview(selectedPage) {
+  if (!selectedPage?.id) {
+    return createRuntimePreviewState();
+  }
+
+  if (!isPerRecordPage(selectedPage)) {
+    const payload = await fetchPageDeliveryPayload(selectedPage.id, resolveSinglePagePreviewSourceId(selectedPage));
+    return {
+      loading: false,
+      errorMessage: null,
+      payload,
+      previewSource: null
+    };
+  }
+
+  const previewSources = await fetchPagePreviewSourceItems(selectedPage.id);
+  const previewSource = Array.isArray(previewSources) ? previewSources[0] ?? null : null;
+  const payload = await fetchPageDeliveryPayload(selectedPage.id, previewSource?.id ?? "");
+  return {
+    loading: false,
+    errorMessage: null,
+    payload,
+    previewSource
+  };
+}
 
 function useBundleEditor(bundles, reload, publishedPages, targets, connectionById) {
   const [selectedBundleId, setSelectedBundleId] = useState("");
@@ -187,6 +235,53 @@ export function useDeploymentWorkspaceLoad() {
     state,
     reload
   };
+}
+
+export function useDeploymentRuntimePreview(selectedPage) {
+  const [state, setState] = useState(createRuntimePreviewState);
+
+  useEffect(() => {
+    let active = true;
+
+    async function run() {
+      if (!selectedPage?.id) {
+        setState(createRuntimePreviewState());
+        return;
+      }
+
+      setState({
+        loading: true,
+        errorMessage: null,
+        payload: null,
+        previewSource: null
+      });
+
+      try {
+        const nextState = await loadRuntimePreview(selectedPage);
+        if (!active) {
+          return;
+        }
+        setState(nextState);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setState({
+          loading: false,
+          errorMessage: error?.message ?? "Failed to load runtime preview",
+          payload: null,
+          previewSource: null
+        });
+      }
+    }
+
+    void run();
+    return () => {
+      active = false;
+    };
+  }, [selectedPage?.deploymentMode, selectedPage?.id, selectedPage?.primarySource?.itemId]);
+
+  return state;
 }
 
 export function useDeploymentBundleState(state, reload, remoteOpsSupport, remoteHealth) {

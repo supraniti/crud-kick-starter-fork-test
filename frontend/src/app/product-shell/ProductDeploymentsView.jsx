@@ -1,6 +1,7 @@
 import { Alert, Stack } from "@mui/material";
 import { useProductDeploymentsWorkspace } from "./useProductDeploymentsWorkspace.js";
 import { DeploymentBundleForecastCard } from "./DeploymentBundleForecastCard.jsx";
+import { DeploymentBundleRuntimePreviewCard } from "./DeploymentBundleRuntimePreviewCard.jsx";
 import { DeploymentReleaseObservabilityCard } from "./DeploymentReleaseObservabilityCard.jsx";
 import {
   DeploymentBundleEditorCard,
@@ -84,6 +85,7 @@ export function ProductDeploymentsView({ navigate = null }) {
         <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
           <DeploymentBundleEditorCard workspace={workspace} />
           <DeploymentBundleForecastCard forecast={workspace.bundleForecast} />
+          <DeploymentBundleRuntimePreviewCard runtimePreviewState={workspace.runtimePreviewState} />
 
           <DeploymentBundleValidationCard validation={workspace.bundleValidation} />
 

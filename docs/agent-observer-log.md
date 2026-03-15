@@ -50,6 +50,23 @@
   - when moving a hook/helper across the product-shell files, verify the import barrel immediately; those failures look like runtime regressions but are only wiring mistakes
   - prefer sentence-level or regex assertions for summary cards that prefix business values with labels like `SEO title:` or `Example public URL:`
 
+### 2026-03-15 - M04 Client Runtime Product Alignment
+- Tasks:
+  - extended generated page runtime contracts so the action layer now carries runtime-local refresh actions in addition to the existing remote comment submission action
+  - added a product-owned runtime preview on the `Deployments` route so runtime inspection is no longer confined to the Pages desk
+  - verified the slice through client-runtime package tests, Pages server conformance, product deployments integration, and the full release gate
+- Easy:
+  - the right contract expansion was already latent in the existing datasets and follow-up routes; no new backend API had to be invented
+  - product `Deployments` already had the selected page/bundle context, so runtime preview was mostly an async fetch/composition problem
+- Hard:
+  - the first runtime-contract implementation silently dropped the new page/media refresh actions whenever comments were enabled because the comments branch overwrote the previously assembled actions array
+  - the first async preview hook import used the wrong barrel and failed at runtime even though the logic itself was correct
+  - package/runtime work and product-surface work had to land together; doing only one side would have left the pass half-real
+- Improve:
+  - when enriching generated runtime contracts, preserve earlier registries when feature branches merge; action/query/dataset arrays are easy to clobber accidentally
+  - if a pass adds a new product preview for an existing contract, mock the contract owner module directly in integration tests instead of rebuilding the payload through generic APIs
+  - runtime-local actions are a good bounded way to make the action layer richer without fabricating new remote mutations
+
 ### 2026-03-15 - M04 Posts Taxonomies Authors Hardening
 - Tasks:
   - tightened the post authoring loop by surfacing author/category/media/SEO/body readiness directly beside the content editor

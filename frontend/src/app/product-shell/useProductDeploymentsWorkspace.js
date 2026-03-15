@@ -6,6 +6,7 @@ import { useDeploymentBundleForecast } from "./product-deployments-workspace-hel
 import {
   useDeploymentBundleState,
   useDeploymentExecution,
+  useDeploymentRuntimePreview,
   useDeploymentWorkspaceLoad
 } from "./product-deployments-workspace-support.js";
 
@@ -64,6 +65,7 @@ export function useProductDeploymentsWorkspace() {
       mediaTargetState: bundleState.mediaTargetState
     }
   );
+  const runtimePreviewState = useDeploymentRuntimePreview(bundleState.selectedPage);
   const reloadWorkspace = useCallback(async () => {
     await Promise.all([reload(), remoteOpsSupport.reload()]);
   }, [reload, remoteOpsSupport]);
@@ -94,6 +96,7 @@ export function useProductDeploymentsWorkspace() {
     selectedBundleRuns: bundleState.selectedBundleRuns,
     bundleRunSummary: bundleState.bundleRunSummary,
     bundleForecast,
+    runtimePreviewState,
     releaseObservability,
     localSyncState: executionState.localSyncState,
     pipelineState: executionState.pipelineState,

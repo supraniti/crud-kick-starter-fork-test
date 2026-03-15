@@ -133,6 +133,14 @@ function createRuntimeHarness() {
             body: "payload.body"
           }
         }
+      },
+      {
+        action: "catalog.refresh",
+        policy: "local-only",
+        local: {
+          kind: "sync-dataset",
+          dataset: "catalog"
+        }
       }
     ],
     datasets: [
@@ -599,6 +607,20 @@ await runScenario("comment submission actions mark the comment dataset dirty", a
   assert.equal(actionResult.ok, true);
   assert.equal(actionResult.data.item.postId, "post-001");
   assert.equal(status.dirty, true);
+});
+
+await runScenario("local runtime actions can sync datasets without remote dispatch contracts", async () => {
+  const { runtime } = createRuntimeHarness();
+  await runtime.installDataset({ dataset: "catalog" });
+  const actionResult = await runtime.dispatch({
+    action: "catalog.refresh"
+  });
+  const status = await runtime.getDatasetStatus("catalog");
+  assert.equal(actionResult.ok, true);
+  assert.equal(actionResult.meta.source, "runtime-local");
+  assert.equal(actionResult.meta.operation, "sync-dataset");
+  assert.equal(status.version, "2");
+  assert.equal(status.syncToken, "sync");
 });
 
 await runScenario("local-only query failures are structured", async () => {

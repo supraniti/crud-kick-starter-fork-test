@@ -1365,6 +1365,34 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
         ]),
         actions: expect.arrayContaining([
           expect.objectContaining({
+            action: "page.refresh",
+            local: expect.objectContaining({
+              kind: "sync-dataset",
+              dataset: "page-payload"
+            })
+          }),
+          expect.objectContaining({
+            action: "media.refresh",
+            local: expect.objectContaining({
+              kind: "sync-dataset",
+              dataset: "page-media"
+            })
+          }),
+          expect.objectContaining({
+            action: "comments.refresh",
+            local: expect.objectContaining({
+              kind: "sync-dataset",
+              dataset: "post-comments"
+            })
+          }),
+          expect.objectContaining({
+            action: "page-slot.refresh.primary",
+            local: expect.objectContaining({
+              kind: "sync-dataset",
+              dataset: "page-slot-primary"
+            })
+          }),
+          expect.objectContaining({
             action: "comments.submit",
             markDatasetsDirty: ["post-comments"],
             remote: expect.objectContaining({

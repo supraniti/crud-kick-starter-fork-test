@@ -42,6 +42,8 @@ vi.mock("../../../../modules/test-modules-pages/frontend/blog-distribution-works
   );
   return {
     ...actual,
+    fetchDeliveryPayload: vi.fn(),
+    fetchPagePreviewSources: vi.fn(),
     syncSelectedPageDeployment: vi.fn(),
     runDeploymentBundleRelease: vi.fn()
   };
@@ -176,9 +178,64 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function createRuntimePreviewPayload() {
+  return {
+    runtime: {
+      clientRuntime: {
+        assetUrl: "/assets/client-runtime.global.js",
+        remote: {
+          baseUrl: "https://stories.example.com"
+        },
+        bootstrapDatasets: ["page-payload", "page-media", "post-comments", "page-slot-primary"],
+        queries: [
+          { resource: "page", query: "current" },
+          { resource: "page", query: "currentRemote" },
+          { resource: "media", query: "byId" },
+          { resource: "comments", query: "byPost" }
+        ],
+        actions: [
+          { action: "page.refresh" },
+          { action: "media.refresh" },
+          { action: "comments.refresh" },
+          { action: "comments.submit" }
+        ],
+        datasets: [
+          { dataset: "page-payload" },
+          { dataset: "page-media" },
+          { dataset: "post-comments" },
+          { dataset: "page-slot-primary" }
+        ],
+        slots: [
+          { bindAs: "primary", sourceType: "blog-post", recordMode: "single-item" }
+        ]
+      }
+    },
+    media: {
+      items: [
+        {
+          id: "media-001",
+          preferredUrl: "https://stories.example.com/library/originals/hero.png"
+        }
+      ]
+    }
+  };
+}
+
+function setupRuntimePreviewMocks() {
+  blogDistributionSupport.fetchPagePreviewSources.mockResolvedValue([
+    {
+      id: "post-001",
+      title: "Launch Story",
+      path: "/posts/launch-story"
+    }
+  ]);
+  blogDistributionSupport.fetchDeliveryPayload.mockResolvedValue(createRuntimePreviewPayload());
+}
+
 test("deployment bundles can be created with typed target selectors", async () => {
   const targets = createStandardTargetSet();
   setupCreateBundleFixture(Object.values(targets));
+  setupRuntimePreviewMocks();
   referenceApi.createReferenceCollectionItem.mockResolvedValue({
     ok: true,
     item: {
@@ -247,6 +304,7 @@ test("deployment bundle validation blocks mismatched browser-delivery bindings b
   );
 
   setupCreateBundleFixture([...Object.values(targets), otherDeployment]);
+  setupRuntimePreviewMocks();
 
   render(<ProductDeploymentsView />);
 
@@ -332,6 +390,7 @@ test("product deployments desk runs the release pipeline across local HTML, proj
       remoteMediaTargetProfileId: "target-media-001"
     }
   });
+  setupRuntimePreviewMocks();
   blogDistributionSupport.runDeploymentBundleRelease.mockResolvedValue({
     ok: true,
     message: "Release pipeline completed for 'Posts Release Bundle'",
@@ -366,6 +425,10 @@ test("product deployments desk runs the release pipeline across local HTML, proj
   await waitFor(() => {
     expect(screen.getByText("Bundle bindings are coherent.")).toBeInTheDocument();
     expect(screen.getByText("Public Output Forecast")).toBeInTheDocument();
+    expect(screen.getByText("Client Runtime Release Preview")).toBeInTheDocument();
+    expect(screen.getByText("page.refresh")).toBeInTheDocument();
+    expect(screen.getByText("comments.refresh")).toBeInTheDocument();
+    expect(screen.getByText("https://stories.example.com/library/originals/hero.png")).toBeInTheDocument();
     expect(
       screen.getByText(/Example public URL:\s*https:\/\/stories\.example\.com\/posts\/\{slug\}/)
     ).toBeInTheDocument();
@@ -429,6 +492,7 @@ test("product deployments desk surfaces release footprint and remote cost warnin
     remoteRuns: []
   });
   mockModuleSettings();
+  setupRuntimePreviewMocks();
   remoteOpsSupportApi.analyzeConnectionCompatibility.mockResolvedValue({
     bundles: [
       {

@@ -9,6 +9,9 @@ const DEFAULT_PAGE_MEDIA_DATASET = "page-media";
 const DEFAULT_POST_COMMENTS_DATASET = "post-comments";
 const DEFAULT_PAGE_SLOT_RESOURCE = "page-slot";
 const DEFAULT_PAGE_REMOTE_QUERY = "currentRemote";
+const DEFAULT_PAGE_REFRESH_ACTION = "page.refresh";
+const DEFAULT_MEDIA_REFRESH_ACTION = "media.refresh";
+const DEFAULT_COMMENTS_REFRESH_ACTION = "comments.refresh";
 
 function resolveAssetRelativePath(assetUrl) {
   return String(assetUrl || "")
@@ -27,6 +30,17 @@ function createPagePayloadQueryDefinition() {
     query: "current",
     policy: "local-first",
     dataset: DEFAULT_PAGE_PAYLOAD_DATASET
+  };
+}
+
+function createDatasetRefreshAction(action, dataset) {
+  return {
+    action,
+    policy: "local-only",
+    local: {
+      kind: "sync-dataset",
+      dataset
+    }
   };
 }
 
@@ -221,6 +235,12 @@ function createPageSlotDatasetDefinitions(slotDefinitions = []) {
   }));
 }
 
+function createPageSlotActionDefinitions(slotDefinitions = []) {
+  return slotDefinitions.map((slot) =>
+    createDatasetRefreshAction(`page-slot.refresh.${slot.bindAs}`, slot.dataset)
+  );
+}
+
 function supportsCommentsRuntime(payload = {}) {
   const primaryRecord = readPrimaryRecord(payload);
   if (payload?.page?.primarySourceType !== "blog-post" || !primaryRecord) {
@@ -278,6 +298,7 @@ function createCommentsDatasetDefinition() {
 
 function createCommentsActionDefinitions() {
   return [
+    createDatasetRefreshAction(DEFAULT_COMMENTS_REFRESH_ACTION, DEFAULT_POST_COMMENTS_DATASET),
     {
       action: "comments.submit",
       policy: "remote-with-local-update",
@@ -307,7 +328,10 @@ function buildRuntimeRegistries(payload = {}) {
       ...(remotePageQuery ? [remotePageQuery] : []),
       ...createPageSlotQueryDefinitions(pageSlotDefinitions)
     ],
-    actions: [],
+    actions: [
+      createDatasetRefreshAction(DEFAULT_PAGE_REFRESH_ACTION, DEFAULT_PAGE_PAYLOAD_DATASET),
+      ...createPageSlotActionDefinitions(pageSlotDefinitions)
+    ],
     datasets: [createPagePayloadDatasetDefinition(payload), ...createPageSlotDatasetDefinitions(pageSlotDefinitions)],
     pageSlots: pageSlotDefinitions.map((slot) => ({
       bindAs: slot.bindAs,
@@ -324,7 +348,7 @@ function buildRuntimeRegistries(payload = {}) {
     return {
       bootstrapDatasets: registries.bootstrapDatasets,
       queries: [...registries.queries, ...createCommentsQueryDefinitions()],
-      actions: createCommentsActionDefinitions(),
+      actions: [...registries.actions, ...createCommentsActionDefinitions()],
       datasets: [...registries.datasets, createCommentsDatasetDefinition()],
       pageSlots: registries.pageSlots
     };
@@ -332,7 +356,7 @@ function buildRuntimeRegistries(payload = {}) {
   const withMedia = {
     bootstrapDatasets: [...registries.bootstrapDatasets, DEFAULT_PAGE_MEDIA_DATASET],
     queries: [...registries.queries, ...createMediaQueryDefinitions()],
-    actions: registries.actions,
+    actions: [...registries.actions, createDatasetRefreshAction(DEFAULT_MEDIA_REFRESH_ACTION, DEFAULT_PAGE_MEDIA_DATASET)],
     datasets: [...registries.datasets, createMediaDatasetDefinition(payload)],
     pageSlots: registries.pageSlots
   };
@@ -342,7 +366,7 @@ function buildRuntimeRegistries(payload = {}) {
   return {
     bootstrapDatasets: withMedia.bootstrapDatasets,
     queries: [...withMedia.queries, ...createCommentsQueryDefinitions()],
-    actions: createCommentsActionDefinitions(),
+    actions: [...withMedia.actions, ...createCommentsActionDefinitions()],
     datasets: [...withMedia.datasets, createCommentsDatasetDefinition()],
     pageSlots: withMedia.pageSlots
   };
