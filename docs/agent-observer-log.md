@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Posts Taxonomies Authors Hardening
+- Tasks:
+  - tightened the post authoring loop by surfacing author/category/media/SEO/body readiness directly beside the content editor
+  - added taxonomy usage visibility that reads across posts and pages so category/tag readiness is visible from the taxonomy desk instead of being inferred manually
+  - tightened the product `Authors` desk with assignment coverage so author completeness is visible as a release-quality concern, not only as a roster concern
+- Easy:
+  - the product-shell route graph already existed, so the new readiness panels could navigate operators into `Authors`, `Taxonomies`, `Media`, and `Pages` without new routing work
+  - posts/pages usage awareness stayed frontend-local because the generic collection APIs already exposed enough information for bounded usage summaries
+- Hard:
+  - the first pass added just enough coverage to push `blog-content.integration` over the repo LOC gate; the right fix was to tighten the new proof rather than spread the feature across more files unnecessarily
+  - taxonomy usage summaries need to be useful without pretending to be a full analytics system; the right bounded shape was counts, missing assignments, top references, and page/template visibility
+- Improve:
+  - when a product-hardening pass introduces cross-module readiness, expose the actionable destinations in the same panel so the operator can repair the issue immediately
+  - for north-star product passes, prefer compact targeted proofs over expanding already-near-threshold integration files with verbose setup
+
 ### 2026-03-15 - M04 Media Product Hardening
 - Tasks:
   - hardened the media desk so local library operations and remote-state interpretation happen from one surface instead of splitting the operator between gallery and remote panels mentally

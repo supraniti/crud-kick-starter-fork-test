@@ -11,7 +11,7 @@
 - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
 
 ## Current Position
-- Completed through M04 Pass 24.
+- Completed through M04 Pass 25.
 - Already achieved:
   - product shell routes and labels
   - product `System Settings`, `Remotes`, `Domains`, `Deployments`
@@ -38,6 +38,10 @@
     - bulk selection and target-wide remote actions
     - remote-only visibility
     - clearer local-vs-remote artifact links
+  - product-solid posts / taxonomies / authors triangle:
+    - posts now surface authoring-readiness and cross-module action hints
+    - taxonomy desk now exposes posts/pages usage visibility and top-term usage summaries
+    - product `Authors` desk now exposes assignment coverage and missing-author attention state
 
 ## Definition Of Done For M04
 - Normal runtime behaves like a product CMS, not a proof-module browser.
@@ -58,10 +62,10 @@
 
 ## Remaining Pass Count
 - Estimated remaining implementation passes to reach the current M04 definition of done:
-  - `5` functional passes
+  - `4` functional passes
   - `1` final hardening/closeout pass
 - Total remaining passes:
-  - `6`
+  - `5`
 
 ## Locked Remaining Sequence
 

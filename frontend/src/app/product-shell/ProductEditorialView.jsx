@@ -82,6 +82,43 @@ function buildAuthorCoverage(authors = []) {
   };
 }
 
+function buildAuthorAssignmentCoverage(authors = [], posts = []) {
+  const authoredPostsById = new Map();
+  const publishedPostsById = new Map();
+  const attentionPostsById = new Map();
+
+  for (const post of posts) {
+    const authorId = typeof post?.primaryAuthorId === "string" ? post.primaryAuthorId : "";
+    if (!authorId) {
+      continue;
+    }
+    authoredPostsById.set(authorId, (authoredPostsById.get(authorId) ?? 0) + 1);
+    if (post.status === "published") {
+      publishedPostsById.set(authorId, (publishedPostsById.get(authorId) ?? 0) + 1);
+    }
+    if (!(hasPrimaryAuthor(post) && hasCategories(post) && hasLongBody(post) && hasFeaturedMedia(post))) {
+      attentionPostsById.set(authorId, (attentionPostsById.get(authorId) ?? 0) + 1);
+    }
+  }
+
+  return authors
+    .map((author) => ({
+      id: author.id,
+      displayName: author.displayName ?? author.id,
+      authoredPosts: authoredPostsById.get(author.id) ?? 0,
+      publishedPosts: publishedPostsById.get(author.id) ?? 0,
+      attentionPosts: attentionPostsById.get(author.id) ?? 0,
+      missingAvatar: !author.avatarMediaId,
+      inactiveWithAssignments: author.status !== "active" && (authoredPostsById.get(author.id) ?? 0) > 0
+    }))
+    .sort(
+      (left, right) =>
+        right.authoredPosts - left.authoredPosts ||
+        right.publishedPosts - left.publishedPosts ||
+        left.displayName.localeCompare(right.displayName)
+    );
+}
+
 function resolveAuthorLabel(item, authorsById) {
   const explicitLabel =
     typeof item?.primaryAuthorIdTitle === "string" && item.primaryAuthorIdTitle.length > 0
@@ -146,6 +183,48 @@ function EditorialDependenciesCard({ diagnostics, onOpenPosts, onOpenTaxonomies,
               ? "Posts still fail the baseline editorial readiness checks. Clear the blockers before treating the roster as release-ready."
               : "The current posts pass the baseline author/category/body checks."}
           </Alert>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EditorialCoverageCard({ coverageRows }) {
+  const missingAvatarCount = coverageRows.filter((row) => row.missingAvatar).length;
+  const inactiveAssignedCount = coverageRows.filter((row) => row.inactiveWithAssignments).length;
+
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.25}>
+            <Typography variant="subtitle1">Assignment Coverage</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Keep author workload, publishing coverage, and avatar/media gaps visible from the roster desk.
+            </Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="small" label={`Missing avatars ${missingAvatarCount}`} color={missingAvatarCount > 0 ? "warning" : "default"} />
+            <Chip size="small" label={`Inactive with assignments ${inactiveAssignedCount}`} color={inactiveAssignedCount > 0 ? "warning" : "default"} />
+          </Stack>
+
+          <Stack spacing={1}>
+            {coverageRows.slice(0, 6).map((row) => (
+              <Paper key={row.id} variant="outlined" sx={{ p: 1.5 }}>
+                <Stack spacing={0.75}>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                    <Typography variant="subtitle2">{row.displayName}</Typography>
+                    <Chip size="small" label={`Assigned ${row.authoredPosts}`} variant="outlined" />
+                    <Chip size="small" label={`Published ${row.publishedPosts}`} variant="outlined" />
+                    <Chip size="small" label={`Needs attention ${row.attentionPosts}`} color={row.attentionPosts > 0 ? "warning" : "default"} />
+                    {row.missingAvatar ? <Chip size="small" label="Missing avatar" color="warning" /> : null}
+                    {row.inactiveWithAssignments ? <Chip size="small" label="Inactive with assignments" color="warning" /> : null}
+                  </Stack>
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
         </Stack>
       </CardContent>
     </Card>
@@ -293,6 +372,10 @@ export function ProductEditorialView({ navigate = null, collectionsDomain }) {
     [workspace.queueState.items]
   );
   const coverage = useMemo(() => buildAuthorCoverage(workspace.authors), [workspace.authors]);
+  const assignmentCoverage = useMemo(
+    () => buildAuthorAssignmentCoverage(workspace.authors, workspace.queueState.items),
+    [workspace.authors, workspace.queueState.items]
+  );
 
   function openRoute(moduleId) {
     if (typeof navigate !== "function") {
@@ -348,6 +431,8 @@ export function ProductEditorialView({ navigate = null, collectionsDomain }) {
         onOpenTaxonomies={() => openRoute("test-modules-taxonomy")}
         onOpenMedia={() => openRoute("test-modules-media-manager")}
       />
+
+      <EditorialCoverageCard coverageRows={assignmentCoverage} />
 
       <EditorialQueueCard
         authors={workspace.authors}

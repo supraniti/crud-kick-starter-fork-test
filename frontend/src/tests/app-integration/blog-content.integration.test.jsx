@@ -206,6 +206,38 @@ test("blog content view renders custom editor and revision timeline", async () =
   });
 }, 12000);
 
+test("blog content view surfaces authoring readiness and cross-module navigation hints", async () => {
+  installContentFetchMocks({
+    pages: [
+      {
+        id: "page-011",
+        title: "Launch Post Page",
+        status: "published",
+        deploymentMode: "single-page",
+        primarySourceType: "blog-post",
+        primarySource: {
+          sourceType: "blog-post",
+          itemId: "post-001"
+        }
+      }
+    ]
+  });
+
+  const navigate = vi.fn();
+  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={createCollectionsDomain()} navigate={navigate} />);
+
+  await waitFor(() => {
+    expect(screen.getByText("Authoring Readiness")).toBeInTheDocument();
+    expect(screen.getByText(/Primary author: Alice Stone/i)).toBeInTheDocument();
+    expect(screen.getByText(/Featured media: Launch Hero/i)).toBeInTheDocument();
+    expect(screen.getByText(/Impacted pages: Launch Post Page/i)).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Open Taxonomies" }));
+
+  expect(navigate).toHaveBeenCalledWith({ moduleId: "test-modules-taxonomy" }, { replace: false });
+}, 15000);
+
 test("blog content editor saves posts and restores revisions through the module route", async () => {
   installContentFetchMocks({
     revisions: [

@@ -386,3 +386,100 @@ test("blog taxonomy view surfaces separate remote projection panels for categori
   expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");
 });
 
+test("blog taxonomy view surfaces posts and pages usage visibility", async () => {
+  const fetchMock = vi.fn(async (url) => {
+    if (url === "/api/reference/collections/blog-posts/items?limit=200") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [
+          {
+            id: "post-001",
+            title: "Launch Checklist",
+            categoryIds: ["cat-001"],
+            tagIds: ["tag-001"]
+          },
+          {
+            id: "post-002",
+            title: "Platform Retrospective",
+            categoryIds: [],
+            tagIds: []
+          }
+        ]
+      });
+    }
+
+    if (url === "/api/reference/collections/blog-pages/items?limit=200") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [
+          {
+            id: "page-001",
+            title: "Category Template",
+            primarySourceType: "blog-category",
+            dataSources: [
+              {
+                kind: "posts-by-category",
+                sourceType: "blog-category"
+              }
+            ]
+          }
+        ]
+      });
+    }
+
+    throw new Error(`Unexpected fetch request: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  const navigate = vi.fn();
+  const collectionsDomain = createCollectionsDomain({
+    activeCollectionId: "blog-categories",
+    collectionSchema: {
+      id: "blog-categories",
+      label: "Categories",
+      entitySingular: "category",
+      fields: [{ id: "name", label: "Name", type: "text", required: true }]
+    },
+    collectionItems: [
+      {
+        id: "cat-001",
+        name: "Guides",
+        usageCount: 3
+      },
+      {
+        id: "cat-002",
+        name: "DevOps",
+        usageCount: 0
+      }
+    ],
+    moduleCollections: [
+      { id: "blog-categories", label: "Categories", capabilities: { create: true, update: true, delete: true } },
+      { id: "blog-tags", label: "Tags", capabilities: { create: true, update: true, delete: true } }
+    ]
+  });
+
+  render(
+    <BlogTaxonomyView
+      activeModuleLabel="Blog Taxonomy"
+      collectionsDomain={collectionsDomain}
+      navigate={navigate}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText("Posts + Category Pages")).toBeInTheDocument();
+    expect(screen.getByText(/Guides: 1 post reference/i)).toBeInTheDocument();
+    expect(screen.getByText(/Category Templates 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Posts Missing Categories 1/i)).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Open Pages" }));
+
+  expect(navigate).toHaveBeenCalledWith(
+    {
+      moduleId: "test-modules-pages"
+    },
+    { replace: false }
+  );
+});
+

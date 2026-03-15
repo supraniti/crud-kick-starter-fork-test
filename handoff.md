@@ -29,23 +29,44 @@
 ## Current review seam
 - Execute the fixed M04 pass sequence without re-planning it each turn.
 - Current next locked pass after the active worktree slice:
-  - Pass 25: posts / taxonomies / authors product hardening
+  - Pass 26: comments sync and moderation hardening
 - Remaining order is fixed in:
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
 
 ## Latest M04 worktree slice
-- Pass 24 complete in worktree:
-  - product-solid media desk improvements:
-    - per-item remote sync posture
-    - stronger sort modes
-    - bulk selection and bulk delete
-    - target-wide remote compare/sync actions from the gallery surface
-    - local-vs-remote artifact link visibility
-    - remote-only object visibility from the latest compare summary
+- Pass 25 complete in worktree:
+  - posts now expose authoring-readiness directly in the editor flow:
+    - author assignment status
+    - category assignment status
+    - featured media status
+    - SEO readiness
+    - body completeness
+    - impacted published pages
+    - direct navigation into:
+      - `Authors`
+      - `Taxonomies`
+      - `Media`
+      - `Pages`
+  - taxonomy desk now exposes posts/pages usage visibility:
+    - total post references
+    - posts missing categories
+    - referenced vs unused term counts
+    - top referenced terms
+    - category template-page visibility
+    - listing-page visibility for categories and tags
+  - product `Authors` now exposes assignment coverage and author attention state:
+    - assigned posts count
+    - published posts count
+    - posts needing author attention
+    - missing-avatar coverage
+    - inactive authors still carrying assignments
 
 ## Current verification note
 - Focused proofs green:
-  - `media-manager.integration`
+  - `blog-content.integration`
+  - `blog-editorial-taxonomy.integration`
+  - `product-editorial.integration`
+- `pnpm lint:repo-loc` passed
 - `pnpm lint:function-shape` passed
 - `pnpm quality:protocol` passed
 - `pnpm quality:gate:full` passed

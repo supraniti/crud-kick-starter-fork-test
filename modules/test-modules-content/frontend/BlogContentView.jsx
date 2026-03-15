@@ -140,6 +140,27 @@ export function BlogContentView({
     );
   };
 
+  const openAuthorsDesk = () => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate({ moduleId: "test-modules-editorial" }, { replace: false });
+  };
+
+  const openTaxonomiesDesk = () => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate({ moduleId: "test-modules-taxonomy" }, { replace: false });
+  };
+
+  const openMediaDesk = () => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate({ moduleId: "test-modules-media-manager" }, { replace: false });
+  };
+
   const openRemoteOpsTarget = () => {
     if (typeof navigate !== "function") {
       return;
@@ -175,6 +196,9 @@ export function BlogContentView({
           remoteProjectionTarget,
           remoteProjectionTargets,
           remoteProjectionLatestRun,
+          openAuthorsDesk,
+          openTaxonomiesDesk,
+          openMediaDesk,
           openPagesDesk,
           openRemoteOpsTarget,
           saveModuleSettings

@@ -162,12 +162,15 @@ test("product editorial view exposes authoring readiness and related workflow na
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Editorial Control Desk" })).toBeInTheDocument();
     expect(screen.getByText("Authoring Readiness")).toBeInTheDocument();
+    expect(screen.getByText("Assignment Coverage")).toBeInTheDocument();
     expect(screen.getByText("Launch Checklist")).toBeInTheDocument();
     expect(screen.getByText("Platform Retrospective")).toBeInTheDocument();
     expect(screen.getByText("Missing Avatars")).toBeInTheDocument();
   });
 
   expect(screen.getByText("Posts still fail the baseline editorial readiness checks. Clear the blockers before treating the roster as release-ready.")).toBeInTheDocument();
+  expect(screen.getByText(/Assigned 1/i)).toBeInTheDocument();
+  expect(screen.getByText("Missing avatar")).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith("/api/reference/collections/blog-posts/items?limit=200");
 
   fireEvent.click(screen.getByRole("button", { name: "Open Posts" }));

@@ -8,7 +8,9 @@ import {
 import { useMemo } from "react";
 import { CollectionsView } from "../../../frontend/src/ui/CollectionsView.jsx";
 import { BlogTaxonomyRemoteProjectionPanel } from "./BlogTaxonomyRemoteProjectionPanel.jsx";
+import { BlogTaxonomyUsagePanel } from "./BlogTaxonomyUsagePanel.jsx";
 import { useTaxonomyWorkspace } from "./useTaxonomyWorkspace.js";
+import { useTaxonomyUsageAwareness } from "./useTaxonomyUsageAwareness.js";
 
 const TAGS_COLLECTION_ID = "blog-tags";
 const CATEGORIES_COLLECTION_ID = "blog-categories";
@@ -118,6 +120,10 @@ export function BlogTaxonomyView({
   const workspace = useTaxonomyWorkspace({
     collectionsDomain
   });
+  const usageAwareness = useTaxonomyUsageAwareness({
+    activeCollectionId: collectionsDomain.activeCollectionId,
+    items: workspace.items
+  });
 
   const visibleSchemaState = useMemo(
     () => ({
@@ -180,6 +186,16 @@ export function BlogTaxonomyView({
       {collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID ? (
         <CategoryTreePanel rows={workspace.categoryTreeRows} />
       ) : null}
+
+      <BlogTaxonomyUsagePanel
+        activeCollectionId={collectionsDomain.activeCollectionId}
+        usageState={usageAwareness.usageState}
+        usageSummary={usageAwareness.usageSummary}
+        usageRows={usageAwareness.usageRows}
+        onOpenPosts={() => navigate?.({ moduleId: "test-modules-content" }, { replace: false })}
+        onOpenPages={() => navigate?.({ moduleId: "test-modules-pages" }, { replace: false })}
+        onRefresh={usageAwareness.reload}
+      />
 
       {moduleSettingsDomain ? (
         <BlogTaxonomyRemoteProjectionPanel

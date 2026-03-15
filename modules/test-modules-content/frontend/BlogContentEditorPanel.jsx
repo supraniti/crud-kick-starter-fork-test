@@ -15,6 +15,7 @@ import { SeoPreview, optionItems } from "./BlogContentPanels.jsx";
 import { StableMultilineTextField } from "./StableMultilineTextField.jsx";
 import { BlogContentDeploymentImpactPanel } from "./BlogContentDeploymentImpactPanel.jsx";
 import { BlogContentRemoteProjectionPanel } from "./BlogContentRemoteProjectionPanel.jsx";
+import { BlogContentAuthoringReadinessPanel } from "./BlogContentAuthoringReadinessPanel.jsx";
 
 const ToggleChipField = memo(function ToggleChipField({ label, options, values, onToggle }) {
   return (
@@ -440,6 +441,18 @@ export function BlogContentEditorPanel({ workspace }) {
         procedureState={workspace.remoteOpsSupport.procedureState}
         selectedTarget={workspace.remoteProjectionTarget}
         targetOptions={workspace.remoteProjectionTargets}
+      />
+      <BlogContentAuthoringReadinessPanel
+        draft={workspace.draft}
+        authorOptions={authorOptions}
+        categoryOptions={categoryOptions}
+        tagOptions={tagOptions}
+        mediaOptions={mediaOptions}
+        deploymentAwareness={workspace.deploymentAwareness}
+        onOpenAuthors={workspace.openAuthorsDesk}
+        onOpenTaxonomies={workspace.openTaxonomiesDesk}
+        onOpenMedia={workspace.openMediaDesk}
+        onOpenPages={workspace.openPagesDesk}
       />
       {workspace.saveState.errorMessage ? <Alert severity="error">{workspace.saveState.errorMessage}</Alert> : null}
       {workspace.saveState.successMessage ? <Alert severity="success">{workspace.saveState.successMessage}</Alert> : null}

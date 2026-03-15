@@ -633,14 +633,44 @@
       - per-item sync posture rendering
       - artifact link visibility
       - remote-only visibility
+  - Pass 25 completed in worktree:
+    - `Posts` now exposes stronger authoring-readiness cues directly in the editor flow:
+      - author assignment status
+      - category assignment status
+      - featured media status
+      - SEO readiness
+      - body completeness
+      - impacted published pages
+      - direct navigation into:
+        - `Authors`
+        - `Taxonomies`
+        - `Media`
+        - `Pages`
+    - `Taxonomies` now exposes richer usage visibility across posts and pages:
+      - total post references
+      - posts missing categories
+      - referenced vs unused term counts
+      - top referenced terms
+      - category template-page visibility
+      - listing-page visibility for categories and tags
+    - product `Authors` now surfaces assignment coverage and attention state:
+      - assigned posts count
+      - published posts count
+      - posts needing author attention
+      - missing-avatar coverage
+      - inactive authors still carrying assignments
+    - focused proof now covers:
+      - post authoring-readiness rendering
+      - taxonomy posts/pages usage visibility
+      - author assignment coverage in the product desk
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
     - generated HTML now boots `client-runtime`, and Pages now exposes the resolved runtime contract, but richer CMS-configurable remote actions and equivalent runtime inspection across more content types are still not yet exposed beyond the current page/comment/media seams
-    - media, posts/taxonomies/authors, comments, pages, and runtime authoring still need their remaining product-hardening passes from the fixed completion map
+    - comments, pages/deployments ease-of-use, broader runtime authoring, and final product-surface cleanup still need their remaining passes from the fixed completion map
 
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 25: Posts / Taxonomies / Authors Product Hardening
+  - Pass 26: Comments Sync And Moderation Hardening
