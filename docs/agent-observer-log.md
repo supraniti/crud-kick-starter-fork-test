@@ -1214,3 +1214,18 @@
   - never use a non-nullable string normalizer inside fallback chains; use the optional-text normalizer when empty string must not short-circuit resolution
   - when preview and artifact HTML diverge, reproduce the same scenario through both routes first; it collapses the search space immediately
 
+### 2026-03-15 - M04 Named Deployment Bundles
+- Tasks:
+  - added `page-deployment-bundles` so release ownership is a named persisted object instead of an implicit page/default selection
+  - rewired product `Deployments` to release from the selected bundle
+  - constrained bundle editing to typed validated targets instead of offering every remote target in every selector
+- Easy:
+  - the existing remote-health helper already knew how to classify validated targets, so typed selector options could stay inside the product shell without new backend APIs
+  - adding a bundle collection in `test-modules-pages` kept the persistence boundary clean
+- Hard:
+  - the first version was behaviorally fine but failed the repo shape gate because `useProductDeploymentsWorkspace` absorbed too much orchestration
+  - frontend vitest on this machine still needs escalation whenever Vite/esbuild child-process spawning trips the sandbox `spawn EPERM` boundary
+- Improve:
+  - when a desk shifts from implicit selection to persisted release objects, add a create-flow test in the same slice; otherwise the desk can look structurally complete while only the old happy path is covered
+  - keep typed target filtering near the editor hook, not scattered through the view, so later bundle validation rules stay maintainable
+

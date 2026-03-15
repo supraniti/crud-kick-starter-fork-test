@@ -258,6 +258,26 @@
     - product `Deployments` now prefers page-owned deployment/browser bindings over module defaults when a specific page is selected
     - synced per-record HTML now uses the same browser-delivery resolution path as preview/delivery APIs
       - module-default browser-delivery bindings and page-owned overrides now both emit domain-aware HTML consistently
+  - Pass 8 completed in worktree:
+    - deployment bundles are now first-class persisted records in `page-deployment-bundles`
+    - each bundle explicitly binds:
+      - one published page
+      - posts projection target
+      - categories projection target
+      - tags projection target
+      - media target
+      - HTML deployment target
+      - browser-delivery target
+    - product `Deployments` now releases from the selected bundle instead of from looser page/default selection
+    - bundle editing now constrains each selector to typed compatible validated targets:
+      - posts projection only shows `published-blog-posts`
+      - categories projection only shows `public-blog-categories`
+      - tags projection only shows `public-blog-tags`
+      - media/deployment/browser fields only show matching validated target kinds
+    - release-pipeline readiness now starts from:
+      - deployment bundle present
+      - published page bound by the bundle
+      - validated typed targets bound by the bundle
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -266,7 +286,6 @@
 - Product shell is now closer to the north star, but several north-star behaviors are still pending:
   - remote billing/cost summaries are not surfaced yet
   - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
-  - deployment bundles are still page-selected runs, not first-class named release bundles
   - client-runtime injection into generated HTML is still missing
   - remote/public delivery still needs stronger final-contract alignment around public media URLs, runtime bootstrap, and bundle observability
-  - release ownership is now page-explicit, but named reusable deployment bundles still do not exist
+  - release ownership is now bundle-explicit, but bundle-level observability and history are still thin

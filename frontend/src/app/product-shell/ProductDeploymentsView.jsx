@@ -7,8 +7,10 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  MenuItem,
   Paper,
   Stack,
+  TextField,
   Typography
 } from "@mui/material";
 import { useProductDeploymentsWorkspace } from "./useProductDeploymentsWorkspace.js";
@@ -231,6 +233,7 @@ export function ProductDeploymentsView({ navigate = null }) {
         sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}
       >
         <SummaryCard label="Published Pages" value={workspace.summary.publishedPages} />
+        <SummaryCard label="Deployment Bundles" value={workspace.summary.bundleCount} />
         <SummaryCard label="Synced Outputs" value={workspace.summary.syncedOutputs} />
         <SummaryCard label="Stale Outputs" value={workspace.summary.staleOutputs} />
         <SummaryCard label="Missing Outputs" value={workspace.summary.missingOutputs} />
@@ -240,33 +243,186 @@ export function ProductDeploymentsView({ navigate = null }) {
         <Paper variant="outlined" sx={{ p: 1.5, width: { xs: "100%", xl: 320 }, flexShrink: 0 }}>
           <Stack spacing={1.5}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">Published Pages</Typography>
+              <Typography variant="h6">Deployment Bundles</Typography>
               <Button variant="text" onClick={() => openRoute("test-modules-pages")}>
                 Open Pages
               </Button>
             </Stack>
             <List dense disablePadding>
-              {workspace.publishedPages.map((page) => (
+              {workspace.bundles.map((bundle) => (
                 <ListItemButton
-                  key={page.id}
-                  selected={workspace.selectedPageId === page.id}
-                  onClick={() => workspace.setSelectedPageId(page.id)}
+                  key={bundle.id}
+                  selected={workspace.selectedBundleId === bundle.id}
+                  onClick={() => workspace.setSelectedBundleId(bundle.id)}
                   sx={{ borderRadius: 1, mb: 0.5 }}
                 >
                   <ListItemText
-                    primary={page.title}
-                    secondary={`${page.deploymentStatus ?? "missing"} • ${page.deploymentSyncedCount ?? 0}/${page.deploymentTargetCount ?? 0} synced`}
+                    primary={bundle.title}
+                    secondary={bundle.pageId ? `Page: ${bundle.pageId}` : "Bundle requires a published page"}
                   />
                 </ListItemButton>
               ))}
             </List>
-            {workspace.publishedPages.length === 0 ? (
-              <Alert severity="info">No published pages yet.</Alert>
+            <Button variant="outlined" onClick={workspace.startNewBundle}>
+              New Bundle
+            </Button>
+            {workspace.bundles.length === 0 ? (
+              <Alert severity="info">No deployment bundles yet.</Alert>
             ) : null}
           </Stack>
         </Paper>
 
         <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
+          <Card variant="outlined">
+            <CardContent>
+              <Stack spacing={1.5}>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+                  <Stack spacing={0.25}>
+                    <Typography variant="subtitle1">
+                      {workspace.isCreatingNewBundle || !workspace.selectedBundleId
+                        ? "Create Deployment Bundle"
+                        : "Edit Deployment Bundle"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Release ownership is explicit here: one bundle binds the page, projections, media sync, remote HTML, and browser delivery.
+                    </Typography>
+                  </Stack>
+                </Stack>
+                {workspace.bundleActionState.errorMessage ? (
+                  <Alert severity="error">{workspace.bundleActionState.errorMessage}</Alert>
+                ) : null}
+                {workspace.bundleActionState.successMessage ? (
+                  <Alert severity="success">{workspace.bundleActionState.successMessage}</Alert>
+                ) : null}
+                <TextField
+                  label="Bundle Title"
+                  value={workspace.bundleDraft.title}
+                  onChange={(event) => workspace.changeBundleField("title", event.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  select
+                  label="Published Page"
+                  value={workspace.bundleDraft.pageId}
+                  onChange={(event) => workspace.changeBundleField("pageId", event.target.value)}
+                  fullWidth
+                >
+                  {workspace.availablePages.map((page) => (
+                    <MenuItem key={page.id} value={page.id}>
+                      {page.title}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Posts Projection Target"
+                  value={workspace.bundleDraft.postsProjectionTargetProfileId}
+                  onChange={(event) =>
+                    workspace.changeBundleField("postsProjectionTargetProfileId", event.target.value)
+                  }
+                  fullWidth
+                >
+                  {workspace.availableTargetOptions.postsProjectionTargets.map((target) => (
+                    <MenuItem key={target.id} value={target.id}>
+                      {target.optionLabel}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Categories Projection Target"
+                  value={workspace.bundleDraft.categoriesProjectionTargetProfileId}
+                  onChange={(event) =>
+                    workspace.changeBundleField("categoriesProjectionTargetProfileId", event.target.value)
+                  }
+                  fullWidth
+                >
+                  {workspace.availableTargetOptions.categoriesProjectionTargets.map((target) => (
+                    <MenuItem key={target.id} value={target.id}>
+                      {target.optionLabel}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Tags Projection Target"
+                  value={workspace.bundleDraft.tagsProjectionTargetProfileId}
+                  onChange={(event) =>
+                    workspace.changeBundleField("tagsProjectionTargetProfileId", event.target.value)
+                  }
+                  fullWidth
+                >
+                  {workspace.availableTargetOptions.tagsProjectionTargets.map((target) => (
+                    <MenuItem key={target.id} value={target.id}>
+                      {target.optionLabel}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Media Target"
+                  value={workspace.bundleDraft.mediaTargetProfileId}
+                  onChange={(event) =>
+                    workspace.changeBundleField("mediaTargetProfileId", event.target.value)
+                  }
+                  fullWidth
+                >
+                  {workspace.availableTargetOptions.mediaTargets.map((target) => (
+                    <MenuItem key={target.id} value={target.id}>
+                      {target.optionLabel}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="HTML Deployment Target"
+                  value={workspace.bundleDraft.deploymentTargetProfileId}
+                  onChange={(event) =>
+                    workspace.changeBundleField("deploymentTargetProfileId", event.target.value)
+                  }
+                  fullWidth
+                >
+                  {workspace.availableTargetOptions.deploymentTargets.map((target) => (
+                    <MenuItem key={target.id} value={target.id}>
+                      {target.optionLabel}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Browser Delivery Target"
+                  value={workspace.bundleDraft.browserDeliveryTargetProfileId}
+                  onChange={(event) =>
+                    workspace.changeBundleField("browserDeliveryTargetProfileId", event.target.value)
+                  }
+                  fullWidth
+                >
+                  {workspace.availableTargetOptions.browserTargets.map((target) => (
+                    <MenuItem key={target.id} value={target.id}>
+                      {target.optionLabel}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Button
+                    variant="contained"
+                    onClick={workspace.saveBundle}
+                    disabled={workspace.bundleActionState.saving}
+                  >
+                    {workspace.bundleActionState.saving
+                      ? "Saving..."
+                      : !workspace.isCreatingNewBundle && workspace.selectedBundleId
+                        ? "Save Bundle"
+                        : "Create Bundle"}
+                  </Button>
+                  <Button variant="text" onClick={workspace.startNewBundle}>
+                    Reset
+                  </Button>
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+
           <PipelineReadinessCard
             readiness={workspace.pipelineReadiness}
             pipelineState={workspace.pipelineState}
@@ -280,7 +436,7 @@ export function ProductDeploymentsView({ navigate = null }) {
                   <Stack spacing={0.25}>
                     <Typography variant="subtitle1">Local HTML Deployment</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {workspace.selectedPage?.title ?? "Select a published page"}
+                      {workspace.selectedBundle?.title ?? "Select a deployment bundle"}
                     </Typography>
                   </Stack>
                   {workspace.selectedPage?.deploymentStatus ? (
@@ -296,7 +452,7 @@ export function ProductDeploymentsView({ navigate = null }) {
                   <Button
                     variant="contained"
                     onClick={workspace.syncSelectedPage}
-                    disabled={!workspace.selectedPageId || workspace.localSyncState.processing}
+                    disabled={!workspace.selectedPage?.id || workspace.localSyncState.processing}
                   >
                     {workspace.localSyncState.processing ? "Syncing..." : "Sync Local HTML"}
                   </Button>

@@ -828,6 +828,114 @@
       }
     },
     {
+      "id": "page-deployment-bundles",
+      "label": "Deployment Bundles",
+      "entitySingular": "bundle",
+      "primaryField": "title",
+      "description": "Named release bundles that bind one published page template to explicit projection, media, deployment, and browser-delivery targets.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Bundle Title",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 180
+        },
+        {
+          "id": "pageId",
+          "label": "Published Page",
+          "type": "reference",
+          "required": true,
+          "collectionId": "blog-pages",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "postsProjectionTargetProfileId",
+          "label": "Posts Projection Target",
+          "type": "reference",
+          "required": true,
+          "collectionId": "remote-target-profiles",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "categoriesProjectionTargetProfileId",
+          "label": "Categories Projection Target",
+          "type": "reference",
+          "required": true,
+          "collectionId": "remote-target-profiles",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "tagsProjectionTargetProfileId",
+          "label": "Tags Projection Target",
+          "type": "reference",
+          "required": true,
+          "collectionId": "remote-target-profiles",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "mediaTargetProfileId",
+          "label": "Media Target",
+          "type": "reference",
+          "required": true,
+          "collectionId": "remote-target-profiles",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "deploymentTargetProfileId",
+          "label": "Deployment Target",
+          "type": "reference",
+          "required": true,
+          "collectionId": "remote-target-profiles",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "browserDeliveryTargetProfileId",
+          "label": "Browser Delivery Target",
+          "type": "reference",
+          "required": true,
+          "collectionId": "remote-target-profiles",
+          "labelField": "title",
+          "onDelete": "restrict"
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    },
+    {
       "id": "blog-redirect-rules",
       "label": "Redirect Rules",
       "entitySingular": "redirect-rule",

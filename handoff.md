@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `7de2001` `feat: advance m04 product release alignment`
+  - `c303b1d` `feat: add page-owned remote bindings`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -93,6 +93,22 @@
       - `Pages module default`
     - product `Deployments` now prefers page-owned deployment/browser targets when a specific page is selected
     - per-record synced HTML now resolves browser-delivery metadata through the same path as preview/delivery APIs
+  - named deployment bundles:
+    - `test-modules-pages` now owns `page-deployment-bundles`
+    - product `Deployments` now persists named bundles that bind:
+      - one published page
+      - posts projection target
+      - categories projection target
+      - tags projection target
+      - media target
+      - HTML deployment target
+      - browser-delivery target
+    - bundle editing is now typed:
+      - posts selector only offers `published-blog-posts`
+      - categories selector only offers `public-blog-categories`
+      - tags selector only offers `public-blog-tags`
+      - media/deployment/browser selectors only offer matching validated target kinds
+    - release-pipeline readiness now starts from the selected deployment bundle, not from loose page/default selection
 
 ## Key Files Touched
 - Product shell:
@@ -120,6 +136,7 @@
   - [ProductDomainsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainsView.jsx)
   - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
   - [useProductDeploymentsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductDeploymentsWorkspace.js)
+  - [product-deployment-bundles.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-bundles.js)
   - [useProductSystemSettingsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductSystemSettingsWorkspace.js)
   - [product-remote-health.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-remote-health.js)
 - New/updated tests:
@@ -144,8 +161,8 @@
 - Function shape:
   - `pnpm lint:function-shape`
 - Focused current slice:
-  - `pnpm --filter server test -- test/module-conformance/blog-distribution.module-conformance.test.js`
-  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.remote.integration.test.jsx src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx src/tests/app-integration/product-system-settings.integration.test.jsx src/tests/app-integration/product-domains.integration.test.jsx`
+  - `pnpm lint:function-shape`
 - Smoke E2E:
   - `pnpm test:e2e:smoke`
 - Full release gate:
@@ -155,7 +172,7 @@
 
 ## Current Repo State
 - Worktree is intentionally dirty with the M04 product-shell slices.
-- The current uncommitted slice is the page-owned remote binding pass.
+- The current uncommitted slice is the named deployment-bundles pass.
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
@@ -163,11 +180,6 @@
 
 ## Next Sensible Slice
 - Continue M04 with the first data-model expansion pass, likely one of:
-  - explicit named deployment bundles that bind:
-    - selected page template/page
-    - domain target
-    - posts/categories/tags projections
-    - media sync
-    - HTML deployment
   - stronger author/comment product-shell alignment
+  - bundle-level release observability/history and stricter bundle validation/reporting
   - client-runtime injection into generated HTML with remote-aware bootstrap payload
