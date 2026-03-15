@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Media Product Hardening
+- Tasks:
+  - hardened the media desk so local library operations and remote-state interpretation happen from one surface instead of splitting the operator between gallery and remote panels mentally
+  - added per-item sync posture, bulk selection, artifact-link visibility, and remote-only compare-summary visibility without widening provider/runtime ownership outside the media module plus embedded remote support
+  - stabilized the media integration proof after the new bulk panel introduced duplicate remote-action labels and the focused remote test proved slightly too tight on timeout
+- Easy:
+  - the existing embedded remote-ops support already exposed enough target/run state to compute item-level sync posture and artifact links without any backend change
+  - artifact-link visibility stayed bounded because browser-delivery and storage target descriptors already existed; the media desk only needed to compose them
+- Hard:
+  - a seemingly small bulk-action panel created an ambiguous `Compare Remote` selector that broke the existing remote-media integration proof immediately
+  - the focused remote-media test was functionally green but intermittently exceeded its old 15s budget once the view grew; the right fix was clearer button labels plus a realistic timeout, not weaker assertions
+- Improve:
+  - when adding new product-surface buttons near an older embedded panel, keep the operator labels semantically distinct so proof selectors stay stable
+  - if a product pass adds view weight but preserves the same workflow, widen test budgets deliberately instead of waiting for isolated runs to flake
+
 ### 2026-03-15 - M04 Product Domain Setup Hardening
 - Tasks:
   - turned the product `Domains` route from a thin browser-target wrapper into a domain-first setup surface

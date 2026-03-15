@@ -227,12 +227,68 @@ function useMediaMetadata(selectedItem, collectionsDomain) {
   };
 }
 
+function normalizeMediaItemIds(itemIds) {
+  return Array.isArray(itemIds)
+    ? [...new Set(itemIds.filter((itemId) => typeof itemId === "string" && itemId.length > 0))]
+    : [];
+}
+
+function buildDeleteConfirmationMessage(itemIds) {
+  if (itemIds.length === 1) {
+    return "Delete the selected media item from the media library?";
+  }
+  return `Delete ${itemIds.length} selected media items from the media library?`;
+}
+
+function useMediaDeleteOperations(collectionsDomain, setSelectedMediaId, setOperationState) {
+  const deleteItems = useCallback(async (itemIds, confirmationMessage) => {
+    const ids = normalizeMediaItemIds(itemIds);
+    if (ids.length === 0 || !window.confirm(confirmationMessage)) {
+      return;
+    }
+
+    try {
+      for (const mediaItemId of ids) {
+        const payload = await deleteMediaAsset(mediaItemId);
+        if (payload?.ok !== true) {
+          throw new Error(payload?.error?.message ?? "Delete failed");
+        }
+      }
+      await collectionsDomain.reloadCollectionItems();
+      setSelectedMediaId("");
+    } catch (error) {
+      setOperationState((previous) => ({
+        ...previous,
+        errorMessage: error?.message ?? "Delete failed"
+      }));
+    }
+  }, [collectionsDomain, setOperationState, setSelectedMediaId]);
+
+  const handleDeleteItems = useCallback(async (itemIds) => {
+    const ids = normalizeMediaItemIds(itemIds);
+    if (ids.length === 0) {
+      return;
+    }
+    return deleteItems(ids, buildDeleteConfirmationMessage(ids));
+  }, [deleteItems]);
+
+  return {
+    deleteItems,
+    handleDeleteItems
+  };
+}
+
 function useMediaOperations(selectedItem, collectionsDomain, setSelectedMediaId) {
   const [operationState, setOperationState] = useState({
     runningPreset: "",
     errorMessage: null,
     jobs: []
   });
+  const { deleteItems, handleDeleteItems } = useMediaDeleteOperations(
+    collectionsDomain,
+    setSelectedMediaId,
+    setOperationState
+  );
 
   const refreshJobs = useCallback(async () => {
     if (!selectedItem) {
@@ -284,29 +340,11 @@ function useMediaOperations(selectedItem, collectionsDomain, setSelectedMediaId)
     if (!selectedItem) {
       return;
     }
-
-    const confirmed = window.confirm(
+    return deleteItems(
+      [selectedItem.id],
       `Delete '${selectedItem.displayName}' from the media library?`
     );
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      const payload = await deleteMediaAsset(selectedItem.id);
-      if (payload?.ok !== true) {
-        throw new Error(payload?.error?.message ?? "Delete failed");
-      }
-
-      await collectionsDomain.reloadCollectionItems();
-      setSelectedMediaId("");
-    } catch (error) {
-      setOperationState((previous) => ({
-        ...previous,
-        errorMessage: error?.message ?? "Delete failed"
-      }));
-    }
-  }, [collectionsDomain, selectedItem, setSelectedMediaId]);
+  }, [deleteItems, selectedItem]);
 
   const handleRunPreset = useCallback(async (preset) => {
     if (!selectedItem) {
@@ -343,6 +381,7 @@ function useMediaOperations(selectedItem, collectionsDomain, setSelectedMediaId)
   return {
     operationState,
     handleDeleteSelected,
+    handleDeleteItems,
     handleRunPreset
   };
 }
@@ -357,7 +396,7 @@ export function useMediaManagerWorkspace({ collectionsDomain }) {
     selectedItem,
     collectionsDomain
   );
-  const { operationState, handleDeleteSelected, handleRunPreset } = useMediaOperations(
+  const { operationState, handleDeleteSelected, handleDeleteItems, handleRunPreset } = useMediaOperations(
     selectedItem,
     collectionsDomain,
     setSelectedMediaId
@@ -376,6 +415,7 @@ export function useMediaManagerWorkspace({ collectionsDomain }) {
     handleMetadataFieldChange,
     handleSaveMetadata,
     handleDeleteSelected,
+    handleDeleteItems,
     handleRunPreset
   };
 }

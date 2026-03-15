@@ -619,6 +619,20 @@
       - domain-first access-mode and service-path visibility
       - DNS/provider instructions after compatibility analysis
       - HTTPS stack readiness rendering on the product route
+  - Pass 24 completed in worktree:
+    - `Media` now exposes stronger product-operable lifecycle cues in one desk:
+      - per-item remote sync posture chips
+      - stronger sort modes
+      - bulk selection controls
+      - target-wide remote compare/sync actions from the gallery surface
+      - local-vs-remote artifact link visibility for the selected item
+      - remote-only object visibility from the latest compare summary
+    - media delete flow now supports multi-select bulk deletion from the same workspace hook used by the single-item flow
+    - focused proof now covers:
+      - remote media compare/sync/restore actions
+      - per-item sync posture rendering
+      - artifact link visibility
+      - remote-only visibility
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
@@ -629,4 +643,4 @@
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 24: Media Product Hardening
+  - Pass 25: Posts / Taxonomies / Authors Product Hardening

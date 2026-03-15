@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `282f734` `feat: stage product remotes setup`
+  - `80bb309` `feat: harden product domain setup`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -27,41 +27,28 @@
 - Continue the M04 north-star alignment program with bounded product-shell passes until the repo behaves more like the target local CMS product and less like a collection of proof desks.
 
 ## Current review seam
-- Goals-vs-current-state review is the active discussion.
-- The most likely next M04 passes are:
-  - Pass 24: media product hardening
-  - later passes are locked in:
-    - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
+- Execute the fixed M04 pass sequence without re-planning it each turn.
+- Current next locked pass after the active worktree slice:
+  - Pass 25: posts / taxonomies / authors product hardening
+- Remaining order is fixed in:
+  - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
 
 ## Latest M04 worktree slice
-- Pass 23 complete in worktree:
-  - product-authored domain-first setup surface in `Domains`
-  - explicit access-mode visibility:
-    - owned custom domain
-    - temporary GCP access
-  - explicit DNS/provider setup visibility:
-    - GCP-managed DNS
-    - external DNS
-  - linked service visibility for:
-    - HTML delivery
-    - media delivery
-    - Firestore projection collection paths
-  - HTTPS stack readiness panel with:
-    - compatibility analysis
-    - DNS instructions
-    - stage-scoped provisioning
-    - safeguard confirmations
+- Pass 24 complete in worktree:
+  - product-solid media desk improvements:
+    - per-item remote sync posture
+    - stronger sort modes
+    - bulk selection and bulk delete
+    - target-wide remote compare/sync actions from the gallery surface
+    - local-vs-remote artifact link visibility
+    - remote-only object visibility from the latest compare summary
 
 ## Current verification note
 - Focused proofs green:
-  - `product-remotes.integration`
-  - `remote-ops.connections.integration`
-  - `product-system-settings.integration`
-  - `product-domains.integration`
-  - `product-deployments.integration`
+  - `media-manager.integration`
 - `pnpm lint:function-shape` passed
 - `pnpm quality:protocol` passed
-- broader gate for this pass still needs to be rerun after the updated progress pointers and current worktree slice are settled
+- `pnpm quality:gate:full` passed
 
 ## M04 Progress In Worktree
 - Program doc:
@@ -470,9 +457,9 @@
 
 ## Current Worktree State
 - Uncommitted M04 pass present:
-  - product domain setup hardening
-- Next likely pass:
   - media product hardening
+- Next likely pass:
+  - posts / taxonomies / authors product hardening
 - Protocol:
   - `pnpm quality:protocol`
 

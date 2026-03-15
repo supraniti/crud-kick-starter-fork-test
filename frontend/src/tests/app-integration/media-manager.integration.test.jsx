@@ -441,4 +441,151 @@ test("media manager embeds remote media compare, sync, and restore procedures", 
     },
     { replace: false }
   );
+}, 25000);
+
+test("media manager surfaces sync posture, artifact urls, and remote-only visibility", async () => {
+  const collectionsDomain = createCollectionsDomain();
+  const fetchMock = vi.fn(async (url, options = {}) => {
+    const method = options.method ?? "GET";
+
+    if (url === "/api/reference/missions/jobs" && method === "GET") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [EXISTING_JOB]
+      });
+    }
+
+    throw new Error(`Unexpected fetch request: ${method} ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  const moduleSettingsDomain = {
+    moduleSettingsState: {
+      loading: false,
+      saving: false,
+      errorMessage: null,
+      successMessage: null,
+      moduleId: "test-modules-media-manager",
+      schema: { fields: [] },
+      draftValues: {
+        remoteMediaTargetProfileId: "target-media"
+      }
+    },
+    activeModuleSettingsMeta: { moduleId: "test-modules-media-manager", state: "enabled" },
+    activeModuleSettingsPersistencePolicy: null,
+    isActiveModuleSettingsAvailable: true,
+    handleSettingsFieldChange: vi.fn(),
+    handleSaveModuleSettings: vi.fn(async () => {})
+  };
+
+  const actualReferenceApi = await vi.importActual("../../api/reference.js");
+  vi.spyOn(actualReferenceApi, "fetchReferenceCollectionItems").mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "remote-target-profiles") {
+      return {
+        items: [
+          {
+            id: "target-media",
+            title: "Media Bucket",
+            connectionProfileId: "connection-1",
+            targetKind: "media-storage",
+            adapterMode: "live-gcp",
+            targetStatus: "validated",
+            compareSummary: {
+              createCount: 0,
+              updateCount: 0,
+              deleteCount: 0,
+              localOnlyCount: 0,
+              remoteOnlyCount: 2,
+              sampleKeys: [
+                "library/orphans/legacy-banner.png",
+                "library/orphans/legacy-thumb.jpg"
+              ]
+            },
+            config: {
+              bucketName: "merchant-guild-media-679134333951",
+              prefix: "library"
+            }
+          },
+          {
+            id: "target-browser",
+            title: "Public Browser Delivery",
+            connectionProfileId: "connection-1",
+            targetKind: "browser-delivery",
+            adapterMode: "live-gcp",
+            targetStatus: "validated",
+            config: {
+              accessMode: "custom-domain",
+              stackMode: "https-load-balancer",
+              dnsMode: "external",
+              hostname: "cdn.merchant-guild.example",
+              mediaTargetProfileId: "target-media",
+              deploymentTargetProfileId: "target-deployment"
+            }
+          },
+          {
+            id: "target-deployment",
+            title: "HTML Deployment",
+            connectionProfileId: "connection-1",
+            targetKind: "deployment-storage",
+            adapterMode: "live-gcp",
+            targetStatus: "validated",
+            config: {
+              bucketName: "merchant-guild-deployment-679134333951",
+              prefix: "site"
+            }
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "remote-operation-runs") {
+      return {
+        items: [
+          {
+            id: "run-media-execute",
+            targetProfileId: "target-media",
+            procedureType: "execute",
+            status: "success",
+            finishedOn: "2026-03-12T12:00:00.000Z"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "remote-connection-profiles") {
+      return { items: [] };
+    }
+
+    return { items: [] };
+  });
+
+  render(
+    <MediaManagerView
+      activeModuleLabel="Media Manager"
+      collectionsDomain={collectionsDomain}
+      moduleSettingsDomain={moduleSettingsDomain}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText("Selection And Bulk Actions")).toBeInTheDocument();
+    expect(screen.getByText("Artifact Links")).toBeInTheDocument();
+  });
+
+  expect(screen.getByRole("button", { name: "Select Visible" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Compare Remote Target" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sync Remote Target" })).toBeInTheDocument();
+  expect(screen.getAllByText("Synced").length).toBeGreaterThan(0);
+  expect(screen.getByText(/Temporary remote URL:/)).toHaveTextContent(
+    "https://storage.googleapis.com/merchant-guild-media-679134333951/library/originals/media-0001.png"
+  );
+  expect(screen.getByText(/Public media URL:/)).toHaveTextContent(
+    "https://cdn.merchant-guild.example/library/originals/media-0001.png"
+  );
+  expect(screen.getByText(/Remote object key:/)).toHaveTextContent(
+    "library/originals/media-0001.png"
+  );
+  expect(screen.getByText("Remote-Only Visibility")).toBeInTheDocument();
+  expect(screen.getByText("library/orphans/legacy-banner.png")).toBeInTheDocument();
+  expect(screen.getByText("library/orphans/legacy-thumb.jpg")).toBeInTheDocument();
 }, 15000);
