@@ -5,6 +5,8 @@
   - [current-state-repo-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/current-state-repo-map.md)
 - North-star brief:
   - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
+- Fixed remaining-pass sequence:
+  - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
 
 ## Goal
 - Move the repo from the current proof-oriented module surface to a stricter product-shaped local CMS.
@@ -575,9 +577,30 @@
       - raw resolved runtime json
     - this makes the injected `client-runtime` contract inspectable from the authoring desk before deployment instead of leaving it implicit inside the raw delivery json blob
     - focused proof now covers runtime-contract visibility from the standard Pages overview flow
+  - Pass 22 completed in worktree:
+    - the product `Remotes` route now exposes explicit staged setup cards instead of depending on the raw compatibility/provisioning panels as its main operator surface
+    - staged cards now cover:
+      - connection
+      - project access
+      - firestore projections
+      - media storage
+      - html deployment
+      - browser delivery
+    - each stage now resolves its state from the real managed targets and compatibility-bundle reports, not from product-only heuristics
+    - stage-level provisioning now reuses the existing remote-ops provisioning route but can scope execution to the ready actions for one bundle at a time
+    - the raw remote-ops desk remains unchanged in capability, but its provisioning button now safely invokes the widened optional-action API without leaking the click event into the request payload
+    - focused proof now covers:
+      - staged service setup rendering on the product route
+      - suppression of the raw generic compatibility/provisioning panels on that route
+      - retained raw remote-ops provisioning behavior
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
     - generated HTML now boots `client-runtime`, and Pages now exposes the resolved runtime contract, but richer CMS-configurable remote actions and equivalent runtime inspection across more content types are still not yet exposed beyond the current page/comment/media seams
-    - the product `Remotes` surface is now connection-first and stricter, but managed domain/deployment/media/posts/taxonomy service setup is still displayed through generic compatibility/provisioning blocks rather than explicit product-authored staged setup cards
+    - `Domains` still needs a stronger product-authored setup flow for owned-domain vs temporary-domain operation and per-service public-path visibility
+
+## Fixed Remaining Sequence
+- Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
+- Current next pass:
+  - Pass 23: Product Domain Setup Hardening

@@ -12,6 +12,26 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Product Remote Setup Cards
+- Tasks:
+  - replaced the product `Remotes` route's dependence on the raw compatibility/provisioning panels with explicit setup-stage cards
+  - kept provider/runtime/provisioning ownership inside `test-modules-remote-ops`
+  - widened the provisioning callback to support bundle-scoped action ids so one product stage can provision only its own ready resources
+- Easy:
+  - the remote compatibility model already had the right bundle ids:
+    - `firestore-projection`
+    - `media-storage`
+    - `deployment-storage`
+    - `browser-delivery`
+  - the product route already had the right workspace hook; the gap was presentation and scoping, not another API
+- Hard:
+  - widening `provisionSelectedConnectionCompatibility` introduced a React event leak on the raw module button because the click event became the first argument; the fix was to wrap the module button call explicitly
+  - the product route's selected-connection hydration is still looser than ideal; render against an effective routed/first connection immediately and keep syncing the real workspace selection underneath
+- Improve:
+  - when a product desk consumes a generic module API, let the product surface scope execution by bundle/action ids instead of reproducing generic reports wholesale
+  - if a callback starts accepting optional arguments, audit existing JSX call sites for bare `onClick={fn}` usage before trusting the tests
+  - keep product-stage rendering keyed off real bundle reports and managed targets, not duplicated status heuristics
+
 ### 2026-03-15 - M04 Pages Runtime Contract Inspection
 - Tasks:
   - added a dedicated Pages-side runtime-contract inspection panel instead of forcing operators to read the injected `client-runtime` contract out of the raw delivery JSON textarea
@@ -1462,3 +1482,12 @@
   - whenever per-record runtime behavior depends on implicit primary-record inheritance, enforce the same rule in both validation and delivery resolution immediately
   - page-defined data bindings are the right seam for injected runtime expansion; continue extending there before inventing free-form runtime config UIs
 
+# 2026-03-15 - M04 Goals Vs Current State Review
+
+- `handoff.md` had stale last-commit metadata after the latest M04 passes; update progress pointers as soon as a pass is pushed, not only when a code slice feels "final".
+- The active decision seam after Pass 21 is no longer shell naming or bundle plumbing. It is product-operator quality:
+  - staged service setup in `Remotes`
+  - richer client-runtime contracts and inspection
+  - live cost data only after the setup/runtime chain is stronger
+- Freeze the remaining M04 order into one durable map so future turns stop re-deriving the sequence from scratch:
+  - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)

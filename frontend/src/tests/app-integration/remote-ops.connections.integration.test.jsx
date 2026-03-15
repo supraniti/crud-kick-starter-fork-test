@@ -534,6 +534,11 @@ test("remote ops desk can confirm safeguards and provision missing resources fro
   fireEvent.click(screen.getByRole("checkbox", { name: /Cost Confirmation/i }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Singleton Hygiene/i }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Minimum Footprint/i }));
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Provision Missing Resources" })).toBeEnabled();
+  });
+
   fireEvent.click(screen.getByRole("button", { name: "Provision Missing Resources" }));
 
   await waitFor(() => {

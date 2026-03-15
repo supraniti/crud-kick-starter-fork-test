@@ -7,6 +7,7 @@ import {
 import { RemoteOpsConnectionSetupCard } from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsConnectionSetupCard.jsx";
 import { useRemoteOpsWorkspace } from "../../../../modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js";
 import { SummaryCard } from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsSharedPanels.jsx";
+import { ProductRemoteSetupCards } from "./ProductRemoteSetupCards.jsx";
 
 const MANAGED_PRODUCT_TARGET_KEYS = new Set([
   "posts-projection",
@@ -179,24 +180,37 @@ function RecentRunsPanel({ runs = [] }) {
 
 export function ProductRemotesView({ navigate = null, route = {} }) {
   const workspace = useRemoteOpsWorkspace();
-  const selectedConnection = workspace.selectedConnection;
-  const compatibilityReport = workspace.compatibilityReport;
+  const routeConnectionId = typeof route?.connectionId === "string" ? route.connectionId : "";
+  const effectiveSelectedConnectionId = useMemo(() => {
+    if (workspace.selectedConnectionId) {
+      return workspace.selectedConnectionId;
+    }
+    if (routeConnectionId && workspace.connections.some((connection) => connection.id === routeConnectionId)) {
+      return routeConnectionId;
+    }
+    return workspace.connections[0]?.id ?? "";
+  }, [routeConnectionId, workspace.connections, workspace.selectedConnectionId]);
+  const selectedConnection = useMemo(
+    () => workspace.connections.find((connection) => connection.id === effectiveSelectedConnectionId) ?? null,
+    [effectiveSelectedConnectionId, workspace.connections]
+  );
+  const compatibilityReport =
+    effectiveSelectedConnectionId === workspace.selectedConnectionId ? workspace.compatibilityReport : null;
   const preparedTargetCount = useMemo(
-    () => countPreparedManagedTargets(workspace.targets, workspace.selectedConnectionId),
-    [workspace.selectedConnectionId, workspace.targets]
+    () => countPreparedManagedTargets(workspace.targets, effectiveSelectedConnectionId),
+    [effectiveSelectedConnectionId, workspace.targets]
   );
   const recentRuns = useMemo(
     () =>
       (workspace.runs ?? []).filter(
         (run) =>
-          !workspace.selectedConnectionId ||
-          run.connectionProfileId === workspace.selectedConnectionId
+          !effectiveSelectedConnectionId ||
+          run.connectionProfileId === effectiveSelectedConnectionId
       ),
-    [workspace.runs, workspace.selectedConnectionId]
+    [effectiveSelectedConnectionId, workspace.runs]
   );
 
   useEffect(() => {
-    const routeConnectionId = typeof route?.connectionId === "string" ? route.connectionId : "";
     if (!routeConnectionId || workspace.selectedConnectionId === routeConnectionId) {
       return;
     }
@@ -206,18 +220,26 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
   }, [route?.connectionId, workspace]);
 
   useEffect(() => {
-    if (!workspace.isCreatingConnection || workspace.connections.length === 0) {
+    if (workspace.connections.length === 0) {
       return;
     }
-    const routeConnectionId = typeof route?.connectionId === "string" ? route.connectionId : "";
     const preferredConnection =
       workspace.connections.find((connection) => connection.id === routeConnectionId) ??
       workspace.connections[0] ??
       null;
-    if (preferredConnection) {
+    if (
+      preferredConnection &&
+      (workspace.isCreatingConnection || workspace.selectedConnectionId !== preferredConnection.id)
+    ) {
       workspace.selectConnection(preferredConnection.id);
     }
-  }, [route?.connectionId, workspace]);
+  }, [
+    route?.connectionId,
+    workspace.connections,
+    workspace.isCreatingConnection,
+    workspace.selectedConnectionId,
+    workspace.selectConnection
+  ]);
 
   useEffect(() => {
     if (typeof navigate !== "function" || workspace.isCreatingConnection) {
@@ -276,8 +298,23 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
           <ConnectionList workspace={workspace} />
           <RecentRunsPanel runs={recentRuns} />
         </Stack>
-        <Stack sx={{ flex: 1, width: "100%" }}>
-          <ConnectionEditor workspace={workspace} SetupCard={RemoteOpsConnectionSetupCard} surface="product" />
+        <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
+          <ProductRemoteSetupCards
+            workspace={workspace}
+            selectedConnection={selectedConnection}
+            compatibilityReport={compatibilityReport}
+            targets={workspace.targets}
+            onOpenDomains={() => openRoute("domains")}
+            onOpenDeployments={() => openRoute("deployments")}
+          />
+          <ConnectionEditor
+            workspace={workspace}
+            SetupCard={RemoteOpsConnectionSetupCard}
+            surface="product"
+            showManagedTargetsPanel={false}
+            showCompatibilityReport={false}
+            showProvisioningPanel={false}
+          />
         </Stack>
       </Stack>
     </Stack>

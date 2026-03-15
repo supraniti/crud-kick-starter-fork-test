@@ -8,12 +8,14 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `0a1159f` `feat: tighten product remotes surface`
+  - `086fdb8` `feat: expose page runtime contract preview`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
   - [current-state-repo-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/current-state-repo-map.md)
   - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
+- Use the fixed remaining-pass map:
+  - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
 - Responsibility remains:
   - plan
   - implement
@@ -23,6 +25,32 @@
 
 ## Active execution target
 - Continue the M04 north-star alignment program with bounded product-shell passes until the repo behaves more like the target local CMS product and less like a collection of proof desks.
+
+## Current review seam
+- Goals-vs-current-state review is the active discussion.
+- The most likely next M04 passes are:
+  - Pass 23: product domain setup hardening
+  - later passes are locked in:
+    - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
+
+## Latest M04 worktree slice
+- Pass 22 complete in worktree:
+  - product-authored staged setup cards in `Remotes`
+  - stage-level provisioning for individual managed bundles
+  - product route suppression of the raw generic compatibility/provisioning panels
+
+## Current verification note
+- Focused proofs green:
+  - `product-remotes.integration`
+  - `remote-ops.connections.integration`
+  - `product-system-settings.integration`
+  - `product-domains.integration`
+  - `product-deployments.integration`
+- `pnpm lint:function-shape` passed
+- `pnpm quality:protocol` passed
+- `pnpm quality:gate:full` is currently red on:
+  - `frontend/src/tests/app-integration/blog-distribution.integration.test.jsx`
+  - the active remotes pass did not modify the Pages files exercised by that test
 
 ## M04 Progress In Worktree
 - Program doc:

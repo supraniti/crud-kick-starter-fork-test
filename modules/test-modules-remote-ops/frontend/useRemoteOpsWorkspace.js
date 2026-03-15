@@ -445,13 +445,17 @@ function useRemoteOpsWorkspaceInternal() {
     );
   }, []);
 
-  const provisionSelectedConnectionCompatibility = useCallback(async () => {
+  const provisionSelectedConnectionCompatibility = useCallback(async (actionIds = null) => {
     if (!selection.selectedConnectionId) {
       return;
     }
     setProvisioningActionState(createProvisioningActionState({ processing: true }));
     try {
-      const payload = await provisionConnectionCompatibility(selection.selectedConnectionId, confirmedSafeguardIds);
+      const payload = await provisionConnectionCompatibility(
+        selection.selectedConnectionId,
+        confirmedSafeguardIds,
+        actionIds
+      );
       setCompatibilityReports((previous) => ({
         ...previous,
         [selection.selectedConnectionId]: payload?.report ?? null

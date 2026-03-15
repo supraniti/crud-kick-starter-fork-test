@@ -366,7 +366,7 @@ function ProvisioningPanel({ workspace, report }) {
               variant="contained"
               color="secondary"
               disabled={!canProvision}
-              onClick={workspace.provisionSelectedConnectionCompatibility}
+              onClick={() => workspace.provisionSelectedConnectionCompatibility()}
             >
               {actionState.processing ? "Provisioning..." : "Provision Missing Resources"}
             </Button>
@@ -380,7 +380,14 @@ function ProvisioningPanel({ workspace, report }) {
   );
 }
 
-export function ConnectionEditor({ workspace, SetupCard, surface = "module" }) {
+export function ConnectionEditor({
+  workspace,
+  SetupCard,
+  surface = "module",
+  showManagedTargetsPanel = true,
+  showCompatibilityReport = true,
+  showProvisioningPanel = true
+}) {
   const draft = workspace.connectionDraft;
   const actionState = workspace.connectionActionState;
   const compatibilityActionState = workspace.compatibilityActionState;
@@ -561,11 +568,15 @@ export function ConnectionEditor({ workspace, SetupCard, surface = "module" }) {
         </Stack>
       </Paper>
       <ValidationSummary summary={draft.validationSummary} statusLabel={draft.connectionStatus} />
-      {!workspace.isCreatingConnection && workspace.selectedConnectionId ? (
+      {showManagedTargetsPanel && !workspace.isCreatingConnection && workspace.selectedConnectionId ? (
         <ManagedProductTargetsPanel workspace={workspace} />
       ) : null}
-      <CompatibilityReport report={workspace.compatibilityReport} actionState={compatibilityActionState} />
-      <ProvisioningPanel workspace={workspace} report={workspace.compatibilityReport} />
+      {showCompatibilityReport ? (
+        <CompatibilityReport report={workspace.compatibilityReport} actionState={compatibilityActionState} />
+      ) : null}
+      {showProvisioningPanel ? (
+        <ProvisioningPanel workspace={workspace} report={workspace.compatibilityReport} />
+      ) : null}
     </Stack>
   );
 }

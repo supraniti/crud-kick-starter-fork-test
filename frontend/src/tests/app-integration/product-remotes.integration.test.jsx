@@ -157,19 +157,26 @@ test("product remotes desk stays on the managed connection workflow instead of t
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Remote Control Desk" })).toBeInTheDocument();
     expect(screen.getByText("Selected Remote")).toBeInTheDocument();
-    expect(screen.getByText("Managed Product Targets")).toBeInTheDocument();
+    expect(screen.getByText("Managed Service Setup")).toBeInTheDocument();
+    expect(screen.getByText("1. Connection")).toBeInTheDocument();
+    expect(screen.getByText("2. Project Access")).toBeInTheDocument();
+    expect(screen.getByText("3. Firestore Projections")).toBeInTheDocument();
+    expect(screen.getByText("4. Media Storage")).toBeInTheDocument();
+    expect(screen.getByText("5. HTML Deployment")).toBeInTheDocument();
+    expect(screen.getByText("6. Browser Delivery")).toBeInTheDocument();
     expect(screen.getByText("Recent Remote Runs")).toBeInTheDocument();
   });
 
   expect(screen.queryByRole("tab", { name: "Targets" })).not.toBeInTheDocument();
-  expect(screen.getByText("Service account: merchant-guild@appspot.gserviceaccount.com")).toBeInTheDocument();
+  expect(screen.getAllByText("Service account: merchant-guild@appspot.gserviceaccount.com").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Project: Merchant Guild").length).toBeGreaterThan(0);
   expect(screen.getByText("Managed services: 6/6")).toBeInTheDocument();
-  expect(screen.getAllByText("Posts Projection").length).toBeGreaterThan(0);
-  expect(screen.getAllByText("Primary Domain").length).toBeGreaterThan(0);
   expect(screen.getByRole("button", { name: "Analyze Compatibility" })).toBeInTheDocument();
   expect(screen.getByText("Validate Posts Projection")).toBeInTheDocument();
   expect(screen.queryByLabelText("Operator Email")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Region")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Credential Label")).not.toBeInTheDocument();
+  expect(screen.queryByText("Managed Product Targets")).not.toBeInTheDocument();
+  expect(screen.queryByText("Compatibility Report")).not.toBeInTheDocument();
+  expect(screen.queryByText("Provision Missing Resources")).not.toBeInTheDocument();
 }, 15000);
