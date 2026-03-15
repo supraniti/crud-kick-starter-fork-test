@@ -7,6 +7,7 @@ import {
 } from "@mui/material";
 import { useMemo } from "react";
 import { CollectionsView } from "../../../frontend/src/ui/CollectionsView.jsx";
+import { BlogTaxonomyRemoteProjectionPanel } from "./BlogTaxonomyRemoteProjectionPanel.jsx";
 import { useTaxonomyWorkspace } from "./useTaxonomyWorkspace.js";
 
 const TAGS_COLLECTION_ID = "blog-tags";
@@ -110,7 +111,9 @@ function CategoryTreePanel({ rows }) {
 
 export function BlogTaxonomyView({
   activeModuleLabel,
-  collectionsDomain
+  collectionsDomain,
+  moduleSettingsDomain = null,
+  navigate = null
 }) {
   const workspace = useTaxonomyWorkspace({
     collectionsDomain
@@ -176,6 +179,14 @@ export function BlogTaxonomyView({
 
       {collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID ? (
         <CategoryTreePanel rows={workspace.categoryTreeRows} />
+      ) : null}
+
+      {moduleSettingsDomain ? (
+        <BlogTaxonomyRemoteProjectionPanel
+          activeCollectionId={collectionsDomain.activeCollectionId}
+          moduleSettingsDomain={moduleSettingsDomain}
+          navigate={navigate}
+        />
       ) : null}
 
       <CollectionsView

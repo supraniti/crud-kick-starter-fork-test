@@ -1,6 +1,8 @@
 import {
+  CATEGORIES_COLLECTION_ID,
   PAGES_COLLECTION_ID,
   POSTS_COLLECTION_ID,
+  TAGS_COLLECTION_ID,
   buildExposedConnectionProfile,
   buildExposedTargetProfile,
   createEmptyCompareSummary,
@@ -125,6 +127,27 @@ function validateConnectionState(connection, checkedItems) {
   );
 }
 
+function getProjectionScopeCollectionWarning(projectionScope, collectionHandlerRegistry) {
+  if (projectionScope === "published-pages") {
+    return !collectionHandlerRegistry.get(PAGES_COLLECTION_ID)
+      ? "Pages collection handler is unavailable; Firestore projection scope may be incomplete."
+      : null;
+  }
+  if (projectionScope === "public-blog-categories") {
+    return !collectionHandlerRegistry.get(CATEGORIES_COLLECTION_ID)
+      ? "Categories collection handler is unavailable; Firestore projection scope may be incomplete."
+      : null;
+  }
+  if (projectionScope === "public-blog-tags") {
+    return !collectionHandlerRegistry.get(TAGS_COLLECTION_ID)
+      ? "Tags collection handler is unavailable; Firestore projection scope may be incomplete."
+      : null;
+  }
+  return !collectionHandlerRegistry.get(POSTS_COLLECTION_ID)
+    ? "Posts collection handler is unavailable; Firestore projection scope may be incomplete."
+    : null;
+}
+
 async function validateFirestoreProjectionTarget({
   checkedItems,
   warnings,
@@ -136,11 +159,12 @@ async function validateFirestoreProjectionTarget({
     return buildValidationFailure(checkedItems, "Firestore collection path is required");
   }
   await ensureDir(resolveSimulatedFirestoreRoot(target.id));
-  if (config.projectionScope === "published-pages" && !collectionHandlerRegistry.get(PAGES_COLLECTION_ID)) {
-    warnings.push("Pages collection handler is unavailable; Firestore projection scope may be incomplete.");
-  }
-  if (config.projectionScope !== "published-pages" && !collectionHandlerRegistry.get(POSTS_COLLECTION_ID)) {
-    warnings.push("Posts collection handler is unavailable; Firestore projection scope may be incomplete.");
+  const projectionWarning = getProjectionScopeCollectionWarning(
+    config.projectionScope,
+    collectionHandlerRegistry
+  );
+  if (projectionWarning) {
+    warnings.push(projectionWarning);
   }
   return null;
 }

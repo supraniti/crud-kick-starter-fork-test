@@ -112,6 +112,7 @@ function buildPreparedTargetProfile(input = {}, currentItem = null) {
   return {
     ...(currentItem ?? {}),
     title: normalizePreparedTextField(input, currentItem, "title"),
+    productBindingKey: normalizePreparedOptionalTextField(input, currentItem, "productBindingKey"),
     connectionProfileId: normalizePreparedTextField(input, currentItem, "connectionProfileId"),
     targetKind,
     adapterMode: normalizeAdapterMode(resolveField(input, currentItem, "adapterMode")),
@@ -169,6 +170,7 @@ function buildPersistedConnectionProfileBody(preparedValue) {
 function buildPersistedTargetProfileBody(preparedValue) {
   return {
     title: preparedValue.title,
+    productBindingKey: preparedValue.productBindingKey,
     connectionProfileId: preparedValue.connectionProfileId,
     targetKind: preparedValue.targetKind,
     adapterMode: preparedValue.adapterMode,

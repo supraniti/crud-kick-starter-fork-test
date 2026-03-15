@@ -7,10 +7,15 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { formatTimestamp, jsonPreview } from "./blog-distribution-panel-support.js";
+import {
+  formatTimestamp,
+  jsonPreview,
+  resolveSourceTypeLabels
+} from "./blog-distribution-panel-support.js";
 
 export function DeliveryPreviewPanel({ workspace }) {
   const isPerRecordMode = workspace.pageDraft.deploymentMode === "per-record";
+  const sourceLabels = resolveSourceTypeLabels(workspace.pageDraft.primarySourceType);
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -20,15 +25,15 @@ export function DeliveryPreviewPanel({ workspace }) {
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <TextField
               select
-              label="Preview Source Post"
+              label={`Preview Source ${sourceLabels.singular}`}
               value={workspace.pageDraft.previewSourceItemId}
               onChange={(event) => workspace.changePreviewSourceItemId(event.target.value)}
               sx={{ minWidth: 280 }}
               disabled={workspace.previewSourceState.loading || workspace.previewSourceState.items.length === 0}
               helperText={
                 workspace.previewSourceState.items.length > 0
-                  ? "Preview which concrete post this template resolves against."
-                  : "Save the template and publish at least one post to preview concrete instances."
+                  ? `Preview which concrete ${sourceLabels.singular.toLowerCase()} this template resolves against.`
+                  : `Save the template and create at least one eligible ${sourceLabels.singular.toLowerCase()} to preview concrete instances.`
               }
             >
               {workspace.previewSourceState.items.map((item) => (

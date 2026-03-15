@@ -17,6 +17,8 @@ import {
   PAGE_KIND_OPTIONS,
   PAGE_STATUS_OPTIONS,
   PRIMARY_SOURCE_TYPE_OPTIONS,
+  resolvePerRecordPathPlaceholder,
+  resolveSourceTypeLabels,
   SOURCE_SELECTION_MODE_OPTIONS,
   SORT_DIRECTION_OPTIONS,
   formatTimestamp,
@@ -66,6 +68,8 @@ function PageAlerts({ workspace }) {
 }
 
 function PageIdentitySection({ workspace }) {
+  const perRecordTemplatePathPlaceholder =
+    workspace.pageDraft.primarySourceType === "blog-category" ? "/category" : "/posts";
   return (
     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
       <TextField
@@ -90,7 +94,11 @@ function PageIdentitySection({ workspace }) {
         label={workspace.pageDraft.deploymentMode === "per-record" ? "Template Path" : "Path"}
         value={workspace.pageDraft.path}
         onChange={(event) => workspace.changePageField("path", event.target.value)}
-        placeholder={workspace.pageDraft.deploymentMode === "per-record" ? "/posts" : "/stories/platform-health"}
+        placeholder={
+          workspace.pageDraft.deploymentMode === "per-record"
+            ? perRecordTemplatePathPlaceholder
+            : "/stories/platform-health"
+        }
       />
       <TextField
         select
@@ -117,6 +125,7 @@ function PageIdentitySection({ workspace }) {
 
 function PageSourceSection({ workspace, sourceOptions }) {
   const isPerRecordMode = workspace.pageDraft.deploymentMode === "per-record";
+  const sourceLabels = resolveSourceTypeLabels(workspace.pageDraft.primarySourceType);
   return (
     <Stack spacing={2}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -181,8 +190,8 @@ function PageSourceSection({ workspace, sourceOptions }) {
           label="Path Pattern"
           value={workspace.pageDraft.pathPattern}
           onChange={(event) => workspace.changePageField("pathPattern", event.target.value)}
-          placeholder="/posts/{slug}"
-          helperText="Use bounded tokens like {slug} or {id} to generate one output path per post."
+          placeholder={resolvePerRecordPathPlaceholder(workspace.pageDraft.primarySourceType)}
+          helperText={`Use bounded tokens like {slug} or {id} to generate one output path per ${sourceLabels.singular.toLowerCase()}.`}
         />
       ) : null}
     </Stack>

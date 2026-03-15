@@ -34,11 +34,10 @@ export function Hero({ activeModuleLabel }) {
         <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.72)" }}>
           {activeModuleLabel}
         </Typography>
-        <Typography variant="h4">Remote Ops Kitchensink</Typography>
+        <Typography variant="h4">Remotes Desk</Typography>
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.84)", maxWidth: 880 }}>
-          Step 1 now proves a service-account-first operator workflow: load a local GCP key file,
-          validate real project access, then compare and sync real Firestore and storage targets
-          while keeping browser-delivery validation-only and simulated smoke helpers explicit.
+          Manage service-account connections, target validation, remote compare and sync procedures,
+          and compatibility analysis for the configured remote platform.
         </Typography>
       </Stack>
     </Paper>

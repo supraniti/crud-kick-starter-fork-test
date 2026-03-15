@@ -74,6 +74,10 @@ function buildTargetRoute(targetId, action) {
   return `/api/reference/modules/test-modules-remote-ops/targets/${targetId}/${action}`;
 }
 
+function buildSettingsRoute(moduleId) {
+  return `/api/reference/settings/modules/${moduleId}`;
+}
+
 async function removeIfExists(targetPath) {
   await fs.rm(targetPath, {
     recursive: true,
@@ -299,6 +303,155 @@ test("remote ops loads a service-account key, validates the project, and validat
     expect(validateTarget.statusCode, JSON.stringify(validateTarget.body)).toBe(200);
     expect(validateTarget.body.item.targetStatus).toBe("validated");
     expect(validateTarget.body.item.validationSummary.message).toContain("deployment-bucket");
+  } finally {
+    await server.close();
+  }
+}, REMOTE_OPS_TEST_TIMEOUT_MS);
+
+test("remote ops validation auto-prepares the standard product target bundle and binds module settings", async () => {
+  const server = await createRemoteOpsTestServer();
+
+  try {
+    const payload = createServiceAccountCredentialPayload();
+    const fetchMock = vi.fn(async (url) => {
+      const normalized = String(url);
+      if (normalized === "https://oauth2.googleapis.com/token") {
+        return createGoogleJsonResponse(200, {
+          access_token: "access-token-product-bundle",
+          expires_in: 3600,
+          token_type: "Bearer"
+        });
+      }
+      if (normalized === "https://cloudresourcemanager.googleapis.com/v3/projects/demo-project") {
+        return createGoogleJsonResponse(200, {
+          name: "projects/1234567890",
+          projectId: "demo-project",
+          projectNumber: "1234567890",
+          displayName: "Demo Project",
+          state: "ACTIVE"
+        });
+      }
+      throw new Error(`Unexpected request: ${normalized}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const connection = await seedConnection(server, {
+      credentialPathHint: null,
+      projectId: "",
+      projectNumber: "",
+      projectDisplayName: ""
+    });
+
+    const imported = await injectJson(server, "POST", buildConnectionRoute(connection.id, "import-key-file"), {
+      fileName: "demo-product-bundle.json",
+      fileContent: JSON.stringify(payload)
+    });
+    expect(imported.statusCode, JSON.stringify(imported.body)).toBe(200);
+
+    const validated = await injectJson(server, "POST", buildConnectionRoute(connection.id, "validate"));
+    expect(validated.statusCode, JSON.stringify(validated.body)).toBe(200);
+    expect(validated.body.item.connectionStatus).toBe("validated");
+    expect(Object.keys(validated.body.productBundle?.targetsByBindingKey ?? {})).toEqual([
+      "posts-projection",
+      "categories-projection",
+      "tags-projection",
+      "deployment-storage",
+      "media-storage",
+      "browser-delivery"
+    ]);
+    expect(validated.body.productBundle?.settingBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          moduleId: "test-modules-content",
+          fieldId: "remoteProjectionTargetProfileId",
+          updated: true
+        }),
+        expect.objectContaining({
+          moduleId: "test-modules-taxonomy",
+          fieldId: "remoteCategoriesProjectionTargetProfileId",
+          updated: true
+        }),
+        expect.objectContaining({
+          moduleId: "test-modules-taxonomy",
+          fieldId: "remoteTagsProjectionTargetProfileId",
+          updated: true
+        }),
+        expect.objectContaining({
+          moduleId: "test-modules-pages",
+          fieldId: "remoteDeploymentTargetProfileId",
+          updated: true
+        }),
+        expect.objectContaining({
+          moduleId: "test-modules-pages",
+          fieldId: "remoteBrowserDeliveryTargetProfileId",
+          updated: true
+        }),
+        expect.objectContaining({
+          moduleId: "test-modules-media-manager",
+          fieldId: "remoteMediaTargetProfileId",
+          updated: true
+        })
+      ])
+    );
+
+    const targets = await injectJson(server, "GET", buildItemsRoute("remote-target-profiles"));
+    expect(targets.statusCode).toBe(200);
+    const managedTargets = targets.body.items.filter((item) => item.connectionProfileId === connection.id);
+    expect(managedTargets.map((item) => item.productBindingKey)).toEqual(
+      expect.arrayContaining([
+        "posts-projection",
+        "categories-projection",
+        "tags-projection",
+        "deployment-storage",
+        "media-storage",
+        "browser-delivery"
+      ])
+    );
+    expect(
+      managedTargets.find((item) => item.productBindingKey === "deployment-storage")?.config?.bucketName
+    ).toBe("demo-project-dev-deployment-1234567890");
+    expect(
+      managedTargets.find((item) => item.productBindingKey === "media-storage")?.config?.bucketName
+    ).toBe("demo-project-dev-media-1234567890");
+    expect(
+      managedTargets.find((item) => item.productBindingKey === "browser-delivery")?.config
+        ?.deploymentTargetProfileId
+    ).toBe(
+      managedTargets.find((item) => item.productBindingKey === "deployment-storage")?.id
+    );
+    expect(
+      managedTargets.find((item) => item.productBindingKey === "browser-delivery")?.config
+        ?.mediaTargetProfileId
+    ).toBe(managedTargets.find((item) => item.productBindingKey === "media-storage")?.id);
+
+    const postSettings = await injectJson(server, "GET", buildSettingsRoute("test-modules-content"));
+    const taxonomySettings = await injectJson(server, "GET", buildSettingsRoute("test-modules-taxonomy"));
+    const pageSettings = await injectJson(server, "GET", buildSettingsRoute("test-modules-pages"));
+    const mediaSettings = await injectJson(server, "GET", buildSettingsRoute("test-modules-media-manager"));
+
+    expect(postSettings.statusCode).toBe(200);
+    expect(taxonomySettings.statusCode).toBe(200);
+    expect(pageSettings.statusCode).toBe(200);
+    expect(mediaSettings.statusCode).toBe(200);
+
+    expect(postSettings.body.settings.values.remoteProjectionTargetProfileId).toBe(
+      managedTargets.find((item) => item.productBindingKey === "posts-projection")?.id
+    );
+    expect(taxonomySettings.body.settings.values.remoteCategoriesProjectionTargetProfileId).toBe(
+      managedTargets.find((item) => item.productBindingKey === "categories-projection")?.id
+    );
+    expect(taxonomySettings.body.settings.values.remoteTagsProjectionTargetProfileId).toBe(
+      managedTargets.find((item) => item.productBindingKey === "tags-projection")?.id
+    );
+    expect(pageSettings.body.settings.values.remoteDeploymentTargetProfileId).toBe(
+      managedTargets.find((item) => item.productBindingKey === "deployment-storage")?.id
+    );
+    expect(pageSettings.body.settings.values.remoteBrowserDeliveryTargetProfileId).toBe(
+      managedTargets.find((item) => item.productBindingKey === "browser-delivery")?.id
+    );
+    expect(mediaSettings.body.settings.values.remoteMediaTargetProfileId).toBe(
+      managedTargets.find((item) => item.productBindingKey === "media-storage")?.id
+    );
   } finally {
     await server.close();
   }
@@ -1693,6 +1846,83 @@ test("remote ops executes Firestore projection procedures with simulated GCP roo
     );
     const projectedContent = await fs.readFile(projectedPath, "utf8");
     expect(projectedContent).toContain('"title": "Remote Ops Launch Story"');
+  } finally {
+    await server.close();
+    if (firestoreTargetId) {
+      await removeIfExists(resolveSimulatedFirestoreRoot(firestoreTargetId));
+    }
+  }
+}, REMOTE_OPS_TEST_TIMEOUT_MS);
+
+test("remote ops executes taxonomy Firestore projection procedures with simulated GCP roots", async () => {
+  let firestoreTargetId = null;
+  const server = await createRemoteOpsTestServer();
+
+  try {
+    const connection = await seedConnection(server, {
+      credentialPathHint: "C:/keys/demo-service-account.json",
+      credentialLabel: "demo-service-account.json",
+      serviceAccountEmail: "crud-control@demo-project.iam.gserviceaccount.com",
+      serviceAccountKeyId: "key-001",
+      projectNumber: "1234567890",
+      projectDisplayName: "Demo Project",
+      connectionStatus: "validated",
+      lastConnectedOn: "2026-03-11T09:00:00.000Z",
+      lastValidatedOn: "2026-03-11T09:01:00.000Z"
+    });
+    const category = await seedCategory(server);
+    const internalCategory = await injectJson(server, "POST", buildItemsRoute("blog-categories"), {
+      name: "Internal Ops",
+      description: "Internal category",
+      parentCategoryId: null,
+      sortOrder: 20,
+      visibility: "internal"
+    });
+    expect(internalCategory.statusCode).toBe(201);
+
+    const createTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Categories Projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      adapterMode: "simulated-gcp",
+      config: {
+        projectionScope: "public-blog-categories",
+        firestoreCollectionPath: "publicCategories"
+      },
+      policy: {
+        allowDeletes: false,
+        allowRestore: true,
+        requireDryRunFirst: true
+      }
+    });
+    expect(createTarget.statusCode).toBe(201);
+    firestoreTargetId = createTarget.body.item.id;
+
+    const validateTarget = await injectJson(server, "POST", buildTargetRoute(firestoreTargetId, "validate"));
+    expect(validateTarget.statusCode).toBe(200);
+    expect(validateTarget.body.item.targetStatus).toBe("validated");
+
+    const compare = await injectJson(server, "POST", buildTargetRoute(firestoreTargetId, "compare"));
+    expect(compare.statusCode).toBe(200);
+    expect(compare.body.item.compareSummary.createCount).toBeGreaterThanOrEqual(1);
+
+    const execute = await injectJson(server, "POST", buildTargetRoute(firestoreTargetId, "execute"));
+    expect(execute.statusCode).toBe(200);
+    expect(execute.body.item.compareSummary.state).toBe("clean");
+
+    const publicProjectedPath = path.join(
+      resolveSimulatedFirestoreRoot(firestoreTargetId),
+      "publicCategories",
+      `${category.slug}.json`
+    );
+    const internalProjectedPath = path.join(
+      resolveSimulatedFirestoreRoot(firestoreTargetId),
+      "publicCategories",
+      `${internalCategory.body.item.slug}.json`
+    );
+    const projectedContent = await fs.readFile(publicProjectedPath, "utf8");
+    expect(projectedContent).toContain('"name": "Operations"');
+    expect(existsSync(internalProjectedPath)).toBe(false);
   } finally {
     await server.close();
     if (firestoreTargetId) {

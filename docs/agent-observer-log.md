@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-14 - M04 Taxonomy Projection And Category Fan-Out
+- Tasks:
+  - extended the M04 product-shell program from post-only remotes into taxonomy-aware release governance
+  - added managed category/tag Firestore projections and embedded taxonomy compare/sync UI
+  - raised pages from post-only per-record templates to post-or-category per-record templates with generated path resolution
+- Easy:
+  - the remote target model was already bounded around explicit projection scopes, so adding category/tag projections stayed inside `test-modules-remote-ops`
+  - the page deployment/render pipeline was already generic enough to carry category payloads once source eligibility and validation were widened
+- Hard:
+  - “per-record page template” support was narrower than it first looked because the real coupling lived in validation, readiness messaging, preview-source enumeration, and path follow-up resolution, not just the editor dropdown
+  - the environment still requires deliberate escalation for focused frontend/server Vitest commands because sandbox worker spawning fails with `spawn EPERM`
+- Improve:
+  - when a flow advertises a generated public path in its payload, add an explicit test proving the matching route can resolve it; otherwise the contract can look complete while the follow-up path is dead
+  - product-bundle growth should be kept in one bounded owner (`test-modules-remote-ops`) so later north-star passes do not duplicate remote-binding logic across desks
+
 ### 2026-03-09 - T02 Standalone Pages Kickoff
 - Tasks:
   - audited the T01 `Pages` module against the standalone-pages ticket
@@ -1150,4 +1165,37 @@
   - remote compare/execute/restore/provisioning chains
   - explicit screen/input/action inventories for the operator desks
 - The main lesson from this documentation pass is that the repo is already too broad to keep “current state” in transient chat memory. The research doc is now the durable baseline and future architectural work should update it deliberately instead of relying on handoff accretion.
+
+### 2026-03-14 - M04 Product Shell And Release Pipeline
+- Tasks:
+  - aligned the shell to product-facing routes and synthetic desks
+  - added managed target auto-preparation and module-setting auto-binding after remote validation
+  - added a `Deployments` desk release pipeline that orchestrates local HTML sync plus remote projection/media/html/browser procedures
+  - updated the smoke lane to assert the product shell instead of the retired proof shell
+- Easy:
+  - the existing module seams were strong enough for product desks to compose module-owned behavior without adding more shared backend abstraction
+  - once remote validation prepared the standard bundle automatically, the downstream product desks became much simpler
+- Hard:
+  - most failures were contract/shape failures, not behavior failures; the right response was extraction and route-alias test updates, not feature rollback
+  - route aliases changed the public shell contract in a way that immediately broke smoke expectations, so E2E needed to be treated as part of the product-shell change itself
+- Improve:
+  - when a synthetic desk becomes first-class, add direct integration/E2E coverage for it in the same slice
+  - keep product-level orchestration in `frontend/src/app/product-shell` and leave remote/provider procedure logic inside `test-modules-remote-ops`
+  - if a validated remote deterministically implies standard targets, prepare them automatically instead of asking the operator to create them manually
+
+### 2026-03-14 - M04 Strict Product Remote Governance
+- Tasks:
+  - added a shared product-shell remote-health model instead of letting each desk infer readiness ad hoc
+  - surfaced validated-remote and usable-target counts in `System Settings`
+  - locked remote-dependent selectors until a validated remote exists
+  - tightened `Deployments` pipeline readiness so configured-but-unvalidated targets block the release instead of failing late
+- Easy:
+  - the existing embedded remote-ops support already exposed enough state to compute strict readiness without another backend API
+  - keeping the readiness logic in a small product-shell helper made it reusable across `System Settings` and `Deployments`
+- Hard:
+  - MUI select disabled state is rendered through `aria-disabled`, not the simple native-disabled contract the first test expected
+  - the real verification friction was environmental again: frontend vitest needed escalation because the sandbox blocks Vite/esbuild child-process spawning
+- Improve:
+  - when product-level strictness depends on module-owned remote data, centralize the readiness rules first; otherwise different desks drift into slightly different interpretations of "usable"
+  - on this machine, treat frontend vitest as a likely escalation candidate once Vite/esbuild child processes are involved
 

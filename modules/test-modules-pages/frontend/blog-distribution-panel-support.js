@@ -46,12 +46,46 @@ export const REDIRECT_STATUS_OPTIONS = ["active", "disabled"];
 
 export const REDIRECT_HTTP_CODE_OPTIONS = ["301", "302", "307", "308"];
 
+const SOURCE_TYPE_LABELS = Object.freeze({
+  none: {
+    singular: "Source",
+    plural: "sources"
+  },
+  "blog-post": {
+    singular: "Post",
+    plural: "posts"
+  },
+  "blog-author": {
+    singular: "Author",
+    plural: "authors"
+  },
+  "blog-category": {
+    singular: "Category",
+    plural: "categories"
+  },
+  "blog-tag": {
+    singular: "Tag",
+    plural: "tags"
+  }
+});
+
 export function formatTimestamp(value, fallback = "Not set") {
   return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
 export function resolveOptionLabel(options = [], id, fallback = "Not configured") {
   return options.find((option) => option.id === id)?.label ?? fallback;
+}
+
+export function resolveSourceTypeLabels(sourceType) {
+  return SOURCE_TYPE_LABELS[sourceType] ?? SOURCE_TYPE_LABELS.none;
+}
+
+export function resolvePerRecordPathPlaceholder(sourceType) {
+  if (sourceType === "blog-category") {
+    return "/category/{slug}";
+  }
+  return "/posts/{slug}";
 }
 
 export function resolveSourceLabel(sourceOptionsByType, sourceType, itemId, sourceSelectionMode = "specific-record") {

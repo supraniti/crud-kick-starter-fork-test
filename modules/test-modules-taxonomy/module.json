@@ -6,6 +6,7 @@
   "capabilities": [
     "crud.collection",
     "schema",
+    "settings",
     "ui.route"
   ],
   "lifecycle": {
@@ -16,11 +17,33 @@
     "collectionHandlers": "./server/collection-handlers.mjs",
     "persistence": "./server/persistence-plugins.mjs"
   },
+  "settings": {
+    "contractVersion": 1,
+    "fields": [
+      {
+        "id": "remoteCategoriesProjectionTargetProfileId",
+        "label": "Remote Categories Projection Target Profile ID",
+        "type": "text",
+        "required": false,
+        "defaultValue": "",
+        "description": "Selected Remote Ops Firestore target used by the Taxonomies desk for categories projection compare and sync."
+      },
+      {
+        "id": "remoteTagsProjectionTargetProfileId",
+        "label": "Remote Tags Projection Target Profile ID",
+        "type": "text",
+        "required": false,
+        "defaultValue": "",
+        "description": "Selected Remote Ops Firestore target used by the Taxonomies desk for tags projection compare and sync."
+      }
+    ]
+  },
   "ui": {
     "navigation": {
       "label": "Taxonomy",
       "icon": "account_tree",
-      "order": 480
+      "order": 480,
+      "routeSegment": "taxonomies"
     },
     "routeView": {
       "kind": "custom",

@@ -1,0 +1,260 @@
+# M04 North-Star Alignment Program
+
+## Inputs
+- Current-state map:
+  - [current-state-repo-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/current-state-repo-map.md)
+- North-star brief:
+  - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
+
+## Goal
+- Move the repo from the current proof-oriented module surface to a stricter product-shaped local CMS.
+- Do it in bounded passes.
+- Keep core/module separation readable.
+- Avoid shotgun surgery.
+
+## End-State Target
+- Operator shell uses product language:
+  - `System Settings`
+  - `Remotes`
+  - `Domains`
+  - `Media`
+  - `Taxonomies`
+  - `Posts`
+  - `Authors`
+  - `Comments`
+  - `Layouts`
+  - `Pages`
+  - `Deployments`
+- Baseline proof/test modules stay in repo but are not exposed in normal app runtime.
+- Remote/GCP behavior remains owned by `test-modules-remote-ops`, but is surfaced through product desks.
+- Domain and deployment flows become first-class operator workflows.
+- Pages, deployment artifacts, media, remote projections, and client runtime become one coherent delivery chain.
+
+## Current-State Constraints
+- Feature logic already exists, but it is distributed across proof-oriented modules:
+  - `test-modules-editorial`
+  - `test-modules-taxonomy`
+  - `test-modules-content`
+  - `test-modules-engagement`
+  - `test-modules-pages`
+  - `test-modules-layouts`
+  - `test-modules-media-manager`
+  - `test-modules-remote-ops`
+- Product language does not match current shell labels.
+- `Domains`, `Deployments`, and `System Settings` are not first-class desks yet.
+- Several workflows exist only inside module-specific desks.
+- Some capability boundaries are still intentionally narrow:
+  - taxonomy/category fan-out pages
+  - taxonomy remote projection
+  - richer deployment pipeline orchestration
+  - client-runtime injection and observation in generated HTML
+
+## Program Structure
+
+### Pass 1: Product Shell Alignment
+- Objective:
+  - change operator-facing routing and navigation to the north-star language
+  - hide baseline proof/test modules from the normal shell
+  - add first-class `System Settings`, `Domains`, and `Deployments` desks as product-shell views
+- Boundaries:
+  - do not rewrite underlying module runtimes
+  - reuse existing Pages / Remote Ops / Media / Content support where possible
+- Expected result:
+  - product-shaped shell
+  - meaningful domain/deployment/system-settings entry points
+
+### Pass 2: Strict Settings / Remotes / Domains
+- Objective:
+  - simplify remote setup around the product model
+  - make domain management clearer and stricter
+  - make global settings more explicit and auditable
+- Candidate work:
+  - structured remote target auto-binding
+  - health/permission summaries at the product-desk level
+  - better domain readiness and DNS/TLS instruction states
+
+### Pass 3: Deployments Pipeline Desk
+- Objective:
+  - raise `Deployments` from a loose collection of buttons into a product-level release pipeline
+- Candidate work:
+  - local HTML sync orchestration
+  - projection/media/deployment remote procedure orchestration
+  - browser-delivery validation as the final release step
+  - pipeline readiness and run-log visibility
+
+### Pass 4: Strict Product Remote Governance
+- Objective:
+  - stop product desks from behaving as if remotes are usable when the remote layer is not actually validated
+- Candidate work:
+  - product-shell remote health summary
+  - strict gating for remote-dependent settings
+  - stricter deployment pipeline readiness based on validated targets and connections
+  - explicit operator messaging when remote prerequisites are missing or blocked
+
+### Pass 5: Taxonomies / Authors / Comments Alignment
+- Objective:
+  - strengthen the data-type desks around the intended product model
+- Candidate work:
+  - taxonomy sync-state awareness
+  - taxonomy projection support
+  - author/media stricter authoring rules
+  - comments sync + moderation pipeline emphasis
+
+### Pass 6: Pages / Layouts / Deployments Alignment
+- Objective:
+  - raise Pages and Deployments from current proof level to pipeline level
+- Candidate work:
+  - richer page modes
+  - computable SEO defaults and previews
+  - deployment bundles built from pages + media + projections + domain + remote
+  - layout preview of rendered base structure
+  - category fan-out templates and public path resolution
+
+### Pass 7: Client Runtime Integration
+- Objective:
+  - inject `client-runtime` into generated HTML by default
+  - connect delivered JSON, media URLs, and remote collection contracts into runtime config
+- Candidate work:
+  - page render-time runtime bootstrap contract
+  - preview/observe runtime from Pages
+  - remote collection/query/action compatibility
+
+## Pass 1 Scope Lock
+
+### In scope
+- Product-shell navigation catalog
+- Hidden baseline-module policy for normal runtime
+- Product route aliases for current feature modules
+- First-class product desks:
+  - `System Settings`
+  - `Domains`
+  - `Deployments`
+- Header version display
+- Documentation and progress-pointer updates
+
+### Out of scope
+- category/template fan-out
+- taxonomy Firestore projection
+- full deployment pipeline redesign
+- client-runtime injection
+- deep remote/GCP redesign
+
+## Pass 1 Design
+
+### Navigation model
+- Keep server module ids unchanged.
+- Use frontend product-route descriptors and route aliases for operator-facing URLs.
+- Use route segments for clean URLs:
+  - `/app/posts`
+  - `/app/authors`
+  - `/app/taxonomies`
+  - `/app/comments`
+  - `/app/media`
+  - `/app/remotes`
+  - `/app/layouts`
+  - `/app/pages`
+  - `/app/system-settings`
+  - `/app/domains`
+  - `/app/deployments`
+
+### Visibility model
+- Baseline proof/test modules remain discoverable by runtime internals.
+- Normal shell sidebar filters them out.
+- Product desks and feature desks remain visible.
+
+### Product desks
+- `System Settings`
+  - aggregate current cross-module persisted settings:
+    - Pages
+    - Content
+    - Media
+- `Domains`
+  - focused browser-delivery desk on top of Remote Ops browser-delivery targets
+- `Deployments`
+  - focused orchestration desk on top of:
+    - Pages local deployment sync
+    - content projection target
+    - media remote target
+    - deployment remote target
+    - browser-delivery validation target
+
+## Verification Strategy
+- Targeted frontend integration:
+  - shell routing/navigation
+  - synthetic product views
+  - changed route aliases
+- Broader frontend integration if shell changes ripple
+- `pnpm quality:protocol`
+- escalate to `pnpm quality:gate:full` once pass is stable
+
+## Progress Markers
+- `2026-03-14`
+  - program doc created
+  - Pass 1 selected as active implementation pass
+  - Pass 1 completed in worktree:
+    - product-shell navigation alignment
+    - synthetic `System Settings`, `Domains`, `Deployments`
+    - route aliases and north-star labels
+  - Pass 2 completed in worktree:
+    - validated GCP connection auto-prepares the managed product target bundle
+    - module settings auto-bind to prepared targets
+    - domains desk shows current public origin / temp URLs / linked services / DNS guidance
+  - Pass 3 completed in worktree:
+    - deployments desk runs the bounded release pipeline:
+      - local HTML sync
+      - posts projection compare/execute
+      - media compare/execute
+      - HTML deployment compare/execute
+      - browser-delivery validation
+    - smoke lane aligned to the product shell routes and desks
+  - Pass 4 completed in worktree:
+    - `System Settings` now surfaces product-level remote readiness:
+      - validated connection count
+      - usable target count by service kind
+      - explicit "unlock remotes first" operator messaging
+    - remote-dependent selectors now stay locked until a validated remote exists
+    - `Deployments` pipeline readiness now distinguishes:
+      - ready
+      - missing
+      - blocked
+      - optional
+    - configured-but-unvalidated remote targets now block the release pipeline instead of failing later
+  - Pass 5 completed in worktree:
+    - managed product remote bundle now prepares and binds:
+      - posts projection
+      - categories projection
+      - tags projection
+      - deployment storage
+      - media storage
+      - browser delivery
+    - taxonomy module now owns product-bound settings for:
+      - remote categories projection target
+      - remote tags projection target
+    - taxonomy desk now exposes embedded compare/sync flows for:
+      - categories projection
+      - tags projection
+    - product shell now treats categories and tags as required release-pipeline inputs:
+      - `System Settings` exposes separate taxonomy projection selectors
+      - `Deployments` compares and syncs categories/tags before media/html
+  - Pass 6 completed in worktree:
+    - pages now support per-record templates for:
+      - `blog-post`
+      - `blog-category`
+    - per-record category templates now:
+      - preview eligible public categories
+      - generate one output path per category
+      - sync local deployment outputs
+      - surface deployment instances
+    - page delivery path resolution now resolves published per-record templates by generated public path
+      - this closes the earlier hole where `/posts/{slug}` payload follow-up routes were emitted but not actually resolvable
+  - verification for the active worktree:
+    - `pnpm quality:gate:full` passed
+    - `pnpm quality:protocol` passed
+
+## Active Gap After Current Passes
+- Product shell is now closer to the north star, but several north-star behaviors are still pending:
+  - remote billing/cost summaries are not surfaced yet
+  - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
+  - deployment bundles are still page-selected runs, not first-class named release bundles
+  - client-runtime injection into generated HTML is still missing
+  - remote/public delivery still needs stronger final-contract alignment around public media URLs, runtime bootstrap, and bundle observability

@@ -99,6 +99,14 @@ async function findHandlerItem(handler, itemId) {
   return handler.findById(itemId);
 }
 
+function isPublishedPostRecord(record = {}) {
+  return record?.status === "published";
+}
+
+function isPublicTaxonomyRecord(record = {}) {
+  return record?.visibility !== "internal";
+}
+
 function resolveSourceDescriptorItemId(page = {}, sourceRecord = null) {
   if (sourceRecord?.id) {
     return sourceRecord.id;
@@ -218,13 +226,46 @@ export async function listEligiblePrimarySourceRecords(collectionHandlerRegistry
     return [];
   }
 
-  if (normalizePrimarySourceType(page.primarySourceType) !== "blog-post") {
-    return [];
+  const sourceType = normalizePrimarySourceType(page.primarySourceType);
+  if (sourceType === "blog-post") {
+    const postsHandler = collectionHandlerRegistry.get(POSTS_COLLECTION_ID);
+    const posts = await listHandlerItems(postsHandler);
+    return posts.filter(isPublishedPostRecord);
   }
+  if (sourceType === "blog-category") {
+    const categoriesHandler = collectionHandlerRegistry.get(CATEGORIES_COLLECTION_ID);
+    const categories = await listHandlerItems(categoriesHandler);
+    return categories.filter(isPublicTaxonomyRecord);
+  }
+  return [];
+}
 
-  const postsHandler = collectionHandlerRegistry.get(POSTS_COLLECTION_ID);
-  const posts = await listHandlerItems(postsHandler);
-  return posts.filter((post) => post?.status === "published");
+async function findPublishedSinglePageByPath(pagesHandler, normalizedPath) {
+  const pages = await listHandlerItems(pagesHandler, {
+    path: normalizedPath
+  });
+  return pages.find((entry) => normalizePagePath(entry.path) === normalizedPath) ?? null;
+}
+
+async function findPublishedPerRecordPageByPath(collectionHandlerRegistry, pagesHandler, normalizedPath) {
+  const pages = await listHandlerItems(pagesHandler);
+  const publishedPerRecordPages = pages.filter(
+    (entry) => isPagePublished(entry.status) && isPerRecordDeploymentMode(entry.deploymentMode)
+  );
+
+  for (const page of publishedPerRecordPages) {
+    const records = await listEligiblePrimarySourceRecords(collectionHandlerRegistry, page);
+    const matchingRecord = records.find(
+      (record) => buildResolvedPagePath(page, record) === normalizedPath
+    );
+    if (matchingRecord) {
+      return {
+        page,
+        sourceRecord: matchingRecord
+      };
+    }
+  }
+  return null;
 }
 
 async function resolveRequestedSourceRecord({
@@ -526,21 +567,35 @@ export async function resolvePageByPath({
   settingsDefinition = null
 }) {
   const pagesHandler = collectionHandlerRegistry.get("blog-pages");
-  const pages = await listHandlerItems(pagesHandler, {
-    path: normalizePagePath(path)
-  });
   const normalizedPath = normalizePagePath(path);
-  const page = pages.find((entry) => normalizePagePath(entry.path) === normalizedPath) ?? null;
-  if (!page) {
+  const singlePage = await findPublishedSinglePageByPath(pagesHandler, normalizedPath);
+  if (singlePage) {
+    if (!preview && !isPagePublished(singlePage.status)) {
+      return null;
+    }
+    return resolvePageDeliveryPayload({
+      collectionHandlerRegistry,
+      page: singlePage,
+      preview,
+      resolveSettingsRepository,
+      settingsDefinition
+    });
+  }
+
+  const perRecordMatch = await findPublishedPerRecordPageByPath(
+    collectionHandlerRegistry,
+    pagesHandler,
+    normalizedPath
+  );
+  if (!perRecordMatch) {
     return null;
   }
-  if (!preview && !isPagePublished(page.status)) {
-    return null;
-  }
+
   return resolvePageDeliveryPayload({
     collectionHandlerRegistry,
-    page,
+    page: perRecordMatch.page,
     preview,
+    sourceRecord: perRecordMatch.sourceRecord,
     resolveSettingsRepository,
     settingsDefinition
   });

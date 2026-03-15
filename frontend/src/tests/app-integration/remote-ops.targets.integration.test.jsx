@@ -132,7 +132,7 @@ test("remote ops desk supports target compare and execute procedures with run hi
   render(<RemoteOpsView activeModuleLabel="Remote Ops" />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Ops Kitchensink" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remotes Desk" })).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Targets" }));
@@ -330,7 +330,7 @@ test("remote ops desk enables live storage procedures and records restore histor
   render(<RemoteOpsView activeModuleLabel="Remote Ops" />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Ops Kitchensink" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remotes Desk" })).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Targets" }));

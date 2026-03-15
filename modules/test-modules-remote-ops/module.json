@@ -21,7 +21,8 @@
     "navigation": {
       "label": "Remote Ops",
       "icon": "cloud_sync",
-      "order": 530
+      "order": 530,
+      "routeSegment": "remotes"
     },
     "routeView": {
       "kind": "custom",
@@ -261,6 +262,14 @@
           "maxLength": 140
         },
         {
+          "id": "productBindingKey",
+          "label": "Product Binding Key",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 80
+        },
+        {
           "id": "connectionProfileId",
           "label": "Connection Profile",
           "type": "reference",
@@ -307,7 +316,9 @@
                   "required": false,
                   "options": [
                     "published-blog-posts",
-                    "published-pages"
+                    "published-pages",
+                    "public-blog-categories",
+                    "public-blog-tags"
                   ]
                 },
                 {

@@ -72,6 +72,7 @@ export function createPendingConnectionValidationSummary(message = null) {
 export function createEmptyTargetDraft() {
   return {
     title: "",
+    productBindingKey: "",
     connectionProfileId: "",
     targetKind: "firestore-projection",
     adapterMode: "simulated-gcp",
@@ -216,6 +217,7 @@ export async function persistConnectionProfile({ connectionId, draft }) {
 export async function persistTargetProfile({ targetId, draft }) {
   const payload = {
     title: draft.title,
+    productBindingKey: draft.productBindingKey || null,
     connectionProfileId: draft.connectionProfileId,
     targetKind: draft.targetKind,
     adapterMode: draft.adapterMode,

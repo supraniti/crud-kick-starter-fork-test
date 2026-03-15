@@ -97,10 +97,11 @@ function resolveRouteStateAdapter(moduleId, options = {}) {
 }
 
 function normalizeRoute(input, options = {}) {
-  const moduleId =
+  const requestedModuleId =
     typeof input?.moduleId === "string" && input.moduleId.length > 0
       ? input.moduleId
       : DEFAULT_MODULE_ID;
+  const moduleId = resolveModuleIdFromPathSegment(requestedModuleId, options);
   const routeStateAdapter = resolveRouteStateAdapter(moduleId, options);
   const normalizedRouteState = normalizeRouteStateValue(
     routeStateAdapter.normalizeRoute(input ?? {})

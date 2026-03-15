@@ -109,9 +109,17 @@ function useValidateConnectionProcedure(selection, reload) {
       const connectionId = await persistCurrentConnectionDraft(selection);
       const payload = await validateConnection(connectionId);
       await reload();
+      const preparedTargetCount = Object.keys(payload?.productBundle?.targetsByBindingKey ?? {}).length;
+      const boundSettingsCount = Array.isArray(payload?.productBundle?.settingBindings)
+        ? payload.productBundle.settingBindings.filter((binding) => binding.updated === true).length
+        : 0;
+      const successMessage =
+        preparedTargetCount > 0
+          ? `${payload?.message ?? "Connection validated"} Prepared ${preparedTargetCount} standard targets and bound ${boundSettingsCount} module settings.`
+          : payload?.message ?? "Connection validated";
       selection.setConnectionActionState(
         createConnectionActionState({
-          successMessage: payload?.message ?? "Connection validated"
+          successMessage
         })
       );
     } catch (error) {

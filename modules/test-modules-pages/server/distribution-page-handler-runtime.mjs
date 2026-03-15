@@ -312,17 +312,21 @@ function collectSourceSelectionConflicts(preparedValue, isPerRecordMode) {
   return conflicts;
 }
 
+function supportsPerRecordPrimarySourceType(primarySourceType) {
+  return primarySourceType === "blog-post" || primarySourceType === "blog-category";
+}
+
 function collectPerRecordTemplateConflicts(preparedValue, isPerRecordMode) {
   if (!isPerRecordMode) {
     return [];
   }
 
   const conflicts = [];
-  if (preparedValue.primarySourceType !== "blog-post") {
+  if (!supportsPerRecordPrimarySourceType(preparedValue.primarySourceType)) {
     conflicts.push(
       buildConflict(
         "PAGE_DEPLOYMENT_SOURCE_TYPE_UNSUPPORTED",
-        "Per-record templates currently support only blog-post sources",
+        "Per-record templates currently support blog-post and blog-category sources",
         "primarySourceType"
       )
     );

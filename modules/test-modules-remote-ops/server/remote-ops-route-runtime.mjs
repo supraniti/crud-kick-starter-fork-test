@@ -35,13 +35,15 @@ export function ensureModuleEnabled(moduleRegistry, moduleId, reply) {
 export function createRouteContext({
   manifest,
   moduleRegistry,
-  collectionHandlerRegistry
+  collectionHandlerRegistry,
+  resolveSettingsRepository
 }) {
   const moduleId = manifest?.id ?? MODULE_ID;
   return {
     moduleId,
     moduleRegistry,
     collectionHandlerRegistry,
+    resolveSettingsRepository,
     connectionsHandler: collectionHandlerRegistry.get(CONNECTIONS_COLLECTION_ID),
     targetsHandler: collectionHandlerRegistry.get(TARGETS_COLLECTION_ID),
     runsHandler: collectionHandlerRegistry.get(RUNS_COLLECTION_ID)

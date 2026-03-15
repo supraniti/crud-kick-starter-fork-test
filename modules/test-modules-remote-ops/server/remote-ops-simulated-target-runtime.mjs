@@ -2,8 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import {
+  CATEGORIES_COLLECTION_ID,
   PAGES_COLLECTION_ID,
   POSTS_COLLECTION_ID,
+  TAGS_COLLECTION_ID,
   normalizeTargetConfig,
   stringifyCanonicalJson
 } from "./remote-ops-shared-runtime.mjs";
@@ -243,10 +245,129 @@ async function buildPublishedPagesProjectionMap(collectionHandlerRegistry, targe
   return projectionMap;
 }
 
+function buildProjectionEntry(collectionPath, documentId, document) {
+  const content = Buffer.from(stringifyCanonicalJson(document), "utf8");
+  const relativePath = `${collectionPath}/${documentId}.json`;
+  return {
+    relativePath,
+    absolutePath: null,
+    sizeBytes: content.length,
+    hash: hashBuffer(content),
+    content,
+    documentData: document
+  };
+}
+
+function resolveProjectionDocumentId(item) {
+  return typeof item?.slug === "string" && item.slug.trim().length > 0 ? item.slug.trim() : item?.id;
+}
+
+function toFiniteNumber(value, fallback = 0) {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function buildPublicCategoryDocument(item) {
+  return {
+    id: item.id,
+    slug: item.slug ?? null,
+    name: item.name ?? null,
+    description: item.description ?? null,
+    parentCategoryId: item.parentCategoryId ?? null,
+    path: item.path ?? null,
+    depth: toFiniteNumber(item.depth),
+    sortOrder: toFiniteNumber(item.sortOrder),
+    visibility: item.visibility ?? "public",
+    featuredMediaId: item.featuredMediaId ?? null,
+    usageCount: toFiniteNumber(item.usageCount),
+    updatedOn: item.updatedOn ?? null
+  };
+}
+
+function buildPublicTagDocument(item) {
+  return {
+    id: item.id,
+    slug: item.slug ?? null,
+    name: item.name ?? null,
+    description: item.description ?? null,
+    color: item.color ?? null,
+    visibility: item.visibility ?? "public",
+    usageCount: toFiniteNumber(item.usageCount),
+    seoTitle: item.seoTitle ?? null,
+    seoDescription: item.seoDescription ?? null,
+    updatedOn: item.updatedOn ?? null
+  };
+}
+
+async function buildPublicCategoriesProjectionMap(collectionHandlerRegistry, targetProfile) {
+  const categoriesHandler = collectionHandlerRegistry.get(CATEGORIES_COLLECTION_ID);
+  const projectionMap = new Map();
+  if (!categoriesHandler) {
+    return projectionMap;
+  }
+
+  const payload = await categoriesHandler.list({
+    limit: 5000,
+    offset: 0
+  });
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const collectionPath =
+    normalizeTargetConfig(targetProfile.config, targetProfile.targetKind).firestoreCollectionPath
+    ?? "publicCategories";
+
+  for (const item of items) {
+    if (item?.visibility !== "public") {
+      continue;
+    }
+    const documentId = resolveProjectionDocumentId(item);
+    const document = buildPublicCategoryDocument(item);
+    projectionMap.set(
+      `${collectionPath}/${documentId}.json`,
+      buildProjectionEntry(collectionPath, documentId, document)
+    );
+  }
+  return projectionMap;
+}
+
+async function buildPublicTagsProjectionMap(collectionHandlerRegistry, targetProfile) {
+  const tagsHandler = collectionHandlerRegistry.get(TAGS_COLLECTION_ID);
+  const projectionMap = new Map();
+  if (!tagsHandler) {
+    return projectionMap;
+  }
+
+  const payload = await tagsHandler.list({
+    limit: 5000,
+    offset: 0
+  });
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const collectionPath =
+    normalizeTargetConfig(targetProfile.config, targetProfile.targetKind).firestoreCollectionPath
+    ?? "publicTags";
+
+  for (const item of items) {
+    if (item?.visibility !== "public") {
+      continue;
+    }
+    const documentId = resolveProjectionDocumentId(item);
+    const document = buildPublicTagDocument(item);
+    projectionMap.set(
+      `${collectionPath}/${documentId}.json`,
+      buildProjectionEntry(collectionPath, documentId, document)
+    );
+  }
+  return projectionMap;
+}
+
 export async function buildFirestoreProjectionMap(collectionHandlerRegistry, targetProfile) {
   const projectionScope = normalizeTargetConfig(targetProfile.config, targetProfile.targetKind).projectionScope;
   if (projectionScope === "published-pages") {
     return buildPublishedPagesProjectionMap(collectionHandlerRegistry, targetProfile);
+  }
+  if (projectionScope === "public-blog-categories") {
+    return buildPublicCategoriesProjectionMap(collectionHandlerRegistry, targetProfile);
+  }
+  if (projectionScope === "public-blog-tags") {
+    return buildPublicTagsProjectionMap(collectionHandlerRegistry, targetProfile);
   }
   return buildPublishedPostProjectionMap(collectionHandlerRegistry, targetProfile);
 }

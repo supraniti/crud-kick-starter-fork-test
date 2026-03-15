@@ -14,6 +14,44 @@ import {
   Typography
 } from "@mui/material";
 
+function resolveModuleGlyph(icon) {
+  const normalized = typeof icon === "string" ? icon.trim() : "";
+  if (normalized === "settings") {
+    return "⚙";
+  }
+  if (normalized === "cloud_sync") {
+    return "☁";
+  }
+  if (normalized === "public") {
+    return "◎";
+  }
+  if (normalized === "perm_media") {
+    return "▣";
+  }
+  if (normalized === "account_tree") {
+    return "⎇";
+  }
+  if (normalized === "article") {
+    return "▤";
+  }
+  if (normalized === "group") {
+    return "◍";
+  }
+  if (normalized === "forum") {
+    return "◌";
+  }
+  if (normalized === "dashboard_customize") {
+    return "▥";
+  }
+  if (normalized === "web") {
+    return "◫";
+  }
+  if (normalized === "rocket_launch") {
+    return "▲";
+  }
+  return "•";
+}
+
 function getDeploySeverity(deploy) {
   if (deploy?.deployRequired) {
     return "warning";
@@ -252,6 +290,20 @@ function ModuleSidebar({ modules, activeModuleId, onSelectModule }) {
             sx={{ justifyContent: "flex-start" }}
           >
             <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap>
+              <Box
+                component="span"
+                sx={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  display: "inline-grid",
+                  placeItems: "center",
+                  fontSize: 12,
+                  bgcolor: active ? "rgba(255,255,255,0.18)" : "action.hover"
+                }}
+              >
+                {resolveModuleGlyph(moduleItem.icon)}
+              </Box>
               <span>{moduleItem.label}</span>
               {moduleState !== "enabled" ? (
                 <Chip

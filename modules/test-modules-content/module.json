@@ -35,7 +35,8 @@
     "navigation": {
       "label": "Content",
       "icon": "article",
-      "order": 490
+      "order": 490,
+      "routeSegment": "posts"
     },
     "routeView": {
       "kind": "custom",

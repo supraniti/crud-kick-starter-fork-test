@@ -15,6 +15,7 @@ import {
   ModuleQuickActions
 } from "../../ui/ShellViews.jsx";
 import { RuntimeSettingsDialog } from "../../ui/RuntimeSettingsDialog.jsx";
+import { APP_VERSION } from "./01-app-config.js";
 
 function AppShellLayout({
   moduleState,
@@ -72,7 +73,7 @@ function AppShellLayout({
             justifyContent="space-between"
           >
             <Stack spacing={0.5}>
-              <Typography variant="h6">Crud Control</Typography>
+              <Typography variant="h6">Crud Control v{APP_VERSION}</Typography>
               <Typography variant="caption" color="text.secondary">
                 Active route: {routeUrl}
               </Typography>

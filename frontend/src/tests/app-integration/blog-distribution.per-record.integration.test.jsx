@@ -235,6 +235,194 @@ test("pages editor supports per-record post templates and previews a concrete po
   expect(screen.getByLabelText("Resolved Page JSON").value).toContain("/posts/launch-window-update");
 }, 15000);
 
+test("pages editor supports per-record category templates and previews a concrete category instance", async () => {
+  installReferenceMocks(referenceApi);
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "blog-pages") {
+      return {
+        items: [
+          {
+            id: "page-011",
+            title: "Categories Page",
+            pageKind: "listing",
+            deploymentMode: "per-record",
+            primarySourceType: "blog-category",
+            sourceSelectionMode: "all-records",
+            path: "/category",
+            pathPattern: "/category/{slug}",
+            layoutKey: "listing-shell",
+            primarySource: {
+              sourceType: "blog-category",
+              itemId: null,
+              bindAs: "primary"
+            },
+            dataSources: [],
+            status: "draft",
+            seoTitle: "Category Detail",
+            seoDescription: "Fallback category description",
+            ogTitle: "Category Detail",
+            ogDescription: "Fallback category description",
+            ogImageMediaId: "media-001",
+            deploymentStatus: "missing",
+            deploymentTargetCount: 0,
+            deploymentSyncedCount: 0,
+            deploymentStaleCount: 0,
+            deploymentMissingCount: 0,
+            createdOn: "2026-03-08T08:00:00.000Z",
+            updatedOn: "2026-03-08T08:00:00.000Z"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-redirect-rules") {
+      return { items: [] };
+    }
+
+    if (collectionId === "page-layouts") {
+      return {
+        items: [
+          {
+            id: "layout-010",
+            title: "Category Layout"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-categories") {
+      return {
+        items: [
+          {
+            id: "category-001",
+            name: "Guides",
+            slug: "guides",
+            description: "Guides category",
+            visibility: "public"
+          },
+          {
+            id: "category-002",
+            name: "Release Ops",
+            slug: "release-ops",
+            description: "Release ops category",
+            visibility: "public"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-posts" || collectionId === "blog-authors" || collectionId === "blog-tags") {
+      return { items: [] };
+    }
+
+    if (collectionId === "media-items") {
+      return {
+        items: [
+          {
+            id: "media-001",
+            displayName: "Category Hero"
+          }
+        ]
+      };
+    }
+
+    return { items: [] };
+  });
+
+  const fetchMock = vi.fn(async (url) => {
+    if (String(url).includes("/pages/page-011/preview-sources")) {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [
+          {
+            id: "category-001",
+            label: "Guides",
+            path: "/category/guides"
+          },
+          {
+            id: "category-002",
+            label: "Release Ops",
+            path: "/category/release-ops"
+          }
+        ]
+      });
+    }
+
+    if (String(url).includes("/pages/page-011/deployment-instances")) {
+      return createJsonResponse(200, {
+        ok: true,
+        items: []
+      });
+    }
+
+    if (String(url).includes("/pages/page-011/delivery?preview=true&sourceItemId=category-001")) {
+      return createJsonResponse(200, {
+        ok: true,
+        payload: {
+          contractVersion: 1,
+          page: {
+            id: "page-011",
+            path: "/category/guides",
+            deploymentMode: "per-record"
+          },
+          data: {
+            primary: {
+              collectionId: "blog-categories",
+              itemId: "category-001"
+            }
+          }
+        }
+      });
+    }
+
+    return createJsonResponse(404, {
+      ok: false,
+      error: {
+        message: "not found"
+      }
+    });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(
+    <BlogDistributionView
+      activeModuleLabel="Pages"
+      collectionsDomain={createCollectionsDomain()}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText("Categories Page")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByText("Categories Page"));
+
+  await waitFor(() => {
+    expect(screen.getByRole("combobox", { name: "Deployment Mode" })).toHaveTextContent("per-record");
+    expect(screen.getByLabelText("Path Pattern")).toHaveValue("/category/{slug}");
+  });
+
+  await waitFor(() => {
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-pages/pages/page-011/preview-sources",
+      expect.objectContaining({
+        method: "GET"
+      })
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reference/modules/test-modules-pages/pages/page-011/delivery?preview=true&sourceItemId=category-001",
+      expect.objectContaining({
+        method: "GET"
+      })
+    );
+  });
+
+  expect(screen.getByRole("combobox", { name: "Preview Source Category" })).toHaveTextContent(
+    "Guides - /category/guides"
+  );
+  expect(screen.getByLabelText("Resolved Page JSON").value).toContain("/category/guides");
+}, 15000);
+
 test("pages editor syncs per-record deployment and shows deployment instances", async () => {
   let deploymentSynced = false;
   installReferenceMocks(referenceApi);

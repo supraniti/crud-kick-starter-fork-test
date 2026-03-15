@@ -11,6 +11,8 @@ export const TARGETS_COLLECTION_ID = "remote-target-profiles";
 export const RUNS_COLLECTION_ID = "remote-operation-runs";
 export const POSTS_COLLECTION_ID = "blog-posts";
 export const PAGES_COLLECTION_ID = "blog-pages";
+export const TAGS_COLLECTION_ID = "blog-tags";
+export const CATEGORIES_COLLECTION_ID = "blog-categories";
 
 export const CONNECTION_STATUS_SET = new Set([
   "draft",
@@ -23,6 +25,12 @@ export const TARGET_STATUS_SET = new Set(["draft", "validated", "warning", "erro
 export const RUN_STATUS_SET = new Set(["succeeded", "warning", "failed"]);
 export const AUTH_MODE_SET = new Set(["service-account-key", "service-account"]);
 export const ADAPTER_MODE_SET = new Set(["simulated-gcp", "live-gcp"]);
+export const FIRESTORE_PROJECTION_SCOPE_SET = new Set([
+  "published-blog-posts",
+  "published-pages",
+  "public-blog-categories",
+  "public-blog-tags"
+]);
 export const TARGET_KIND_SET = new Set([
   "firestore-projection",
   "deployment-storage",
@@ -189,6 +197,10 @@ export function normalizeTargetKind(value, fallback = "firestore-projection") {
 
 export function normalizeAdapterMode(value, fallback = "simulated-gcp") {
   return normalizeEnum(value, ADAPTER_MODE_SET, fallback);
+}
+
+export function normalizeProjectionScope(value, fallback = "published-blog-posts") {
+  return normalizeEnum(value, FIRESTORE_PROJECTION_SCOPE_SET, fallback);
 }
 
 export function createDefaultTargetConfig(targetKind = "firestore-projection") {
@@ -366,6 +378,7 @@ export function buildExposedTargetProfile(item) {
   }
   return {
     ...item,
+    productBindingKey: normalizeOptionalText(item.productBindingKey),
     adapterMode: normalizeAdapterMode(item.adapterMode),
     config: normalizeTargetConfig(item.config, item.targetKind),
     policy: normalizeTargetPolicy(item.policy),

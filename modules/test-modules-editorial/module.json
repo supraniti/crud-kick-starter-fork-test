@@ -20,7 +20,8 @@
     "navigation": {
       "label": "Editorial",
       "icon": "edit_note",
-      "order": 470
+      "order": 470,
+      "routeSegment": "authors"
     },
     "routeView": {
       "kind": "custom",

@@ -20,7 +20,8 @@
     "navigation": {
       "label": "Layouts",
       "icon": "dashboard_customize",
-      "order": 515
+      "order": 515,
+      "routeSegment": "layouts"
     },
     "routeView": {
       "kind": "custom",

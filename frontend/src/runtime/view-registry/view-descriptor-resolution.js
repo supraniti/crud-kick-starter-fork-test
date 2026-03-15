@@ -7,6 +7,7 @@ import {
   createViewRegistry,
   validateViewDescriptor
 } from "./registration-primitives.js";
+import { PRODUCT_VIEW_DESCRIPTORS } from "../../app/product-shell/product-view-descriptors.jsx";
 import {
   dedupeRouteViewActions,
   dedupeRouteViewQuickActions,
@@ -506,6 +507,7 @@ function createResolvedViewRegistry({
     moduleViewEntrypoints
   });
   const registry = createViewRegistry([
+    ...PRODUCT_VIEW_DESCRIPTORS,
     ...builtinResolution.descriptors,
     ...entrypointResolution.descriptors
   ]);

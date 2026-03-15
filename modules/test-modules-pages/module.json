@@ -51,7 +51,8 @@
     "navigation": {
       "label": "Pages",
       "icon": "web",
-      "order": 510
+      "order": 510,
+      "routeSegment": "pages"
     },
     "routeView": {
       "kind": "custom",

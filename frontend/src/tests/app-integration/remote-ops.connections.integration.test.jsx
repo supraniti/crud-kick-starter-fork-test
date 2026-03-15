@@ -112,7 +112,7 @@ test("remote ops desk can load a service-account key and validate the selected p
   render(<RemoteOpsView activeModuleLabel="Remote Ops" />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Ops Kitchensink" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remotes Desk" })).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByText("Primary GCP Dev"));
@@ -291,7 +291,7 @@ test("remote ops desk can analyze GCP compatibility for the selected connection"
   render(<RemoteOpsView activeModuleLabel="Remote Ops" />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Ops Kitchensink" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remotes Desk" })).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByText("Primary GCP Dev"));
@@ -521,7 +521,7 @@ test("remote ops desk can confirm safeguards and provision missing resources fro
   render(<RemoteOpsView activeModuleLabel="Remote Ops" />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Ops Kitchensink" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remotes Desk" })).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByText("Primary GCP Dev"));

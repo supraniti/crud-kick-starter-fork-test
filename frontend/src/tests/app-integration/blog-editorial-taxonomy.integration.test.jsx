@@ -2,6 +2,36 @@ import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { BlogEditorialView } from "../../../../modules/test-modules-editorial/frontend/BlogEditorialView.jsx";
 import { BlogTaxonomyView } from "../../../../modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx";
+import * as embeddedRemoteOps from "../../../../modules/test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
+
+vi.mock("../../../../modules/test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js", async () => {
+  const actual = await vi.importActual(
+    "../../../../modules/test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js"
+  );
+  return {
+    ...actual,
+    useEmbeddedRemoteOpsSupport: vi.fn(() => ({
+      supportState: {
+        loading: false,
+        errorMessage: null
+      },
+      procedureState: {
+        processing: false,
+        procedureType: "",
+        targetId: "",
+        errorMessage: null,
+        successMessage: null
+      },
+      reload: vi.fn(),
+      getTargetsByKind: vi.fn(() => []),
+      getTargetById: vi.fn(() => null),
+      getLatestRunForTarget: vi.fn(() => null),
+      validateTarget: vi.fn(),
+      compareTarget: vi.fn(),
+      executeTarget: vi.fn()
+    }))
+  };
+});
 
 function createCollectionsDomain({
   activeCollectionId,
@@ -235,6 +265,122 @@ test("blog taxonomy view renders tree summary and collection switcher", async ()
   expect(screen.getByRole("heading", { name: "Category Tree" })).toBeInTheDocument();
   expect(screen.getAllByText("Guides").length).toBeGreaterThan(0);
   expect(screen.getByText("guides/devops")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Tags" }));
+  expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");
+});
+
+test("blog taxonomy view surfaces separate remote projection panels for categories and tags", async () => {
+  const compareTarget = vi.fn();
+  const executeTarget = vi.fn();
+  const validateTarget = vi.fn();
+  embeddedRemoteOps.useEmbeddedRemoteOpsSupport.mockReturnValue({
+    supportState: {
+      loading: false,
+      errorMessage: null
+    },
+    procedureState: {
+      processing: false,
+      procedureType: "",
+      targetId: "",
+      errorMessage: null,
+      successMessage: null
+    },
+    reload: vi.fn(),
+    getTargetsByKind: vi.fn(() => [
+      {
+        id: "target-categories-001",
+        title: "Categories Projection",
+        targetKind: "firestore-projection",
+        targetStatus: "validated",
+        config: {
+          projectionScope: "public-blog-categories"
+        },
+        compareSummary: {
+          createCount: 2,
+          updateCount: 0,
+          deleteCount: 0
+        }
+      },
+      {
+        id: "target-tags-001",
+        title: "Tags Projection",
+        targetKind: "firestore-projection",
+        targetStatus: "validated",
+        config: {
+          projectionScope: "public-blog-tags"
+        },
+        compareSummary: {
+          createCount: 1,
+          updateCount: 0,
+          deleteCount: 0
+        }
+      }
+    ]),
+    getTargetById: vi.fn((targetId) =>
+      targetId === "target-categories-001"
+        ? {
+            id: "target-categories-001",
+            title: "Categories Projection",
+            targetStatus: "validated",
+            config: { projectionScope: "public-blog-categories" },
+            compareSummary: { createCount: 2, updateCount: 0, deleteCount: 0 }
+          }
+        : targetId === "target-tags-001"
+          ? {
+              id: "target-tags-001",
+              title: "Tags Projection",
+              targetStatus: "validated",
+              config: { projectionScope: "public-blog-tags" },
+              compareSummary: { createCount: 1, updateCount: 0, deleteCount: 0 }
+            }
+          : null
+    ),
+    getLatestRunForTarget: vi.fn(() => null),
+    validateTarget,
+    compareTarget,
+    executeTarget
+  });
+
+  const collectionsDomain = createCollectionsDomain({
+    activeCollectionId: "blog-categories",
+    collectionSchema: {
+      id: "blog-categories",
+      label: "Categories",
+      entitySingular: "category",
+      fields: [{ id: "name", label: "Name", type: "text", required: true }]
+    },
+    collectionItems: [],
+    moduleCollections: [
+      { id: "blog-categories", label: "Categories", capabilities: { create: true, update: true, delete: true } },
+      { id: "blog-tags", label: "Tags", capabilities: { create: true, update: true, delete: true } }
+    ]
+  });
+  const moduleSettingsDomain = {
+    moduleSettingsState: {
+      draftValues: {
+        remoteCategoriesProjectionTargetProfileId: "target-categories-001",
+        remoteTagsProjectionTargetProfileId: "target-tags-001"
+      },
+      saving: false,
+      errorMessage: null,
+      successMessage: null
+    },
+    handleSettingsFieldChange: vi.fn(),
+    handleSaveModuleSettings: vi.fn(async () => {})
+  };
+
+  render(
+    <BlogTaxonomyView
+      activeModuleLabel="Blog Taxonomy"
+      collectionsDomain={collectionsDomain}
+      moduleSettingsDomain={moduleSettingsDomain}
+      navigate={vi.fn()}
+    />
+  );
+
+  expect(screen.getByText("Remote Categories Projection")).toBeInTheDocument();
+  expect(screen.getAllByText("Categories Projection").length).toBeGreaterThan(0);
 
   fireEvent.click(screen.getByRole("button", { name: "Tags" }));
   expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");

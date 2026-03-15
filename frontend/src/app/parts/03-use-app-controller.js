@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRemotesDeployDomain } from "../../domains/remotes-deploy/useRemotesDeployDomain.js";
 import {
   parseRouteFromLocation,
@@ -8,6 +8,7 @@ import {
   defaultApiClients,
   readAuthSession
 } from "./01-app-config.js";
+import { buildProductNavigationItems } from "../product-shell/product-shell-catalog.js";
 import {
   buildAppControllerResult,
   resolveActiveModuleViewState,
@@ -64,6 +65,22 @@ function resolveActiveModuleViewContext({
   });
 }
 
+function useResolvedRouteViewState(route, moduleRuntimeItems) {
+  const activeViewRegistration = resolveViewRegistration(route.moduleId, {
+    moduleRuntimeItems
+  });
+  const requiredDomains = new Set(
+    resolveRequiredDomainsForModule(route.moduleId, moduleRuntimeItems)
+  );
+
+  return {
+    activeViewRegistration,
+    requiredDomains,
+    selectedCategoryIds: route.categoryIds ?? [],
+    isCollectionsRouteActive: requiredDomains.has("collections")
+  };
+}
+
 function useRuntimeSettingsState() {
   const [runtimeSettingsOpen, setRuntimeSettingsOpen] = useState(false);
   const handleOpenRuntimeSettings = useCallback(() => {
@@ -79,6 +96,16 @@ function useRuntimeSettingsState() {
     handleOpenRuntimeSettings,
     handleCloseRuntimeSettings
   };
+}
+
+function useProductModuleState(rawModuleState) {
+  return useMemo(
+    () => ({
+      ...rawModuleState,
+      items: buildProductNavigationItems(rawModuleState.items)
+    }),
+    [rawModuleState]
+  );
 }
 
 function useAppController({ api = defaultApiClients }) {
@@ -100,14 +127,12 @@ function useAppController({ api = defaultApiClients }) {
       )
   });
   const moduleRuntimeItems = remotesDeployDomain.moduleRuntimeState.items;
-  const activeViewRegistration = resolveViewRegistration(route.moduleId, {
-    moduleRuntimeItems
-  });
-  const requiredDomains = new Set(
-    resolveRequiredDomainsForModule(route.moduleId, moduleRuntimeItems)
-  );
-  const selectedCategoryIds = route.categoryIds ?? [];
-  const isCollectionsRouteActive = requiredDomains.has("collections");
+  const {
+    activeViewRegistration,
+    requiredDomains,
+    selectedCategoryIds,
+    isCollectionsRouteActive
+  } = useResolvedRouteViewState(route, moduleRuntimeItems);
   const navigate = useRouteNavigation(setRoute, moduleRuntimeItems);
   const collectionRouteHandlers = useCollectionRouteHandlers({
     navigate,
@@ -122,11 +147,12 @@ function useAppController({ api = defaultApiClients }) {
     navigate,
     route
   });
-  const moduleState = useModuleStateLoader({
+  const rawModuleState = useModuleStateLoader({
     api,
     isAuthenticated,
     reloadToken: remotesDeployDomain.moduleRuntimeReloadToken
   });
+  const moduleState = useProductModuleState(rawModuleState);
   useEnsureRouteModuleExists({
     isAuthenticated,
     moduleRuntimeItems,

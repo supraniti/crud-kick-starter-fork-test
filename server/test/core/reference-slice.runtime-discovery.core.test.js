@@ -33,7 +33,8 @@ const MODULE_SETTINGS_IDS = Object.freeze([
   "test-modules-pages",
   "test-modules-relations-taxonomy",
   "test-modules-remotes-publish",
-  "test-modules-settings-policy"
+  "test-modules-settings-policy",
+  "test-modules-taxonomy"
 ]);
 
 function sortIds(values = []) {

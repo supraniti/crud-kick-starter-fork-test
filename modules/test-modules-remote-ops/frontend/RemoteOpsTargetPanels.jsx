@@ -137,6 +137,8 @@ export function TargetEditor({ workspace }) {
               <TextField select label="Projection Scope" value={draft.config.projectionScope ?? "published-blog-posts"} onChange={(event) => workspace.changeTargetConfigField("projectionScope", event.target.value)} fullWidth>
                 <MenuItem value="published-blog-posts">Published Blog Posts</MenuItem>
                 <MenuItem value="published-pages">Published Pages</MenuItem>
+                <MenuItem value="public-blog-categories">Public Blog Categories</MenuItem>
+                <MenuItem value="public-blog-tags">Public Blog Tags</MenuItem>
               </TextField>
               <TextField
                 label="Firestore Collection Path"

@@ -16,6 +16,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { ManagedProductTargetsPanel } from "./RemoteOpsManagedTargetsPanel.jsx";
 import { ValidationSummary } from "./RemoteOpsSharedPanels.jsx";
 
 function HiddenFileInput(props) {
@@ -524,6 +525,9 @@ export function ConnectionEditor({ workspace, SetupCard }) {
         </Stack>
       </Paper>
       <ValidationSummary summary={draft.validationSummary} statusLabel={draft.connectionStatus} />
+      {!workspace.isCreatingConnection && workspace.selectedConnectionId ? (
+        <ManagedProductTargetsPanel workspace={workspace} />
+      ) : null}
       <CompatibilityReport report={workspace.compatibilityReport} actionState={compatibilityActionState} />
       <ProvisioningPanel workspace={workspace} report={workspace.compatibilityReport} />
     </Stack>

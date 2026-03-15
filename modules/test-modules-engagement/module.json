@@ -20,7 +20,8 @@
     "navigation": {
       "label": "Engagement",
       "icon": "forum",
-      "order": 500
+      "order": 500,
+      "routeSegment": "comments"
     },
     "routeView": {
       "kind": "custom",

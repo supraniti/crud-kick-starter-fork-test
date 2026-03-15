@@ -8,12 +8,14 @@ export function registerModuleViews() {
     {
       moduleId: MODULE_ID,
       usesCollectionsDomain: true,
-      requiredDomains: ["collections"],
+      requiredDomains: ["collections", "module-settings"],
       routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
       render: (context) => (
         <BlogTaxonomyView
           activeModuleLabel={context.activeModuleLabel}
           collectionsDomain={context.collectionsDomain}
+          moduleSettingsDomain={context.moduleSettingsDomain}
+          navigate={context.navigate}
         />
       )
     }

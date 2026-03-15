@@ -17,6 +17,7 @@ import {
   loadItem,
   updateItem
 } from "./remote-ops-route-runtime.mjs";
+import { ensureStandardProductBundle } from "./remote-ops-product-bundle-runtime.mjs";
 import { validateLiveConnectionProfile } from "./remote-ops-live-validation-runtime.mjs";
 import { normalizeOptionalText, toTimestamp } from "./remote-ops-shared-runtime.mjs";
 
@@ -303,9 +304,20 @@ function registerValidateConnectionRoute(fastify, routeContext) {
         return run;
       }
 
+      const productBundle = await ensureStandardProductBundle(
+        routeContext,
+        updatedConnection,
+        reply
+      );
+      if (productBundle?.ok === false) {
+        reply.code(productBundle.statusCode ?? 400);
+        return productBundle.payload;
+      }
+
       return buildSuccessResponse(result.message, {
         item: updatedConnection,
-        run
+        run,
+        productBundle: productBundle.bundle
       });
     }
   );

@@ -2,6 +2,10 @@ function normalizeSearch(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
+function isSupportedPerRecordSourceType(sourceType) {
+  return sourceType === "blog-post" || sourceType === "blog-category";
+}
+
 function includesSearch(haystack, needle) {
   return typeof haystack === "string" && haystack.toLowerCase().includes(needle);
 }
@@ -40,8 +44,8 @@ export function buildReadinessIssues(page = {}) {
       issues.push(message);
     }
   }
-  if (isPerRecordMode && page.primarySourceType !== "blog-post") {
-    issues.push("Per-record templates require blog-post source type");
+  if (isPerRecordMode && !isSupportedPerRecordSourceType(page.primarySourceType)) {
+    issues.push("Per-record templates require blog-post or blog-category source type");
   }
   if (isPerRecordMode && page.sourceSelectionMode !== "all-records") {
     issues.push("Per-record templates must select all source records");

@@ -37,7 +37,8 @@
     "navigation": {
       "label": "Media Manager",
       "icon": "perm_media",
-      "order": 460
+      "order": 460,
+      "routeSegment": "media"
     },
     "routeView": {
       "kind": "custom",

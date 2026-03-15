@@ -407,6 +407,167 @@ test("pages support per-record post templates and preview a concrete generated p
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
+test("pages support per-record category templates, deploy public category outputs, and resolve generated paths", async () => {
+  const sandbox = await createDeploymentSandbox();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+
+  try {
+    const rootCategory = await seedCategory(server, {
+      name: "Guides",
+      description: "Guides category description",
+      visibility: "public"
+    });
+    const childCategory = await seedCategory(server, {
+      name: "Release Ops",
+      description: "Release ops category description",
+      parentCategoryId: rootCategory.id,
+      visibility: "public"
+    });
+    const internalCategory = await seedCategory(server, {
+      name: "Internal Ops",
+      description: "Internal category description",
+      visibility: "internal"
+    });
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Categories Page",
+      pageKind: "listing",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-category",
+      sourceSelectionMode: "all-records",
+      path: "/category",
+      pathPattern: "/category/{slug}",
+      layoutKey: "listing-shell",
+      primarySource: {
+        sourceType: "blog-category",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-14T08:00:00.000Z",
+      seoTitle: "Categories Page",
+      seoDescription: "Categories page description",
+      ogTitle: "Categories Page",
+      ogDescription: "Categories page description"
+    });
+    expect(templatePage.statusCode).toBe(201);
+    expect(templatePage.body.item).toEqual(
+      expect.objectContaining({
+        deploymentMode: "per-record",
+        primarySourceType: "blog-category",
+        pathPattern: "/category/{slug}"
+      })
+    );
+
+    const previewSources = await injectJson(
+      server,
+      "GET",
+      buildPreviewSourcesRoute(templatePage.body.item.id)
+    );
+    expect(previewSources.statusCode).toBe(200);
+    expect(previewSources.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: rootCategory.id,
+          path: "/category/guides"
+        }),
+        expect.objectContaining({
+          id: childCategory.id,
+          path: "/category/release-ops"
+        })
+      ])
+    );
+    expect(previewSources.body.items.map((item) => item.id)).not.toContain(internalCategory.id);
+
+    const previewPayload = await injectJson(
+      server,
+      "GET",
+      `${buildDeliveryRoute(templatePage.body.item.id)}?preview=true&sourceItemId=${encodeURIComponent(rootCategory.id)}`
+    );
+    expect(previewPayload.statusCode).toBe(200);
+    expect(previewPayload.body.payload).toEqual(
+      expect.objectContaining({
+        page: expect.objectContaining({
+          id: templatePage.body.item.id,
+          path: "/category/guides",
+          deploymentMode: "per-record"
+        }),
+        data: expect.objectContaining({
+          primary: expect.objectContaining({
+            collectionId: "blog-categories",
+            itemId: rootCategory.id
+          })
+        })
+      })
+    );
+
+    const pathPayload = await injectJson(server, "GET", buildPathDeliveryRoute("/category/guides"));
+    expect(pathPayload.statusCode).toBe(200);
+    expect(pathPayload.body.payload.page.path).toBe("/category/guides");
+    expect(pathPayload.body.payload.data.primary).toEqual(
+      expect.objectContaining({
+        collectionId: "blog-categories",
+        itemId: rootCategory.id
+      })
+    );
+
+    const syncResponse = await injectJson(
+      server,
+      "POST",
+      buildSyncDeploymentRoute(templatePage.body.item.id),
+      {}
+    );
+    expect(syncResponse.statusCode).toBe(200);
+    expect(syncResponse.body.item).toEqual(
+      expect.objectContaining({
+        deploymentStatus: "clean",
+        deploymentTargetCount: 2,
+        deploymentSyncedCount: 2,
+        deploymentStaleCount: 0,
+        deploymentMissingCount: 0
+      })
+    );
+
+    const instancesResponse = await injectJson(
+      server,
+      "GET",
+      buildDeploymentInstancesRoute(templatePage.body.item.id)
+    );
+    expect(instancesResponse.statusCode).toBe(200);
+    expect(instancesResponse.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceItemId: rootCategory.id,
+          resolvedPath: "/category/guides",
+          artifactRelativePath: "category/guides/index.html",
+          status: "synced"
+        }),
+        expect.objectContaining({
+          sourceItemId: childCategory.id,
+          resolvedPath: "/category/release-ops",
+          artifactRelativePath: "category/release-ops/index.html",
+          status: "synced"
+        })
+      ])
+    );
+    expect(instancesResponse.body.items.map((item) => item.sourceItemId)).not.toContain(
+      internalCategory.id
+    );
+
+    await expect(
+      readDeploymentHtml(sandbox.deploymentRootDir, "category/guides/index.html")
+    ).resolves.toContain("Guides");
+    await expect(
+      readDeploymentHtml(sandbox.deploymentRootDir, "category/release-ops/index.html")
+    ).resolves.toContain("Release Ops");
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
 test("pages sync per-record deployment outputs and surface stale or missing state after content changes", async () => {
   const sandbox = await createDeploymentSandbox();
   const server = await createEphemeralReferenceServer({

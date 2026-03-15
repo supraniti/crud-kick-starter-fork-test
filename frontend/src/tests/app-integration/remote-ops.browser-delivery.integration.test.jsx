@@ -141,7 +141,7 @@ test("remote ops compatibility report renders HTTPS browser-delivery details", a
   render(<RemoteOpsView activeModuleLabel="Remote Ops" />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Ops Kitchensink" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remotes Desk" })).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByText("Primary GCP Dev"));

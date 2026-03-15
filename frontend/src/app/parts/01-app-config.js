@@ -37,7 +37,10 @@ import {
 } from "../../api/reference.js";
 import { pingSystem } from "../../api/system.js";
 
+import rootPackage from "../../../../package.json";
+
 const AUTH_STORAGE_KEY = "crud-control.auth.v1";
+const APP_VERSION = rootPackage.version;
 
 const defaultApiClients = {
   ping: pingSystem,
@@ -99,4 +102,4 @@ function writeAuthSession(isAuthenticated) {
   }
 }
 
-export { AUTH_STORAGE_KEY, defaultApiClients, readAuthSession, writeAuthSession };
+export { APP_VERSION, AUTH_STORAGE_KEY, defaultApiClients, readAuthSession, writeAuthSession };
