@@ -456,6 +456,32 @@
       - page payload refresh
       - media refresh
       and no real action-oriented runtime contract
+  - Pass 16 completed in worktree:
+    - delivered pages now emit page-bound runtime slot contracts derived from the page definition itself
+    - every resolved page binding now becomes a first-class `client-runtime` slot:
+      - dataset id:
+        - `page-slot-<bindAs>`
+      - query contract:
+        - `page-slot.<bindAs>`
+      - local bootstrap:
+        - inline `page-data`
+      - remote refresh:
+        - existing page follow-up route
+    - slot contracts are emitted for:
+      - the primary record binding
+      - additional page data-source bindings
+    - array-valued slots now normalize remote results into structured collection payloads, so local and remote slot reads stay coherent
+    - per-record Pages now allow matching data sources to inherit the active primary record when `itemId` is empty
+      - this unlocks category templates that express:
+        - current category
+        - posts belonging to that current category
+      - without hardcoding one category id into the template
+    - category template conformance now proves:
+      - `blog-category` per-record pages can bind `posts-by-category` with implicit current-category resolution
+      - delivered payloads include the matching `categoryPosts` listing
+      - emitted runtime slots expose both:
+        - `primary`
+        - `categoryPosts`
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -464,4 +490,4 @@
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - remote billing/cost summaries are not surfaced yet
     - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and release observability
-    - generated HTML now boots `client-runtime`, and post pages now emit a bounded comments query/action contract, but richer runtime contracts are still not yet CMS-configurable across more page/data types
+    - generated HTML now boots `client-runtime`, and page-defined bindings now emit reusable runtime slot contracts, but richer CMS-configurable remote actions beyond comments are still not yet emitted across more content types

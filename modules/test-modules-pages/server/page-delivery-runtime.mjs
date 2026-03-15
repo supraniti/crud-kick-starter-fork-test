@@ -28,11 +28,9 @@ import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
-
 function createDependencyKey(collectionId, itemId = null) {
   return itemId ? `${collectionId}:${itemId}` : `${collectionId}:*`;
 }
-
 function escapePathTokenSegment(value) {
   return String(value ?? "")
     .trim()
@@ -54,34 +52,12 @@ function readDisplayLabel(item = {}) {
     "Unknown item"
   );
 }
-
-function readDefaultDescription(item = {}) {
-  const source = item && typeof item === "object" ? item : {};
-  return source.excerpt ?? source.bio ?? source.description ?? null;
-}
-
-function readDefaultOgImage(item = {}) {
-  const source = item && typeof item === "object" ? item : {};
-  return source.ogImageMediaId ?? source.featuredMediaId ?? source.avatarMediaId ?? null;
-}
-
-function readDefaultSeoTitle(item = {}) {
-  const source = item && typeof item === "object" ? item : {};
-  return source.seoTitle ?? source.title ?? source.displayName ?? source.name ?? null;
-}
-
-function readDefaultOgTitle(item = {}) {
-  return item.ogTitle ?? readDefaultSeoTitle(item);
-}
-
-function readDefaultSeoDescription(item = {}) {
-  return item.seoDescription ?? readDefaultDescription(item);
-}
-
-function readDefaultOgDescription(item = {}) {
-  return item.ogDescription ?? readDefaultSeoDescription(item);
-}
-
+function readDefaultDescription(item = {}) { const source = item && typeof item === "object" ? item : {}; return source.excerpt ?? source.bio ?? source.description ?? null; }
+function readDefaultOgImage(item = {}) { const source = item && typeof item === "object" ? item : {}; return source.ogImageMediaId ?? source.featuredMediaId ?? source.avatarMediaId ?? null; }
+function readDefaultSeoTitle(item = {}) { const source = item && typeof item === "object" ? item : {}; return source.seoTitle ?? source.title ?? source.displayName ?? source.name ?? null; }
+function readDefaultOgTitle(item = {}) { return item.ogTitle ?? readDefaultSeoTitle(item); }
+function readDefaultSeoDescription(item = {}) { return item.seoDescription ?? readDefaultDescription(item); }
+function readDefaultOgDescription(item = {}) { return item.ogDescription ?? readDefaultSeoDescription(item); }
 async function listHandlerItems(handler, query = {}) {
   if (!handler || typeof handler.list !== "function") {
     return [];
@@ -93,29 +69,10 @@ async function listHandlerItems(handler, query = {}) {
   });
   return toArray(payload?.items);
 }
-
-async function findHandlerItem(handler, itemId) {
-  if (!handler || typeof handler.findById !== "function") {
-    return null;
-  }
-  return handler.findById(itemId);
-}
-
-function isPublishedPostRecord(record = {}) {
-  return record?.status === "published";
-}
-
-function isPublicTaxonomyRecord(record = {}) {
-  return record?.visibility !== "internal";
-}
-
-function resolveSourceDescriptorItemId(page = {}, sourceRecord = null) {
-  if (sourceRecord?.id) {
-    return sourceRecord.id;
-  }
-  return page.primarySource?.itemId ?? null;
-}
-
+async function findHandlerItem(handler, itemId) { return !handler || typeof handler.findById !== "function" ? null : handler.findById(itemId); }
+function isPublishedPostRecord(record = {}) { return record?.status === "published"; }
+function isPublicTaxonomyRecord(record = {}) { return record?.visibility !== "internal"; }
+function resolveSourceDescriptorItemId(page = {}, sourceRecord = null) { return sourceRecord?.id ?? page.primarySource?.itemId ?? null; }
 function buildPrimarySourceDescriptor(page = {}, sourceRecord = null) {
   const fallback = buildDefaultPrimarySource(page.primarySourceType, null);
   const source = page.primarySource && typeof page.primarySource === "object" ? page.primarySource : fallback;
@@ -135,11 +92,7 @@ function buildPrimarySourceDescriptor(page = {}, sourceRecord = null) {
     bindAs: normalizeOptionalText(source.bindAs) ?? "primary"
   };
 }
-
-function resolvePathPattern(page = {}) {
-  return normalizeOptionalText(page.pathPattern);
-}
-
+function resolvePathPattern(page = {}) { return normalizeOptionalText(page.pathPattern); }
 function resolveArtifactRelativePathFromResolvedPath(pagePath) {
   const normalizedPath = normalizePagePath(pagePath);
   if (!normalizedPath || normalizedPath === "/") {
@@ -153,7 +106,6 @@ function resolveArtifactRelativePathFromResolvedPath(pagePath) {
     "index.html"
   ].join("/");
 }
-
 export function buildResolvedPagePath(page = {}, sourceRecord = null) {
   if (!isPerRecordDeploymentMode(page.deploymentMode)) {
     return normalizePagePath(page.path);
@@ -193,9 +145,7 @@ function normalizeDataSource(entry = {}, index = 0) {
   };
 }
 
-function buildDataSourceDescriptors(page = {}) {
-  return toArray(page.dataSources).map(normalizeDataSource);
-}
+function buildDataSourceDescriptors(page = {}) { return toArray(page.dataSources).map(normalizeDataSource); }
 
 async function resolveSingleRecord(collectionHandlerRegistry, descriptor) {
   const collectionId = resolveSourceCollectionId(descriptor.sourceType);
@@ -311,11 +261,23 @@ function compareListingValues(left, right, sortKey, direction) {
   return String(leftValue).localeCompare(String(rightValue)) * multiplier;
 }
 
-async function resolveListing(collectionHandlerRegistry, descriptor) {
+function resolveDescriptorItemId(descriptor, resolutionContext = {}) {
+  if (descriptor.itemId) {
+    return descriptor.itemId;
+  }
+  const primarySource = resolutionContext.primarySource;
+  if (!primarySource || primarySource.sourceType !== descriptor.sourceType) {
+    return null;
+  }
+  return primarySource.itemId ?? null;
+}
+
+async function resolveListing(collectionHandlerRegistry, descriptor, resolutionContext = {}) {
   const postsHandler = collectionHandlerRegistry.get(POSTS_COLLECTION_ID);
   const posts = await listHandlerItems(postsHandler);
+  const effectiveItemId = resolveDescriptorItemId(descriptor, resolutionContext);
   const items = posts
-    .filter((post) => matchPostDescriptor(post, descriptor))
+    .filter((post) => matchPostDescriptor(post, { ...descriptor, itemId: effectiveItemId }))
     .sort((left, right) => compareListingValues(left, right, descriptor.sortKey, descriptor.sortDirection))
     .slice(0, descriptor.limit)
     .map((post) => ({
@@ -326,25 +288,28 @@ async function resolveListing(collectionHandlerRegistry, descriptor) {
     }));
 
   const dependencyKeys = [createDependencyKey(POSTS_COLLECTION_ID)];
-  if (descriptor.itemId) {
+  if (effectiveItemId) {
     const ownerCollectionId = resolveSourceCollectionId(descriptor.sourceType);
     if (ownerCollectionId) {
-      dependencyKeys.push(createDependencyKey(ownerCollectionId, descriptor.itemId));
+      dependencyKeys.push(createDependencyKey(ownerCollectionId, effectiveItemId));
     }
   }
 
   return {
-    descriptor,
+    descriptor: {
+      ...descriptor,
+      itemId: effectiveItemId
+    },
     dependencyKeys,
     value: items
   };
 }
 
-async function resolveDescriptor(collectionHandlerRegistry, descriptor) {
+async function resolveDescriptor(collectionHandlerRegistry, descriptor, resolutionContext = {}) {
   if (descriptor.kind === "record-by-id") {
     return resolveSingleRecord(collectionHandlerRegistry, descriptor);
   }
-  return resolveListing(collectionHandlerRegistry, descriptor);
+  return resolveListing(collectionHandlerRegistry, descriptor, resolutionContext);
 }
 
 function mergeDependencyKeys(entries = []) {
@@ -500,6 +465,58 @@ async function finalizeDeliveryPayload(payload, collectionHandlerRegistry) {
   return attachClientRuntimeContract(mediaAwarePayload);
 }
 
+function buildPageResolutionContext(primarySource, resolvedPrimary) {
+  return {
+    primarySource: primarySource
+      ? {
+          ...primarySource,
+          itemId: resolvedPrimary?.value?.itemId ?? primarySource.itemId ?? null
+        }
+      : null
+  };
+}
+
+function buildResolvedDependencyKeys(page, resolvedPrimary, resolvedSources) {
+  const dependencyKeys = mergeDependencyKeys([
+    resolvedPrimary ?? { dependencyKeys: [] },
+    ...resolvedSources,
+    {
+      dependencyKeys: [createDependencyKey("blog-pages", page.id)]
+    }
+  ]);
+  return page.layoutId
+    ? [...new Set([...dependencyKeys, createDependencyKey(LAYOUTS_COLLECTION_ID, page.layoutId)])]
+    : dependencyKeys;
+}
+
+async function finalizePagePayloadWithSettings({
+  payload,
+  collectionHandlerRegistry,
+  resolveSettingsRepository,
+  settingsDefinition,
+  page,
+  resolvedPath
+}) {
+  if (typeof resolveSettingsRepository !== "function") {
+    return finalizeDeliveryPayload(payload, collectionHandlerRegistry);
+  }
+
+  const settings = await readPagesModuleSettings({
+    resolveSettingsRepository,
+    settingsDefinition,
+    collectionHandlerRegistry,
+    page
+  });
+  return finalizeDeliveryPayload(
+    applyBrowserDeliveryToPayload({
+      payload,
+      settings,
+      resolvedPath
+    }),
+    collectionHandlerRegistry
+  );
+}
+
 export async function resolvePageDeliveryPayload({
   collectionHandlerRegistry,
   page,
@@ -514,21 +531,15 @@ export async function resolvePageDeliveryPayload({
   const resolvedPrimary = primarySource
     ? await resolveDescriptor(collectionHandlerRegistry, primarySource)
     : null;
+  const resolutionContext = buildPageResolutionContext(primarySource, resolvedPrimary);
   const resolvedSources = await Promise.all(
-    dataSourceDescriptors.map((descriptor) => resolveDescriptor(collectionHandlerRegistry, descriptor))
+    dataSourceDescriptors.map((descriptor) =>
+      resolveDescriptor(collectionHandlerRegistry, descriptor, resolutionContext)
+    )
   );
   const primaryRecord = resolvedPrimary?.value?.record ?? null;
   const renderModel = await buildRenderModel(page, collectionHandlerRegistry);
-  const dependencyKeys = mergeDependencyKeys([
-    resolvedPrimary ?? { dependencyKeys: [] },
-    ...resolvedSources,
-    {
-      dependencyKeys: [createDependencyKey("blog-pages", page.id)]
-    }
-  ]);
-  const resolvedDependencyKeys = page.layoutId
-    ? [...new Set([...dependencyKeys, createDependencyKey(LAYOUTS_COLLECTION_ID, page.layoutId)])]
-    : dependencyKeys;
+  const resolvedDependencyKeys = buildResolvedDependencyKeys(page, resolvedPrimary, resolvedSources);
 
   const payload = {
     contractVersion: 1,
@@ -549,25 +560,14 @@ export async function resolvePageDeliveryPayload({
     },
     resolvedAt: toTimestamp()
   };
-
-  if (typeof resolveSettingsRepository !== "function") {
-    return finalizeDeliveryPayload(payload, collectionHandlerRegistry);
-  }
-
-  const settings = await readPagesModuleSettings({
+  return finalizePagePayloadWithSettings({
+    payload,
+    collectionHandlerRegistry,
     resolveSettingsRepository,
     settingsDefinition,
-    collectionHandlerRegistry,
-    page
+    page,
+    resolvedPath
   });
-  return finalizeDeliveryPayload(
-    applyBrowserDeliveryToPayload({
-      payload,
-      settings,
-      resolvedPath
-    }),
-    collectionHandlerRegistry
-  );
 }
 
 export async function resolvePageByPath({

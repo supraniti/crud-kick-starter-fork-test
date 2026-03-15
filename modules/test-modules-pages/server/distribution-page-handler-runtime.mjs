@@ -142,7 +142,7 @@ function collectPrimarySourceConflicts(preparedValue) {
   return conflicts;
 }
 
-function collectDataSourceConflicts(preparedValue) {
+function collectDataSourceConflicts(preparedValue, isPerRecordMode) {
   const conflicts = [];
   const bindAsSet = new Set();
   const keySet = new Set();
@@ -170,7 +170,12 @@ function collectDataSourceConflicts(preparedValue) {
     }
     bindAsSet.add(descriptor.bindAs);
 
-    if (descriptor.itemId === null) {
+    const canInheritPrimaryItem =
+      isPerRecordMode &&
+      preparedValue.primarySourceType !== "none" &&
+      descriptor.sourceType === preparedValue.primarySourceType;
+
+    if (descriptor.itemId === null && !canInheritPrimaryItem) {
       conflicts.push(
         buildConflict(
           "PAGE_DATA_SOURCE_ITEM_REQUIRED",
@@ -396,7 +401,7 @@ function collectPageFieldConflicts(preparedValue) {
   return [
     ...collectPageIdentityConflicts(preparedValue, isPerRecordMode),
     ...collectPrimarySourceConflicts(preparedValue),
-    ...collectDataSourceConflicts(preparedValue),
+    ...collectDataSourceConflicts(preparedValue, isPerRecordMode),
     ...collectSourceSelectionConflicts(preparedValue, isPerRecordMode),
     ...collectPerRecordTemplateConflicts(preparedValue, isPerRecordMode),
     ...collectRequiredSourceConflicts(preparedValue)

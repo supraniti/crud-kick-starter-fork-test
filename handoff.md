@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `e7c2590` `feat: align editorial and moderation product views`
+  - `d86eb05` `feat: add injected runtime comment contracts`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -216,6 +216,27 @@
       - `GET /api/reference/collections/blog-comments/items`
       - `POST /api/reference/collections/blog-comments/items`
     - `client-runtime` now normalizes collection-shaped remote query responses and supports literal string values inside declarative remote templates
+  - page-bound runtime slot contracts:
+    - delivered pages now emit `client-runtime` slot contracts for their resolved bindings
+    - each resolved binding becomes:
+      - dataset:
+        - `page-slot-<bindAs>`
+      - query:
+        - `page-slot.<bindAs>`
+      - inline bootstrap from `page-data`
+      - remote refresh through the existing page follow-up route
+    - slot metadata is now emitted in the runtime contract, including:
+      - `bindAs`
+      - dataset id
+      - source type
+      - record mode
+    - per-record pages now allow matching data sources to inherit the current primary record when `itemId` is empty
+      - current proof:
+        - category templates can bind `posts-by-category` to the current category record
+        - delivered category pages now include `categoryPosts`
+        - emitted runtime slots expose:
+          - `primary`
+          - `categoryPosts`
 
 ## Key Files Touched
 - Product shell:
@@ -289,6 +310,9 @@
   - [client-runtime/src/runtime/create-client-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/runtime/create-client-runtime.mjs)
   - [client-runtime/scripts/run-tests.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/scripts/run-tests.mjs)
   - [server/test/module-conformance/blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
+  - [modules/test-modules-pages/server/page-delivery-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-delivery-runtime.mjs)
+  - [modules/test-modules-pages/server/distribution-page-handler-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/distribution-page-handler-runtime.mjs)
+  - [modules/test-modules-pages/server/page-client-runtime-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-client-runtime-runtime.mjs)
 
 ## Verification
 - Focused frontend slices:
@@ -312,9 +336,9 @@
 
 ## Current Worktree State
 - Uncommitted M04 pass present:
-  - injected runtime comment contracts
+  - page-bound runtime slot contracts
 - Next likely pass:
-  - broader CMS-configurable runtime remote contracts beyond post comments
+  - richer CMS-configurable remote actions beyond comments
   - or stronger release observability/cost surfaces around browser delivery and remotes
 - Protocol:
   - `pnpm quality:protocol`

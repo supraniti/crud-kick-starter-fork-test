@@ -1369,3 +1369,18 @@
   - when a declarative config format grows from demos into real product contracts, prove literal values and context-bound values in the same package test pass
   - keep product-authored runtime contracts tied to routes the repo already owns; otherwise the north-star work drifts into aspirational pseudo-APIs
 
+### 2026-03-15 - M04 Page-Bound Runtime Slots
+- Tasks:
+  - generalized delivered page runtime contracts so resolved page bindings become reusable `client-runtime` slots instead of leaving the runtime almost entirely hardcoded
+  - allowed per-record page data sources to inherit the active primary record when `itemId` is intentionally left empty
+  - proved category templates can now bind current-category post listings and emit those listings into both the delivery payload and runtime contract
+- Easy:
+  - the repo already had a strong page follow-up route, so slot refresh could stay page-owned instead of introducing new cross-module read APIs
+  - the runtime contract already knew the resolved bindings; turning them into datasets/queries was mostly a mapping problem
+- Hard:
+  - page validation still required `itemId` on every data source, so the runtime improvement alone was insufficient until the save-time contract matched the delivery-time behavior
+  - array-valued slots needed collection normalization to stay coherent between local IndexedDB reads and remote refreshes
+- Improve:
+  - whenever per-record runtime behavior depends on implicit primary-record inheritance, enforce the same rule in both validation and delivery resolution immediately
+  - page-defined data bindings are the right seam for injected runtime expansion; continue extending there before inventing free-form runtime config UIs
+

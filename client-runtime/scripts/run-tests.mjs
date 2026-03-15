@@ -516,6 +516,65 @@ await runScenario("collection-shaped remote queries normalize into structured re
   );
 });
 
+await runScenario("collection normalization also works when the remote body is already an array", async () => {
+  const requests = [];
+  const runtime = createClientRuntime({
+    remote: {
+      baseUrl: "https://example.test"
+    },
+    queries: [
+      {
+        resource: "page-slot",
+        query: "relatedPosts",
+        policy: "network-first",
+        dataset: "page-slot-relatedposts",
+        remote: {
+          method: "GET",
+          path: "/api/page/slot"
+        },
+        remoteResult: {
+          type: "collection"
+        }
+      }
+    ],
+    datasets: [
+      {
+        dataset: "page-slot-relatedposts"
+      }
+    ],
+    adapters: {
+      indexedDb: createIndexedDbAdapter({ storage: createMemoryDatasetStorageDriver() }),
+      remote: createRemoteTransportAdapter({
+        baseUrl: "https://example.test",
+        fetchJson: async (url, init) => {
+          requests.push({ url, init });
+          return {
+            ok: true,
+            status: 200,
+            body: [
+              { id: "post-001", title: "Launch recap" },
+              { id: "post-002", title: "Ops checklist" }
+            ]
+          };
+        }
+      })
+    },
+    capabilities: {
+      getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
+    }
+  });
+
+  const result = await runtime.query({
+    resource: "page-slot",
+    query: "relatedPosts"
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.total, 2);
+  assert.equal(result.data.items[1].id, "post-002");
+  assert.equal(requests.at(-1).url, "https://example.test/api/page/slot");
+});
+
 await runScenario("remote-with-local-update marks dependent datasets dirty", async () => {
   const { runtime } = createRuntimeHarness();
   await runtime.installDataset({ dataset: "catalog" });

@@ -361,7 +361,56 @@ test("pages create standalone records and resolve deterministic delivery payload
         runtime: expect.objectContaining({
           clientRuntime: expect.objectContaining({
             assetUrl: "/assets/client-runtime.global.js",
-            bootstrapDatasets: ["page-payload"]
+            bootstrapDatasets: expect.arrayContaining([
+              "page-payload",
+              "page-slot-primary",
+              "page-slot-relatedposts"
+            ]),
+            slots: expect.arrayContaining([
+              expect.objectContaining({
+                bindAs: "primary",
+                dataset: "page-slot-primary",
+                sourceType: "blog-post",
+                recordMode: "single-item"
+              }),
+              expect.objectContaining({
+                bindAs: "relatedPosts",
+                dataset: "page-slot-relatedposts",
+                sourceType: "blog-category",
+                recordMode: "array"
+              })
+            ]),
+            queries: expect.arrayContaining([
+              expect.objectContaining({
+                resource: "page-slot",
+                query: "primary",
+                dataset: "page-slot-primary"
+              }),
+              expect.objectContaining({
+                resource: "page-slot",
+                query: "relatedPosts",
+                dataset: "page-slot-relatedposts",
+                remote: expect.objectContaining({
+                  path: expect.stringContaining("/delivery/resolve?path="),
+                  responsePath: "payload.data.relatedPosts"
+                }),
+                remoteResult: expect.objectContaining({
+                  type: "collection"
+                })
+              })
+            ]),
+            datasets: expect.arrayContaining([
+              expect.objectContaining({
+                dataset: "page-slot-primary",
+                valuePath: "data.primary",
+                remoteValuePath: "payload.data.primary"
+              }),
+              expect.objectContaining({
+                dataset: "page-slot-relatedposts",
+                valuePath: "data.relatedPosts",
+                remoteValuePath: "payload.data.relatedPosts"
+              })
+            ])
           })
         }),
         data: expect.objectContaining({
@@ -525,6 +574,25 @@ test("pages support per-record category templates, deploy public category output
       description: "Internal category description",
       visibility: "internal"
     });
+    const editor = await seedAuthor(server, {
+      displayName: "Category Editor",
+      legalName: "Category Editor",
+      email: "category-editor@example.com"
+    });
+    const tag = await seedTag(server, {
+      name: "Guides Tag",
+      description: "Guides tag"
+    });
+    const rootCategoryPost = await seedPost(server, editor.id, rootCategory.id, tag.id, {
+      title: "Guides Overview",
+      status: "published",
+      publishedOn: "2026-03-14T09:00:00.000Z"
+    });
+    const childCategoryPost = await seedPost(server, editor.id, childCategory.id, tag.id, {
+      title: "Release Ops Checklist",
+      status: "published",
+      publishedOn: "2026-03-14T10:00:00.000Z"
+    });
 
     const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
       title: "Categories Page",
@@ -540,6 +608,18 @@ test("pages support per-record category templates, deploy public category output
         itemId: null,
         bindAs: "primary"
       },
+      dataSources: [
+        {
+          key: "category-posts",
+          kind: "posts-by-category",
+          sourceType: "blog-category",
+          itemId: null,
+          bindAs: "categoryPosts",
+          limit: 12,
+          sortKey: "updatedOn",
+          sortDirection: "desc"
+        }
+      ],
       status: "published",
       publishedOn: "2026-03-14T08:00:00.000Z",
       seoTitle: "Categories Page",
@@ -593,6 +673,48 @@ test("pages support per-record category templates, deploy public category output
           primary: expect.objectContaining({
             collectionId: "blog-categories",
             itemId: rootCategory.id
+          }),
+          categoryPosts: expect.arrayContaining([
+            expect.objectContaining({
+              collectionId: "blog-posts",
+              itemId: rootCategoryPost.id
+            })
+          ])
+        }),
+        runtime: expect.objectContaining({
+          clientRuntime: expect.objectContaining({
+            bootstrapDatasets: expect.arrayContaining([
+              "page-payload",
+              "page-slot-primary",
+              "page-slot-categoryposts"
+            ]),
+            slots: expect.arrayContaining([
+              expect.objectContaining({
+                bindAs: "primary",
+                dataset: "page-slot-primary",
+                sourceType: "blog-category",
+                recordMode: "single-item"
+              }),
+              expect.objectContaining({
+                bindAs: "categoryPosts",
+                dataset: "page-slot-categoryposts",
+                sourceType: "blog-category",
+                recordMode: "array"
+              })
+            ]),
+            queries: expect.arrayContaining([
+              expect.objectContaining({
+                resource: "page-slot",
+                query: "categoryPosts",
+                dataset: "page-slot-categoryposts",
+                remote: expect.objectContaining({
+                  responsePath: "payload.data.categoryPosts"
+                }),
+                remoteResult: expect.objectContaining({
+                  type: "collection"
+                })
+              })
+            ])
           })
         })
       })
@@ -606,6 +728,17 @@ test("pages support per-record category templates, deploy public category output
         collectionId: "blog-categories",
         itemId: rootCategory.id
       })
+    );
+    expect(pathPayload.body.payload.data.categoryPosts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          collectionId: "blog-posts",
+          itemId: rootCategoryPost.id
+        })
+      ])
+    );
+    expect(pathPayload.body.payload.data.categoryPosts.map((item) => item.itemId)).not.toContain(
+      childCategoryPost.id
     );
 
     const syncResponse = await injectJson(
@@ -1169,12 +1302,20 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
     );
     expect(deliveryResponse.body.payload.runtime.clientRuntime).toEqual(
       expect.objectContaining({
-        bootstrapDatasets: expect.arrayContaining(["page-payload", "page-media"]),
+        bootstrapDatasets: expect.arrayContaining(["page-payload", "page-media", "page-slot-primary"]),
         context: expect.objectContaining({
           primaryRecordId: post.id,
           primarySourceType: "blog-post",
           commentsEnabled: true
         }),
+        slots: expect.arrayContaining([
+          expect.objectContaining({
+            bindAs: "primary",
+            dataset: "page-slot-primary",
+            sourceType: "blog-post",
+            recordMode: "single-item"
+          })
+        ]),
         remote: expect.objectContaining({
           baseUrl: "https://content.example.com",
           defaultHeaders: expect.objectContaining({
@@ -1194,6 +1335,15 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
             resource: "media",
             query: "byId",
             dataset: "page-media"
+          }),
+          expect.objectContaining({
+            resource: "page-slot",
+            query: "primary",
+            dataset: "page-slot-primary",
+            remote: expect.objectContaining({
+              path: expect.stringContaining("/delivery/resolve?path="),
+              responsePath: "payload.data.primary"
+            })
           }),
           expect.objectContaining({
             resource: "comments",
@@ -1239,6 +1389,14 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
             }),
             responsePath: "payload",
             remoteValuePath: "payload.media.items"
+          }),
+          expect.objectContaining({
+            dataset: "page-slot-primary",
+            valuePath: "data.primary",
+            remoteSync: expect.objectContaining({
+              path: expect.stringContaining("/delivery/resolve?path=")
+            }),
+            remoteValuePath: "payload.data.primary"
           }),
           expect.objectContaining({
             dataset: "post-comments",
@@ -1563,7 +1721,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
     expect(initialHtml).toContain("<page-runtime");
     expect(initialHtml).toContain("window.__CRUD_CLIENT_RUNTIME_CONFIG__ =");
     expect(initialHtml).toContain("/assets/client-runtime.global.js");
-    expect(initialHtml).toContain("\"bootstrapDatasets\":[\"page-payload\"]");
+    expect(initialHtml).toContain("\"page-slot-primary\"");
     expect(initialHtml).toContain("https://cdn.example.com/runtime/app.js");
     expect(initialHtml).toContain("/assets/runtime/entry.js");
     expect(initialHtml).toContain("type=\"application/json\" id=\"page-data\"");
