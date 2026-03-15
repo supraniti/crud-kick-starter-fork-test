@@ -130,7 +130,40 @@ await runScenario("global shell exposes data and action layers", async () => {
 });
 
 await runScenario("global runtime bootstraps inline page payload datasets from page-data", async () => {
+  const requests = [];
   const globalObject = {
+    location: {
+      origin: "https://preview.example.test"
+    },
+    fetch: async (url) => {
+      requests.push(url);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            payload: {
+              page: {
+                id: "page-001",
+                path: "/stories/launch-window-update"
+              },
+              media: {
+                items: [
+                  {
+                    id: "media-001",
+                    displayName: "Launch Hero (Remote)",
+                    preferredUrl:
+                      "https://preview.example.test/library/originals/media-001/hero-remote.png"
+                  }
+                ]
+              },
+              resolvedAt: "2026-03-15T10:00:00.000Z"
+            }
+          };
+        }
+      };
+    },
     document: {
       getElementById(id) {
         if (id !== "page-data") {
@@ -142,6 +175,15 @@ await runScenario("global runtime bootstraps inline page payload datasets from p
               id: "page-001",
               path: "/stories/launch-window-update"
             },
+            media: {
+              items: [
+                {
+                  id: "media-001",
+                  displayName: "Launch Hero",
+                  preferredUrl: "https://cdn.example.test/library/originals/media-001/hero.png"
+                }
+              ]
+            },
             resolvedAt: "2026-03-15T09:00:00.000Z"
           })
         };
@@ -150,13 +192,29 @@ await runScenario("global runtime bootstraps inline page payload datasets from p
   };
   installGlobalRuntime(
     {
-      bootstrapDatasets: ["page-payload"],
+      bootstrapDatasets: ["page-payload", "page-media"],
       queries: [
         {
           resource: "page",
           query: "current",
           policy: "local-first",
           dataset: "page-payload"
+        },
+        {
+          resource: "media",
+          query: "byId",
+          policy: "local-first",
+          dataset: "page-media"
+        },
+        {
+          resource: "page",
+          query: "currentRemote",
+          policy: "network-first",
+          remote: {
+            method: "GET",
+            path: "/api/reference/modules/test-modules-pages/delivery/resolve?path=%2Fstories%2Flaunch-window-update",
+            responsePath: "payload"
+          }
         }
       ],
       datasets: [
@@ -166,7 +224,32 @@ await runScenario("global runtime bootstraps inline page payload datasets from p
           inlineScriptId: "page-data",
           recordMode: "single-item",
           versionPath: "resolvedAt",
-          syncTokenPath: "page.id"
+          syncTokenPath: "page.id",
+          remoteSync: {
+            method: "GET",
+            path: "/api/reference/modules/test-modules-pages/delivery/resolve?path=%2Fstories%2Flaunch-window-update"
+          },
+          responsePath: "payload",
+          remoteValuePath: "payload",
+          remoteVersionPath: "payload.resolvedAt",
+          remoteSyncTokenPath: "payload.page.id"
+        },
+        {
+          dataset: "page-media",
+          bootstrapMode: "inline-json-script",
+          inlineScriptId: "page-data",
+          valuePath: "media.items",
+          recordMode: "array",
+          versionPath: "resolvedAt",
+          syncTokenPath: "page.id",
+          remoteSync: {
+            method: "GET",
+            path: "/api/reference/modules/test-modules-pages/delivery/resolve?path=%2Fstories%2Flaunch-window-update"
+          },
+          responsePath: "payload",
+          remoteValuePath: "payload.media.items",
+          remoteVersionPath: "payload.resolvedAt",
+          remoteSyncTokenPath: "payload.page.id"
         }
       ],
       adapters: {
@@ -182,16 +265,59 @@ await runScenario("global runtime bootstraps inline page payload datasets from p
   );
   await globalObject.crudClientRuntime.ready;
   const status = await globalObject.dataLayer.getDatasetStatus("page-payload");
+  const mediaStatus = await globalObject.dataLayer.getDatasetStatus("page-media");
   const queryResult = await globalObject.dataLayer.query({
     resource: "page",
     query: "current"
   });
+  const mediaQueryResult = await globalObject.dataLayer.query({
+    resource: "media",
+    query: "byId",
+    params: {
+      filters: {
+        id: "media-001"
+      }
+    }
+  });
+  const remoteQueryResult = await globalObject.dataLayer.query({
+    resource: "page",
+    query: "currentRemote"
+  });
+  const syncResult = await globalObject.dataLayer.syncDataset({
+    dataset: "page-media"
+  });
+  const syncedMediaStatus = await globalObject.dataLayer.getDatasetStatus("page-media");
+  const syncedMediaQueryResult = await globalObject.dataLayer.query({
+    resource: "media",
+    query: "byId",
+    params: {
+      filters: {
+        id: "media-001"
+      }
+    }
+  });
   assert.equal(status.installed, true);
+  assert.equal(mediaStatus.installed, true);
   assert.equal(status.version, "2026-03-15T09:00:00.000Z");
   assert.equal(status.syncToken, "page-001");
   assert.equal(queryResult.ok, true);
   assert.equal(queryResult.meta.source, "indexeddb");
   assert.equal(queryResult.data.items[0].page.id, "page-001");
+  assert.equal(mediaQueryResult.ok, true);
+  assert.equal(mediaQueryResult.data.items[0].preferredUrl, "https://cdn.example.test/library/originals/media-001/hero.png");
+  assert.equal(remoteQueryResult.ok, true);
+  assert.equal(remoteQueryResult.data.resolvedAt, "2026-03-15T10:00:00.000Z");
+  assert.equal(syncResult.ok, true);
+  assert.equal(syncedMediaStatus.version, "2026-03-15T10:00:00.000Z");
+  assert.equal(syncedMediaQueryResult.ok, true);
+  assert.equal(
+    syncedMediaQueryResult.data.items[0].preferredUrl,
+    "https://preview.example.test/library/originals/media-001/hero-remote.png"
+  );
+  assert.equal(
+    requests[0],
+    "https://preview.example.test/api/reference/modules/test-modules-pages/delivery/resolve?path=%2Fstories%2Flaunch-window-update"
+  );
 });
 
 await runScenario("local-first queries answer from installed dataset state", async () => {

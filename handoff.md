@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `cb9a0e6` `feat: add named deployment bundles`
+  - `3352e63` `feat: inject client runtime into page deployments`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -117,6 +117,23 @@
     - page deployment sync now copies the built runtime artifact into:
       - `deployment/assets/client-runtime.global.js`
     - `client-runtime` now bootstraps the inline `page-data` JSON into a local dataset automatically on global install
+  - media-aware page delivery:
+    - page delivery now resolves referenced media ids into first-class media descriptors
+    - delivered page data now includes companion media objects next to `*MediaId` and `*MediaIds` fields
+    - delivered payload now exposes:
+      - `media.items`
+      - `media.byId`
+      - `media.referencedIds`
+    - generated HTML now emits `og:image` from the resolved media url instead of the raw media id
+    - injected runtime config now bootstraps:
+      - `page-media`
+      - `media.list`
+      - `media.byId`
+    - injected runtime config now also emits a bounded remote refresh seam for delivered pages:
+      - `page.currentRemote`
+      - `page-payload.remoteSync`
+      - `page-media.remoteSync`
+      - browser bootstrap resolves the default remote base url from `window.location.origin`
 
 ## Key Files Touched
 - Product shell:
@@ -140,6 +157,7 @@
   - [modules/test-modules-pages/server/page-settings-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-settings-runtime.mjs)
   - [modules/test-modules-pages/server/page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
   - [modules/test-modules-pages/server/page-client-runtime-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-client-runtime-runtime.mjs)
+  - [modules/test-modules-pages/server/page-media-reference-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-media-reference-runtime.mjs)
 - Product desks:
   - [ProductSystemSettingsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductSystemSettingsView.jsx)
   - [ProductDomainsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainsView.jsx)
@@ -159,6 +177,8 @@
   - [server/test/module-conformance/blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
   - [client-runtime/src/browser/global-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/global-runtime.mjs)
   - [client-runtime/src/browser/bootstrap-config.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/bootstrap-config.mjs)
+  - [client-runtime/src/adapters/remote-transport.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/adapters/remote-transport.mjs)
+  - [client-runtime/src/runtime/create-client-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/runtime/create-client-runtime.mjs)
   - [client-runtime/scripts/run-tests.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/scripts/run-tests.mjs)
 
 ## Verification
@@ -176,6 +196,7 @@
   - `pnpm --filter client-runtime test`
   - `pnpm build:client-runtime`
   - `pnpm --filter server test -- test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm lint:function-shape`
 - Smoke E2E:
   - `pnpm test:e2e:smoke`
 - Full release gate:
@@ -185,7 +206,7 @@
 
 ## Current Repo State
 - Worktree is intentionally dirty with the M04 product-shell slices.
-- The current uncommitted slice is the client-runtime page-injection pass.
+- The current uncommitted slice is the media-aware page-delivery and runtime resync-contract pass.
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
@@ -194,6 +215,5 @@
 ## Next Sensible Slice
 - Continue M04 with the first data-model expansion pass, likely one of:
   - stronger author/comment product-shell alignment
-  - runtime-aware media/public URL enrichment in delivered page payloads
-  - product-authored remote query/action contracts for the injected client-runtime bootstrap
+  - broader product-authored remote query/action contracts for the injected client-runtime bootstrap
   - bundle-level release observability/history and stricter bundle validation/reporting

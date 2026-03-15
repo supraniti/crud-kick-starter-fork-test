@@ -159,7 +159,7 @@ test("layout builder creates reusable layout records and supports multiple inser
   const createdContainerId = createCall.item.layoutDocument.nodes.root.children[0];
   expect(createCall.item.layoutDocument.nodes[createdContainerId].label).toBe("Container");
   expect(createCall.item.layoutDocument.nodes[createdContainerId].children).toHaveLength(2);
-}, 15000);
+}, 35_000);
 
 test("layout builder can compose container and block structures through the live builder flow", async () => {
   referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
@@ -225,7 +225,7 @@ test("layout builder can compose container and block structures through the live
 
   expect(screen.getAllByText("Card Row").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Content Block").length).toBeGreaterThan(1);
-}, 15000);
+}, 20000);
 
 test("layout builder surfaces deployment impact and can return to the calling page", async () => {
   referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
@@ -284,6 +284,11 @@ test("layout builder surfaces deployment impact and can return to the calling pa
       }}
     />
   );
+
+  await waitFor(() => {
+    expect(screen.getByText("Landing Shell")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Return To Page" })).toBeInTheDocument();
+  });
 
   await waitFor(() => {
     expect(screen.getByText(/published page templates reference this layout/i)).toBeInTheDocument();

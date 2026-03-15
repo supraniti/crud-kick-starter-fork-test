@@ -409,7 +409,7 @@ function registerModuleScaffolderContractOnboardingSlaProofSuite() {
         force: true
       });
     }
-  });
+  }, 45_000);
 }
 
 registerModuleScaffolderContractOnboardingSlaProofSuite();

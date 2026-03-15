@@ -291,6 +291,31 @@
     - page deployment sync now writes the runtime artifact into the deployment root:
       - `deployment/assets/client-runtime.global.js`
     - `client-runtime` now supports declarative inline-json-script dataset bootstrapping and auto-installs configured bootstrap datasets on global install
+  - Pass 10 completed in worktree:
+    - delivered page payloads now resolve referenced media ids into first-class media descriptors:
+      - public url
+      - temporary url
+      - local content url
+      - preferred url
+    - delivered page data now includes companion resolved media objects next to media-id fields:
+      - `featuredMediaId` -> `featuredMedia`
+      - `galleryMediaIds` -> `galleryMedia`
+      - `avatarMediaId` -> `avatarMedia`
+      - `ogImageMediaId` -> `ogImageMedia`
+    - delivered payloads now expose a top-level media registry:
+      - `media.items`
+      - `media.byId`
+      - `media.referencedIds`
+    - generated HTML now writes `og:image` using the resolved media url instead of the raw media id
+    - injected `client-runtime` config now bootstraps a second local dataset from delivered media:
+      - `page-media`
+      - `media.list`
+      - `media.byId`
+    - injected `client-runtime` config now includes a bounded product-authored remote refresh seam for delivered pages:
+      - `page.currentRemote`
+      - `page-payload.remoteSync`
+      - `page-media.remoteSync`
+      - same-origin/default-origin remote base resolution in the browser bootstrap
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -299,7 +324,6 @@
 - Product shell is now closer to the north star, but several north-star behaviors are still pending:
   - remote billing/cost summaries are not surfaced yet
   - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
-  - remote/public delivery still needs stronger final-contract alignment around public media URLs, runtime bootstrap, and bundle observability
-  - generated HTML now boots `client-runtime`, but runtime-level remote query/action contracts are still generic and not yet product-authored from local CMS configuration
-  - media ids are still not resolved into first-class public media objects/URLs inside delivered page data
+  - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and bundle observability
+  - generated HTML now boots `client-runtime`, and delivered pages can re-sync their page/media datasets, but richer product-authored query/action contracts are still not emitted from local CMS configuration
   - release ownership is now bundle-explicit, but bundle-level observability and history are still thin

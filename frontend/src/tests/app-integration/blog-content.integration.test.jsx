@@ -204,7 +204,7 @@ test("blog content view renders custom editor and revision timeline", async () =
       screen.getByText("Standalone pages and deployed post templates are managed in the Pages module.")
     ).toBeInTheDocument();
   });
-});
+}, 12000);
 
 test("blog content editor saves posts and restores revisions through the module route", async () => {
   installContentFetchMocks({

@@ -56,9 +56,29 @@ function normalizeDatasetDefinition(definition, globalObject) {
   };
 }
 
+function resolveDefaultRemoteBaseUrl(globalObject) {
+  const origin = globalObject?.location?.origin;
+  if (typeof origin !== "string" || !/^https?:\/\//.test(origin)) {
+    return null;
+  }
+  return origin.endsWith("/") ? origin : `${origin}/`;
+}
+
+function normalizeRemoteOptions(options = {}, globalObject) {
+  const remote = options?.remote && typeof options.remote === "object" ? { ...options.remote } : {};
+  if (!remote.baseUrl) {
+    const defaultBaseUrl = resolveDefaultRemoteBaseUrl(globalObject);
+    if (defaultBaseUrl) {
+      remote.baseUrl = defaultBaseUrl;
+    }
+  }
+  return remote;
+}
+
 export function normalizeGlobalRuntimeOptions(options = {}, globalObject = globalThis) {
   return {
     ...options,
+    remote: normalizeRemoteOptions(options, globalObject),
     datasets: Array.isArray(options.datasets)
       ? options.datasets.map((definition) => normalizeDatasetDefinition(definition, globalObject))
       : []

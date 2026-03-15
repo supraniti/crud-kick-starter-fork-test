@@ -22,6 +22,7 @@ import {
 import { parseStoredLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
 import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference-runtime.mjs";
 import { attachClientRuntimeContract } from "./page-client-runtime-runtime.mjs";
+import { attachResolvedMediaReferences } from "./page-media-reference-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function toArray(value) {
@@ -494,6 +495,11 @@ function applyBrowserDeliveryToPayload({
   return nextPayload;
 }
 
+async function finalizeDeliveryPayload(payload, collectionHandlerRegistry) {
+  const mediaAwarePayload = await attachResolvedMediaReferences(payload, collectionHandlerRegistry);
+  return attachClientRuntimeContract(mediaAwarePayload);
+}
+
 export async function resolvePageDeliveryPayload({
   collectionHandlerRegistry,
   page,
@@ -545,7 +551,7 @@ export async function resolvePageDeliveryPayload({
   };
 
   if (typeof resolveSettingsRepository !== "function") {
-    return attachClientRuntimeContract(payload);
+    return finalizeDeliveryPayload(payload, collectionHandlerRegistry);
   }
 
   const settings = await readPagesModuleSettings({
@@ -554,11 +560,14 @@ export async function resolvePageDeliveryPayload({
     collectionHandlerRegistry,
     page
   });
-  return attachClientRuntimeContract(applyBrowserDeliveryToPayload({
-    payload,
-    settings,
-    resolvedPath
-  }));
+  return finalizeDeliveryPayload(
+    applyBrowserDeliveryToPayload({
+      payload,
+      settings,
+      resolvedPath
+    }),
+    collectionHandlerRegistry
+  );
 }
 
 export async function resolvePageByPath({

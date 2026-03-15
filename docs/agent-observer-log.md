@@ -1246,3 +1246,21 @@
     - deployed-page HTML contract
   - prefer declarative bootstrap descriptors over inline function generation when config must survive HTML serialization
 
+### 2026-03-15 - M04 Media-Aware Page Delivery
+- Tasks:
+  - resolved media ids inside delivered page payloads into first-class media descriptors with public, temporary, local, and preferred urls
+  - enriched delivered record JSON with companion media objects next to `*MediaId` and `*MediaIds` fields instead of forcing consumers to hand-resolve ids
+  - extended injected `client-runtime` config so media descriptors bootstrap into a second local dataset and become queryable through `media.list` / `media.byId`
+  - added a bounded remote refresh seam so delivered page and media datasets can sync from the published page follow-up route without inventing the full final runtime API yet
+- Easy:
+  - the existing browser-delivery payload already carried enough media-base information to build public and temporary media urls without touching remote-ops
+  - keeping the enrichment inside a Pages-owned helper preserved module boundaries and avoided pushing page-shaping logic into Content or Media Manager
+- Hard:
+  - the first implementation was behaviorally correct but failed the function-shape gate; the fix was to split contract assembly and media-reference resolution into smaller helpers immediately
+  - `og:image` had to stop using the raw media id and prefer the resolved media url, otherwise the HTML stayed domain-aware everywhere except the head tags
+  - runtime remote refresh had to stay honest: the only safe product-authored seam right now is the existing page follow-up route, not a fake generic content API that does not exist yet
+- Improve:
+  - when payload enrichment depends on conventions like `*MediaId` and `*MediaIds`, keep the naming rule explicit in one helper instead of scattering special cases through page rendering
+  - once a delivered JSON contract gets richer, wire it into the injected runtime in the same pass so the new payload shape is actually consumable
+  - default browser runtime remote base resolution belongs in the bootstrap layer, not in every generated page contract
+

@@ -23,7 +23,12 @@ export function createClientRuntime(options = {}) {
         indexedDbFactory: options.globalObject?.indexedDB,
         globalObject: options.globalObject
       }),
-    remote: options.adapters?.remote || createRemoteTransportAdapter(options.remote || {})
+    remote:
+      options.adapters?.remote ||
+      createRemoteTransportAdapter({
+        globalObject: options.globalObject,
+        ...(options.remote || {})
+      })
   };
 
   const capabilities = options.capabilities || createCapabilityMonitor({ globalObject: options.globalObject });

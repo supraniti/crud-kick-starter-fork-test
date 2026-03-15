@@ -1,0 +1,223 @@
+const MEDIA_ITEMS_COLLECTION_ID = "media-items";
+const MEDIA_ID_FIELD_PATTERN = /MediaId$/;
+const MEDIA_IDS_FIELD_PATTERN = /MediaIds$/;
+
+function normalizeText(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function toArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function trimSlashes(value) {
+  return String(value ?? "").replace(/^\/+|\/+$/g, "");
+}
+
+function encodeRelativePath(relativePath = "") {
+  return String(relativePath)
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function joinUrl(baseUrl, relativePath) {
+  const normalizedBaseUrl = normalizeText(baseUrl);
+  const normalizedRelativePath = trimSlashes(relativePath);
+  if (!normalizedBaseUrl || !normalizedRelativePath) {
+    return null;
+  }
+  return `${normalizedBaseUrl.replace(/\/+$/g, "")}/${encodeRelativePath(normalizedRelativePath)}`;
+}
+
+function createLocalContentUrl(mediaItemId) {
+  return mediaItemId
+    ? `/api/reference/modules/test-modules-media-manager/media-items/${encodeURIComponent(mediaItemId)}/content`
+    : null;
+}
+
+function createMediaDescriptor(mediaItem = {}, delivery = {}) {
+  const publicUrl = joinUrl(delivery?.publicMediaBaseUrl, mediaItem.relativePath);
+  const temporaryUrl = joinUrl(delivery?.temporaryMediaBaseUrl, mediaItem.relativePath);
+  return {
+    id: mediaItem.id,
+    displayName: mediaItem.displayName ?? mediaItem.id,
+    mimeType: mediaItem.mimeType ?? null,
+    altText: mediaItem.altText ?? null,
+    description: mediaItem.description ?? null,
+    width: mediaItem.width ?? null,
+    height: mediaItem.height ?? null,
+    category: mediaItem.category ?? null,
+    operationPreset: mediaItem.operationPreset ?? null,
+    status: mediaItem.status ?? null,
+    relativePath: mediaItem.relativePath ?? null,
+    storageKey: mediaItem.storageKey ?? null,
+    isDerived: mediaItem.isDerived === true,
+    sourceMediaId: mediaItem.sourceMediaId ?? null,
+    publicUrl,
+    temporaryUrl,
+    localContentUrl: createLocalContentUrl(mediaItem.id),
+    preferredUrl: publicUrl ?? temporaryUrl ?? createLocalContentUrl(mediaItem.id)
+  };
+}
+
+function readMediaIdsFromField(fieldKey, fieldValue, mediaIds) {
+  if (MEDIA_ID_FIELD_PATTERN.test(fieldKey)) {
+    const mediaId = normalizeText(fieldValue);
+    if (mediaId) {
+      mediaIds.add(mediaId);
+    }
+    return;
+  }
+
+  if (MEDIA_IDS_FIELD_PATTERN.test(fieldKey)) {
+    for (const mediaId of toArray(fieldValue)) {
+      const normalizedMediaId = normalizeText(mediaId);
+      if (normalizedMediaId) {
+        mediaIds.add(normalizedMediaId);
+      }
+    }
+  }
+}
+
+function collectMediaIds(value, mediaIds) {
+  if (!value || typeof value !== "object") {
+    return mediaIds;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectMediaIds(entry, mediaIds);
+    }
+    return mediaIds;
+  }
+
+  for (const [fieldKey, fieldValue] of Object.entries(value)) {
+    readMediaIdsFromField(fieldKey, fieldValue, mediaIds);
+    if (fieldValue && typeof fieldValue === "object") {
+      collectMediaIds(fieldValue, mediaIds);
+    }
+  }
+  return mediaIds;
+}
+
+function resolveRelatedMediaFieldKey(fieldKey) {
+  if (MEDIA_IDS_FIELD_PATTERN.test(fieldKey)) {
+    return fieldKey.replace(/Ids$/, "");
+  }
+  if (MEDIA_ID_FIELD_PATTERN.test(fieldKey)) {
+    return fieldKey.replace(/Id$/, "");
+  }
+  return null;
+}
+
+function enrichObjectWithMedia(source = {}, mediaById = {}) {
+  const target = {};
+  for (const [fieldKey, fieldValue] of Object.entries(source)) {
+    target[fieldKey] = enrichMediaReferences(fieldValue, mediaById);
+    const relatedFieldKey = resolveRelatedMediaFieldKey(fieldKey);
+    if (!relatedFieldKey) {
+      continue;
+    }
+
+    if (MEDIA_ID_FIELD_PATTERN.test(fieldKey)) {
+      const mediaId = normalizeText(fieldValue);
+      if (mediaId && mediaById[mediaId]) {
+        target[relatedFieldKey] = mediaById[mediaId];
+      }
+      continue;
+    }
+
+    target[relatedFieldKey] = toArray(fieldValue)
+      .map((mediaId) => mediaById[mediaId] ?? null)
+      .filter(Boolean);
+  }
+  return target;
+}
+
+function enrichMediaReferences(value, mediaById = {}) {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => enrichMediaReferences(entry, mediaById));
+  }
+  return enrichObjectWithMedia(value, mediaById);
+}
+
+async function readMediaItemsById(collectionHandlerRegistry, mediaIds = []) {
+  const handler = collectionHandlerRegistry?.get?.(MEDIA_ITEMS_COLLECTION_ID);
+  if (!handler || typeof handler.findById !== "function") {
+    return [];
+  }
+
+  const items = await Promise.all(mediaIds.map((mediaId) => handler.findById(mediaId)));
+  return items.filter(Boolean);
+}
+
+async function readReferencedMediaItems(payload = {}, collectionHandlerRegistry) {
+  const mediaIds = [...collectMediaIds({
+    head: payload?.head,
+    data: payload?.data
+  }, new Set())];
+  if (mediaIds.length === 0) {
+    return [];
+  }
+  return readMediaItemsById(collectionHandlerRegistry, mediaIds);
+}
+
+function buildMediaRegistry(items = [], delivery = {}) {
+  const descriptors = items.map((item) => createMediaDescriptor(item, delivery));
+  return {
+    items: descriptors,
+    byId: Object.fromEntries(descriptors.map((item) => [item.id, item])),
+    referencedIds: descriptors.map((item) => item.id),
+    publicBaseUrl: delivery?.publicMediaBaseUrl ?? null,
+    temporaryBaseUrl: delivery?.temporaryMediaBaseUrl ?? null
+  };
+}
+
+function attachOpenGraphMedia(payload = {}, mediaRegistry = null) {
+  const openGraph = payload?.head?.openGraph;
+  const openGraphMediaId = normalizeText(openGraph?.imageMediaId);
+  const openGraphMedia = openGraphMediaId ? mediaRegistry?.byId?.[openGraphMediaId] ?? null : null;
+  if (!openGraphMedia) {
+    return payload;
+  }
+
+  return {
+    ...payload,
+    head: {
+      ...(payload?.head && typeof payload.head === "object" ? payload.head : {}),
+      openGraph: {
+        ...(openGraph && typeof openGraph === "object" ? openGraph : {}),
+        image: openGraphMedia,
+        imageUrl: openGraphMedia.preferredUrl
+      }
+    }
+  };
+}
+
+function createMediaAwarePayload(payload = {}, mediaRegistry = null) {
+  return {
+    ...payload,
+    data: enrichMediaReferences(payload?.data, mediaRegistry?.byId ?? {}),
+    media: mediaRegistry
+  };
+}
+
+export async function attachResolvedMediaReferences(payload = {}, collectionHandlerRegistry) {
+  const mediaItems = await readReferencedMediaItems(payload, collectionHandlerRegistry);
+  if (mediaItems.length === 0) {
+    return payload;
+  }
+
+  const mediaRegistry = buildMediaRegistry(mediaItems, payload?.delivery);
+  return attachOpenGraphMedia(createMediaAwarePayload(payload, mediaRegistry), mediaRegistry);
+}

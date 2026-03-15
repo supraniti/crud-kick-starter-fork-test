@@ -81,7 +81,7 @@ function resolveHeadContent(payload) {
     canonicalUrl: payload?.head?.canonicalUrl ?? "",
     ogTitle: resolveOpenGraphField(payload, "title", title),
     ogDescription: resolveOpenGraphField(payload, "description", description),
-    ogImageMediaId: resolveOpenGraphField(payload, "imageMediaId"),
+    ogImageUrl: resolveOpenGraphField(payload, "imageUrl") ?? resolveOpenGraphField(payload, "imageMediaId"),
     ogType: resolveOpenGraphType(payload)
   };
 }
@@ -100,13 +100,13 @@ function buildOpenGraphHeadTags({
   ogTitle,
   ogDescription,
   ogType,
-  ogImageMediaId
+  ogImageUrl
 }) {
   return [
     buildMetaTag("property", "og:title", ogTitle),
     buildMetaTag("property", "og:description", ogDescription),
     buildMetaTag("property", "og:type", ogType),
-    buildMetaTag("property", "og:image", ogImageMediaId)
+    buildMetaTag("property", "og:image", ogImageUrl)
   ].filter(Boolean);
 }
 

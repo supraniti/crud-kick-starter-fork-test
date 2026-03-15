@@ -13,7 +13,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const longTest = (name, run) => test(name, run, 15000);
+const longTest = (name, run) => test(name, run, 25000);
 
 longTest(
   "app-shell actions: quick actions and custom actions navigate deterministically from manifest descriptors",

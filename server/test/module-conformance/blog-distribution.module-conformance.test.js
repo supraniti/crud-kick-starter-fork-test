@@ -11,6 +11,8 @@ import {
 
 const BLOG_DISTRIBUTION_TEST_TIMEOUT_MS = 20_000;
 const MODULE_ID = "test-modules-pages";
+const ONE_PIXEL_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3ioAAAAASUVORK5CYII=";
 
 function buildItemsRoute(collectionId) {
   return `/api/reference/collections/${collectionId}/items`;
@@ -145,6 +147,22 @@ async function seedRemoteTargetProfile(server, overrides = {}) {
 
 function createLongBody(label) {
   return `<p>${label} `.repeat(32) + "</p>";
+}
+
+async function seedMedia(server, overrides = {}) {
+  const response = await injectJson(
+    server,
+    "POST",
+    "/api/reference/modules/test-modules-media-manager/media-items/uploads",
+    {
+      fileName: "hero.png",
+      mimeType: "image/png",
+      contentBase64: ONE_PIXEL_PNG_BASE64,
+      ...overrides
+    }
+  );
+  expect(response.statusCode).toBe(201);
+  return response.body.item;
 }
 
 async function seedPost(server, authorId, categoryId, tagId, overrides = {}) {
@@ -925,10 +943,16 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
     const editor = await seedAuthor(server);
     const category = await seedCategory(server);
     const tag = await seedTag(server);
+    const heroMedia = await seedMedia(server, {
+      fileName: "https-delivery-story.png"
+    });
     const post = await seedPost(server, editor.id, category.id, tag.id, {
       title: "HTTPS Delivery Story",
       status: "published",
-      publishedOn: "2026-03-09T08:30:00.000Z"
+      publishedOn: "2026-03-09T08:30:00.000Z",
+      featuredMediaId: heroMedia.id,
+      ogImageMediaId: heroMedia.id,
+      galleryMediaIds: [heroMedia.id]
     });
 
     const connection = await seedRemoteConnectionProfile(server);
@@ -1011,6 +1035,8 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
     expect(deploymentHtml).toContain("https://content.example.com/posts/https-delivery-story");
     expect(deploymentHtml).toContain("\"publicOrigin\":\"https://content.example.com\"");
     expect(deploymentHtml).toContain("\"publicMediaBaseUrl\":\"https://content.example.com/library\"");
+    expect(deploymentHtml).toContain("https://content.example.com/library/originals");
+    expect(deploymentHtml).toContain("property=\"og:image\" content=\"https://content.example.com/library/originals");
 
     const deliveryResponse = await injectJson(
       server,
@@ -1027,6 +1053,90 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
         publicMediaBaseUrl: "https://content.example.com/library",
         temporaryDeploymentBaseUrl: "https://storage.googleapis.com/content.example.com",
         temporaryMediaBaseUrl: "https://storage.googleapis.com/content-example-media/library"
+      })
+    );
+    expect(deliveryResponse.body.payload.media).toEqual(
+      expect.objectContaining({
+        referencedIds: expect.arrayContaining([heroMedia.id]),
+        publicBaseUrl: "https://content.example.com/library",
+        temporaryBaseUrl: "https://storage.googleapis.com/content-example-media/library",
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: heroMedia.id,
+            publicUrl: expect.stringContaining("https://content.example.com/library/originals"),
+            temporaryUrl: expect.stringContaining("https://storage.googleapis.com/content-example-media/library/originals"),
+            preferredUrl: expect.stringContaining("https://content.example.com/library/originals")
+          })
+        ])
+      })
+    );
+    expect(deliveryResponse.body.payload.head.openGraph).toEqual(
+      expect.objectContaining({
+        imageMediaId: heroMedia.id,
+        imageUrl: expect.stringContaining("https://content.example.com/library/originals"),
+        image: expect.objectContaining({
+          id: heroMedia.id,
+          preferredUrl: expect.stringContaining("https://content.example.com/library/originals")
+        })
+      })
+    );
+    expect(deliveryResponse.body.payload.data.primary.record).toEqual(
+      expect.objectContaining({
+        featuredMediaId: heroMedia.id,
+        featuredMedia: expect.objectContaining({
+          id: heroMedia.id,
+          preferredUrl: expect.stringContaining("https://content.example.com/library/originals")
+        }),
+        galleryMediaIds: [heroMedia.id],
+        galleryMedia: [
+          expect.objectContaining({
+            id: heroMedia.id,
+            preferredUrl: expect.stringContaining("https://content.example.com/library/originals")
+          })
+        ]
+      })
+    );
+    expect(deliveryResponse.body.payload.runtime.clientRuntime).toEqual(
+      expect.objectContaining({
+        bootstrapDatasets: expect.arrayContaining(["page-payload", "page-media"]),
+        remote: expect.objectContaining({
+          defaultHeaders: expect.objectContaining({
+            Accept: "application/json"
+          })
+        }),
+        queries: expect.arrayContaining([
+          expect.objectContaining({
+            resource: "page",
+            query: "currentRemote",
+            remote: expect.objectContaining({
+              path: expect.stringContaining("/delivery/resolve?path="),
+              responsePath: "payload"
+            })
+          }),
+          expect.objectContaining({
+            resource: "media",
+            query: "byId",
+            dataset: "page-media"
+          })
+        ]),
+        datasets: expect.arrayContaining([
+          expect.objectContaining({
+            dataset: "page-payload",
+            remoteSync: expect.objectContaining({
+              path: expect.stringContaining("/delivery/resolve?path=")
+            }),
+            responsePath: "payload",
+            remoteValuePath: "payload"
+          }),
+          expect.objectContaining({
+            dataset: "page-media",
+            remoteSync: expect.objectContaining({
+              path: expect.stringContaining("/delivery/resolve?path=")
+            }),
+            responsePath: "payload",
+            remoteValuePath: "payload.media.items"
+          })
+        ])
       })
     );
     expect(deliveryResponse.body.payload.head.canonicalUrl).toBe(
