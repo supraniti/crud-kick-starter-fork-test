@@ -687,14 +687,35 @@
       - remote intake contract rendering on the product route
       - moderation/compliance visibility
       - navigation from comments into the linked product repair surfaces
+  - Pass 27 completed in worktree:
+    - `Pages` now exposes a first-class SEO/output forecast panel beside deployment and delivery preview surfaces
+    - the panel now computes and shows:
+      - expected html output count
+      - path or pattern
+      - canonical url
+      - seo title
+      - seo description
+      - sample output paths
+      - sample public urls
+    - the product `Deployments` desk now exposes a public-output forecast card for the selected deployment bundle
+    - the bundle forecast now shows:
+      - deployment mode
+      - expected public output count
+      - deployment target
+      - browser target
+      - path or pattern
+      - public origin
+      - example public url
+      - media base
+    - this closes the remaining operator gap where a page or bundle could be structurally valid but still gave weak public-output visibility before release
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
     - generated HTML now boots `client-runtime`, and Pages now exposes the resolved runtime contract, but richer CMS-configurable remote actions and equivalent runtime inspection across more content types are still not yet exposed beyond the current page/comment/media seams
-    - pages/deployments ease-of-use, broader runtime authoring, and final product-surface cleanup still need their remaining passes from the fixed completion map
+    - broader runtime authoring and final product-surface cleanup still need their remaining passes from the fixed completion map
 
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 27: Pages / Deployments Ease-Of-Use Hardening
+  - Pass 28: Client Runtime Product Alignment

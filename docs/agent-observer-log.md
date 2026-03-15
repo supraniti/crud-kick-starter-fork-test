@@ -33,6 +33,23 @@
   - when a product pass is about lifecycle clarity, prefer explicit contract and stage visibility over inventing new persistence flags that do not yet exist
   - once a product surface repeats navigation labels across cards, integration tests should move to `getAllByRole(...)[n]` or scoped queries immediately
 
+### 2026-03-15 - M04 Pages And Deployments Ease-Of-Use Hardening
+- Tasks:
+  - added Pages-side output forecasting so operators can see expected html counts, SEO, and public URL samples before deployment
+  - added bundle-side public-output forecasting so product `Deployments` explains the selected release as one public outcome instead of only as a target matrix
+  - tightened the pass until it satisfied both the repo-shape gate and the full release gate
+- Easy:
+  - the needed data already existed in the current page draft, delivery payload, deployment-instance list, and browser-delivery descriptor
+  - the right product seam was read-only forecasting; no backend contract widening was needed
+- Hard:
+  - the first implementation passed the visual goal but tripped function-complexity and hook-length limits immediately
+  - after the refactor, the focused product proof still failed because the new hook was exported from the helpers file while the workspace imported from the support file
+  - the remaining test failures were exact-text assumptions, not product regressions
+- Improve:
+  - when a pass is mostly computed presentation, split the pure forecasting helpers early instead of waiting for `lint:function-shape` to force the extraction
+  - when moving a hook/helper across the product-shell files, verify the import barrel immediately; those failures look like runtime regressions but are only wiring mistakes
+  - prefer sentence-level or regex assertions for summary cards that prefix business values with labels like `SEO title:` or `Example public URL:`
+
 ### 2026-03-15 - M04 Posts Taxonomies Authors Hardening
 - Tasks:
   - tightened the post authoring loop by surfacing author/category/media/SEO/body readiness directly beside the content editor

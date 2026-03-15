@@ -20,6 +20,7 @@ export {
   DeploymentInstancesPanel,
   ReadinessPanel
 } from "./BlogDistributionPagePanels.jsx";
+export { OutputForecastPanel } from "./BlogDistributionOutputForecastPanel.jsx";
 export {
   RedirectEditorPanel,
   RedirectFilters,
@@ -148,6 +149,11 @@ export function DistributionQueue({ pages, selectedPageId, sourceOptionsByType, 
                     <Chip size="small" label={page.pageKind} variant="outlined" />
                     <Chip size="small" label={page.deploymentMode ?? "single-page"} variant="outlined" />
                     <Chip size="small" label={page.deploymentStatus ?? "missing"} variant="outlined" />
+                    <Chip
+                      size="small"
+                      label={`Expected ${page.deploymentMode === "per-record" ? page.deploymentTargetCount ?? 0 : 1}`}
+                      variant="outlined"
+                    />
                     <Chip
                       size="small"
                       label={`${issues.length} warning${issues.length === 1 ? "" : "s"}`}

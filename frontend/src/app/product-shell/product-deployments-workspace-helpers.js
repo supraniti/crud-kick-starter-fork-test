@@ -8,6 +8,7 @@ import {
   createDeploymentsSummary,
   createPipelineReadiness
 } from "./product-deployments-metrics.js";
+import { createDeploymentBundleForecast } from "./product-deployment-forecast.js";
 
 export function sortPages(pages = []) {
   return [...pages].sort((left, right) => `${left?.title ?? ""}`.localeCompare(`${right?.title ?? ""}`));
@@ -235,6 +236,26 @@ export function usePipelineReadiness(bundleEditor, selectedPage, targetStates) {
       targetStates.mediaTargetState,
       targetStates.projectionTargetState,
       targetStates.tagsProjectionTargetState
+    ]
+  );
+}
+
+export function useDeploymentBundleForecast(selectedBundle, selectedPage, targetStates) {
+  return useMemo(
+    () =>
+      createDeploymentBundleForecast({
+        selectedBundle,
+        selectedPage,
+        deploymentTargetState: targetStates.deploymentTargetState,
+        browserTargetState: targetStates.browserTargetState,
+        mediaTargetState: targetStates.mediaTargetState
+      }),
+    [
+      selectedBundle,
+      selectedPage,
+      targetStates.browserTargetState,
+      targetStates.deploymentTargetState,
+      targetStates.mediaTargetState
     ]
   );
 }

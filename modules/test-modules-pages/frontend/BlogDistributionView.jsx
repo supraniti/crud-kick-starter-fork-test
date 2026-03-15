@@ -4,6 +4,7 @@ import {
   DeploymentInstancesPanel,
   DeliveryPreviewPanel,
   DistributionFilters,
+  OutputForecastPanel,
   DistributionQueue,
   ReadinessPanel,
   RedirectEditorPanel,
@@ -125,6 +126,7 @@ function OverviewTab({ workspace }) {
             selectedTarget={workspace.remoteBrowserTarget}
             bindingSourceLabel={workspace.remoteBrowserBindingSourceLabel}
           />
+          <OutputForecastPanel workspace={workspace} />
           <DeploymentInstancesPanel workspace={workspace} />
           <DeliveryPreviewPanel workspace={workspace} />
           <RuntimeContractPanel workspace={workspace} />

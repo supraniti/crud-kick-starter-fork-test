@@ -38,6 +38,15 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
             title: "Launch Story",
             path: "/stories/launch-window-update"
           },
+          head: {
+            title: "Launch Story SEO",
+            description: "Launch story description",
+            canonicalUrl: "https://content.example.com/stories/launch-window-update"
+          },
+          delivery: {
+            publicOrigin: "https://content.example.com",
+            publicUrl: "https://content.example.com/stories/launch-window-update"
+          },
           data: {
             primary: {
               collectionId: "blog-posts",
@@ -132,6 +141,9 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
         method: "GET"
       })
     );
+    expect(screen.getByRole("heading", { name: "SEO + Output Forecast" })).toBeInTheDocument();
+    expect(screen.getByText("https://content.example.com/stories/launch-window-update")).toBeInTheDocument();
+    expect(screen.getByText(/SEO title:\s*Launch Story SEO/)).toBeInTheDocument();
     expect(screen.getByLabelText("Resolved Page JSON").value).toContain("\"contractVersion\": 1");
     expect(screen.getByRole("heading", { name: "Client Runtime Contract" })).toBeInTheDocument();
     expect(screen.getByText("comments.submit")).toBeInTheDocument();

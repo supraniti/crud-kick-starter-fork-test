@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useEmbeddedRemoteOpsSupport } from "../../../../modules/test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 import { createProductRemoteHealth } from "./product-remote-health.js";
 import { createDeploymentReleaseObservability } from "./product-deployment-release-observability.js";
+import { useDeploymentBundleForecast } from "./product-deployments-workspace-helpers.js";
 import {
   useDeploymentBundleState,
   useDeploymentExecution,
@@ -54,6 +55,15 @@ export function useProductDeploymentsWorkspace() {
       remoteOpsSupport
     ]
   );
+  const bundleForecast = useDeploymentBundleForecast(
+    bundleState.bundleEditor.selectedBundle,
+    bundleState.selectedPage,
+    {
+      deploymentTargetState: bundleState.deploymentTargetState,
+      browserTargetState: bundleState.browserTargetState,
+      mediaTargetState: bundleState.mediaTargetState
+    }
+  );
   const reloadWorkspace = useCallback(async () => {
     await Promise.all([reload(), remoteOpsSupport.reload()]);
   }, [reload, remoteOpsSupport]);
@@ -83,6 +93,7 @@ export function useProductDeploymentsWorkspace() {
     selectedPage: bundleState.selectedPage,
     selectedBundleRuns: bundleState.selectedBundleRuns,
     bundleRunSummary: bundleState.bundleRunSummary,
+    bundleForecast,
     releaseObservability,
     localSyncState: executionState.localSyncState,
     pipelineState: executionState.pipelineState,

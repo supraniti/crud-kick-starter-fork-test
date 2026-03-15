@@ -365,6 +365,10 @@ test("product deployments desk runs the release pipeline across local HTML, proj
 
   await waitFor(() => {
     expect(screen.getByText("Bundle bindings are coherent.")).toBeInTheDocument();
+    expect(screen.getByText("Public Output Forecast")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Example public URL:\s*https:\/\/stories\.example\.com\/posts\/\{slug\}/)
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run Release Pipeline" })).toBeEnabled();
   });
 
