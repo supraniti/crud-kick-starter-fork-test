@@ -16,28 +16,9 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { HiddenFileInput, ProductConnectionMetadata } from "./RemoteOpsConnectionEditorShared.jsx";
 import { ManagedProductTargetsPanel } from "./RemoteOpsManagedTargetsPanel.jsx";
 import { ValidationSummary } from "./RemoteOpsSharedPanels.jsx";
-
-function HiddenFileInput(props) {
-  return (
-    <Box
-      component="input"
-      sx={{
-        border: 0,
-        clip: "rect(0 0 0 0)",
-        height: 1,
-        m: -1,
-        overflow: "hidden",
-        p: 0,
-        position: "absolute",
-        whiteSpace: "nowrap",
-        width: 1
-      }}
-      {...props}
-    />
-  );
-}
 
 export function ConnectionList({ workspace }) {
   return (
@@ -399,10 +380,11 @@ function ProvisioningPanel({ workspace, report }) {
   );
 }
 
-export function ConnectionEditor({ workspace, SetupCard }) {
+export function ConnectionEditor({ workspace, SetupCard, surface = "module" }) {
   const draft = workspace.connectionDraft;
   const actionState = workspace.connectionActionState;
   const compatibilityActionState = workspace.compatibilityActionState;
+  const isProductSurface = surface === "product";
   const canChooseKey = draft.profileName.trim().length > 0 && !actionState.processing;
   const canLoadKey = draft.profileName.trim().length > 0 && Boolean(draft.credentialPathHint);
   const canValidate =
@@ -426,7 +408,11 @@ export function ConnectionEditor({ workspace, SetupCard }) {
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">
-              {workspace.isCreatingConnection ? "New Connection Profile" : draft.profileName || "Connection Profile"}
+              {workspace.isCreatingConnection
+                ? isProductSurface
+                  ? "New Remote"
+                  : "New Connection Profile"
+                : draft.profileName || (isProductSurface ? "Remote Access" : "Connection Profile")}
             </Typography>
             <Chip
               size="small"
@@ -436,9 +422,20 @@ export function ConnectionEditor({ workspace, SetupCard }) {
           </Stack>
           {actionState.errorMessage ? <Alert severity="error">{actionState.errorMessage}</Alert> : null}
           {actionState.successMessage ? <Alert severity="success">{actionState.successMessage}</Alert> : null}
-          <TextField label="Profile Name" value={draft.profileName} onChange={(event) => workspace.changeConnectionField("profileName", event.target.value)} fullWidth />
+          <TextField
+            label="Profile Name"
+            value={draft.profileName}
+            onChange={(event) => workspace.changeConnectionField("profileName", event.target.value)}
+            fullWidth
+          />
+          {isProductSurface ? (
+            <Alert severity="info">
+              This product surface manages the CMS&apos;s standard remote services. Load one service-account key,
+              validate the project, then let the managed target bundle and compatibility workflow drive the rest.
+            </Alert>
+          ) : null}
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField label="Auth Mode" value="Service Account Key" InputProps={{ readOnly: true }} fullWidth />
+            {!isProductSurface ? <TextField label="Auth Mode" value="Service Account Key" InputProps={{ readOnly: true }} fullWidth /> : null}
             <TextField
               label="Stored Key File"
               value={draft.credentialPathHint ?? ""}
@@ -446,19 +443,46 @@ export function ConnectionEditor({ workspace, SetupCard }) {
               helperText="The imported key file is copied into a local untracked runtime area and referenced from here."
               fullWidth
             />
+            {isProductSurface ? (
+              <TextField
+                label="Environment Label"
+                value={draft.environmentLabel ?? ""}
+                onChange={(event) => workspace.changeConnectionField("environmentLabel", event.target.value)}
+                fullWidth
+              />
+            ) : null}
           </Stack>
           <Alert severity="info">
             Choose the downloaded service-account JSON file directly. The app copies it into a local
             untracked runtime area and stores only the reference and extracted metadata in collection rows.
           </Alert>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField label="Operator Email" value={draft.operatorEmail ?? ""} onChange={(event) => workspace.changeConnectionField("operatorEmail", event.target.value)} fullWidth />
-            <TextField label="Region" value={draft.region ?? ""} onChange={(event) => workspace.changeConnectionField("region", event.target.value)} fullWidth />
-          </Stack>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField label="Environment Label" value={draft.environmentLabel ?? ""} onChange={(event) => workspace.changeConnectionField("environmentLabel", event.target.value)} fullWidth />
-            <TextField label="Credential Label" value={draft.credentialLabel ?? ""} InputProps={{ readOnly: true }} fullWidth />
-          </Stack>
+          {!isProductSurface ? (
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              <TextField
+                label="Operator Email"
+                value={draft.operatorEmail ?? ""}
+                onChange={(event) => workspace.changeConnectionField("operatorEmail", event.target.value)}
+                fullWidth
+              />
+              <TextField
+                label="Region"
+                value={draft.region ?? ""}
+                onChange={(event) => workspace.changeConnectionField("region", event.target.value)}
+                fullWidth
+              />
+            </Stack>
+          ) : null}
+          {!isProductSurface ? (
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              <TextField
+                label="Environment Label"
+                value={draft.environmentLabel ?? ""}
+                onChange={(event) => workspace.changeConnectionField("environmentLabel", event.target.value)}
+                fullWidth
+              />
+              <TextField label="Credential Label" value={draft.credentialLabel ?? ""} InputProps={{ readOnly: true }} fullWidth />
+            </Stack>
+          ) : null}
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <TextField
               label="Project ID"
@@ -471,13 +495,25 @@ export function ConnectionEditor({ workspace, SetupCard }) {
                   : "Load the key first, then enter the project you want this service account to operate against."
               }
             />
-            <TextField label="Project Number" value={draft.projectNumber ?? ""} InputProps={{ readOnly: true }} fullWidth />
+            {!isProductSurface ? (
+              <TextField label="Project Number" value={draft.projectNumber ?? ""} InputProps={{ readOnly: true }} fullWidth />
+            ) : null}
           </Stack>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField label="Service Account Email" value={draft.serviceAccountEmail ?? ""} InputProps={{ readOnly: true }} fullWidth />
-            <TextField label="Service Account Key ID" value={draft.serviceAccountKeyId ?? ""} InputProps={{ readOnly: true }} fullWidth />
+            <TextField
+              label="Service Account Email"
+              value={draft.serviceAccountEmail ?? ""}
+              InputProps={{ readOnly: true }}
+              fullWidth
+            />
+            {!isProductSurface ? (
+              <TextField label="Service Account Key ID" value={draft.serviceAccountKeyId ?? ""} InputProps={{ readOnly: true }} fullWidth />
+            ) : (
+              <TextField label="Project Display Name" value={draft.projectDisplayName ?? ""} InputProps={{ readOnly: true }} fullWidth />
+            )}
           </Stack>
-          <TextField label="Project Display Name" value={draft.projectDisplayName ?? ""} InputProps={{ readOnly: true }} fullWidth />
+          {!isProductSurface ? <TextField label="Project Display Name" value={draft.projectDisplayName ?? ""} InputProps={{ readOnly: true }} fullWidth /> : null}
+          {isProductSurface ? <ProductConnectionMetadata draft={draft} /> : null}
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Button variant="contained" onClick={workspace.saveConnection} disabled={actionState.saving}>
               {actionState.saving ? "Saving..." : workspace.isCreatingConnection ? "Create Connection" : "Save Connection"}

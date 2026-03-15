@@ -163,10 +163,13 @@ test("product remotes desk stays on the managed connection workflow instead of t
 
   expect(screen.queryByRole("tab", { name: "Targets" })).not.toBeInTheDocument();
   expect(screen.getByText("Service account: merchant-guild@appspot.gserviceaccount.com")).toBeInTheDocument();
-  expect(screen.getByText("Project: Merchant Guild")).toBeInTheDocument();
+  expect(screen.getAllByText("Project: Merchant Guild").length).toBeGreaterThan(0);
   expect(screen.getByText("Managed services: 6/6")).toBeInTheDocument();
   expect(screen.getAllByText("Posts Projection").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Primary Domain").length).toBeGreaterThan(0);
   expect(screen.getByRole("button", { name: "Analyze Compatibility" })).toBeInTheDocument();
   expect(screen.getByText("Validate Posts Projection")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Operator Email")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Region")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Credential Label")).not.toBeInTheDocument();
 }, 15000);

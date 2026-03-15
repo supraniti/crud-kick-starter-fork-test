@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `65530fd` `docs: refresh m04 progress pointers`
+  - `44dcf52` `feat: add product remotes desk`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -284,6 +284,19 @@
         - `Deployments`
     - provider/runtime logic remains inside `test-modules-remote-ops`
     - the product view intentionally suppresses the old raw target-first framing
+  - stricter product remotes editor:
+    - the product route now uses a tighter connection surface on top of the same remote-ops workspace
+    - hidden on the product route:
+      - `Operator Email`
+      - `Region`
+      - `Credential Label`
+    - the retained product-facing fields are now centered on:
+      - profile name
+      - stored key file
+      - environment label
+      - project id
+      - discovered service-account/project metadata
+      - validation / compatibility / provisioning actions
 
 ## Key Files Touched
 - Product shell:
@@ -405,19 +418,19 @@
 
 ## Current Worktree State
 - Uncommitted M04 pass present:
-  - product-owned remotes desk
+  - tighter product remotes editor surface
 - Next likely pass:
-  - tighter product-authored remote setup/provisioning steps
+  - product-authored staged setup cards for managed services inside `Remotes`
   - or richer CMS-configurable runtime contract preview/actions beyond the current page/comment/media seams
 - Protocol:
   - `pnpm quality:protocol`
 
 ## Current Repo State
-- Worktree is intentionally dirty with the verified product-remotes slice and updated progress pointers.
+- Worktree is intentionally dirty with the verified stricter product-remotes slice and updated progress pointers.
 - Latest completed slice in worktree:
   - product-owned `Remotes` desk
-  - route-descriptor override for `test-modules-remote-ops`
-  - focused integration proof for the product remotes surface
+  - stricter product-surface connection editor
+  - focused integration proof for the tightened product remotes route
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`

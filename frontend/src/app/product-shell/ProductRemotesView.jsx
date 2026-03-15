@@ -277,7 +277,7 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
           <RecentRunsPanel runs={recentRuns} />
         </Stack>
         <Stack sx={{ flex: 1, width: "100%" }}>
-          <ConnectionEditor workspace={workspace} SetupCard={RemoteOpsConnectionSetupCard} />
+          <ConnectionEditor workspace={workspace} SetupCard={RemoteOpsConnectionSetupCard} surface="product" />
         </Stack>
       </Stack>
     </Stack>

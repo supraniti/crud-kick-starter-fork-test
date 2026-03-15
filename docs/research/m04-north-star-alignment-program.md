@@ -545,9 +545,26 @@
       - managed target coverage
       - recent run visibility
       - raw-target-surface suppression
+  - Pass 20 completed in worktree:
+    - the product remotes desk no longer exposes the broad module-grade connection editor as its primary form
+    - the reused connection editor now supports a stricter `product` surface:
+      - hides operator-only fields such as:
+        - operator email
+        - region
+        - credential label
+      - keeps the normal product flow centered on:
+        - profile name
+        - imported service-account key
+        - environment label
+        - project id
+        - discovered service-account/project metadata
+        - compatibility analysis
+        - managed target provisioning
+    - the provider/runtime logic still remains in `test-modules-remote-ops`; only the operator framing changed
+    - focused proof now also asserts that the product route suppresses the broader module-only connection fields
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
     - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
     - generated HTML now boots `client-runtime`, and page-defined bindings now emit reusable runtime slot contracts, but richer CMS-configurable remote actions and preview/inspection of those runtime contracts are still not yet exposed across more content types
-    - the product `Remotes` surface still reuses the broad module-local connection editor; the next tightening move is to collapse that editor into stricter product-authored setup/provisioning steps without duplicating provider logic
+    - the product `Remotes` surface is now connection-first and stricter, but managed domain/deployment/media/posts/taxonomy service setup is still displayed through generic compatibility/provisioning blocks rather than explicit product-authored staged setup cards

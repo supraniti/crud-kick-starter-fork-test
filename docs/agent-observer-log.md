@@ -12,6 +12,25 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Product Remotes Surface Tightening
+- Tasks:
+  - tightened the product remotes route so it no longer presents the broad module-grade connection editor as the primary operator form
+  - kept the same remote-ops workspace and provisioning behavior underneath, but added a stricter `product` surface mode to the shared connection editor
+  - proved the tightened surface by asserting the normal product route hides module-only fields while preserving the managed-remote workflow
+- Easy:
+  - the existing shared connection editor was already the right seam; adding a surface mode avoided duplicating remote logic in the product shell
+  - the product remotes integration test already had a realistic selected-connection scenario, so extending it to assert field suppression stayed cheap
+- Hard:
+  - the first proof tried to assert on the new metadata card title, but selected-connection draft hydration can lag behind the status summary; the stable contract is field suppression and action availability, not that transient subpanel timing
+  - tightening the surface without widening the remote module required discipline: the right move was conditional rendering inside the shared editor, not a forked product-only form
+- Improve:
+  - when a product route wraps a lower-level module editor, prefer a bounded `surface` mode over duplicating the form; it keeps provider/runtime behavior in one owner
+  - product-shell tests should assert durable operator contracts first:
+    - hidden fields
+    - available actions
+    - managed-service framing
+    before asserting on secondary metadata details that may hydrate one render later
+
 ### 2026-03-15 - M04 Product Remotes Desk
 - Tasks:
   - replaced the raw `/app/remotes` module surface with a product-owned remotes desk at the frontend descriptor boundary
