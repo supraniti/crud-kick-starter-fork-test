@@ -43,6 +43,48 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
               collectionId: "blog-posts",
               itemId: "post-001"
             }
+          },
+          runtime: {
+            clientRuntime: {
+              assetUrl: "/assets/client-runtime.global.js",
+              bootstrapDatasets: ["page-payload", "page-media", "post-comments"],
+              remote: {
+                baseUrl: "https://content.example.com"
+              },
+              slots: [
+                {
+                  bindAs: "primary",
+                  sourceType: "blog-post",
+                  recordMode: "single-item"
+                }
+              ],
+              queries: [
+                {
+                  resource: "page",
+                  query: "current"
+                },
+                {
+                  resource: "comments",
+                  query: "byPost"
+                }
+              ],
+              actions: [
+                {
+                  action: "comments.submit"
+                }
+              ],
+              datasets: [
+                {
+                  dataset: "page-payload"
+                },
+                {
+                  dataset: "page-media"
+                },
+                {
+                  dataset: "post-comments"
+                }
+              ]
+            }
           }
         }
       });
@@ -91,6 +133,9 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
       })
     );
     expect(screen.getByLabelText("Resolved Page JSON").value).toContain("\"contractVersion\": 1");
+    expect(screen.getByRole("heading", { name: "Client Runtime Contract" })).toBeInTheDocument();
+    expect(screen.getByText("comments.submit")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("/assets/client-runtime.global.js")).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Publish Page" }));

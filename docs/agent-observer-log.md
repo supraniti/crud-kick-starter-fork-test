@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Pages Runtime Contract Inspection
+- Tasks:
+  - added a dedicated Pages-side runtime-contract inspection panel instead of forcing operators to read the injected `client-runtime` contract out of the raw delivery JSON textarea
+  - kept the feature fully frontend-local because the delivered payload already contained the contract; the missing piece was visibility, not another API
+  - extended the existing Pages delivery-preview integration proof so the runtime panel is verified through the same authoring flow operators already use
+- Easy:
+  - the page delivery payload already exposed `runtime.clientRuntime`, so the panel only needed to summarize and render an existing contract
+  - the existing `pages overview renders ... previews delivery json` proof was already the right scenario to extend; no new harness was necessary
+- Hard:
+  - this machine still needs escalated frontend Vitest runs whenever Vite/esbuild child-process spawning crosses the sandbox boundary
+  - the right product call was to expose both summaries and raw JSON; summary-only would hide detail, but raw-JSON-only would keep the north-star operator problem unsolved
+- Improve:
+  - when a delivery contract already exists but operators cannot reason about it, add an inspection surface before inventing more contract complexity
+  - keep runtime-contract visibility tied to the delivery preview so Pages remains the single authoring desk for page payload, runtime bootstrap, and deployment inspection
+
 ### 2026-03-15 - M04 Product Remotes Surface Tightening
 - Tasks:
   - tightened the product remotes route so it no longer presents the broad module-grade connection editor as the primary operator form

@@ -11,6 +11,7 @@ import {
   RedirectList,
   SummaryCard
 } from "./BlogDistributionPanels.jsx";
+import { RuntimeContractPanel } from "./BlogDistributionRuntimeContractPanel.jsx";
 import {
   PagesBrowserDeliveryPanel,
   PagesRemoteDeploymentPanel,
@@ -126,6 +127,7 @@ function OverviewTab({ workspace }) {
           />
           <DeploymentInstancesPanel workspace={workspace} />
           <DeliveryPreviewPanel workspace={workspace} />
+          <RuntimeContractPanel workspace={workspace} />
         </Stack>
       </Stack>
     </Stack>

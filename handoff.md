@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `44dcf52` `feat: add product remotes desk`
+  - `0a1159f` `feat: tighten product remotes surface`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -297,6 +297,17 @@
       - project id
       - discovered service-account/project metadata
       - validation / compatibility / provisioning actions
+  - pages runtime contract inspection:
+    - `Pages` overview now includes a dedicated `Client Runtime Contract` panel beside the delivery payload preview
+    - operators can inspect:
+      - runtime asset url
+      - remote base url
+      - bootstrap datasets
+      - queries
+      - actions
+      - datasets
+      - page-bound slots
+      - raw resolved runtime json
 
 ## Key Files Touched
 - Product shell:
@@ -378,6 +389,7 @@
   - [product-view-overrides.core.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/core/product-view-overrides.core.test.jsx)
   - [product-system-settings.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-system-settings.integration.test.jsx)
   - [product-remotes.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-remotes.integration.test.jsx)
+  - [modules/test-modules-pages/frontend/BlogDistributionRuntimeContractPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionRuntimeContractPanel.jsx)
   - [remote-ops.managed-bundle.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/remote-ops.managed-bundle.integration.test.jsx)
   - [e2e/smoke/specs/app-smoke.e2e.test.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/e2e/smoke/specs/app-smoke.e2e.test.mjs)
   - [frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx)
@@ -400,13 +412,14 @@
   - product editorial
   - product moderation
   - product remotes
+  - pages runtime contract inspection
   - remote-ops connections / managed bundle / targets / browser delivery
   - product domains
   - product deployments
   - product system settings
   - blog distribution per-record pages
 - Focused current slice:
-  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-remotes.integration.test.jsx`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.integration.test.jsx`
 - Focused server:
   - `blog-distribution.module-conformance`
 - Function shape:
@@ -418,19 +431,19 @@
 
 ## Current Worktree State
 - Uncommitted M04 pass present:
-  - tighter product remotes editor surface
+  - pages runtime contract inspection
 - Next likely pass:
   - product-authored staged setup cards for managed services inside `Remotes`
-  - or richer CMS-configurable runtime contract preview/actions beyond the current page/comment/media seams
+  - or richer CMS-configurable runtime actions beyond the current page/comment/media seams
 - Protocol:
   - `pnpm quality:protocol`
 
 ## Current Repo State
-- Worktree is intentionally dirty with the verified stricter product-remotes slice and updated progress pointers.
+- Worktree is intentionally dirty with the verified Pages runtime-contract inspection slice and updated progress pointers.
 - Latest completed slice in worktree:
-  - product-owned `Remotes` desk
-  - stricter product-surface connection editor
-  - focused integration proof for the tightened product remotes route
+  - Pages runtime contract inspection panel
+  - runtime-contract proof wired into the standard Pages delivery-preview integration flow
+  - no backend contract change was required because the delivered runtime contract already existed
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
