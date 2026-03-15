@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import App, { AUTH_STORAGE_KEY } from "../../app/App.jsx";
+import App, { AUTH_STORAGE_KEY, DEVELOPER_MODE_STORAGE_KEY } from "../../app/App.jsx";
 import { createApiMock } from "../reference-api-mock.js";
 import { resetBrowserState, setPath } from "../test-helpers.js";
 
@@ -17,6 +17,7 @@ describe("Module lifecycle collection availability", () => {
   test("records collection workspace becomes unavailable on disable and recovers on enable", async () => {
     const api = createApiMock();
     window.localStorage.setItem(AUTH_STORAGE_KEY, "1");
+    window.localStorage.setItem(DEVELOPER_MODE_STORAGE_KEY, "1");
     setPath("/app/remotes");
 
     render(<App api={api} />);
@@ -25,10 +26,10 @@ describe("Module lifecycle collection availability", () => {
       expect(screen.getByRole("heading", { name: "Remotes" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Runtime settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Developer tools" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Module Runtime Controls")).toBeInTheDocument();
+      expect(screen.getByText("Developer Module Runtime Controls")).toBeInTheDocument();
       expect(screen.getByText("records")).toBeInTheDocument();
     });
 
@@ -48,7 +49,7 @@ describe("Module lifecycle collection availability", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     fireEvent.keyDown(document.body, { key: "Escape", code: "Escape" });
     await waitFor(() => {
-      expect(screen.queryByText("Module Runtime Controls")).not.toBeInTheDocument();
+      expect(screen.queryByText("Developer Module Runtime Controls")).not.toBeInTheDocument();
     });
 
     await waitFor(() => {
@@ -80,9 +81,9 @@ describe("Module lifecycle collection availability", () => {
       expect(screen.getByRole("heading", { name: "Remotes" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Runtime settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Developer tools" }));
     await waitFor(() => {
-      expect(screen.getByText("Module Runtime Controls")).toBeInTheDocument();
+      expect(screen.getByText("Developer Module Runtime Controls")).toBeInTheDocument();
       expect(screen.getByText("records")).toBeInTheDocument();
     });
 
@@ -112,7 +113,7 @@ describe("Module lifecycle collection availability", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => {
-      expect(screen.queryByText("Module Runtime Controls")).not.toBeInTheDocument();
+      expect(screen.queryByText("Developer Module Runtime Controls")).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Records", hidden: true }));

@@ -135,7 +135,7 @@ export function PagesRemoteDeploymentPanel({
           </Alert>
           <Stack direction="row" justifyContent="flex-end">
             <Button variant="outlined" onClick={onOpenRemoteOps}>
-              Open Remote Ops
+              Open Remotes
             </Button>
           </Stack>
         </Stack>
@@ -159,7 +159,7 @@ export function PagesRemoteDeploymentPanel({
             </Typography>
           </Stack>
           <Button variant="outlined" onClick={onOpenRemoteOps}>
-            Open Remote Ops
+            Open Remotes
           </Button>
         </Stack>
         <Typography variant="subtitle2">{selectedTarget.title}</Typography>
@@ -221,7 +221,7 @@ export function PagesBrowserDeliveryPanel({
             </Typography>
           </Stack>
           <Button variant="outlined" onClick={onOpenRemoteOps}>
-            Open Remote Ops
+            Open Remotes
           </Button>
         </Stack>
         <Typography variant="subtitle2">{selectedTarget.title}</Typography>

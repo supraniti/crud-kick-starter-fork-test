@@ -17,11 +17,11 @@ function RuntimeSettingsDialog({
 }) {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <DialogTitle>Runtime settings</DialogTitle>
+      <DialogTitle>Developer Runtime Settings</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={1.5}>
           <Typography variant="body2" color="text.secondary">
-            Control which modules are available in runtime by applying lifecycle actions.
+            Developer-only controls for lifecycle state, internal module exposure, and runtime availability.
           </Typography>
           <ModuleRuntimePanel
             moduleRuntimeState={moduleRuntimeState}

@@ -179,4 +179,5 @@ test("product remotes desk stays on the managed connection workflow instead of t
   expect(screen.queryByText("Managed Product Targets")).not.toBeInTheDocument();
   expect(screen.queryByText("Compatibility Report")).not.toBeInTheDocument();
   expect(screen.queryByText("Provision Missing Resources")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Lower-level target editing still lives in the module runtime/i)).not.toBeInTheDocument();
 }, 15000);

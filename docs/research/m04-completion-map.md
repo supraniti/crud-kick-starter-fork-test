@@ -11,7 +11,7 @@
 - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
 
 ## Current Position
-- Completed through M04 Pass 28.
+- Completed through M04 Pass 29.
 - Already achieved:
   - product shell routes and labels
   - product `System Settings`, `Remotes`, `Domains`, `Deployments`
@@ -46,6 +46,11 @@
     - comments desk now exposes remote intake contract visibility from the product route
     - moderation/compliance signals now surface pending, spam, missing email, reply density, and moderator-attribution gaps
     - selected comments now expose lifecycle stage visibility tied back to the source-post policy
+  - final product-first exposure policy:
+    - normal runtime now hides developer lifecycle/module controls by default
+    - developer runtime controls are explicitly opt-in
+    - server runtime payloads now expose module maturity
+    - remaining operator labels now prefer product language like `Remotes` over `Remote Ops`
 
 ## Definition Of Done For M04
 - Normal runtime behaves like a product CMS, not a proof-module browser.
@@ -66,10 +71,9 @@
 
 ## Remaining Pass Count
 - Estimated remaining implementation passes to reach the current M04 definition of done:
-  - `1` functional pass
   - `1` final hardening/closeout pass
 - Total remaining passes:
-  - `2`
+  - `1`
 
 ## Locked Remaining Sequence
 

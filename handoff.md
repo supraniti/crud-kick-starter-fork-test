@@ -10,40 +10,35 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
 
 ## Current M04 Position
-- Completed through Pass 28.
-- Pass 28 delivered:
-  - generated runtime contracts now include runtime-local refresh actions:
-    - `page.refresh`
-    - `page-slot.refresh.<bindAs>`
-    - `media.refresh`
-    - `comments.refresh`
-  - `client-runtime` action dispatch can now execute local dataset-sync operations
-  - product `Deployments` now exposes a `Client Runtime Release Preview` for the selected bundle/page
-  - runtime inspection is now available from both:
-    - `Pages`
-    - `Deployments`
+- Completed through Pass 29.
+- Pass 29 delivered:
+  - normal runtime now hides developer lifecycle/module controls by default
+  - developer controls are explicitly opt-in through developer mode
+  - runtime/module payloads now expose module `maturity`
+  - remaining operator-facing proof labels were tightened to product language:
+    - `Open Remotes`
+    - `Open Pages`
 - Next locked pass:
-  - Pass 29: Module Exposure And Product Finalization
+  - Pass 30: End-To-End Closeout Hardening
 
 ## Active execution target
-- Continue the locked M04 sequence with Pass 29:
-  - final product-first exposure policy for normal runtime
-  - hide or flag remaining proof-module surfaces outside product routes
-  - remove remaining product/proof inconsistencies before closeout
+- Continue the locked M04 sequence with Pass 30:
+  - practice the full end-to-end north-star slice
+  - refresh current-state and M04 docs
+  - close remaining proof gaps and archive transient planning artifacts
 
-## Pass 28 Main Files
-- [frontend/src/app/product-shell/DeploymentBundleRuntimePreviewCard.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/DeploymentBundleRuntimePreviewCard.jsx)
-- [frontend/src/app/product-shell/product-deployment-runtime-preview.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-runtime-preview.js)
-- [frontend/src/app/product-shell/useProductDeploymentsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductDeploymentsWorkspace.js)
-- [frontend/src/app/product-shell/product-deployments-workspace-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-workspace-support.js)
-- [modules/test-modules-pages/server/page-client-runtime-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-client-runtime-runtime.mjs)
-- [client-runtime/src/action/action-executor.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/action/action-executor.mjs)
+## Pass 29 Main Files
+- [frontend/src/app/product-shell/product-exposure-policy.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-exposure-policy.js)
+- [frontend/src/app/parts/04-app-shell-layout.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/parts/04-app-shell-layout.jsx)
+- [frontend/src/ui/RuntimeSettingsDialog.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/ui/RuntimeSettingsDialog.jsx)
+- [frontend/src/ui/ModuleRuntimePanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/ui/ModuleRuntimePanel.jsx)
+- [server/src/domains/reference/runtime/services/reference-runtime-collection-and-navigation-domain-service.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/src/domains/reference/runtime/services/reference-runtime-collection-and-navigation-domain-service.js)
+- [server/src/domains/reference/runtime/services/reference-runtime-payload-domain-service.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/src/domains/reference/runtime/services/reference-runtime-payload-domain-service.js)
 
 ## Verification
 - Focused proof:
-  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.integration.test.jsx src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/module-lifecycle-runtime.integration.test.jsx src/tests/app-integration/module-lifecycle-collection-availability.integration.test.jsx src/tests/app-integration/blog-content.integration.test.jsx src/tests/app-integration/media-manager.integration.test.jsx src/tests/app-integration/product-remotes.integration.test.jsx`
   - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
-  - `pnpm --filter client-runtime test`
 - Repo constraints:
   - `pnpm lint:function-shape`
   - `pnpm quality:gate:full`
@@ -51,14 +46,14 @@
   - `pnpm quality:protocol`
 
 ## Next Execution Target
-- Pass 29: Module Exposure And Product Finalization
+- Pass 30: End-To-End Closeout Hardening
 - Locked outcomes for the next pass:
-  - normal runtime should read as product-first without leaking raw proof surfaces
-  - product routes should remain the visible entrypoints for real operators
-  - remaining proof surfaces should be hidden or explicitly dev/test-only in normal mode
+  - practice the full create -> page -> bundle -> release -> remote -> domain/runtime inspection chain
+  - refresh current-state and M04 docs to the delivered baseline
+  - close the M04 slice cleanly and archive transient planning artifacts
 
 ## Repo State
-- Worktree contains the verified Pass 28 slice plus updated progress pointers.
+- Worktree contains the verified Pass 29 slice plus updated progress pointers.
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`

@@ -107,6 +107,12 @@ function singularizeCollectionToken(value) {
 
 const MODULE_NAVIGATION_POLICY_VISIBLE_UNAVAILABLE = "visible-but-unavailable";
 
+function resolveModuleMaturity(manifest) {
+  const maturity =
+    typeof manifest?.metadata?.maturity === "string" ? manifest.metadata.maturity.trim().toLowerCase() : "";
+  return maturity.length > 0 ? maturity : "unknown";
+}
+
 function toRouteAvailability(state) {
   const normalizedState =
     typeof state === "string" && state.length > 0 ? state : "unknown";
@@ -129,6 +135,7 @@ export function toModuleNavigationItem(manifest, state = "unknown") {
     id: manifest.id,
     label: typeof navigation.label === "string" && navigation.label.length > 0 ? navigation.label : manifest.name,
     icon: typeof navigation.icon === "string" && navigation.icon.length > 0 ? navigation.icon : "extension",
+    maturity: resolveModuleMaturity(manifest),
     state: normalizedState,
     routeAvailability: toRouteAvailability(normalizedState),
     order
@@ -140,10 +147,11 @@ export function buildModuleNavigationItems(registry) {
     .list()
     .map(({ manifest, state }) => toModuleNavigationItem(manifest, state))
     .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label))
-    .map(({ id, label, icon, state, routeAvailability }) => ({
+    .map(({ id, label, icon, maturity, state, routeAvailability }) => ({
       id,
       label,
       icon,
+      maturity,
       state,
       routeAvailability
     }));

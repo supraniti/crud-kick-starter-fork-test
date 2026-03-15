@@ -139,6 +139,10 @@ function buildRuntimeModuleItems(registry) {
     id: manifest.id,
     name: manifest.name,
     version: manifest.version,
+    maturity:
+      typeof manifest?.metadata?.maturity === "string" && manifest.metadata.maturity.trim().length > 0
+        ? manifest.metadata.maturity.trim().toLowerCase()
+        : "unknown",
     capabilities: [...manifest.capabilities],
     state,
     ui: manifest.ui,

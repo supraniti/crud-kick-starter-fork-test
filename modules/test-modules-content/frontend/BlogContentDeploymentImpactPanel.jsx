@@ -35,7 +35,7 @@ export function BlogContentDeploymentImpactPanel({
           </Stack>
           {typeof onOpenPages === "function" ? (
             <Button variant="outlined" onClick={onOpenPages}>
-              Open Pages Desk
+              Open Pages
             </Button>
           ) : null}
         </Stack>

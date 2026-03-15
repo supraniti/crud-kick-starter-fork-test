@@ -71,7 +71,7 @@ export function MediaManagerRemotePanel({
             </Typography>
           </Stack>
           <Button variant="outlined" onClick={onOpenRemoteOps}>
-            Open Remote Ops
+            Open Remotes
           </Button>
         </Stack>
         {settingsState?.errorMessage ? <Alert severity="error">{settingsState.errorMessage}</Alert> : null}

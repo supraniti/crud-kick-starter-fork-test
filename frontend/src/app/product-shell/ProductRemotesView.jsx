@@ -270,9 +270,9 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
     <Stack spacing={2}>
       <Hero />
       <Alert severity="info">
-        This is the product-owned remote surface. Lower-level target editing still lives in the module runtime, but
-        the normal operator flow here is connection-first: validate one remote, auto-prepare the managed services,
-        inspect compatibility, and provision only what the current product release model needs.
+        This is the product-owned remote surface. The normal operator flow here is connection-first: validate one
+        remote, auto-prepare the managed services, inspect compatibility, and provision only what the current product
+        release model needs.
       </Alert>
       {workspace.errorMessage ? <Alert severity="error">{workspace.errorMessage}</Alert> : null}
       <Stack

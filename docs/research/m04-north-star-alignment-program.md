@@ -728,14 +728,23 @@
       - resolved media links
       - raw runtime json
     - runtime inspection is no longer confined to the Pages desk; operators can now inspect the delivery/runtime contract from the release surface before shipping
+  - Pass 29 completed in worktree:
+    - normal runtime now hides developer-only lifecycle/module controls by default
+    - developer lifecycle controls are now explicitly named and framed as developer tools, not normal operator settings
+    - runtime/module payloads now expose module maturity so the UI can reason about proof vs product posture explicitly
+    - remaining operator-facing proof labels were tightened:
+      - `Open Remote Ops` -> `Open Remotes`
+      - `Open Pages Desk` -> `Open Pages`
+    - product `Remotes` copy no longer points operators back at raw module-runtime mental models
 
 ## Active Gap After Current Passes
-  - Product shell is now closer to the north star, but several north-star behaviors are still pending:
-    - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
-    - proof/product surface separation still needs its final exposure cleanup pass
-    - the final closeout still needs the end-to-end practiced flow refresh and documentation cleanup from the fixed completion map
+  - Product shell is now close to the current M04 target, but one closeout slice still remains:
+    - end-to-end practiced-flow refresh
+    - current-state/M04 doc refresh
+    - final proof expansion where needed
+    - cleanup/archive of transient planning artifacts
 
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 29: Module Exposure And Product Finalization
+  - Pass 30: End-To-End Closeout Hardening

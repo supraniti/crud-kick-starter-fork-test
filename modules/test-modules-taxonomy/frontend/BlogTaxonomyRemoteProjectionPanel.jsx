@@ -124,7 +124,7 @@ export function BlogTaxonomyRemoteProjectionPanel({
             </Typography>
           </Stack>
           <Button variant="outlined" onClick={openRemoteOps}>
-            Open Remote Ops
+            Open Remotes
           </Button>
         </Stack>
 

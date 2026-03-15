@@ -9,6 +9,7 @@ import {
   readAuthSession
 } from "./01-app-config.js";
 import { buildProductNavigationItems } from "../product-shell/product-shell-catalog.js";
+import { readDeveloperMode } from "../product-shell/product-exposure-policy.js";
 import {
   buildAppControllerResult,
   resolveActiveModuleViewState,
@@ -222,6 +223,7 @@ function useAppController({ api = defaultApiClients }) {
     routeUrl,
     handleSelectModule,
     handleOpenRemotes,
+    developerModeEnabled: readDeveloperMode(),
     runtimeSettingsOpen,
     handleOpenRuntimeSettings,
     handleCloseRuntimeSettings

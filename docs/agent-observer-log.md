@@ -1600,3 +1600,18 @@
   - live cost data only after the setup/runtime chain is stronger
 - Freeze the remaining M04 order into one durable map so future turns stop re-deriving the sequence from scratch:
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
+
+### 2026-03-15 - M04 Product-First Exposure Finalization
+- Tasks:
+  - hid developer lifecycle/module controls from normal runtime and made them explicitly opt-in
+  - added module maturity to runtime/navigation payloads so the frontend can reason about proof posture explicitly
+  - removed the remaining operator-facing `Remote Ops`/`Pages Desk` wording leaks from product routes
+- Easy:
+  - the main product shell already concentrated the leak into one header button and one dialog, so the actual exposure fix stayed bounded
+  - route segments were already product-safe; most remaining inconsistencies were copy-level, not routing-level
+- Hard:
+  - frontend vitest on this machine still needs escalation because Vite/esbuild child-process spawning fails inside the sandbox
+  - a simple label cleanup created duplicate `Open Pages` buttons in one content proof, so the test had to target the right button rather than assuming uniqueness
+- Improve:
+  - expose developer-only runtime controls by explicit mode, never as part of the default operator chrome
+  - when product cleanup renames generic buttons, immediately rerun the focused screen proofs because duplicate labels are easy to introduce

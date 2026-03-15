@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import App, { AUTH_STORAGE_KEY } from "../../app/App.jsx";
+import App, { AUTH_STORAGE_KEY, DEVELOPER_MODE_STORAGE_KEY } from "../../app/App.jsx";
 import { createApiMock } from "../reference-api-mock.js";
 import { resetBrowserState, setPath } from "../test-helpers.js";
 
@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe("Module lifecycle runtime controls", () => {
-  test("remotes module executes disable/uninstall/install/enable lifecycle flow", async () => {
+  test("normal product runtime hides developer lifecycle controls", async () => {
     const api = createApiMock();
     window.localStorage.setItem(AUTH_STORAGE_KEY, "1");
     setPath("/app/remotes");
@@ -25,10 +25,26 @@ describe("Module lifecycle runtime controls", () => {
       expect(screen.getByRole("heading", { name: "Remotes" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Runtime settings" }));
+    expect(screen.queryByRole("button", { name: "Developer tools" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Developer Module Runtime Controls")).not.toBeInTheDocument();
+  });
+
+  test("remotes module executes disable/uninstall/install/enable lifecycle flow", async () => {
+    const api = createApiMock();
+    window.localStorage.setItem(AUTH_STORAGE_KEY, "1");
+    window.localStorage.setItem(DEVELOPER_MODE_STORAGE_KEY, "1");
+    setPath("/app/remotes");
+
+    render(<App api={api} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Module Runtime Controls")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Remotes" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Developer tools" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Developer Module Runtime Controls")).toBeInTheDocument();
       expect(screen.getByText("products")).toBeInTheDocument();
     });
 

@@ -34,6 +34,7 @@ function AppShellLayout({
   handleOpenRuntimeSettings,
   handleCloseRuntimeSettings,
   handleOpenRemotes,
+  developerModeEnabled = false,
   activeModuleView
 }) {
   const immersiveShell =
@@ -83,13 +84,15 @@ function AppShellLayout({
               <Button size="small" variant="outlined" onClick={runConnectivityCheck}>
                 Re-check API
               </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={handleOpenRuntimeSettings}
-              >
-                Runtime settings
-              </Button>
+              {developerModeEnabled ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleOpenRuntimeSettings}
+                >
+                  Developer tools
+                </Button>
+              ) : null}
               <Button size="small" variant="text" color="inherit" onClick={handleSignOut}>
                 Sign out
               </Button>
@@ -138,12 +141,14 @@ function AppShellLayout({
         </Box>
       </Box>
 
-      <RuntimeSettingsDialog
-        open={runtimeSettingsOpen}
-        onClose={handleCloseRuntimeSettings}
-        moduleRuntimeState={remotesDeployDomain.moduleRuntimeState}
-        onRunModuleAction={remotesDeployDomain.handleRunModuleAction}
-      />
+      {developerModeEnabled ? (
+        <RuntimeSettingsDialog
+          open={runtimeSettingsOpen}
+          onClose={handleCloseRuntimeSettings}
+          moduleRuntimeState={remotesDeployDomain.moduleRuntimeState}
+          onRunModuleAction={remotesDeployDomain.handleRunModuleAction}
+        />
+      ) : null}
     </Box>
   );
 }

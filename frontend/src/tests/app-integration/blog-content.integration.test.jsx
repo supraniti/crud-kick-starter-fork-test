@@ -460,7 +460,7 @@ test("blog content view surfaces deployment impact for published posts and route
     expect(screen.getByText("Posts Page")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "Open Pages Desk" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "Open Pages" }).at(-1));
 
   expect(navigate).toHaveBeenCalledWith(
     {
@@ -624,7 +624,7 @@ test("blog content view embeds remote projection compare and sync actions", asyn
     );
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "Open Remote Ops" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open Remotes" }));
 
   expect(navigate).toHaveBeenCalledWith(
     {

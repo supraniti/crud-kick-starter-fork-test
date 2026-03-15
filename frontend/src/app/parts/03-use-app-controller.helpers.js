@@ -540,6 +540,7 @@ function buildAppControllerResult({
   routeUrl,
   handleSelectModule,
   handleOpenRemotes,
+  developerModeEnabled,
   runtimeSettingsOpen,
   handleOpenRuntimeSettings,
   handleCloseRuntimeSettings
@@ -561,6 +562,7 @@ function buildAppControllerResult({
     routeUrl,
     handleSelectModule,
     handleOpenRemotes,
+    developerModeEnabled,
     runtimeSettingsOpen,
     handleOpenRuntimeSettings,
     handleCloseRuntimeSettings

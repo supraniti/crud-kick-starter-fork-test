@@ -117,9 +117,9 @@ function ModuleRuntimePanel({ moduleRuntimeState, onRunAction }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
-        <Typography variant="subtitle2">Module Runtime Controls</Typography>
+        <Typography variant="subtitle2">Developer Module Runtime Controls</Typography>
         <Typography variant="body2" color="text.secondary">
-          Execute install/uninstall/enable/disable transitions for runtime modules.
+          Execute install/uninstall/enable/disable transitions for internal runtime modules.
         </Typography>
 
         {moduleRuntimeState.loading ? (
@@ -163,6 +163,7 @@ function ModuleRuntimePanel({ moduleRuntimeState, onRunAction }) {
             <TableHead>
               <TableRow>
                 <TableCell>Module</TableCell>
+                <TableCell>Maturity</TableCell>
                 <TableCell>State</TableCell>
                 <TableCell>Capabilities</TableCell>
                 <TableCell>Collection Policy</TableCell>
@@ -176,6 +177,7 @@ function ModuleRuntimePanel({ moduleRuntimeState, onRunAction }) {
                 return (
                   <TableRow key={item.id}>
                     <TableCell>{item.id}</TableCell>
+                    <TableCell>{item.maturity ?? "unknown"}</TableCell>
                     <TableCell>{item.state ?? "unknown"}</TableCell>
                     <TableCell>{(item.capabilities ?? []).join(", ") || "-"}</TableCell>
                     <TableCell sx={{ maxWidth: 320 }}>

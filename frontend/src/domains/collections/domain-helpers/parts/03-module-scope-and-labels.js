@@ -44,7 +44,7 @@ function getCollectionEntityLabel(collectionId, options = {}) {
 }
 
 function buildCollectionUnavailableMessage(collectionId) {
-  return `Collection '${collectionId}' is unavailable. Re-enable its owning module in Remotes > Module Runtime Controls.`;
+  return `Collection '${collectionId}' is unavailable. Re-enable its owning module from developer tools.`;
 }
 
 function resolveActiveModuleIdFromPath(pathname) {

@@ -431,7 +431,7 @@ test("media manager embeds remote media compare, sync, and restore procedures", 
     );
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "Open Remote Ops" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open Remotes" }));
 
   expect(navigate).toHaveBeenCalledWith(
     {
