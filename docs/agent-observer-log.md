@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Layout Render Preview
+- Tasks:
+  - added a rendered base-structure preview to the Layouts builder without widening the Pages/runtime surface
+  - paired the visual preview with a semantic structure-markup outline so the operator can inspect both shape and implied html
+  - proved the preview through the live layouts integration flow instead of a unit-only helper test
+- Easy:
+  - layout documents were already normalized enough that a static renderer could stay fully frontend-local and derive its view directly from `layoutDocument`
+  - the existing layout-builder integration test already exercised a representative flex/container/block composition flow, so adding preview assertions reused a real operator scenario
+- Hard:
+  - preview assertions can drift if they assume seed labels survive normalization; the root label looked like `Root Container` in test fixtures, but the actual draft root still resolves to `Page`
+  - `toHaveValue(expect.stringContaining(...))` is not a reliable matcher shape for multiline read-only fields here; direct value assertions are simpler and more robust
+- Improve:
+  - when adding inspection UI to an existing builder, prefer bounded read-only surfaces that consume normalized draft state rather than introducing a second mutation path
+  - for layout/data-structure tests, assert on the normalized operator-facing output, not on fixture labels that may be transformed before render
+
 ### 2026-03-15 - M04 Release Observability And Cost Surfacing
 - Tasks:
   - added product-level release observability on top of the deployment bundle pipeline

@@ -10,6 +10,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { LayoutRenderPreview } from "./LayoutRenderPreview.jsx";
 
 function SummaryExpandIcon() {
   return (
@@ -187,6 +188,19 @@ export function LayoutBuilderInspector({
         onMoveSelectedToStart={onMoveSelectedToStart}
         onMoveSelectedToEnd={onMoveSelectedToEnd}
       />
+      <Accordion defaultExpanded disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+        <AccordionSummary expandIcon={<SummaryExpandIcon />}>
+          <Typography variant="subtitle1">Rendered Base Preview</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Stack spacing={1.5}>
+            <Alert severity="info">
+              This preview shows the base container and block structure only. It does not run page controllers or injected runtime behavior.
+            </Alert>
+            <LayoutRenderPreview document={draft.layoutDocument} />
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
       <Accordion disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
         <AccordionSummary expandIcon={<SummaryExpandIcon />}>
           <Typography variant="subtitle1">Layout JSON</Typography>

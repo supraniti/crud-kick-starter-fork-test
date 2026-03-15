@@ -511,6 +511,22 @@
       - recurring-cost warnings
       - provisioning pressure
       before running the mission
+  - Pass 18 completed in worktree:
+    - `Layouts` now exposes a rendered base-structure preview inside the builder inspector
+    - the preview stays intentionally bounded:
+      - no page controllers
+      - no runtime execution
+      - no inner block-widget rendering
+      - only container/block structure with real layout-mode styling
+    - preview coverage now includes:
+      - nested grid containers
+      - nested flex containers
+      - block placeholders
+      - placement-aware rendering for:
+        - grid spans
+        - flex order/basis/grow/shrink
+    - the inspector now also exposes a generated structural markup outline so operators can see the semantic base html shape the layout implies
+    - this closes the explicit north-star gap where layout authoring could build documents but not demonstrate the rendered base structure
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:

@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `50afe06` `feat: emit page runtime slot contracts`
+  - `f9dd806` `feat: add deployment release cost observability`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -259,6 +259,20 @@
       - safeguard count
       - blocked/action-required remote bundle areas
     - this pass closes the previous product gap where release execution had readiness and run history, but no preflight view of remote cost/provisioning pressure
+  - layout rendered-base preview:
+    - `Layouts` now includes a rendered base-structure preview in the builder inspector
+    - the preview intentionally shows only:
+      - container structure
+      - block placeholders
+      - grid/flex layout behavior
+      - structural markup outline
+    - it does not run:
+      - page controllers
+      - client runtime
+      - inner block widget logic
+    - operators can now inspect both:
+      - a styled layout base preview
+      - a semantic markup outline for the same draft
 
 ## Key Files Touched
 - Product shell:
@@ -285,10 +299,15 @@
   - [frontend/src/app/product-shell/DeploymentReleaseObservabilityCard.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/DeploymentReleaseObservabilityCard.jsx)
   - [frontend/src/app/product-shell/useProductDeploymentsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductDeploymentsWorkspace.js)
   - [frontend/src/app/product-shell/ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+  - [modules/test-modules-layouts/frontend/LayoutRenderPreview.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutRenderPreview.jsx)
+  - [modules/test-modules-layouts/frontend/layout-render-preview-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-render-preview-model.js)
+  - [modules/test-modules-layouts/frontend/LayoutBuilderInspector.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderInspector.jsx)
+  - [frontend/src/tests/app-integration/layouts.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/layouts.integration.test.jsx)
 
 ## Verification For Current Worktree
 - Focused proof:
   - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
 - Repo constraints:
   - `pnpm lint:function-shape`
   - `pnpm quality:protocol`
