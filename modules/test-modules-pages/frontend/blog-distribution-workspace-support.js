@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import {
   createReferenceCollectionItem,
   fetchReferenceCollectionItems,
+  readReferenceMissionJob,
+  startReferenceMissionJob,
   updateReferenceCollectionItem
 } from "../../../frontend/src/api/reference.js";
+import { PAGE_DEPLOYMENT_BUNDLE_RELEASE_MISSION_ID } from "../shared/deployment-bundle-release-shared.mjs";
 import { buildPageMutationPayload, createSupportState, toArray } from "./page-workspace-support.js";
 
 const MODULE_ID = "test-modules-pages";
@@ -146,23 +149,58 @@ export async function syncSelectedPageDeployment({ pageId }) {
   return payload;
 }
 
-export async function runDeploymentBundleRelease({ bundleId }) {
-  const response = await fetch(
-    `/api/reference/modules/${MODULE_ID}/deployment-bundles/${bundleId}/run-release`,
-    {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({})
-    }
-  );
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload?.error?.message ?? "Failed to run deployment bundle release");
+function buildReleaseMissionSuccessPayload(jobPayload) {
+  return {
+    ok: true,
+    message: jobPayload?.job?.result?.output?.message ?? "Release pipeline completed",
+    run: jobPayload?.job?.result?.output?.run ?? null,
+    missionJob: jobPayload?.job ?? null
+  };
+}
+
+function assertReleaseMissionQueued(submitted) {
+  if (!submitted?.ok || !submitted?.job?.id) {
+    throw new Error(submitted?.error?.message ?? "Failed to queue deployment bundle release");
   }
-  return payload;
+}
+
+async function submitDeploymentBundleReleaseMission(bundleId) {
+  const submitted = await startReferenceMissionJob({
+    missionId: PAGE_DEPLOYMENT_BUNDLE_RELEASE_MISSION_ID,
+    payload: {
+      bundleId
+    }
+  });
+  assertReleaseMissionQueued(submitted);
+  return submitted.job.id;
+}
+
+async function waitForDeploymentBundleReleaseMission(jobId) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 60_000) {
+    const payload = await readReferenceMissionJob({
+      jobId
+    });
+    const status = payload?.job?.status ?? "";
+    if (status === "succeeded") {
+      return buildReleaseMissionSuccessPayload(payload);
+    }
+    if (status === "failed") {
+      throw new Error(payload?.job?.error?.message ?? "Deployment bundle release mission failed");
+    }
+    if (status === "cancelled") {
+      throw new Error("Deployment bundle release mission was cancelled");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("Timed out waiting for deployment bundle release mission");
+}
+
+export async function runDeploymentBundleRelease({ bundleId }) {
+  const jobId = await submitDeploymentBundleReleaseMission(bundleId);
+  return waitForDeploymentBundleReleaseMission(jobId);
 }
 
 export async function persistPageMutation({ pageId, draft }) {

@@ -79,6 +79,22 @@ function buildSettingsRoute(moduleId) {
 }
 
 async function removeIfExists(targetPath) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 3_000) {
+    try {
+      await fs.rm(targetPath, {
+        recursive: true,
+        force: true
+      });
+      return;
+    } catch (error) {
+      if (!["ENOTEMPTY", "EPERM", "EBUSY"].includes(error?.code ?? "")) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+
   await fs.rm(targetPath, {
     recursive: true,
     force: true

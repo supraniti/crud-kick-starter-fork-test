@@ -381,6 +381,19 @@
       - `test-modules-pages` owns the contract
       - generic reference collection routes stay unchanged
     - the product Deployments desk is no longer the only place that knows what a valid deployment bundle is
+  - Pass 13 completed in worktree:
+    - deployment-bundle release execution is now mission-backed inside `test-modules-pages`
+    - the Pages module now declares a first-class mission:
+      - `page-deployment-bundle-release`
+    - release execution still uses the existing Pages-owned pipeline, but it now runs under persisted mission jobs instead of relying on one long request lifecycle
+    - the Pages frontend support layer now:
+      - submits the release mission
+      - polls mission job state
+      - returns the final persisted bundle-run payload to the product Deployments desk
+    - mission registration context now includes `collectionHandlerRegistry`, so module missions can reuse module-owned handlers instead of rebuilding runtime access ad hoc
+    - test stability was tightened where the heavier release traffic exposed platform races:
+      - bundle-artifact existence checks now use bounded polling in Pages conformance
+      - simulated remote-root cleanup now retries through transient Windows `ENOTEMPTY` / `EPERM` / `EBUSY` races in Remote Ops conformance
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -391,4 +404,3 @@
     - author/comment product-shell alignment is still thinner than posts/taxonomies/pages/media
     - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and bundle observability
     - generated HTML now boots `client-runtime`, and delivered pages can re-sync their page/media datasets, but richer product-authored query/action contracts are still not emitted from local CMS configuration
-    - bundle save contracts are now enforced server-side, but bundle-driven release mission hardening is still thinner than the stricter persisted bundle contract

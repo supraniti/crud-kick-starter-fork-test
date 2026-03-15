@@ -192,6 +192,7 @@ export async function registerReferenceRuntimeModuleContributions({
     registrationContext: {
       state,
       moduleRegistry,
+      collectionHandlerRegistry,
       jobRunner,
       jobLogStore,
       remotesDeployRepository,

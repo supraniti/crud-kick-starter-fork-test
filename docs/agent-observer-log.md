@@ -1312,3 +1312,19 @@
   - once a persisted object becomes the release contract, enforce it at the module-owned server boundary in the very next pass; frontend-only validity is not an acceptable resting state
   - keep cross-collection contract constants in one shared module-local file so later bundle-driven mission work reuses the same source of truth
 
+### 2026-03-15 - M04 Mission-Backed Bundle Release
+- Tasks:
+  - converted deployment-bundle release into a first-class Pages mission while keeping the existing Pages pipeline as the execution seam
+  - added a shared Pages route-context helper so routes and missions resolve the same handlers/settings/runtime dependencies
+  - rewired the Pages frontend support layer to submit and poll the mission job instead of assuming one synchronous route round trip
+  - tightened conformance stability where the heavier release flow exposed filesystem timing races
+- Easy:
+  - the release pipeline was already sufficiently modular; mission registration only needed a thin wrapper around the existing executor
+  - keeping the public frontend helper name stable avoided a larger product-shell refactor in the same pass
+- Hard:
+  - mission registrars could not previously see `collectionHandlerRegistry`, which forced a small but real core-runtime composition change before Pages could reuse its existing release code cleanly
+  - the first pass looked green in focused checks but exposed a latent Windows cleanup race in simulated remote roots under the full dynamic conformance lane
+- Improve:
+  - when a module mission must reuse module-owned handlers, pass the real handler registry through mission registration context instead of rebuilding CRUD logic from repositories
+  - when a new pass increases filesystem churn, stabilize the test helper with bounded retry/polling instead of accepting intermittent full-gate failures
+

@@ -158,6 +158,22 @@
       - [modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs)
     - simulated remotes now honor the same env-aware local roots as Pages and Media Manager
     - media library path resolution is now dynamic, so long-running test workers no longer lock onto the wrong root
+  - mission-backed deployment bundle release hardening:
+    - `test-modules-pages` now declares:
+      - `page-deployment-bundle-release`
+    - Pages release execution now has two bounded entry paths:
+      - compatibility route:
+        - `POST /api/reference/modules/test-modules-pages/deployment-bundles/:bundleId/run-release`
+      - mission path:
+        - `POST /api/reference/missions/page-deployment-bundle-release/jobs`
+    - product `Deployments` still uses the same operator flow, but the Pages frontend support layer now:
+      - submits the mission
+      - polls mission job state
+      - resolves the final persisted bundle-run payload
+    - mission registration context now carries `collectionHandlerRegistry`, which lets Pages missions reuse module-owned handlers and remote target procedures directly
+    - full-gate stability fixes landed alongside the pass:
+      - Pages bundle-artifact assertions now use bounded file-existence polling
+      - Remote Ops simulated-root cleanup now retries through transient Windows `ENOTEMPTY` / `EPERM` / `EBUSY`
 
 ## Key Files Touched
 - Product shell:
@@ -196,10 +212,13 @@
   - [product-remote-health.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-remote-health.js)
 - Server-owned release execution:
   - [modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs)
+  - [modules/test-modules-pages/server/missions.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/missions.mjs)
+  - [modules/test-modules-pages/server/pages-route-context-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/pages-route-context-runtime.mjs)
   - [modules/test-modules-pages/shared/deployment-bundle-release-shared.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/shared/deployment-bundle-release-shared.mjs)
   - [modules/test-modules-pages/server/routes.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/routes.mjs)
   - [modules/test-modules-pages/frontend/blog-distribution-workspace-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/blog-distribution-workspace-support.js)
   - [frontend/src/app/product-shell/product-deployments-pipeline-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-pipeline-support.js)
+  - [server/src/domains/reference/runtime/services/reference-runtime-composition-domain-service.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/src/domains/reference/runtime/services/reference-runtime-composition-domain-service.js)
 - Root-alignment fixes:
   - [modules/test-modules-remote-ops/server/remote-ops-root.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-root.mjs)
   - [modules/test-modules-media-manager/server/media-library/media-library-paths.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/server/media-library/media-library-paths.mjs)
@@ -214,6 +233,7 @@
   - [frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx)
   - [frontend/src/tests/app-integration/blog-distribution.remote.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.remote.integration.test.jsx)
   - [server/test/module-conformance/blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
+  - [server/test/module-conformance/remote-ops.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/remote-ops.module-conformance.test.js)
   - [client-runtime/src/browser/global-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/global-runtime.mjs)
   - [client-runtime/src/browser/bootstrap-config.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/browser/bootstrap-config.mjs)
   - [client-runtime/src/adapters/remote-transport.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/client-runtime/src/adapters/remote-transport.mjs)
@@ -232,7 +252,7 @@
 - Function shape:
   - `pnpm lint:function-shape`
 - Focused current slice:
-  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
   - `pnpm lint:function-shape`
 - Smoke E2E:
   - `pnpm test:e2e:smoke`
@@ -242,11 +262,12 @@
   - `pnpm quality:protocol`
 
 ## Current Repo State
-- Worktree is intentionally dirty with the verified M04 server-owned release slice and updated progress pointers.
+- Worktree is intentionally dirty with the verified M04 mission-backed bundle-release slice and updated progress pointers.
 - Latest completed slice in worktree:
-  - Pages-owned deployment-bundle release route
-  - server-side bundle-run persistence
-  - env-aware remote/media root alignment across Pages, Media Manager, and Remote Ops
+  - Pages mission-backed deployment-bundle release
+  - shared Pages route-context extraction for routes and missions
+  - mission-registration access to collection handlers
+  - full-gate stability fixes for simulated remote-root cleanup and artifact existence polling
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
@@ -256,4 +277,4 @@
 - Continue M04 with the first data-model expansion pass, likely one of:
   - stronger author/comment product-shell alignment
   - broader product-authored remote query/action contracts for the injected client-runtime bootstrap
-  - bundle-driven release mission hardening
+  - stricter bundle-scoped remote billing/cost surfacing and operator safeguards

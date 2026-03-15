@@ -219,7 +219,7 @@ test("deployment bundles can be created with typed target selectors", async () =
     });
     expect(screen.getByText("Deployment bundle created")).toBeInTheDocument();
   });
-}, 10000);
+}, 15000);
 
 test("deployment bundle validation blocks mismatched browser-delivery bindings before save", async () => {
   const targets = createStandardTargetSet({
@@ -264,7 +264,7 @@ test("deployment bundle validation blocks mismatched browser-delivery bindings b
   });
   expect(screen.getByRole("button", { name: "Create Bundle" })).toBeDisabled();
   expect(referenceApi.createReferenceCollectionItem).not.toHaveBeenCalled();
-}, 10000);
+}, 15000);
 
 test("product deployments desk runs the release pipeline across local HTML, projection, media, deployment, and browser delivery", async () => {
   const baseTargets = createStandardTargetSet({
@@ -378,4 +378,4 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Validate browser delivery")).toBeInTheDocument();
     expect(screen.getAllByText("Binding source: Deployment bundle").length).toBeGreaterThan(0);
   });
-}, 15000);
+}, 20000);

@@ -2,6 +2,8 @@ function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+export const PAGE_DEPLOYMENT_BUNDLE_RELEASE_MISSION_ID = "page-deployment-bundle-release";
+
 function countStepsByStatus(steps, status) {
   return (Array.isArray(steps) ? steps : []).filter((step) => step?.status === status).length;
 }
@@ -111,5 +113,25 @@ export function createDeploymentBundleRunUpdatePayload({
         ? previousRun.bundleSnapshot
         : {},
     steps
+  };
+}
+
+export function validateDeploymentBundleReleaseMissionPayload(payload) {
+  const bundleId = normalizeText(payload?.bundleId);
+  if (bundleId.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: "PAGE_DEPLOYMENT_BUNDLE_RELEASE_BUNDLE_REQUIRED",
+        message: "Payload bundleId is required"
+      }
+    };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      bundleId
+    }
   };
 }

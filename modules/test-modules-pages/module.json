@@ -5,6 +5,7 @@
   "name": "Test Modules Pages",
   "capabilities": [
     "crud.collection",
+    "mission",
     "schema",
     "settings",
     "ui.route"
@@ -15,6 +16,7 @@
   },
   "runtime": {
     "collectionHandlers": "./server/collection-handlers.mjs",
+    "missions": "./server/missions.mjs",
     "persistence": "./server/persistence-plugins.mjs",
     "routes": "./server/routes.mjs"
   },
