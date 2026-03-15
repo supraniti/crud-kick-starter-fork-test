@@ -129,7 +129,17 @@ function PipelineReadinessCard({ readiness, pipelineState, onRunPipeline }) {
   );
 }
 
-function TargetCard({ title, target, latestRun, onCompare, onExecute, onValidate, onOpen, executingLabel = "Execute Sync" }) {
+function TargetCard({
+  title,
+  target,
+  latestRun,
+  onCompare,
+  onExecute,
+  onValidate,
+  onOpen,
+  executingLabel = "Execute Sync",
+  bindingSourceLabel = null
+}) {
   const canCompare = Boolean(target) && typeof onCompare === "function";
   const canExecute = Boolean(target) && typeof onExecute === "function";
   const canValidate = Boolean(target) && typeof onValidate === "function";
@@ -144,6 +154,11 @@ function TargetCard({ title, target, latestRun, onCompare, onExecute, onValidate
               <Typography variant="body2" color="text.secondary">
                 {target?.title ?? "No target configured"}
               </Typography>
+              {bindingSourceLabel ? (
+                <Typography variant="caption" color="text.secondary">
+                  Binding source: {bindingSourceLabel}
+                </Typography>
+              ) : null}
             </Stack>
             {target?.targetStatus ? <Chip size="small" label={target.targetStatus} /> : null}
           </Stack>
@@ -336,6 +351,7 @@ export function ProductDeploymentsView({ navigate = null }) {
             onCompare={() => workspace.remoteOpsSupport.compareTarget(workspace.deploymentTarget?.id ?? "")}
             onExecute={() => workspace.remoteOpsSupport.executeTarget(workspace.deploymentTarget?.id ?? "")}
             onOpen={() => openRoute("test-modules-pages")}
+            bindingSourceLabel={workspace.deploymentBindingSourceLabel}
           />
 
           <TargetCard
@@ -344,6 +360,7 @@ export function ProductDeploymentsView({ navigate = null }) {
             latestRun={workspace.remoteOpsSupport.getLatestRunForTarget(workspace.browserTarget?.id ?? "")}
             onValidate={() => workspace.remoteOpsSupport.validateTarget(workspace.browserTarget?.id ?? "")}
             onOpen={openDomains}
+            bindingSourceLabel={workspace.browserBindingSourceLabel}
           />
 
           {workspace.loading ? <Alert severity="info">Loading deployment workspace...</Alert> : null}

@@ -164,7 +164,8 @@ async function loadPerRecordDeploymentContext({
   const settings = await readPagesModuleSettings({
     resolveSettingsRepository,
     settingsDefinition,
-    collectionHandlerRegistry
+    collectionHandlerRegistry,
+    page
   });
   const artifactRecords = await listArtifactRecords(artifactHandler, page.id);
 
@@ -175,6 +176,8 @@ async function loadPerRecordDeploymentContext({
     eligibleSourceRecords: await listEligiblePrimarySourceRecords(collectionHandlerRegistry, page),
     layoutVersionToken: buildLayoutVersionToken(page, layout),
     pageVersionToken: buildPageVersionToken(page),
+    resolveSettingsRepository,
+    settingsDefinition,
     settings,
     settingsVersionToken: buildSettingsVersionToken(settings)
   };

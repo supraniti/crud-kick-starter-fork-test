@@ -149,6 +149,20 @@
           "maxLength": 320
         },
         {
+          "id": "remoteDeploymentTargetProfileId",
+          "label": "Remote Deployment Target",
+          "type": "text",
+          "required": false,
+          "defaultValue": ""
+        },
+        {
+          "id": "remoteBrowserDeliveryTargetProfileId",
+          "label": "Remote Browser Delivery Target",
+          "type": "text",
+          "required": false,
+          "defaultValue": ""
+        },
+        {
           "id": "layoutId",
           "label": "Layout",
           "type": "reference",

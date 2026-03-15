@@ -464,35 +464,43 @@ async function writeArtifactDocument({
   sourceRecord = null,
   artifactRelativePath,
   collectionHandlerRegistry,
-  settings
+  settings,
+  resolveSettingsRepository = null,
+  settingsDefinition = null
 }) {
   const payload = await resolvePageDeliveryPayload({
     collectionHandlerRegistry,
     page,
     preview: false,
-    sourceRecord
+    sourceRecord,
+    resolveSettingsRepository,
+    settingsDefinition
   });
-  const browserDelivery = resolveBrowserDeliveryPayloadState({
-    browserDeliveryState: settings.browserDeliveryState,
-    pagePath: payload?.page?.path ?? page.path,
-    artifactRelativePath
-  });
-  if (browserDelivery) {
-    payload.delivery = {
-      ...(payload.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
-      accessMode: browserDelivery.accessMode,
-      dnsMode: browserDelivery.dnsMode,
-      publicOrigin: browserDelivery.publicOrigin,
-      publicUrl: browserDelivery.publicUrl,
-      publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,
-      temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
-      temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
-    };
-    if (browserDelivery.publicUrl) {
-      payload.head = {
-        ...(payload.head && typeof payload.head === "object" ? payload.head : {}),
-        canonicalUrl: browserDelivery.publicUrl
+  const hasDeliveryMetadata =
+    payload?.delivery && typeof payload.delivery === "object" && Object.keys(payload.delivery).length > 0;
+  if (!hasDeliveryMetadata) {
+    const browserDelivery = resolveBrowserDeliveryPayloadState({
+      browserDeliveryState: settings.browserDeliveryState,
+      pagePath: payload?.page?.path ?? page.path,
+      artifactRelativePath
+    });
+    if (browserDelivery) {
+      payload.delivery = {
+        ...(payload.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
+        accessMode: browserDelivery.accessMode,
+        dnsMode: browserDelivery.dnsMode,
+        publicOrigin: browserDelivery.publicOrigin,
+        publicUrl: browserDelivery.publicUrl,
+        publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,
+        temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
+        temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
       };
+      if (browserDelivery.publicUrl) {
+        payload.head = {
+          ...(payload.head && typeof payload.head === "object" ? payload.head : {}),
+          canonicalUrl: browserDelivery.publicUrl
+        };
+      }
     }
   }
   const htmlDocument = renderStaticPageDocument({

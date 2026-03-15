@@ -114,6 +114,7 @@ function OverviewTab({ workspace }) {
             page={workspace.selectedPage}
             procedureState={workspace.remoteOpsSupport.procedureState}
             selectedTarget={workspace.remoteDeploymentTarget}
+            bindingSourceLabel={workspace.remoteDeploymentBindingSourceLabel}
           />
           <PagesBrowserDeliveryPanel
             latestRun={workspace.remoteBrowserLatestRun}
@@ -121,6 +122,7 @@ function OverviewTab({ workspace }) {
             onValidate={workspace.validateRemoteBrowserTarget}
             procedureState={workspace.remoteOpsSupport.procedureState}
             selectedTarget={workspace.remoteBrowserTarget}
+            bindingSourceLabel={workspace.remoteBrowserBindingSourceLabel}
           />
           <DeploymentInstancesPanel workspace={workspace} />
           <DeliveryPreviewPanel workspace={workspace} />
@@ -246,15 +248,25 @@ export function BlogDistributionView({
   }, [moduleSettingsDomain, workspace]);
 
   const remoteDeploymentTargetId =
-    moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteDeploymentTargetProfileId ?? "";
+    workspace.selectedPage?.remoteDeploymentTargetProfileId
+    || moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteDeploymentTargetProfileId
+    || "";
   const remoteBrowserTargetId =
-    moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteBrowserDeliveryTargetProfileId ?? "";
+    workspace.selectedPage?.remoteBrowserDeliveryTargetProfileId
+    || moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteBrowserDeliveryTargetProfileId
+    || "";
   const remoteDeploymentTargets = remoteOpsSupport.getTargetsByKind("deployment-storage");
   const remoteBrowserTargets = remoteOpsSupport.getTargetsByKind("browser-delivery");
   const remoteDeploymentTarget = remoteOpsSupport.getTargetById(remoteDeploymentTargetId);
   const remoteBrowserTarget = remoteOpsSupport.getTargetById(remoteBrowserTargetId);
   const remoteDeploymentLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteDeploymentTargetId);
   const remoteBrowserLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteBrowserTargetId);
+  const remoteDeploymentBindingSourceLabel = workspace.selectedPage?.remoteDeploymentTargetProfileId
+    ? "Selected page override"
+    : "Pages module default";
+  const remoteBrowserBindingSourceLabel = workspace.selectedPage?.remoteBrowserDeliveryTargetProfileId
+    ? "Selected page override"
+    : "Pages module default";
 
   const openRemoteTarget = useCallback(
     (targetId) => {
@@ -293,6 +305,8 @@ export function BlogDistributionView({
     remoteBrowserTarget,
     remoteDeploymentLatestRun,
     remoteBrowserLatestRun,
+    remoteDeploymentBindingSourceLabel,
+    remoteBrowserBindingSourceLabel,
     openRemoteDeploymentTarget,
     openRemoteBrowserTarget,
     validateRemoteDeployment: () => remoteOpsSupport.validateTarget(remoteDeploymentTargetId),

@@ -46,6 +46,8 @@ test("pages desk embeds remote deployment and browser validation procedures from
             ogTitle: "Launch Story",
             ogDescription: "Launch story description",
             ogImageMediaId: "media-001",
+            remoteDeploymentTargetProfileId: "target-page-deploy",
+            remoteBrowserDeliveryTargetProfileId: "target-page-browser",
             deploymentStatus: "clean",
             deploymentSyncedCount: 1,
             deploymentTargetCount: 1,
@@ -125,8 +127,38 @@ test("pages desk embeds remote deployment and browser validation procedures from
             }
           },
           {
+            id: "target-page-deploy",
+            title: "Page Deployment Bucket",
+            connectionProfileId: "conn-001",
+            targetKind: "deployment-storage",
+            adapterMode: "live-gcp",
+            targetStatus: "validated",
+            compareSummary: {
+              createCount: 0,
+              updateCount: 1,
+              deleteCount: 0,
+              localOnlyCount: 0,
+              remoteOnlyCount: 0
+            }
+          },
+          {
             id: "target-browser",
             title: "Delivery Domain",
+            connectionProfileId: "conn-001",
+            targetKind: "browser-delivery",
+            adapterMode: "live-gcp",
+            targetStatus: "validated",
+            compareSummary: {
+              createCount: 0,
+              updateCount: 0,
+              deleteCount: 0,
+              localOnlyCount: 0,
+              remoteOnlyCount: 0
+            }
+          },
+          {
+            id: "target-page-browser",
+            title: "Page Delivery Domain",
             connectionProfileId: "conn-001",
             targetKind: "browser-delivery",
             adapterMode: "live-gcp",
@@ -186,21 +218,21 @@ test("pages desk embeds remote deployment and browser validation procedures from
       });
     }
 
-    if (String(url).includes("/targets/target-deploy/compare")) {
+    if (String(url).includes("/targets/target-page-deploy/compare")) {
       return createJsonResponse(200, {
         ok: true,
         message: "Compared deployment target"
       });
     }
 
-    if (String(url).includes("/targets/target-deploy/execute")) {
+    if (String(url).includes("/targets/target-page-deploy/execute")) {
       return createJsonResponse(200, {
         ok: true,
         message: "Synced deployment target"
       });
     }
 
-    if (String(url).includes("/targets/target-browser/validate")) {
+    if (String(url).includes("/targets/target-page-browser/validate")) {
       return createJsonResponse(200, {
         ok: true,
         message: "Validated browser delivery"
@@ -255,13 +287,14 @@ test("pages desk embeds remote deployment and browser validation procedures from
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "Compare Remote" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Validate Browser Delivery" })).toBeInTheDocument();
+    expect(screen.getAllByText("Binding source: Selected page override").length).toBeGreaterThan(0);
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Compare Remote" }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reference/modules/test-modules-remote-ops/targets/target-deploy/compare",
+      "/api/reference/modules/test-modules-remote-ops/targets/target-page-deploy/compare",
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -271,11 +304,11 @@ test("pages desk embeds remote deployment and browser validation procedures from
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reference/modules/test-modules-remote-ops/targets/target-deploy/execute",
+      "/api/reference/modules/test-modules-remote-ops/targets/target-page-deploy/execute",
       expect.objectContaining({ method: "POST" })
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/reference/modules/test-modules-remote-ops/targets/target-browser/validate",
+      "/api/reference/modules/test-modules-remote-ops/targets/target-page-browser/validate",
       expect.objectContaining({ method: "POST" })
     );
   });

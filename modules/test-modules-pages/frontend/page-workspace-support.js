@@ -65,6 +65,8 @@ export function createEmptyPageDraft() {
     primarySourceItemId: "",
     path: "",
     pathPattern: "",
+    remoteDeploymentTargetProfileId: "",
+    remoteBrowserDeliveryTargetProfileId: "",
     layoutId: "",
     layoutKey: "page-shell",
     templateKey: "page-shell",
@@ -132,6 +134,8 @@ function readDeploymentDraft(page = {}) {
       page.sourceSelectionMode ??
       (page.primarySourceType === "none" ? "none" : "specific-record"),
     pathPattern: page.pathPattern ?? "",
+    remoteDeploymentTargetProfileId: page.remoteDeploymentTargetProfileId ?? "",
+    remoteBrowserDeliveryTargetProfileId: page.remoteBrowserDeliveryTargetProfileId ?? "",
     deploymentStatus: page.deploymentStatus ?? "missing",
     deploymentTargetCount: page.deploymentTargetCount ?? 0,
     deploymentSyncedCount: page.deploymentSyncedCount ?? 0,
@@ -230,6 +234,10 @@ export function buildPageMutationPayload(draft) {
     sourceSelectionMode: draft.sourceSelectionMode,
     path: draft.path,
     pathPattern: normalizeOptionalText(draft.pathPattern),
+    remoteDeploymentTargetProfileId: normalizeOptionalText(draft.remoteDeploymentTargetProfileId),
+    remoteBrowserDeliveryTargetProfileId: normalizeOptionalText(
+      draft.remoteBrowserDeliveryTargetProfileId
+    ),
     layoutId: normalizeOptionalText(draft.layoutId),
     layoutKey: draft.layoutKey,
     layoutModel: {

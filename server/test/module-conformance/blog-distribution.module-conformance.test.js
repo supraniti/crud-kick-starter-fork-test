@@ -1032,6 +1032,136 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
+test("page-owned browser-delivery binding overrides the Pages module default", async () => {
+  const sandbox = await createDeploymentSandbox();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Override Delivery Story",
+      status: "published",
+      publishedOn: "2026-03-09T08:30:00.000Z"
+    });
+
+    const connection = await seedRemoteConnectionProfile(server);
+    const deploymentTarget = await seedRemoteTargetProfile(server, {
+      title: "Deployment Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "content.example.com",
+        prefix: ""
+      }
+    });
+    const mediaTarget = await seedRemoteTargetProfile(server, {
+      title: "Media Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "content-example-media",
+        prefix: "library"
+      }
+    });
+    const moduleBrowserDeliveryTarget = await seedRemoteTargetProfile(server, {
+      title: "Module Delivery Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "custom-domain",
+        dnsMode: "external",
+        hostname: "content.example.com",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+    const pageBrowserDeliveryTarget = await seedRemoteTargetProfile(server, {
+      title: "Page Delivery Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "custom-domain",
+        dnsMode: "external",
+        hostname: "stories.example.com",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath(MODULE_ID),
+      {
+        remoteBrowserDeliveryTargetProfileId: moduleBrowserDeliveryTarget.id
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/posts",
+      pathPattern: "/posts/{slug}",
+      remoteBrowserDeliveryTargetProfileId: pageBrowserDeliveryTarget.id,
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-09T10:00:00.000Z"
+    });
+    expect(templatePage.statusCode).toBe(201);
+
+    const syncResponse = await injectJson(
+      server,
+      "POST",
+      buildSyncDeploymentRoute(templatePage.body.item.id),
+      {}
+    );
+    expect(syncResponse.statusCode).toBe(200);
+
+    const deploymentHtml = await readDeploymentHtml(
+      sandbox.deploymentRootDir,
+      "posts/override-delivery-story/index.html"
+    );
+    expect(deploymentHtml).toContain("http://stories.example.com/posts/override-delivery-story");
+    expect(deploymentHtml).not.toContain("http://content.example.com/posts/override-delivery-story");
+
+    const deliveryResponse = await injectJson(
+      server,
+      "GET",
+      `${buildDeliveryRoute(templatePage.body.item.id)}?preview=true&sourceItemId=${post.id}`
+    );
+    expect(deliveryResponse.statusCode).toBe(200);
+    expect(deliveryResponse.body.payload.delivery).toEqual(
+      expect.objectContaining({
+        publicOrigin: "http://stories.example.com",
+        publicUrl: "http://stories.example.com/posts/override-delivery-story"
+      })
+    );
+    expect(deliveryResponse.body.payload.head.canonicalUrl).toBe(
+      "http://stories.example.com/posts/override-delivery-story"
+    );
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
 test("pages publish from page records and redirects target standalone pages", async () => {
   const server = await createEphemeralReferenceServer();
 

@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current Status
-- Date: 2026-03-14
+- Date: 2026-03-15
 - Repository: `crud-kick-starter-fork-test`
 - Branch: `crud-kick-starter-fork-test`
 - Remotes:
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `a6a3fbc` `docs: add current state repo map baseline`
+  - `7de2001` `feat: advance m04 product release alignment`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -83,6 +83,16 @@
     - category templates can preview eligible public categories, deploy one HTML per category, and surface tracked deployment instances
     - page delivery path resolution now resolves published per-record templates by generated public path
       - this also closes the previous follow-up-route gap for post templates
+  - page-owned remote/domain bindings:
+    - `blog-pages` now stores:
+      - `remoteDeploymentTargetProfileId`
+      - `remoteBrowserDeliveryTargetProfileId`
+    - Pages desk now shows explicit page-owned override selectors for deployment and browser-delivery targets
+    - Pages remote panels now show whether the effective target comes from:
+      - `Selected page override`
+      - `Pages module default`
+    - product `Deployments` now prefers page-owned deployment/browser targets when a specific page is selected
+    - per-record synced HTML now resolves browser-delivery metadata through the same path as preview/delivery APIs
 
 ## Key Files Touched
 - Product shell:
@@ -101,6 +111,10 @@
   - [modules/test-modules-pages/server/distribution-page-handler-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/distribution-page-handler-runtime.mjs)
   - [modules/test-modules-pages/frontend/BlogDistributionDeploymentPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionDeploymentPanels.jsx)
   - [modules/test-modules-pages/frontend/BlogDistributionPageEditorSections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionPageEditorSections.jsx)
+  - [modules/test-modules-pages/frontend/BlogDistributionRemotePanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionRemotePanels.jsx)
+  - [modules/test-modules-pages/frontend/page-workspace-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/page-workspace-support.js)
+  - [modules/test-modules-pages/server/page-settings-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-settings-runtime.mjs)
+  - [modules/test-modules-pages/server/page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
 - Product desks:
   - [ProductSystemSettingsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductSystemSettingsView.jsx)
   - [ProductDomainsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainsView.jsx)
@@ -115,6 +129,7 @@
   - [remote-ops.managed-bundle.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/remote-ops.managed-bundle.integration.test.jsx)
   - [e2e/smoke/specs/app-smoke.e2e.test.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/e2e/smoke/specs/app-smoke.e2e.test.mjs)
   - [frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.per-record.integration.test.jsx)
+  - [frontend/src/tests/app-integration/blog-distribution.remote.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.remote.integration.test.jsx)
   - [server/test/module-conformance/blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
 
 ## Verification
@@ -128,6 +143,9 @@
   - `blog-distribution.module-conformance`
 - Function shape:
   - `pnpm lint:function-shape`
+- Focused current slice:
+  - `pnpm --filter server test -- test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.remote.integration.test.jsx src/tests/app-integration/product-deployments.integration.test.jsx`
 - Smoke E2E:
   - `pnpm test:e2e:smoke`
 - Full release gate:
@@ -137,7 +155,7 @@
 
 ## Current Repo State
 - Worktree is intentionally dirty with the M04 product-shell slices.
-- Nothing from this slice is committed yet.
+- The current uncommitted slice is the page-owned remote binding pass.
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`

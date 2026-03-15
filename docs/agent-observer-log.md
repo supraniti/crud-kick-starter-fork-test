@@ -1199,3 +1199,18 @@
   - when product-level strictness depends on module-owned remote data, centralize the readiness rules first; otherwise different desks drift into slightly different interpretations of "usable"
   - on this machine, treat frontend vitest as a likely escalation candidate once Vite/esbuild child processes are involved
 
+### 2026-03-15 - M04 Page-Owned Remote Bindings
+- Tasks:
+  - added explicit page-owned deployment/browser target bindings on `blog-pages`
+  - made Pages desk and product `Deployments` prefer page-owned bindings over Pages module defaults when a specific page is in scope
+  - fixed the server-side delivery/render path so synced per-record HTML and preview/delivery APIs resolve browser-delivery metadata through the same settings path
+- Easy:
+  - the product/UI side was straightforward once the page model owned the two target ids directly
+  - the new behavior fit naturally into existing Pages/Deployments desks by surfacing binding-source labels instead of inventing a new abstraction
+- Hard:
+  - the actual regression was subtle: `normalizeTrimmedText()` returns `\"\"`, so using it in a `??` fallback chain silently discarded valid module defaults
+  - the failure first looked like an HTML render bug, but the real seam was settings resolution; reproducing the scenario outside vitest made that obvious
+- Improve:
+  - never use a non-nullable string normalizer inside fallback chains; use the optional-text normalizer when empty string must not short-circuit resolution
+  - when preview and artifact HTML diverge, reproduce the same scenario through both routes first; it collapses the search space immediately
+

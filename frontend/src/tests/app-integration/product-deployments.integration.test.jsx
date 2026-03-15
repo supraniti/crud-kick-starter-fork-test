@@ -105,6 +105,18 @@ test("product deployments desk runs the release pipeline across local HTML, proj
       }
     }),
     createTargetItem({
+      id: "target-page-deployment-001",
+      title: "Page HTML Deployment",
+      targetKind: "deployment-storage",
+      connectionProfileId: "conn-001",
+      config: {
+        ...createTargetItem().config,
+        bucketName: "demo-page-deployment-bucket",
+        prefix: "page-site",
+        localRootHint: "deployment"
+      }
+    }),
+    createTargetItem({
       id: "target-media-001",
       title: "Media Library",
       productBindingKey: "media-storage",
@@ -131,6 +143,21 @@ test("product deployments desk runs the release pipeline across local HTML, proj
         deploymentTargetProfileId: "target-deployment-001",
         mediaTargetProfileId: "target-media-001"
       }
+    }),
+    createTargetItem({
+      id: "target-page-browser-001",
+      title: "Page Domain",
+      targetKind: "browser-delivery",
+      connectionProfileId: "conn-001",
+      config: {
+        ...createTargetItem().config,
+        accessMode: "custom-domain",
+        stackMode: "https-load-balancer",
+        dnsMode: "external",
+        hostname: "stories.example.com",
+        deploymentTargetProfileId: "target-page-deployment-001",
+        mediaTargetProfileId: "target-media-001"
+      }
     })
   ];
   const pages = [
@@ -138,6 +165,8 @@ test("product deployments desk runs the release pipeline across local HTML, proj
       id: "page-001",
       title: "Posts Page",
       status: "published",
+      remoteDeploymentTargetProfileId: "target-page-deployment-001",
+      remoteBrowserDeliveryTargetProfileId: "target-page-browser-001",
       deploymentStatus: "stale",
       deploymentSyncedCount: 0,
       deploymentStaleCount: 10,
@@ -252,12 +281,13 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-tags-001");
     expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-media-001");
     expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-media-001");
-    expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-deployment-001");
-    expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-deployment-001");
-    expect(remoteOpsSupportApi.validateTarget).toHaveBeenCalledWith("target-browser-001");
+    expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-page-deployment-001");
+    expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-page-deployment-001");
+    expect(remoteOpsSupportApi.validateTarget).toHaveBeenCalledWith("target-page-browser-001");
     expect(screen.getByText("Release pipeline completed")).toBeInTheDocument();
     expect(screen.getByText("Sync local HTML")).toBeInTheDocument();
     expect(screen.getByText("Validate browser delivery")).toBeInTheDocument();
+    expect(screen.getAllByText("Binding source: Selected page override").length).toBeGreaterThan(0);
   });
 
   expect(blogDistributionSupport.syncSelectedPageDeployment.mock.invocationCallOrder[0]).toBeLessThan(
@@ -268,13 +298,13 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     "target-categories-001",
     "target-tags-001",
     "target-media-001",
-    "target-deployment-001"
+    "target-page-deployment-001"
   ]);
   expect(remoteOpsSupportApi.executeTarget.mock.calls.map(([targetId]) => targetId)).toEqual([
     "target-posts-001",
     "target-categories-001",
     "target-tags-001",
     "target-media-001",
-    "target-deployment-001"
+    "target-page-deployment-001"
   ]);
 }, 15000);

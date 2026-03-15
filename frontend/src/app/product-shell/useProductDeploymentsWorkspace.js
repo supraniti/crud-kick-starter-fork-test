@@ -110,8 +110,30 @@ function useSelectedPublishedPage(publishedPages, selectedPageId, setSelectedPag
   );
 }
 
-function useDeploymentTargets(remoteOpsSupport, settings, remoteHealth) {
+function resolvePagePreferredTargetId(selectedPage, pageFieldId, settingsValue) {
+  const pageValue = selectedPage?.[pageFieldId];
+  return typeof pageValue === "string" && pageValue.trim().length > 0 ? pageValue : settingsValue ?? "";
+}
+
+function resolveBindingSourceLabel(selectedPage, pageFieldId) {
+  const pageValue = selectedPage?.[pageFieldId];
+  return typeof pageValue === "string" && pageValue.trim().length > 0
+    ? "Selected page override"
+    : "Pages module default";
+}
+
+function useDeploymentTargets(remoteOpsSupport, settings, remoteHealth, selectedPage) {
   const allTargets = remoteOpsSupport.supportState.targets;
+  const deploymentTargetProfileId = resolvePagePreferredTargetId(
+    selectedPage,
+    "remoteDeploymentTargetProfileId",
+    settings.pages?.remoteDeploymentTargetProfileId
+  );
+  const browserTargetProfileId = resolvePagePreferredTargetId(
+    selectedPage,
+    "remoteBrowserDeliveryTargetProfileId",
+    settings.pages?.remoteBrowserDeliveryTargetProfileId
+  );
   return {
     projectionTargetState: resolveTargetBindingState(
       settings.posts?.remoteProjectionTargetProfileId ?? "",
@@ -129,12 +151,12 @@ function useDeploymentTargets(remoteOpsSupport, settings, remoteHealth) {
       remoteHealth.connectionById
     ),
     deploymentTargetState: resolveTargetBindingState(
-      settings.pages?.remoteDeploymentTargetProfileId ?? "",
+      deploymentTargetProfileId,
       allTargets,
       remoteHealth.connectionById
     ),
     browserTargetState: resolveTargetBindingState(
-      settings.pages?.remoteBrowserDeliveryTargetProfileId ?? "",
+      browserTargetProfileId,
       allTargets,
       remoteHealth.connectionById
     ),
@@ -142,6 +164,14 @@ function useDeploymentTargets(remoteOpsSupport, settings, remoteHealth) {
       settings.media?.remoteMediaTargetProfileId ?? "",
       allTargets,
       remoteHealth.connectionById
+    ),
+    deploymentBindingSourceLabel: resolveBindingSourceLabel(
+      selectedPage,
+      "remoteDeploymentTargetProfileId"
+    ),
+    browserBindingSourceLabel: resolveBindingSourceLabel(
+      selectedPage,
+      "remoteBrowserDeliveryTargetProfileId"
     )
   };
 }
@@ -427,14 +457,8 @@ function useReleasePipeline({
   };
 }
 
-export function useProductDeploymentsWorkspace() {
-  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
+function useDeploymentWorkspaceLoad() {
   const [state, setState] = useState(createDefaultState);
-  const [selectedPageId, setSelectedPageId] = useState("");
-  const remoteHealth = useMemo(
-    () => createProductRemoteHealth(remoteOpsSupport.supportState),
-    [remoteOpsSupport.supportState]
-  );
 
   const reload = useCallback(async () => {
     setState((previous) => ({
@@ -467,6 +491,21 @@ export function useProductDeploymentsWorkspace() {
     void reload();
   }, [reload]);
 
+  return {
+    state,
+    reload
+  };
+}
+
+export function useProductDeploymentsWorkspace() {
+  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
+  const { state, reload } = useDeploymentWorkspaceLoad();
+  const [selectedPageId, setSelectedPageId] = useState("");
+  const remoteHealth = useMemo(
+    () => createProductRemoteHealth(remoteOpsSupport.supportState),
+    [remoteOpsSupport.supportState]
+  );
+
   const publishedPages = useMemo(
     () => state.pages.filter((page) => page?.status === "published"),
     [state.pages]
@@ -478,11 +517,14 @@ export function useProductDeploymentsWorkspace() {
     tagsProjectionTargetState,
     deploymentTargetState,
     browserTargetState,
-    mediaTargetState
+    mediaTargetState,
+    deploymentBindingSourceLabel,
+    browserBindingSourceLabel
   } = useDeploymentTargets(
     remoteOpsSupport,
     state.settings,
-    remoteHealth
+    remoteHealth,
+    selectedPage
   );
   const summary = useMemo(() => createPublishedPagesSummary(publishedPages), [publishedPages]);
   const pipelineReadiness = useMemo(
@@ -546,6 +588,8 @@ export function useProductDeploymentsWorkspace() {
     deploymentTargetState,
     browserTargetState,
     mediaTargetState,
+    deploymentBindingSourceLabel,
+    browserBindingSourceLabel,
     remoteOpsSupport,
     syncSelectedPage,
     runReleasePipeline,

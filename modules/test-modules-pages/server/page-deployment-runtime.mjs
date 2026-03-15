@@ -58,13 +58,16 @@ async function writePublishedArtifact({
   const settings = await readPagesModuleSettings({
     resolveSettingsRepository,
     settingsDefinition,
-    collectionHandlerRegistry
+    collectionHandlerRegistry,
+    page
   });
   await writeArtifactDocument({
     page,
     artifactRelativePath,
     collectionHandlerRegistry,
-    settings
+    settings,
+    resolveSettingsRepository,
+    settingsDefinition
   });
   const previousArtifactPath = resolveKnownArtifactPath(previousPage);
 
@@ -138,7 +141,9 @@ async function syncPerRecordEntry({
       sourceRecord: entry.sourceRecord,
       artifactRelativePath: entry.artifactRelativePath,
       collectionHandlerRegistry,
-      settings: context.settings
+      settings: context.settings,
+      resolveSettingsRepository: context.resolveSettingsRepository,
+      settingsDefinition: context.settingsDefinition
     });
 
     await upsertArtifactRecord(

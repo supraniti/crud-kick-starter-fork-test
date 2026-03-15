@@ -63,7 +63,7 @@ export function PagesRemoteSettingsPanel({
         <Stack spacing={0.5}>
           <Typography variant="h6">Pages Runtime Settings</Typography>
           <Typography variant="body2" color="text.secondary">
-            Select the remote targets that Pages should use for embedded deployment and validation workflows.
+            Select the module-level default remote targets that Pages should use when a page does not define its own remote bindings.
           </Typography>
         </Stack>
         {settingsState?.errorMessage ? <Alert severity="error">{settingsState.errorMessage}</Alert> : null}
@@ -110,6 +110,7 @@ export function PagesRemoteSettingsPanel({
 }
 
 export function PagesRemoteDeploymentPanel({
+  bindingSourceLabel = "Pages module default",
   latestRun,
   onCompare,
   onExecute,
@@ -153,6 +154,9 @@ export function PagesRemoteDeploymentPanel({
                 ? `This remote target publishes the local deployment output that includes '${page.title}'.`
                 : "This target syncs the local deployment output to remote storage."}
             </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Binding source: {bindingSourceLabel}
+            </Typography>
           </Stack>
           <Button variant="outlined" onClick={onOpenRemoteOps}>
             Open Remote Ops
@@ -179,6 +183,7 @@ export function PagesRemoteDeploymentPanel({
 }
 
 export function PagesBrowserDeliveryPanel({
+  bindingSourceLabel = "Pages module default",
   latestRun,
   onOpenRemoteOps,
   onValidate,
@@ -210,6 +215,9 @@ export function PagesBrowserDeliveryPanel({
             <Typography variant="h6">Browser Delivery Validation</Typography>
             <Typography variant="body2" color="text.secondary">
               Browser delivery remains validation-only in this slice. Use this target to confirm domain and certificate readiness.
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Binding source: {bindingSourceLabel}
             </Typography>
           </Stack>
           <Button variant="outlined" onClick={onOpenRemoteOps}>

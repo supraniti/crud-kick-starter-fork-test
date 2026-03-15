@@ -247,6 +247,17 @@
       - surface deployment instances
     - page delivery path resolution now resolves published per-record templates by generated public path
       - this closes the earlier hole where `/posts/{slug}` payload follow-up routes were emitted but not actually resolvable
+  - Pass 7 completed in worktree:
+    - page-owned remote bindings now exist directly on `blog-pages`:
+      - `remoteDeploymentTargetProfileId`
+      - `remoteBrowserDeliveryTargetProfileId`
+    - Pages desk now exposes explicit page-owned remote binding selectors instead of relying only on Pages module defaults
+    - Pages desk remote compare/validate panels now show whether the effective binding comes from:
+      - selected page override
+      - Pages module default
+    - product `Deployments` now prefers page-owned deployment/browser bindings over module defaults when a specific page is selected
+    - synced per-record HTML now uses the same browser-delivery resolution path as preview/delivery APIs
+      - module-default browser-delivery bindings and page-owned overrides now both emit domain-aware HTML consistently
   - verification for the active worktree:
     - `pnpm quality:gate:full` passed
     - `pnpm quality:protocol` passed
@@ -258,3 +269,4 @@
   - deployment bundles are still page-selected runs, not first-class named release bundles
   - client-runtime injection into generated HTML is still missing
   - remote/public delivery still needs stronger final-contract alignment around public media URLs, runtime bootstrap, and bundle observability
+  - release ownership is now page-explicit, but named reusable deployment bundles still do not exist

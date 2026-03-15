@@ -198,6 +198,63 @@ function PageSourceSection({ workspace, sourceOptions }) {
   );
 }
 
+function PageRemoteBindingsSection({ workspace }) {
+  const safeDeploymentTargetId = workspace.remoteDeploymentTargets.some(
+    (target) => target.id === workspace.pageDraft.remoteDeploymentTargetProfileId
+  )
+    ? workspace.pageDraft.remoteDeploymentTargetProfileId
+    : "";
+  const safeBrowserTargetId = workspace.remoteBrowserTargets.some(
+    (target) => target.id === workspace.pageDraft.remoteBrowserDeliveryTargetProfileId
+  )
+    ? workspace.pageDraft.remoteBrowserDeliveryTargetProfileId
+    : "";
+
+  return (
+    <Stack spacing={2}>
+      <Typography variant="subtitle1">Remote Bindings</Typography>
+      <Alert severity="info">
+        Page-owned remote bindings override the Pages module defaults. Leave them empty to keep
+        using the module-level targets.
+      </Alert>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+        <TextField
+          select
+          label="Remote Deployment Target Override"
+          value={safeDeploymentTargetId}
+          onChange={(event) =>
+            workspace.changePageField("remoteDeploymentTargetProfileId", event.target.value)
+          }
+          sx={{ minWidth: 260 }}
+        >
+          <MenuItem value="">Use Pages module default</MenuItem>
+          {workspace.remoteDeploymentTargets.map((target) => (
+            <MenuItem key={target.id} value={target.id}>
+              {target.title}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          label="Browser Delivery Target Override"
+          value={safeBrowserTargetId}
+          onChange={(event) =>
+            workspace.changePageField("remoteBrowserDeliveryTargetProfileId", event.target.value)
+          }
+          sx={{ minWidth: 260 }}
+        >
+          <MenuItem value="">Use Pages module default</MenuItem>
+          {workspace.remoteBrowserTargets.map((target) => (
+            <MenuItem key={target.id} value={target.id}>
+              {target.title}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Stack>
+    </Stack>
+  );
+}
+
 function DataSourceEditor({ entry, index, workspace }) {
   const sourceOptions = workspace.sourceOptionsByType[entry.sourceType] ?? [];
 
@@ -501,6 +558,8 @@ export function ReadinessPanel({ workspace }) {
         <PageIdentitySection workspace={workspace} />
         <Divider />
         <PageSourceSection workspace={workspace} sourceOptions={sourceOptions} />
+        <Divider />
+        <PageRemoteBindingsSection workspace={workspace} />
         <PagePresentationSection workspace={workspace} />
         <PageBindingSection workspace={workspace} />
         <Divider />

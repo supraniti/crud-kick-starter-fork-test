@@ -550,7 +550,8 @@ export async function resolvePageDeliveryPayload({
   const settings = await readPagesModuleSettings({
     resolveSettingsRepository,
     settingsDefinition,
-    collectionHandlerRegistry
+    collectionHandlerRegistry,
+    page
   });
   return applyBrowserDeliveryToPayload({
     payload,
