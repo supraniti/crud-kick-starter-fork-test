@@ -530,6 +530,6 @@
 
 ## Active Gap After Current Passes
   - Product shell is now closer to the north star, but several north-star behaviors are still pending:
-    - remote billing/cost summaries are not surfaced yet
-    - remote/public delivery still needs stronger final-contract alignment around broader runtime remote contracts and release observability
-    - generated HTML now boots `client-runtime`, and page-defined bindings now emit reusable runtime slot contracts, but richer CMS-configurable remote actions beyond comments are still not yet emitted across more content types
+    - `Remotes` is still primarily the raw `test-modules-remote-ops` desk rather than a stricter product-owned operator surface
+    - live billing-cycle data is still not surfaced; current release-cost messaging is heuristic/provisioning-based only
+    - generated HTML now boots `client-runtime`, and page-defined bindings now emit reusable runtime slot contracts, but richer CMS-configurable remote actions and preview/inspection of those runtime contracts are still not yet exposed across more content types
