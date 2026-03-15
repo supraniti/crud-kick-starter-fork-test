@@ -12,6 +12,7 @@ export const DEPLOYMENT_BUNDLES_COLLECTION_ID = "page-deployment-bundles";
 export const DEPLOYMENT_BUNDLE_RUNS_COLLECTION_ID = "page-deployment-bundle-runs";
 export const REMOTE_CONNECTIONS_COLLECTION_ID = "remote-connection-profiles";
 export const REMOTE_TARGETS_COLLECTION_ID = "remote-target-profiles";
+export const REMOTE_OPERATION_RUNS_COLLECTION_ID = "remote-operation-runs";
 
 export const PAGE_KIND_SET = new Set(["standalone", "content-detail", "listing", "profile"]);
 export const PAGE_STATUS_SET = new Set(["draft", "in-review", "scheduled", "published", "archived"]);

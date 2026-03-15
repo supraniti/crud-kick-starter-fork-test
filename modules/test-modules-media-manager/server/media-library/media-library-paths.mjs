@@ -1,9 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import {
-  MEDIA_LIBRARY_ROOT,
-  MIME_EXTENSION_MAP
-} from "./media-library-contract.mjs";
+import { MIME_EXTENSION_MAP } from "./media-library-contract.mjs";
+import { resolveMediaLibraryRootDir } from "./media-library-root.mjs";
 
 function sanitizeFileStem(value) {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -44,9 +42,16 @@ function buildDerivedRelativePath(sourceMediaId, itemId, presetId, extension) {
   );
 }
 
+function resolveMediaLibraryRoot() {
+  return resolveMediaLibraryRootDir({
+    moduleUrl: import.meta.url
+  });
+}
+
 function resolveMediaAbsolutePath(relativePath) {
-  const absolutePath = path.resolve(MEDIA_LIBRARY_ROOT, relativePath);
-  const relativeFromRoot = path.relative(MEDIA_LIBRARY_ROOT, absolutePath);
+  const mediaLibraryRoot = resolveMediaLibraryRoot();
+  const absolutePath = path.resolve(mediaLibraryRoot, relativePath);
+  const relativeFromRoot = path.relative(mediaLibraryRoot, absolutePath);
   if (relativeFromRoot.startsWith("..") || path.isAbsolute(relativeFromRoot)) {
     const error = new Error("Media asset path escapes the media-library root");
     error.code = "MEDIA_PATH_INVALID";

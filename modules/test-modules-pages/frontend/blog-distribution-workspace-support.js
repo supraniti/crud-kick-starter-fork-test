@@ -146,6 +146,25 @@ export async function syncSelectedPageDeployment({ pageId }) {
   return payload;
 }
 
+export async function runDeploymentBundleRelease({ bundleId }) {
+  const response = await fetch(
+    `/api/reference/modules/${MODULE_ID}/deployment-bundles/${bundleId}/run-release`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({})
+    }
+  );
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.error?.message ?? "Failed to run deployment bundle release");
+  }
+  return payload;
+}
+
 export async function persistPageMutation({ pageId, draft }) {
   const payload = buildPageMutationPayload(draft);
   return pageId

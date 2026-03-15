@@ -3,6 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vitest";
 import {
+  resolveSimulatedFirestoreRoot,
+  resolveSimulatedStorageRoot
+} from "../../../modules/test-modules-remote-ops/server/remote-ops-root.mjs";
+import {
   buildReferenceModuleSettingsPath,
   createEphemeralReferenceServer,
   createSharedReferenceStatePersistence,
@@ -38,6 +42,10 @@ function buildSyncDeploymentRoute(pageId) {
   return `/api/reference/modules/${MODULE_ID}/pages/${pageId}/sync-deployment`;
 }
 
+function buildBundleReleaseRoute(bundleId) {
+  return `/api/reference/modules/${MODULE_ID}/deployment-bundles/${bundleId}/run-release`;
+}
+
 function buildDeploymentInstancesRoute(pageId) {
   return `/api/reference/modules/${MODULE_ID}/pages/${pageId}/deployment-instances`;
 }
@@ -67,6 +75,31 @@ async function createDeploymentSandbox(moduleSettings = null) {
         process.env.REFERENCE_PAGE_DEPLOYMENT_ROOT_DIR = previousRootDir;
       }
       await fs.rm(deploymentRootDir, {
+        recursive: true,
+        force: true
+      });
+    }
+  };
+}
+
+async function createDeploymentAndMediaSandbox(moduleSettings = null) {
+  const deploymentSandbox = await createDeploymentSandbox(moduleSettings);
+  const mediaLibraryRootDir = await fs.mkdtemp(path.join(os.tmpdir(), "pages-media-"));
+  const previousMediaRootDir = process.env.REFERENCE_MEDIA_LIBRARY_ROOT_DIR;
+  process.env.REFERENCE_MEDIA_LIBRARY_ROOT_DIR = mediaLibraryRootDir;
+
+  return {
+    deploymentRootDir: deploymentSandbox.deploymentRootDir,
+    mediaLibraryRootDir,
+    referenceStatePersistence: deploymentSandbox.referenceStatePersistence,
+    async cleanup() {
+      if (previousMediaRootDir === undefined) {
+        delete process.env.REFERENCE_MEDIA_LIBRARY_ROOT_DIR;
+      } else {
+        process.env.REFERENCE_MEDIA_LIBRARY_ROOT_DIR = previousMediaRootDir;
+      }
+      await deploymentSandbox.cleanup();
+      await fs.rm(mediaLibraryRootDir, {
         recursive: true,
         force: true
       });
@@ -142,6 +175,24 @@ async function seedRemoteTargetProfile(server, overrides = {}) {
     ...overrides
   });
   expect(response.statusCode).toBe(201);
+  return response.body.item;
+}
+
+async function seedDeploymentBundle(server, overrides = {}) {
+  const response = await injectJson(server, "POST", buildItemsRoute("page-deployment-bundles"), {
+    title: "Posts Release Bundle",
+    pageId: "missing-page",
+    postsProjectionTargetProfileId: "missing-posts",
+    categoriesProjectionTargetProfileId: "missing-categories",
+    tagsProjectionTargetProfileId: "missing-tags",
+    mediaTargetProfileId: "missing-media",
+    deploymentTargetProfileId: "missing-deployment",
+    browserDeliveryTargetProfileId: "missing-browser",
+    ...overrides
+  });
+  if (response.statusCode !== 201) {
+    throw new Error(JSON.stringify(response.body));
+  }
   return response.body.item;
 }
 
@@ -1669,6 +1720,281 @@ test("deployment bundles reject invalid remote target contracts on server-side s
     );
   } finally {
     await server.close();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("deployment bundle release route executes the full server-owned bundle pipeline", async () => {
+  const sandbox = await createDeploymentAndMediaSandbox();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+  let postsTargetId = null;
+  let categoriesTargetId = null;
+  let tagsTargetId = null;
+  let mediaTargetId = null;
+  let deploymentTargetId = null;
+
+  try {
+    const author = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const mediaItem = await seedMedia(server, {
+      fileName: "release-hero.png"
+    });
+    expect(mediaItem.relativePath).toEqual(expect.any(String));
+    await seedPost(server, author.id, category.id, tag.id, {
+      title: "Bundle Release Story",
+      status: "published",
+      publishedOn: "2026-03-15T10:00:00.000Z",
+      seoTitle: "Bundle Release Story",
+      seoDescription: "Bundle release story description"
+    });
+
+    const pageResponse = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/posts",
+      pathPattern: "/posts/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-15T10:05:00.000Z"
+    });
+    expect(pageResponse.statusCode).toBe(201);
+
+    const connection = await seedRemoteConnectionProfile(server, {
+      id: "conn-release-001"
+    });
+    const postsTarget = await seedRemoteTargetProfile(server, {
+      id: "target-posts-release-001",
+      title: "Posts Projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      adapterMode: "simulated-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "published-blog-posts",
+        firestoreCollectionPath: "publishedPosts"
+      }
+    });
+    postsTargetId = postsTarget.id;
+    const categoriesTarget = await seedRemoteTargetProfile(server, {
+      id: "target-categories-release-001",
+      title: "Categories Projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      adapterMode: "simulated-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "public-blog-categories",
+        firestoreCollectionPath: "publicCategories"
+      }
+    });
+    categoriesTargetId = categoriesTarget.id;
+    const tagsTarget = await seedRemoteTargetProfile(server, {
+      id: "target-tags-release-001",
+      title: "Tags Projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      adapterMode: "simulated-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "public-blog-tags",
+        firestoreCollectionPath: "publicTags"
+      }
+    });
+    tagsTargetId = tagsTarget.id;
+    const mediaTarget = await seedRemoteTargetProfile(server, {
+      id: "target-media-release-001",
+      title: "Media Library",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "simulated-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        bucketName: "demo-media-bucket",
+        prefix: "library",
+        localRootHint: "media"
+      }
+    });
+    mediaTargetId = mediaTarget.id;
+    const deploymentTarget = await seedRemoteTargetProfile(server, {
+      id: "target-deployment-release-001",
+      title: "HTML Deployment",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "simulated-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        bucketName: "demo-deployment-bucket",
+        prefix: "site",
+        localRootHint: "deployment"
+      }
+    });
+    deploymentTargetId = deploymentTarget.id;
+    const browserTarget = await seedRemoteTargetProfile(server, {
+      id: "target-browser-release-001",
+      title: "Primary Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "simulated-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        accessMode: "custom-domain",
+        stackMode: "https-load-balancer",
+        dnsMode: "external",
+        hostname: "stories.example.com",
+        dnsZone: "stories-example-com",
+        certificateName: "stories-example-com-cert",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+    await Promise.all([
+      fs.rm(resolveSimulatedFirestoreRoot(postsTarget.id), { recursive: true, force: true }),
+      fs.rm(resolveSimulatedFirestoreRoot(categoriesTarget.id), { recursive: true, force: true }),
+      fs.rm(resolveSimulatedFirestoreRoot(tagsTarget.id), { recursive: true, force: true }),
+      fs.rm(resolveSimulatedStorageRoot(mediaTarget.id), { recursive: true, force: true }),
+      fs.rm(resolveSimulatedStorageRoot(deploymentTarget.id), { recursive: true, force: true })
+    ]);
+    const bundle = await seedDeploymentBundle(server, {
+      title: "Posts Release Bundle",
+      pageId: pageResponse.body.item.id,
+      postsProjectionTargetProfileId: postsTarget.id,
+      categoriesProjectionTargetProfileId: categoriesTarget.id,
+      tagsProjectionTargetProfileId: tagsTarget.id,
+      mediaTargetProfileId: mediaTarget.id,
+      deploymentTargetProfileId: deploymentTarget.id,
+      browserDeliveryTargetProfileId: browserTarget.id
+    });
+
+    const releaseResponse = await injectJson(
+      server,
+      "POST",
+      buildBundleReleaseRoute(bundle.id),
+      {}
+    );
+
+    expect(releaseResponse.statusCode).toBe(200);
+    expect(releaseResponse.body).toEqual(
+      expect.objectContaining({
+        ok: true,
+        message: "Release pipeline completed for 'Posts Release Bundle'",
+        run: expect.objectContaining({
+          bundleId: bundle.id,
+          pageId: pageResponse.body.item.id,
+          status: "completed",
+          successfulStepCount: 12,
+          failedStepCount: 0,
+          steps: expect.arrayContaining([
+            expect.objectContaining({
+              key: "sync-local-html",
+              status: "success"
+            }),
+            expect.objectContaining({
+              key: "validate-browser-delivery",
+              status: "success"
+            })
+          ])
+        })
+      })
+    );
+
+    const updatedDeploymentTarget = await injectJson(
+      server,
+      "GET",
+      buildItemRoute("remote-target-profiles", deploymentTarget.id)
+    );
+    expect(updatedDeploymentTarget.statusCode).toBe(200);
+    expect(updatedDeploymentTarget.body.item).toEqual(
+      expect.objectContaining({
+        targetStatus: "validated",
+        compareSummary: expect.objectContaining({
+          state: "clean"
+        })
+      })
+    );
+
+    const updatedBrowserTarget = await injectJson(
+      server,
+      "GET",
+      buildItemRoute("remote-target-profiles", browserTarget.id)
+    );
+    expect(updatedBrowserTarget.statusCode).toBe(200);
+    expect(updatedBrowserTarget.body.item).toEqual(
+      expect.objectContaining({
+        targetStatus: "warning",
+        validationSummary: expect.objectContaining({
+          state: "warning",
+          canProceed: true
+        })
+      })
+    );
+
+    const firestoreProjectionPath = path.join(
+      resolveSimulatedFirestoreRoot(postsTarget.id),
+      "publishedPosts",
+      "bundle-release-story.json"
+    );
+    const deploymentArtifactPath = path.join(
+      resolveSimulatedStorageRoot(deploymentTarget.id),
+      "site",
+      "posts",
+      "bundle-release-story",
+      "index.html"
+    );
+    const mediaArtifactPath = path.join(
+      resolveSimulatedStorageRoot(mediaTarget.id),
+      "library",
+      ...(mediaItem.relativePath ?? "").split("/")
+    );
+
+    await expect(fs.access(firestoreProjectionPath)).resolves.toBeUndefined();
+    await expect(fs.access(deploymentArtifactPath)).resolves.toBeUndefined();
+    await expect(fs.access(mediaArtifactPath)).resolves.toBeUndefined();
+  } finally {
+    await server.close();
+    await Promise.all(
+      [
+        postsTargetId ? fs.rm(resolveSimulatedFirestoreRoot(postsTargetId), { recursive: true, force: true }) : null,
+        categoriesTargetId ? fs.rm(resolveSimulatedFirestoreRoot(categoriesTargetId), { recursive: true, force: true }) : null,
+        tagsTargetId ? fs.rm(resolveSimulatedFirestoreRoot(tagsTargetId), { recursive: true, force: true }) : null,
+        mediaTargetId ? fs.rm(resolveSimulatedStorageRoot(mediaTargetId), { recursive: true, force: true }) : null,
+        deploymentTargetId ? fs.rm(resolveSimulatedStorageRoot(deploymentTargetId), { recursive: true, force: true }) : null
+      ].filter(Boolean).map((promise) => promise.catch(() => {}))
+    );
+    await sandbox.cleanup();
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 

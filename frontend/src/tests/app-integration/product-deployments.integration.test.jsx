@@ -41,7 +41,8 @@ vi.mock("../../../../modules/test-modules-pages/frontend/blog-distribution-works
   );
   return {
     ...actual,
-    syncSelectedPageDeployment: vi.fn()
+    syncSelectedPageDeployment: vi.fn(),
+    runDeploymentBundleRelease: vi.fn()
   };
 });
 
@@ -330,36 +331,27 @@ test("product deployments desk runs the release pipeline across local HTML, proj
       remoteMediaTargetProfileId: "target-media-001"
     }
   });
-  referenceApi.createReferenceCollectionItem.mockImplementation(async ({ collectionId, item }) => {
-    if (collectionId === "page-deployment-bundle-runs") {
-      return { ok: true, item: { id: "run-001", ...item } };
+  blogDistributionSupport.runDeploymentBundleRelease.mockResolvedValue({
+    ok: true,
+    message: "Release pipeline completed for 'Posts Release Bundle'",
+    run: {
+      id: "run-001",
+      steps: [
+        { key: "sync-local-html", label: "Sync local HTML", status: "success", message: "Local deployment synced" },
+        { key: "compare-posts-projection", label: "Compare posts projection", status: "success", message: "Compared target-posts-001" },
+        { key: "sync-posts-projection", label: "Sync posts projection", status: "success", message: "Executed target-posts-001" },
+        { key: "compare-categories-projection", label: "Compare categories projection", status: "success", message: "Compared target-categories-001" },
+        { key: "sync-categories-projection", label: "Sync categories projection", status: "success", message: "Executed target-categories-001" },
+        { key: "compare-tags-projection", label: "Compare tags projection", status: "success", message: "Compared target-tags-001" },
+        { key: "sync-tags-projection", label: "Sync tags projection", status: "success", message: "Executed target-tags-001" },
+        { key: "compare-media", label: "Compare media sync", status: "success", message: "Compared target-media-001" },
+        { key: "sync-media", label: "Sync media", status: "success", message: "Executed target-media-001" },
+        { key: "compare-html-deployment", label: "Compare HTML deployment", status: "success", message: "Compared target-page-deployment-001" },
+        { key: "sync-html-deployment", label: "Sync HTML deployment", status: "success", message: "Executed target-page-deployment-001" },
+        { key: "validate-browser-delivery", label: "Validate browser delivery", status: "success", message: "Validated target-page-browser-001" }
+      ]
     }
-    return { ok: true, item: { id: "bundle-002", ...item } };
   });
-  referenceApi.updateReferenceCollectionItem.mockImplementation(async ({ itemId, item }) => ({
-    ok: true,
-    item: {
-      id: itemId,
-      ...item
-    }
-  }));
-
-  blogDistributionSupport.syncSelectedPageDeployment.mockResolvedValue({
-    ok: true,
-    message: "Local deployment synced"
-  });
-  remoteOpsSupportApi.compareTarget.mockImplementation(async (targetId) => ({
-    ok: true,
-    message: `Compared ${targetId}`
-  }));
-  remoteOpsSupportApi.executeTarget.mockImplementation(async (targetId) => ({
-    ok: true,
-    message: `Executed ${targetId}`
-  }));
-  remoteOpsSupportApi.validateTarget.mockImplementation(async (targetId) => ({
-    ok: true,
-    message: `Validated ${targetId}`
-  }));
 
   render(<ProductDeploymentsView />);
 
@@ -378,52 +370,12 @@ test("product deployments desk runs the release pipeline across local HTML, proj
   fireEvent.click(screen.getByRole("button", { name: "Run Release Pipeline" }));
 
   await waitFor(() => {
-    expect(blogDistributionSupport.syncSelectedPageDeployment).toHaveBeenCalledWith({
-      pageId: "page-001"
+    expect(blogDistributionSupport.runDeploymentBundleRelease).toHaveBeenCalledWith({
+      bundleId: "bundle-001"
     });
-    expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-posts-001");
-    expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-posts-001");
-    expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-categories-001");
-    expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-categories-001");
-    expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-tags-001");
-    expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-tags-001");
-    expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-media-001");
-    expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-media-001");
-    expect(remoteOpsSupportApi.compareTarget).toHaveBeenCalledWith("target-page-deployment-001");
-    expect(remoteOpsSupportApi.executeTarget).toHaveBeenCalledWith("target-page-deployment-001");
-    expect(remoteOpsSupportApi.validateTarget).toHaveBeenCalledWith("target-page-browser-001");
     expect(screen.getByText("Release pipeline completed for 'Posts Release Bundle'")).toBeInTheDocument();
     expect(screen.getByText("Sync local HTML")).toBeInTheDocument();
     expect(screen.getByText("Validate browser delivery")).toBeInTheDocument();
     expect(screen.getAllByText("Binding source: Deployment bundle").length).toBeGreaterThan(0);
-    expect(referenceApi.createReferenceCollectionItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        collectionId: "page-deployment-bundle-runs"
-      })
-    );
-    expect(referenceApi.updateReferenceCollectionItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        collectionId: "page-deployment-bundle-runs",
-        itemId: "run-001"
-      })
-    );
   });
-
-  expect(blogDistributionSupport.syncSelectedPageDeployment.mock.invocationCallOrder[0]).toBeLessThan(
-    remoteOpsSupportApi.compareTarget.mock.invocationCallOrder[0]
-  );
-  expect(remoteOpsSupportApi.compareTarget.mock.calls.map(([targetId]) => targetId)).toEqual([
-    "target-posts-001",
-    "target-categories-001",
-    "target-tags-001",
-    "target-media-001",
-    "target-page-deployment-001"
-  ]);
-  expect(remoteOpsSupportApi.executeTarget.mock.calls.map(([targetId]) => targetId)).toEqual([
-    "target-posts-001",
-    "target-categories-001",
-    "target-tags-001",
-    "target-media-001",
-    "target-page-deployment-001"
-  ]);
 }, 15000);

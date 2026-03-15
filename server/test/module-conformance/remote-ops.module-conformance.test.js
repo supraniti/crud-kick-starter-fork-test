@@ -1826,6 +1826,7 @@ test("remote ops executes Firestore projection procedures with simulated GCP roo
     });
     expect(createTarget.statusCode).toBe(201);
     firestoreTargetId = createTarget.body.item.id;
+    await removeIfExists(resolveSimulatedFirestoreRoot(firestoreTargetId));
 
     const validateTarget = await injectJson(server, "POST", buildTargetRoute(firestoreTargetId, "validate"));
     expect(validateTarget.statusCode).toBe(200);
@@ -1897,6 +1898,7 @@ test("remote ops executes taxonomy Firestore projection procedures with simulate
     });
     expect(createTarget.statusCode).toBe(201);
     firestoreTargetId = createTarget.body.item.id;
+    await removeIfExists(resolveSimulatedFirestoreRoot(firestoreTargetId));
 
     const validateTarget = await injectJson(server, "POST", buildTargetRoute(firestoreTargetId, "validate"));
     expect(validateTarget.statusCode).toBe(200);
@@ -1969,6 +1971,7 @@ test("remote ops can seed a simulated remote-only deployment artifact and restor
     });
     expect(createTarget.statusCode).toBe(201);
     storageTargetId = createTarget.body.item.id;
+    await removeIfExists(resolveSimulatedStorageRoot(storageTargetId));
 
     const validateTarget = await injectJson(server, "POST", buildTargetRoute(storageTargetId, "validate"));
     expect(validateTarget.statusCode).toBe(200);

@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { resolvePageDeploymentRootDir } from "../../test-modules-pages/server/page-deployment-root.mjs";
+import { resolveMediaLibraryRootDir } from "../../test-modules-media-manager/server/media-library/media-library-root.mjs";
 
 const MODULE_SERVER_DIR = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = path.resolve(MODULE_SERVER_DIR, "../../..");
@@ -9,11 +11,11 @@ export function resolveRepoRoot() {
 }
 
 export function resolveDeploymentRoot() {
-  return path.join(REPO_ROOT, "deployment");
+  return resolvePageDeploymentRootDir();
 }
 
 export function resolveMediaRoot() {
-  return path.join(REPO_ROOT, "media");
+  return resolveMediaLibraryRootDir();
 }
 
 export function resolveRemoteOpsSimulationRoot() {

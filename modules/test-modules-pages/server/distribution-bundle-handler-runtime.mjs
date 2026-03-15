@@ -331,7 +331,10 @@ function collectBrowserLinkageConflicts(preparedValue, browserTarget) {
   return conflicts;
 }
 
-async function collectBundleConflicts({ handler, preparedValue }) {
+export async function collectDeploymentBundleOperationalConflicts({
+  registry,
+  preparedValue
+}) {
   const conflicts = [];
   if (preparedValue.title === null) {
     conflicts.push(
@@ -343,14 +346,14 @@ async function collectBundleConflicts({ handler, preparedValue }) {
     );
   }
 
-  conflicts.push(...(await collectPageConflicts(preparedValue, handler.context?.registry)));
+  conflicts.push(...(await collectPageConflicts(preparedValue, registry)));
 
   const bindingResults = [];
   for (const requirement of BUNDLE_TARGET_REQUIREMENTS) {
     const bindingResult = await validateBundleTargetRequirement(
       requirement,
       preparedValue,
-      handler.context?.registry
+      registry
     );
     bindingResults.push(bindingResult);
     conflicts.push(...bindingResult.conflicts);
@@ -361,6 +364,15 @@ async function collectBundleConflicts({ handler, preparedValue }) {
     (entry) => entry.target?.id === preparedValue.browserDeliveryTargetProfileId
   );
   conflicts.push(...collectBrowserLinkageConflicts(preparedValue, browserBinding?.target ?? null));
+
+  return conflicts;
+}
+
+async function collectBundleConflicts({ handler, preparedValue }) {
+  const conflicts = await collectDeploymentBundleOperationalConflicts({
+    registry: handler.context?.registry,
+    preparedValue
+  });
 
   const duplicateTitle = (await listExistingItems(handler)).some(
     (item) =>

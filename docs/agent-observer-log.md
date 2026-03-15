@@ -12,6 +12,23 @@
 
 ## Entries
 
+### 2026-03-15 - M04 Server-Owned Bundle Release And Root Alignment
+- Tasks:
+  - moved deployment-bundle release execution behind a Pages-owned module route
+  - extracted reusable remote target procedures so release execution could reuse bounded remote logic instead of browser-side orchestration
+  - fixed the env-aware local-root contract between Pages, Media Manager, and Remote Ops so simulated release tests stop reading repo-root artifacts accidentally
+- Easy:
+  - the bundle contract was already explicit enough that server-side revalidation could reuse the same target/page compatibility checks as save-time validation
+  - remote procedure extraction stayed bounded inside `test-modules-remote-ops`, which kept the new server-owned release route from duplicating compare/execute logic
+- Hard:
+  - the generated collection handler update contract requires both `body` and `value`; missing `value` does not fail loudly at the API boundary, it explodes later in the generic state helper
+  - simulated roots had drifted apart: Pages used env-aware deployment roots, Media could capture its root at import time, and Remote Ops was still reading repo-root folders; that mismatch only became obvious under the full conformance gate
+  - deterministic target ids mean simulated remote roots must be cleaned deliberately in tests or old artifacts bleed into later conformance runs
+- Improve:
+  - when wrapping generated collection handlers, treat `{ body, value, item }` as an atomic update contract and reuse one prepared payload for both
+  - avoid import-time filesystem-root constants for operator-controlled/sandbox-controlled paths; use resolver functions at call time instead
+  - when simulated remotes persist by deterministic target id, test fixtures should clear those roots before assertions so local reruns stay trustworthy
+
 ### 2026-03-14 - M04 Taxonomy Projection And Category Fan-Out
 - Tasks:
   - extended the M04 product-shell program from post-only remotes into taxonomy-aware release governance

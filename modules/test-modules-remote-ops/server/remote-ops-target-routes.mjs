@@ -1,27 +1,19 @@
+import { seedSimulatedRemoteExtraFile } from "./remote-ops-simulated-runtime.mjs";
 import {
-  compareLiveRemoteTarget,
-  executeLiveRemoteTarget,
-  restoreLiveRemoteTarget
-} from "./remote-ops-live-runtime.mjs";
-import {
-  compareRemoteTarget,
-  executeRemoteTarget,
-  restoreRemoteTarget,
-  seedSimulatedRemoteExtraFile,
-  validateRemoteTarget
-} from "./remote-ops-simulated-runtime.mjs";
-import { validateLiveTargetProfile } from "./remote-ops-live-validation-runtime.mjs";
-import {
-  buildProcedureStatus,
-  buildRunPayload,
-  buildSuccessResponse,
   createRun,
   ensureModuleEnabled,
   errorPayload,
   loadTargetAndConnection,
-  resolveScopeKind,
   updateItem
 } from "./remote-ops-route-runtime.mjs";
+import { buildRunPayload, buildSuccessResponse, resolveScopeKind } from "./remote-ops-route-runtime.mjs";
+import { compareRemoteTarget } from "./remote-ops-simulated-runtime.mjs";
+import {
+  performTargetCompareProcedure,
+  performTargetExecuteProcedure,
+  performTargetRestoreProcedure,
+  performTargetValidationProcedure
+} from "./remote-ops-target-procedure-runtime.mjs";
 import { toTimestamp } from "./remote-ops-shared-runtime.mjs";
 
 async function ensureLoadedTarget(routeContext, request, reply) {
@@ -41,54 +33,17 @@ function registerTargetValidateRoute(fastify, routeContext) {
         return loaded;
       }
 
-      const result =
-        loaded.targetProfile.adapterMode === "live-gcp"
-          ? await validateLiveTargetProfile(loaded)
-          : await validateRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              connectionProfile: loaded.connectionProfile,
-              collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-            });
-      const updatedTarget = await updateItem(
-        routeContext.targetsHandler,
-        loaded.targetProfile,
-        {
-          targetStatus: result.nextStatus,
-          lastValidatedOn: toTimestamp(),
-          validationSummary: result.summary
-        },
+      const procedure = await performTargetValidationProcedure({
+        targetProfile: loaded.targetProfile,
+        connectionProfile: loaded.connectionProfile,
+        collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+        targetsHandler: routeContext.targetsHandler,
+        runsHandler: routeContext.runsHandler,
         reply
-      );
-      if (updatedTarget?.ok === false) {
-        return updatedTarget;
-      }
-
-      const run = await createRun(
-        routeContext,
-        buildRunPayload({
-          title: `Validate ${loaded.targetProfile.title}`,
-          connectionProfileId: loaded.connectionProfile.id,
-          targetProfileId: loaded.targetProfile.id,
-          procedureType: "validate",
-          scopeKind: resolveScopeKind(loaded.targetProfile.targetKind),
-          direction: "validate",
-          dryRun: true,
-          status: buildProcedureStatus(result.nextStatus),
-          message: result.message,
-          summary: {
-            warnings: result.summary.warnings,
-            sampleKeys: []
-          }
-        }),
-        reply
-      );
-      if (run?.ok === false) {
-        return run;
-      }
-
-      return buildSuccessResponse(result.message, {
-        item: updatedTarget,
-        run
+      });
+      return buildSuccessResponse(procedure.message, {
+        item: procedure.item,
+        run: procedure.run
       });
     }
   );
@@ -102,57 +57,18 @@ function registerTargetCompareRoute(fastify, routeContext) {
       if (loaded?.ok === false) {
         return loaded;
       }
-      const result =
-        loaded.targetProfile.adapterMode === "live-gcp"
-          ? await compareLiveRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              connectionProfile: loaded.connectionProfile,
-              collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-            })
-          : await compareRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-            });
-      const updatedTarget = await updateItem(
-        routeContext.targetsHandler,
-        loaded.targetProfile,
-        {
-          lastComparedOn: toTimestamp(),
-          compareSummary: result.summary
-        },
+      const procedure = await performTargetCompareProcedure({
+        targetProfile: loaded.targetProfile,
+        connectionProfile: loaded.connectionProfile,
+        collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+        targetsHandler: routeContext.targetsHandler,
+        runsHandler: routeContext.runsHandler,
         reply
-      );
-      if (updatedTarget?.ok === false) {
-        return updatedTarget;
-      }
-
-      const run = await createRun(
-        routeContext,
-        buildRunPayload({
-          title: `Compare ${loaded.targetProfile.title}`,
-          connectionProfileId: loaded.connectionProfile.id,
-          targetProfileId: loaded.targetProfile.id,
-          procedureType: "compare",
-          scopeKind: resolveScopeKind(loaded.targetProfile.targetKind),
-          direction: "compare",
-          dryRun: true,
-          status: result.summary.state === "error" ? "failed" : result.summary.state === "drift" ? "warning" : "succeeded",
-          message: result.message,
-          summary: {
-            createCount: result.summary.createCount,
-            updateCount: result.summary.updateCount,
-            deleteCount: result.summary.deleteCount,
-            restoredCount: 0,
-            sampleKeys: result.summary.sampleKeys,
-            warnings: []
-          }
-        }),
-        reply
-      );
-      if (run?.ok === false) {
-        return run;
-      }
-      return buildSuccessResponse(result.message, { item: updatedTarget, run });
+      });
+      return buildSuccessResponse(procedure.message, {
+        item: procedure.item,
+        run: procedure.run
+      });
     }
   );
 }
@@ -165,56 +81,26 @@ function registerTargetExecuteRoute(fastify, routeContext) {
       if (loaded?.ok === false) {
         return loaded;
       }
-      if (loaded.targetProfile.policy?.requireDryRunFirst && !loaded.targetProfile.lastComparedOn) {
-        reply.code(409);
-        return errorPayload("REMOTE_OPS_COMPARE_REQUIRED", "Run compare before executing this target");
+      try {
+        const procedure = await performTargetExecuteProcedure({
+          targetProfile: loaded.targetProfile,
+          connectionProfile: loaded.connectionProfile,
+          collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+          targetsHandler: routeContext.targetsHandler,
+          runsHandler: routeContext.runsHandler,
+          reply
+        });
+        return buildSuccessResponse(procedure.message, {
+          item: procedure.item,
+          run: procedure.run
+        });
+      } catch (error) {
+        if (error?.message === "Run compare before executing this target") {
+          reply.code(409);
+          return errorPayload("REMOTE_OPS_COMPARE_REQUIRED", error.message);
+        }
+        throw error;
       }
-
-      const result =
-        loaded.targetProfile.adapterMode === "live-gcp"
-          ? await executeLiveRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              connectionProfile: loaded.connectionProfile,
-              collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-            })
-          : await executeRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-            });
-      const updatedTarget = await updateItem(
-        routeContext.targetsHandler,
-        loaded.targetProfile,
-        {
-          lastComparedOn: toTimestamp(),
-          compareSummary: result.summary,
-          targetStatus: result.summary.state === "error" ? "error" : result.summary.state === "clean" ? "validated" : "warning"
-        },
-        reply
-      );
-      if (updatedTarget?.ok === false) {
-        return updatedTarget;
-      }
-
-      const run = await createRun(
-        routeContext,
-        buildRunPayload({
-          title: `Execute ${loaded.targetProfile.title}`,
-          connectionProfileId: loaded.connectionProfile.id,
-          targetProfileId: loaded.targetProfile.id,
-          procedureType: "execute",
-          scopeKind: resolveScopeKind(loaded.targetProfile.targetKind),
-          direction: "push",
-          dryRun: false,
-          status: result.summary.state === "error" ? "failed" : result.runSummary.warnings?.length > 0 ? "warning" : "succeeded",
-          message: result.message,
-          summary: result.runSummary
-        }),
-        reply
-      );
-      if (run?.ok === false) {
-        return run;
-      }
-      return buildSuccessResponse(result.message, { item: updatedTarget, run });
     }
   );
 }
@@ -227,60 +113,18 @@ function registerTargetRestoreRoute(fastify, routeContext) {
       if (loaded?.ok === false) {
         return loaded;
       }
-      const result =
-        loaded.targetProfile.adapterMode === "live-gcp"
-          ? await restoreLiveRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              connectionProfile: loaded.connectionProfile
-            })
-          : await restoreRemoteTarget({
-              targetProfile: loaded.targetProfile
-            });
-      const compareResult =
-        loaded.targetProfile.adapterMode === "live-gcp"
-          ? await compareLiveRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              connectionProfile: loaded.connectionProfile,
-              collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-            })
-          : await compareRemoteTarget({
-              targetProfile: loaded.targetProfile,
-              collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-            });
-      const updatedTarget = await updateItem(
-        routeContext.targetsHandler,
-        loaded.targetProfile,
-        {
-          lastComparedOn: toTimestamp(),
-          compareSummary: compareResult.summary,
-          targetStatus: compareResult.summary.state === "clean" ? "validated" : "warning"
-        },
+      const procedure = await performTargetRestoreProcedure({
+        targetProfile: loaded.targetProfile,
+        connectionProfile: loaded.connectionProfile,
+        collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+        targetsHandler: routeContext.targetsHandler,
+        runsHandler: routeContext.runsHandler,
         reply
-      );
-      if (updatedTarget?.ok === false) {
-        return updatedTarget;
-      }
-
-      const run = await createRun(
-        routeContext,
-        buildRunPayload({
-          title: `Restore ${loaded.targetProfile.title}`,
-          connectionProfileId: loaded.connectionProfile.id,
-          targetProfileId: loaded.targetProfile.id,
-          procedureType: "restore",
-          scopeKind: resolveScopeKind(loaded.targetProfile.targetKind),
-          direction: "restore",
-          dryRun: false,
-          status: result.status,
-          message: result.message,
-          summary: result.runSummary
-        }),
-        reply
-      );
-      if (run?.ok === false) {
-        return run;
-      }
-      return buildSuccessResponse(result.message, { item: updatedTarget, run });
+      });
+      return buildSuccessResponse(procedure.message, {
+        item: procedure.item,
+        run: procedure.run
+      });
     }
   );
 }

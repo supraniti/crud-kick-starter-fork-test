@@ -119,6 +119,16 @@
   - preview/observe runtime from Pages
   - remote collection/query/action compatibility
 
+### Pass 8: Server-Owned Release Execution
+- Objective:
+  - move product release execution out of the browser and behind a Pages-owned server route
+  - make deployment bundles the authoritative release contract, not just a frontend convenience
+- Candidate work:
+  - server-owned bundle release route
+  - persisted step-level bundle run history
+  - reuse bounded remote procedure helpers from `test-modules-remote-ops`
+  - align simulated local-root handling between Pages, Media Manager, and Remote Ops
+
 ## Pass 1 Scope Lock
 
 ### In scope
@@ -258,6 +268,25 @@
     - product `Deployments` now prefers page-owned deployment/browser bindings over module defaults when a specific page is selected
     - synced per-record HTML now uses the same browser-delivery resolution path as preview/delivery APIs
       - module-default browser-delivery bindings and page-owned overrides now both emit domain-aware HTML consistently
+  - Pass 8 completed in worktree:
+    - deployment bundle release now runs behind a module-owned Pages route:
+      - `POST /api/reference/modules/test-modules-pages/deployment-bundles/:bundleId/run-release`
+    - product `Deployments` no longer orchestrates compare/execute/validate fan-out in the browser
+      - it now calls the server-owned bundle release route and renders the returned persisted run state
+    - persisted release history now uses a shared run-step contract between frontend and server
+    - bounded remote target procedures were extracted into reusable server helpers inside `test-modules-remote-ops`
+      - compare
+      - execute
+      - validate
+      - restore
+    - bundle release now:
+      - revalidates the saved bundle contract on the server
+      - syncs local HTML first
+      - runs projection/media/html remote procedures
+      - validates browser delivery last
+      - persists step-by-step bundle-run state while executing
+    - remote-ops simulated storage/projection now reads the same env-aware local roots as Pages and Media Manager
+      - this closes the repo-root vs sandbox-root mismatch that surfaced under the full conformance gate
   - Pass 8 completed in worktree:
     - deployment bundles are now first-class persisted records in `page-deployment-bundles`
     - each bundle explicitly binds:

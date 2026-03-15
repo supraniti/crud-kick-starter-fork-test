@@ -8,7 +8,7 @@
   - `origin` -> `https://github.com/supraniti/crud-kick-starter-fork-test.git`
   - `upstream` -> `https://github.com/supraniti/crud-kick-starter`
 - Last committed baseline:
-  - `3352e63` `feat: inject client runtime into page deployments`
+  - `105e16d` `feat: enforce deployment bundle contracts server-side`
 
 ## Active Task
 - Execute the M04 north-star alignment program from:
@@ -147,6 +147,17 @@
       - mixed remote connections
       - mismatched browser-delivery deployment/media linkage
     - release pipeline now persists step-level bundle-run state as it executes
+  - server-owned deployment bundle release execution:
+    - Pages now owns:
+      - `POST /api/reference/modules/test-modules-pages/deployment-bundles/:bundleId/run-release`
+    - product `Deployments` now delegates release execution to the Pages route instead of browser-side fan-out
+    - shared release-step contracts now back both persisted bundle-run records and frontend display state
+    - reusable target procedures now live in:
+      - [modules/test-modules-remote-ops/server/remote-ops-target-procedure-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-target-procedure-runtime.mjs)
+    - release runtime now lives in:
+      - [modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs)
+    - simulated remotes now honor the same env-aware local roots as Pages and Media Manager
+    - media library path resolution is now dynamic, so long-running test workers no longer lock onto the wrong root
 
 ## Key Files Touched
 - Product shell:
@@ -183,6 +194,16 @@
   - [product-deployments-workspace-helpers.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-workspace-helpers.js)
   - [useProductSystemSettingsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/useProductSystemSettingsWorkspace.js)
   - [product-remote-health.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-remote-health.js)
+- Server-owned release execution:
+  - [modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/deployment-bundle-release-runtime.mjs)
+  - [modules/test-modules-pages/shared/deployment-bundle-release-shared.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/shared/deployment-bundle-release-shared.mjs)
+  - [modules/test-modules-pages/server/routes.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/routes.mjs)
+  - [modules/test-modules-pages/frontend/blog-distribution-workspace-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/blog-distribution-workspace-support.js)
+  - [frontend/src/app/product-shell/product-deployments-pipeline-support.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-pipeline-support.js)
+- Root-alignment fixes:
+  - [modules/test-modules-remote-ops/server/remote-ops-root.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-root.mjs)
+  - [modules/test-modules-media-manager/server/media-library/media-library-paths.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/server/media-library/media-library-paths.mjs)
+  - [modules/test-modules-remote-ops/server/remote-ops-target-routes.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-target-routes.mjs)
 - New/updated tests:
   - [product-domains.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-domains.integration.test.jsx)
   - [product-deployments.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments.integration.test.jsx)
@@ -211,9 +232,7 @@
 - Function shape:
   - `pnpm lint:function-shape`
 - Focused current slice:
-  - `pnpm --filter client-runtime test`
-  - `pnpm build:client-runtime`
-  - `pnpm --filter server test -- test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx`
   - `pnpm lint:function-shape`
 - Smoke E2E:
   - `pnpm test:e2e:smoke`
@@ -223,10 +242,11 @@
   - `pnpm quality:protocol`
 
 ## Current Repo State
-- Worktree is intentionally dirty with the M04 product-shell slices.
+- Worktree is intentionally dirty with the verified M04 server-owned release slice and updated progress pointers.
 - Latest completed slice in worktree:
-  - server-side deployment-bundle contract enforcement in `test-modules-pages`
-  - bundle create/update routes now reject invalid page/target/connection/browser-linkage contracts even if the frontend is bypassed
+  - Pages-owned deployment-bundle release route
+  - server-side bundle-run persistence
+  - env-aware remote/media root alignment across Pages, Media Manager, and Remote Ops
 - Leave unrelated untracked files untouched:
   - `25344`
   - `3124`
