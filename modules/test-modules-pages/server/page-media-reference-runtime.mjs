@@ -1,5 +1,3 @@
-import { tryBuildSignedStorageObjectGetUrl } from "../../test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs";
-
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 const MEDIA_ID_FIELD_PATTERN = /MediaId$/;
 const MEDIA_IDS_FIELD_PATTERN = /MediaIds$/;
@@ -181,49 +179,20 @@ async function readReferencedMediaItems(payload = {}, collectionHandlerRegistry)
   return readMediaItemsById(collectionHandlerRegistry, mediaIds);
 }
 
-async function buildSignedTemporaryMediaUrls(items = [], delivery = {}, browserDeliveryState = null) {
-  if (
-    delivery?.accessMode !== "gcp-temporary" ||
-    !browserDeliveryState?.connectionProfile?.credentialPathHint ||
-    !browserDeliveryState?.mediaTarget?.config?.bucketName
-  ) {
-    return {};
-  }
-
-  const bucketName = browserDeliveryState.mediaTarget.config.bucketName;
-  const prefix = String(browserDeliveryState.mediaTarget.config.prefix ?? "").replace(/^\/+|\/+$/g, "");
-  const signedEntries = await Promise.all(
-    items.map(async (item) => {
-      if (!item?.relativePath) {
-        return [item?.id ?? "", null];
-      }
-      const objectName = prefix ? `${prefix}/${item.relativePath}` : item.relativePath;
-      const signedUrl = await tryBuildSignedStorageObjectGetUrl({
-        connectionProfile: browserDeliveryState.connectionProfile,
-        bucketName,
-        objectName
-      });
-      return [item.id, signedUrl];
-    })
-  );
-  return Object.fromEntries(signedEntries.filter(([mediaId, value]) => mediaId && value));
-}
-
 async function buildMediaRegistry(items = [], delivery = {}, browserDeliveryState = null) {
-  const signedTemporaryUrls = await buildSignedTemporaryMediaUrls(
-    items,
-    delivery,
-    browserDeliveryState
-  );
   const descriptors = items.map((item) =>
-    createMediaDescriptor(item, delivery, signedTemporaryUrls[item.id] ?? null)
+    createMediaDescriptor(item, delivery, null)
   );
   return {
     items: descriptors,
     byId: Object.fromEntries(descriptors.map((item) => [item.id, item])),
     referencedIds: descriptors.map((item) => item.id),
     publicBaseUrl: delivery?.publicMediaBaseUrl ?? null,
-    temporaryBaseUrl: delivery?.temporaryMediaBaseUrl ?? null
+    temporaryBaseUrl: delivery?.temporaryMediaBaseUrl ?? null,
+    temporaryAccess: {
+      mediaUrlsSigned: false,
+      mediaUrlMessage: null
+    }
   };
 }
 

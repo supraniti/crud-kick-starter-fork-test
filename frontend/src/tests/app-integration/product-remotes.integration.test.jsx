@@ -188,3 +188,50 @@ test("product remotes desk stays on the managed connection workflow instead of t
   expect(screen.queryByText("Provision Missing Resources")).not.toBeInTheDocument();
   expect(screen.queryByText(/Lower-level target editing still lives in the module runtime/i)).not.toBeInTheDocument();
 }, 15000);
+
+test("product remotes desk opens directly in connection details for key re-import guidance", async () => {
+  const connectionItems = [
+    createConnectionItem({
+      id: "conn-002",
+      profileName: "Primary GCP Dev",
+      serviceAccountEmail: "merchant-guild@appspot.gserviceaccount.com",
+      serviceAccountKeyId: "key-002",
+      projectId: "merchant-guild",
+      projectDisplayName: "Merchant Guild",
+      connectionStatus: "validated",
+      lastValidatedOn: "2026-03-15T09:05:00.000Z",
+      validationSummary: {
+        state: "validated",
+        message: "Connection validated.",
+        checkedItems: ["service account", "project access"],
+        warnings: [],
+        canProceed: true
+      }
+    })
+  ];
+
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "remote-connection-profiles") {
+      return { items: connectionItems.map((item) => ({ ...item })) };
+    }
+    if (collectionId === "remote-target-profiles") {
+      return { items: createManagedTargets("conn-002") };
+    }
+    if (collectionId === "remote-operation-runs") {
+      return { items: [] };
+    }
+    return { items: [] };
+  });
+
+  render(
+    <ProductRemotesView
+      route={{ connectionId: "conn-002", tab: "connection", focus: "key-import" }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText(/This remote needs its service-account key re-imported/i)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Connection Details", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose JSON Key File" })).toBeInTheDocument();
+  });
+}, 15000);

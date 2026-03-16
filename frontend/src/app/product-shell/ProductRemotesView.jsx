@@ -21,6 +21,16 @@ const MANAGED_PRODUCT_TARGET_KEYS = new Set([
   "browser-delivery"
 ]);
 
+const REMOTES_SECTIONS = new Set(["setup", "connection", "activity"]);
+
+function resolveRequestedSection(route = {}) {
+  const requestedTab = typeof route?.tab === "string" ? route.tab.trim() : "";
+  if (REMOTES_SECTIONS.has(requestedTab)) {
+    return requestedTab;
+  }
+  return route?.focus === "key-import" ? "connection" : null;
+}
+
 function Hero() {
   return (
     <Card
@@ -182,7 +192,7 @@ function RecentRunsPanel({ runs = [] }) {
 }
 
 export function ProductRemotesView({ navigate = null, route = {} }) {
-  const [section, setSection] = useState("setup");
+  const [section, setSection] = useState(() => resolveRequestedSection(route) ?? "setup");
   const workspace = useRemoteOpsWorkspace();
   const routeConnectionId = typeof route?.connectionId === "string" ? route.connectionId : "";
   const effectiveSelectedConnectionId = useMemo(() => {
@@ -213,6 +223,14 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
       ),
     [effectiveSelectedConnectionId, workspace.runs]
   );
+
+  useEffect(() => {
+    const requestedSection = resolveRequestedSection(route);
+    if (!requestedSection || requestedSection === section) {
+      return;
+    }
+    setSection(requestedSection);
+  }, [route?.focus, route?.tab, section]);
 
   useEffect(() => {
     if (!routeConnectionId || workspace.selectedConnectionId === routeConnectionId) {
@@ -273,6 +291,13 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
   return (
     <Stack spacing={2}>
       <Hero />
+      {route?.focus === "key-import" ? (
+        <Alert severity="warning">
+          This remote needs its service-account key re-imported. In <strong>Connection Details</strong>, click{" "}
+          <strong>Choose JSON Key File</strong>, select the same service-account JSON again, then{" "}
+          <strong>Validate Connection</strong>.
+        </Alert>
+      ) : null}
       <Alert severity="info">
         This is the product-owned remote surface. The normal operator flow here is connection-first: validate one
         remote, auto-prepare the managed services, inspect compatibility, and provision only what the current product

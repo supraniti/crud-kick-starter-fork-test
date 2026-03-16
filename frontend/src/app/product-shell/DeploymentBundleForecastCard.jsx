@@ -1,7 +1,12 @@
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
 import { resolveDeploymentBrowseState } from "./product-deployment-browse-state.js";
 
-export function DeploymentBundleForecastCard({ forecast, selectedPage = null, runtimePreviewState = null }) {
+export function DeploymentBundleForecastCard({
+  forecast,
+  selectedPage = null,
+  runtimePreviewState = null,
+  suppressMissingStoredKeyWarning = false
+}) {
   const browseState = resolveDeploymentBrowseState({
     selectedPage,
     bundleForecast: forecast,
@@ -40,12 +45,20 @@ export function DeploymentBundleForecastCard({ forecast, selectedPage = null, ru
               Public origin: {browseState.publicOrigin}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Example public URL: {browseState.publicUrl}
+              Example public URL: {browseState.publicUrl || "Not resolved yet"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Media base: {browseState.publicMediaBaseUrl}
             </Typography>
           </Stack>
+
+          {browseState.publicUrlUnavailableMessage && !suppressMissingStoredKeyWarning ? (
+            <Alert
+              severity="warning"
+            >
+              {browseState.publicUrlUnavailableMessage}
+            </Alert>
+          ) : null}
 
           {browseState.publicUrl !== "Not resolved yet" ? (
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">

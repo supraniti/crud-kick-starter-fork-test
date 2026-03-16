@@ -1,5 +1,5 @@
-import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
-import { useState } from "react";
+import { Alert, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
+import { useRef, useState } from "react";
 import { useProductDeploymentsWorkspace } from "./useProductDeploymentsWorkspace.js";
 import { DeploymentBundleForecastCard } from "./DeploymentBundleForecastCard.jsx";
 import { DeploymentBundleRuntimePreviewCard } from "./DeploymentBundleRuntimePreviewCard.jsx";
@@ -19,6 +19,10 @@ import {
 } from "./product-deployments-view-sections.jsx";
 import { DeskTabsCard } from "../../ui/DeskTabsCard.jsx";
 import { DeskSplitLayout } from "../../ui/DeskSplitLayout.jsx";
+import {
+  importConnectionCredentialFile,
+  validateConnection
+} from "../../../../modules/test-modules-remote-ops/frontend/remote-ops-workspace-support.js";
 
 function TargetSection({
   title,
@@ -77,30 +81,91 @@ function isMissingStoredKeyMessage(message) {
 }
 
 function resolveMissingStoredKeyMessage(workspace) {
-  const historicalMessage =
-    workspace.selectedBundleRuns.find((run) => isMissingStoredKeyMessage(run?.summaryMessage))?.summaryMessage ?? "";
+  const deliveryPayloadMessage =
+    workspace.runtimePreviewState?.payload?.delivery?.temporaryAccess?.pageUrlMessage ?? "";
   return [
     workspace.pipelineState.errorMessage,
     workspace.runtimePreviewState.errorMessage,
-    historicalMessage
+    deliveryPayloadMessage
   ].find(isMissingStoredKeyMessage) ?? "";
 }
 
-function MissingStoredKeyGuidance({ connectionLabel, onOpenRemotes }) {
+function InlineKeyReimportControl({ connectionId, onImported }) {
+  const inputRef = useRef(null);
+  const [state, setState] = useState({
+    processing: false,
+    errorMessage: null,
+    successMessage: null
+  });
+
+  async function handleFileSelection(event) {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file || !connectionId) {
+      return;
+    }
+    setState({
+      processing: true,
+      errorMessage: null,
+      successMessage: null
+    });
+    try {
+      const fileContent = await file.text();
+      await importConnectionCredentialFile(connectionId, file.name, fileContent);
+      await validateConnection(connectionId);
+      await onImported?.();
+      setState({
+        processing: false,
+        errorMessage: null,
+        successMessage: "Key re-imported and connection validated."
+      });
+    } catch (error) {
+      setState({
+        processing: false,
+        errorMessage: error?.message ?? "Failed to re-import the service-account key.",
+        successMessage: null
+      });
+    }
+  }
+
   return (
-    <Alert
-      severity="warning"
-      action={
-        typeof onOpenRemotes === "function" ? (
-          <Button color="inherit" size="small" onClick={onOpenRemotes}>
-            Open Remotes
-          </Button>
-        ) : null
-      }
-    >
-      Stored service-account key file is missing for {connectionLabel || "the selected remote"}.
-      Go to Remotes, choose the same connection, click `Choose JSON Key File`, then `Validate Connection`
-      before running the release pipeline again.
+    <Stack spacing={1}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+        <Button
+          variant="contained"
+          size="small"
+          disabled={!connectionId || state.processing}
+          onClick={() => inputRef.current?.click()}
+        >
+          {state.processing ? "Re-importing..." : "Choose JSON Key File"}
+        </Button>
+        {state.processing ? <CircularProgress size={18} /> : null}
+      </Stack>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(event) => {
+          void handleFileSelection(event);
+        }}
+      />
+      {state.errorMessage ? <Typography variant="body2" color="error.main">{state.errorMessage}</Typography> : null}
+      {state.successMessage ? <Typography variant="body2" color="success.main">{state.successMessage}</Typography> : null}
+    </Stack>
+  );
+}
+
+function MissingStoredKeyGuidance({ connectionLabel, connectionId, onImported }) {
+  return (
+    <Alert severity="warning">
+      <Stack spacing={1.25} sx={{ width: "100%", minWidth: 0 }}>
+        <Typography variant="body2">
+          Stored service-account key file is missing for {connectionLabel || "the selected remote"}.
+          Re-import the same service-account JSON here before running the release pipeline.
+        </Typography>
+        <InlineKeyReimportControl connectionId={connectionId} onImported={onImported} />
+      </Stack>
     </Alert>
   );
 }
@@ -111,6 +176,7 @@ export function ProductDeploymentsView({ navigate = null }) {
   const missingStoredKeyMessage = resolveMissingStoredKeyMessage(workspace);
   const selectedConnectionLabel =
     workspace.releaseObservability.connection.message || workspace.releaseObservability.connection.connectionId;
+  const selectedConnectionId = workspace.releaseObservability.connection.connectionId || "";
 
   function openRoute(moduleId) {
     if (typeof navigate !== "function") {
@@ -126,19 +192,6 @@ export function ProductDeploymentsView({ navigate = null }) {
     navigate({ moduleId: "domains" }, { replace: false });
   }
 
-  function openRemotes() {
-    if (typeof navigate !== "function") {
-      return;
-    }
-    navigate(
-      {
-        moduleId: "remotes",
-        connectionId: workspace.releaseObservability.connection.connectionId || ""
-      },
-      { replace: false }
-    );
-  }
-
   return (
     <Stack spacing={2}>
       <DeploymentsHero />
@@ -149,7 +202,8 @@ export function ProductDeploymentsView({ navigate = null }) {
       {missingStoredKeyMessage ? (
         <MissingStoredKeyGuidance
           connectionLabel={selectedConnectionLabel}
-          onOpenRemotes={openRemotes}
+          connectionId={selectedConnectionId}
+          onImported={workspace.reload}
         />
       ) : null}
       <Alert severity="info">
@@ -196,11 +250,13 @@ export function ProductDeploymentsView({ navigate = null }) {
                   forecast={workspace.bundleForecast}
                   selectedPage={workspace.selectedPage}
                   runtimePreviewState={workspace.runtimePreviewState}
+                  suppressMissingStoredKeyWarning={Boolean(missingStoredKeyMessage)}
                 />
                 <DeploymentBrowseLinksCard
                   selectedPage={workspace.selectedPage}
                   bundleForecast={workspace.bundleForecast}
                   runtimePreviewState={workspace.runtimePreviewState}
+                  suppressMissingStoredKeyWarning={Boolean(missingStoredKeyMessage)}
                 />
               </Stack>
             ) : null}

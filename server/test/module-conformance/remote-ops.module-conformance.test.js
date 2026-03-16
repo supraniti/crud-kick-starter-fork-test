@@ -1491,6 +1491,248 @@ test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a l
   }
 }, REMOTE_OPS_TEST_TIMEOUT_MS);
 
+test("remote ops provisions temporary browser-delivery public-read access with storage permissions only", async () => {
+  const server = await createRemoteOpsTestServer();
+
+  try {
+    const payload = createServiceAccountCredentialPayload();
+    const enabledServices = new Set(["storage.googleapis.com"]);
+    const bucketPolicies = new Map([
+      [
+        "deployment-bucket",
+        {
+          bindings: []
+        }
+      ],
+      [
+        "media-bucket",
+        {
+          bindings: []
+        }
+      ]
+    ]);
+    const grantedProjectPermissions = new Set([
+      "serviceusage.services.get",
+      "storage.buckets.get",
+      "storage.buckets.getIamPolicy",
+      "storage.objects.list",
+      "storage.objects.create",
+      "storage.objects.get",
+      "storage.objects.delete",
+      "storage.buckets.create",
+      "storage.buckets.update",
+      "storage.buckets.setIamPolicy"
+    ]);
+
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      const normalized = String(url);
+      const method = options?.method ?? "GET";
+
+      if (normalized === "https://oauth2.googleapis.com/token") {
+        return createGoogleJsonResponse(200, {
+          access_token: "access-token-browser-temporary",
+          expires_in: 3600,
+          token_type: "Bearer"
+        });
+      }
+
+      if (normalized === "https://cloudresourcemanager.googleapis.com/v3/projects/demo-project") {
+        return createGoogleJsonResponse(200, {
+          name: "projects/1234567890",
+          projectId: "demo-project",
+          projectNumber: "1234567890",
+          displayName: "Demo Project",
+          state: "ACTIVE"
+        });
+      }
+
+      if (
+        normalized ===
+          "https://cloudresourcemanager.googleapis.com/v1/projects/demo-project:testIamPermissions" &&
+        method === "POST"
+      ) {
+        return createGoogleJsonResponse(200, {
+          permissions: [...grantedProjectPermissions]
+        });
+      }
+
+      if (normalized === "https://serviceusage.googleapis.com/v1/projects/1234567890/services/storage.googleapis.com") {
+        return createGoogleJsonResponse(200, {
+          name: "projects/1234567890/services/storage.googleapis.com",
+          state: enabledServices.has("storage.googleapis.com") ? "ENABLED" : "DISABLED"
+        });
+      }
+
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/deployment-bucket") {
+        return createGoogleJsonResponse(200, {
+          name: "deployment-bucket",
+          location: "ME-WEST1"
+        });
+      }
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/media-bucket") {
+        return createGoogleJsonResponse(200, {
+          name: "media-bucket",
+          location: "ME-WEST1"
+        });
+      }
+
+      if (
+        normalized.startsWith("https://storage.googleapis.com/storage/v1/b/deployment-bucket/iam/testPermissions?") ||
+        normalized.startsWith("https://storage.googleapis.com/storage/v1/b/media-bucket/iam/testPermissions?")
+      ) {
+        return createGoogleJsonResponse(200, {
+          permissions: [
+            "storage.objects.create",
+            "storage.objects.get",
+            "storage.objects.delete"
+          ]
+        });
+      }
+
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/deployment-bucket/iam" && method === "GET") {
+        return createGoogleJsonResponse(200, bucketPolicies.get("deployment-bucket"));
+      }
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/media-bucket/iam" && method === "GET") {
+        return createGoogleJsonResponse(200, bucketPolicies.get("media-bucket"));
+      }
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/deployment-bucket/iam" && method === "PUT") {
+        const nextPolicy = JSON.parse(options.body);
+        bucketPolicies.set("deployment-bucket", nextPolicy);
+        return createGoogleJsonResponse(200, nextPolicy);
+      }
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/media-bucket/iam" && method === "PUT") {
+        const nextPolicy = JSON.parse(options.body);
+        bucketPolicies.set("media-bucket", nextPolicy);
+        return createGoogleJsonResponse(200, nextPolicy);
+      }
+
+      throw new Error(`Unexpected request: ${method} ${normalized}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const connection = await seedConnection(server, {
+      credentialPathHint: null,
+      projectId: "",
+      projectNumber: "",
+      projectDisplayName: ""
+    });
+    const imported = await injectJson(server, "POST", buildConnectionRoute(connection.id, "import-key-file"), {
+      fileName: "demo-browser-temporary.json",
+      fileContent: JSON.stringify(payload)
+    });
+    expect(imported.statusCode, JSON.stringify(imported.body)).toBe(200);
+
+    const deploymentTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Deployment Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "deployment-bucket",
+        prefix: "site",
+        localRootHint: "deployment"
+      },
+      policy: {
+        allowDeletes: true,
+        allowRestore: true,
+        requireDryRunFirst: true
+      }
+    });
+    expect(deploymentTarget.statusCode).toBe(201);
+
+    const mediaTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Media Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "media-bucket",
+        prefix: "library",
+        localRootHint: "media"
+      },
+      policy: {
+        allowDeletes: true,
+        allowRestore: true,
+        requireDryRunFirst: true
+      }
+    });
+    expect(mediaTarget.statusCode).toBe(201);
+
+    const browserTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Temporary Browser Delivery",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "gcp-temporary",
+        stackMode: "direct-storage",
+        dnsMode: "external",
+        deploymentTargetProfileId: deploymentTarget.body.item.id,
+        mediaTargetProfileId: mediaTarget.body.item.id
+      },
+      policy: {
+        allowDeletes: false,
+        allowRestore: false,
+        requireDryRunFirst: true
+      }
+    });
+    expect(browserTarget.statusCode).toBe(201);
+
+    const analyze = await injectJson(
+      server,
+      "POST",
+      `/api/reference/modules/test-modules-remote-ops/connections/${connection.id}/analyze-compatibility`
+    );
+    expect(analyze.statusCode, JSON.stringify(analyze.body)).toBe(200);
+    const browserBundle = analyze.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
+    expect(browserBundle.state).toBe("action-required");
+    expect(browserBundle.provisionableActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          resourceKind: "public-read",
+          availableNow: true,
+          missingPermissions: []
+        })
+      ])
+    );
+
+    const provision = await injectJson(
+      server,
+      "POST",
+      `/api/reference/modules/test-modules-remote-ops/connections/${connection.id}/provision-missing`,
+      {
+        confirmedSafeguardIds: ["cost-confirmation", "singleton-hygiene", "minimum-footprint"]
+      }
+    );
+    expect(provision.statusCode, JSON.stringify(provision.body)).toBe(200);
+    expect(provision.body.executedActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resourceKind: "public-read" })
+      ])
+    );
+    const nextBrowserBundle = provision.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
+    expect(nextBrowserBundle.state).toBe("compatible");
+    expect(bucketPolicies.get("deployment-bucket")?.bindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "roles/storage.objectViewer",
+          members: expect.arrayContaining(["allUsers"])
+        })
+      ])
+    );
+    expect(bucketPolicies.get("media-bucket")?.bindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "roles/storage.objectViewer",
+          members: expect.arrayContaining(["allUsers"])
+        })
+      ])
+    );
+  } finally {
+    await server.close();
+  }
+}, REMOTE_OPS_TEST_TIMEOUT_MS);
+
 test("remote ops compares and executes a live Firestore projection against GCP APIs", async () => {
   const server = await createRemoteOpsTestServer();
 
@@ -1694,7 +1936,8 @@ test("remote ops compares, executes, and restores a live deployment storage targ
           items: [...remoteObjects.values()].map((item) => ({
             name: item.name,
             size: String(item.content.length),
-            md5Hash: item.md5Hash
+            md5Hash: item.md5Hash,
+            contentType: item.contentType
           }))
         });
       }
@@ -1705,10 +1948,15 @@ test("remote ops compares, executes, and restores a live deployment storage targ
         const requestUrl = new URL(normalized);
         const objectName = requestUrl.searchParams.get("name");
         const content = Buffer.isBuffer(options.body) ? options.body : Buffer.from(options.body);
+        const contentType =
+          typeof options?.headers?.["content-type"] === "string"
+            ? options.headers["content-type"]
+            : "application/octet-stream";
         remoteObjects.set(objectName, {
           name: objectName,
           content,
-          md5Hash: hashStorageContent(content)
+          md5Hash: hashStorageContent(content),
+          contentType
         });
         return createGoogleJsonResponse(200, {
           name: objectName

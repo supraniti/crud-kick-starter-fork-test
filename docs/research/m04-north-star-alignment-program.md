@@ -751,7 +751,7 @@
     - created and released:
       - `M04 Posts Release Bundle`
       - `M04 Categories Release Bundle`
-    - fixed `gcp-temporary` delivery so private GCS deployment/media objects resolve through signed URLs instead of inaccessible raw storage URLs
+    - fixed `gcp-temporary` delivery so the app provisions public bucket access and emits clean provider URLs instead of broken private-object links
     - captured the exercised baseline in:
       - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 

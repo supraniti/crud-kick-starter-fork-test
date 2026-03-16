@@ -76,14 +76,17 @@ async function loadBucketIamPolicy(bucketName, accessToken) {
   );
 }
 
-function buildActionAvailability(permissionGroup, projectPermissions) {
-  if (!permissionGroup) {
+function buildActionAvailability(permissionGroup, projectPermissions, requiredPermissions = null) {
+  const permissions = Array.isArray(requiredPermissions) && requiredPermissions.length > 0
+    ? requiredPermissions
+    : permissionGroup?.permissions ?? [];
+  if (permissions.length === 0) {
     return {
       availableNow: false,
       missingPermissions: []
     };
   }
-  const missingPermissions = permissionGroup.permissions.filter(
+  const missingPermissions = permissions.filter(
     (permission) => !projectPermissions.has(permission)
   );
   return {
@@ -100,9 +103,10 @@ function buildProvisioningAction({
   linkedTargetId = null,
   notes = [],
   permissionGroup,
-  projectPermissions
+  projectPermissions,
+  requiredPermissions = null
 }) {
-  const availability = buildActionAvailability(permissionGroup, projectPermissions);
+  const availability = buildActionAvailability(permissionGroup, projectPermissions, requiredPermissions);
   return {
     id,
     label,
@@ -191,7 +195,8 @@ async function inspectDirectStorageLinkedBucket({
         linkedTargetId,
         notes: ["Set main page suffix to index.html for direct browser delivery."],
         permissionGroup: provisionPermissionGroup,
-        projectPermissions
+        projectPermissions,
+        requiredPermissions: ["storage.buckets.update"]
       })
     );
   }
@@ -213,7 +218,8 @@ async function inspectDirectStorageLinkedBucket({
           linkedTargetId,
           notes: ["Required for browser clients to fetch deployed HTML or media directly."],
           permissionGroup: provisionPermissionGroup,
-          projectPermissions
+          projectPermissions,
+          requiredPermissions: ["storage.buckets.setIamPolicy"]
         })
       );
     }

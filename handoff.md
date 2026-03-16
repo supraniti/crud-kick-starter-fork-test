@@ -32,6 +32,49 @@
   - `pnpm quality:gate:full`
   - all passed
 
+## Post-M06 Hardening
+- Delivered on `2026-03-16`.
+- Fixed the live review blockers after M06:
+  - `Deployments` missing-key recovery is now inline and action-oriented
+  - the live browser-delivery contract for `gcp-temporary` is now clean provider URLs backed by public-readable deployment/media buckets
+  - live deployment sync rewrites storage object metadata so published HTML renders in-browser instead of downloading
+- Operator behavior now:
+  - from `Deployments`, a real `Choose JSON Key File` control appears inline when the active temporary preview truly needs a missing key re-import
+  - stale failed bundle runs no longer surface false missing-key warnings
+  - `Open Example URL` now points at clean provider URLs with no access query parameters
+  - post/category example URLs now open as HTML documents in the browser
+- Main files:
+  - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+  - [product-deployments-view-sections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-view-sections.jsx)
+  - [DeploymentBundleForecastCard.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/DeploymentBundleForecastCard.jsx)
+  - [product-deployment-browse-state.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployment-browse-state.js)
+  - [browser-delivery-reference-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/browser-delivery-reference-runtime.mjs)
+  - [page-media-reference-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-media-reference-runtime.mjs)
+  - [page-delivery-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-delivery-runtime.mjs)
+  - [page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
+  - [remote-ops-live-storage-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-live-storage-runtime.mjs)
+  - [remote-ops-gcs-signed-url-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs)
+  - [remote-ops-gcp-browser-delivery-compatibility-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-gcp-browser-delivery-compatibility-runtime.mjs)
+- Focused proofs:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx src/tests/app-integration/product-deployments.key-recovery.integration.test.jsx`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+- Live proof:
+  - repaired the persisted `merchant-guild` key import for connection `remoteco-012`
+  - analyzed compatibility and provisioned the only remaining temporary-delivery requirements:
+    - public object read on the deployment bucket
+    - public object read on the media bucket
+  - reran release bundles `pagedepl-001` and `pagedepl-002` against `merchant-guild`
+  - clean provider post/category URLs now render as HTML documents in-browser:
+    - no `GoogleAccessId`
+    - no `Expires`
+    - no `Signature`
+  - `Deployments` now shows clean example URLs from the app itself
+- Final verification:
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - all passed
+
 ## Active execution target
 - M04 remains closed.
 - M05 product-flow convergence is now delivered.
@@ -91,7 +134,7 @@
   - `Remotes` correctly recognizes the full managed target set and reports `6/6`
   - `Pages` cleanly resolves both post and category proof templates with `20` synced outputs
   - `Deployments` resolves local artifact paths, example browse URLs, runtime preview, and clean release-state counts from the live proof baseline
-  - gcp-temporary preview no longer fails when the stored service-account key file is unavailable; it falls back to unsigned GCS URLs
+  - gcp-temporary preview now resolves through clean provider URLs once the app has provisioned public object read on the linked buckets
   - the saved M04/M05 proof pages were re-synced against the current Pages settings token so the persisted review baseline is clean
 - Final verification:
   - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`

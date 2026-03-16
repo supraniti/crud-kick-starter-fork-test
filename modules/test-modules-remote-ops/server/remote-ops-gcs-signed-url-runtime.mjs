@@ -63,10 +63,23 @@ export async function buildSignedStorageObjectGetUrl({
   );
 }
 
-export async function tryBuildSignedStorageObjectGetUrl(options) {
+export async function resolveSignedStorageObjectGetUrlState(options) {
   try {
-    return await buildSignedStorageObjectGetUrl(options);
-  } catch {
-    return null;
+    return {
+      available: true,
+      url: await buildSignedStorageObjectGetUrl(options),
+      errorMessage: null
+    };
+  } catch (error) {
+    return {
+      available: false,
+      url: null,
+      errorMessage: error?.message ?? "Failed to build a signed Google Cloud Storage object URL."
+    };
   }
+}
+
+export async function tryBuildSignedStorageObjectGetUrl(options) {
+  const state = await resolveSignedStorageObjectGetUrlState(options);
+  return state.url;
 }

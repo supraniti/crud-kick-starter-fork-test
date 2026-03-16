@@ -39,6 +39,45 @@ function encodeObjectName(objectName) {
   return encodeURIComponent(objectName);
 }
 
+function resolveStorageObjectContentType(relativePath) {
+  const normalizedPath = normalizeOptionalText(relativePath)?.toLowerCase() ?? "";
+  if (normalizedPath.endsWith(".html")) {
+    return "text/html; charset=utf-8";
+  }
+  if (normalizedPath.endsWith(".css")) {
+    return "text/css; charset=utf-8";
+  }
+  if (normalizedPath.endsWith(".js") || normalizedPath.endsWith(".mjs")) {
+    return "text/javascript; charset=utf-8";
+  }
+  if (normalizedPath.endsWith(".json")) {
+    return "application/json; charset=utf-8";
+  }
+  if (normalizedPath.endsWith(".svg")) {
+    return "image/svg+xml";
+  }
+  if (normalizedPath.endsWith(".png")) {
+    return "image/png";
+  }
+  if (normalizedPath.endsWith(".jpg") || normalizedPath.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+  if (normalizedPath.endsWith(".webp")) {
+    return "image/webp";
+  }
+  if (normalizedPath.endsWith(".gif")) {
+    return "image/gif";
+  }
+  if (normalizedPath.endsWith(".txt")) {
+    return "text/plain; charset=utf-8";
+  }
+  return "application/octet-stream";
+}
+
+function buildStorageCompareHash(hash, contentType) {
+  return `${normalizeOptionalText(hash) ?? ""}:${normalizeOptionalText(contentType) ?? ""}`;
+}
+
 async function collectRemoteStorageEntries(targetProfile, accessToken) {
   const config = buildStorageTargetConfig(targetProfile);
   const prefix = normalizeOptionalText(config.prefix);
@@ -68,18 +107,23 @@ async function collectRemoteStorageEntries(targetProfile, accessToken) {
       relativePath,
       objectName,
       sizeBytes: Number.parseInt(object?.size ?? "0", 10),
-      hash: normalizeOptionalText(object?.md5Hash) ?? normalizeOptionalText(object?.etag) ?? normalizeOptionalText(object?.generation)
+      hash: normalizeOptionalText(object?.md5Hash) ?? normalizeOptionalText(object?.etag) ?? normalizeOptionalText(object?.generation),
+      contentType: normalizeOptionalText(object?.contentType) ?? "application/octet-stream",
+      compareHash: buildStorageCompareHash(
+        normalizeOptionalText(object?.md5Hash) ?? normalizeOptionalText(object?.etag) ?? normalizeOptionalText(object?.generation),
+        normalizeOptionalText(object?.contentType) ?? "application/octet-stream"
+      )
     });
     return entries;
   }, new Map());
 }
 
-async function uploadStorageEntry(bucketName, objectName, absolutePath, accessToken) {
+async function uploadStorageEntry(bucketName, objectName, absolutePath, accessToken, contentType) {
   const content = await fs.readFile(absolutePath);
   const uploadUrl =
     `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucketName)}` +
     `/o?uploadType=media&name=${encodeURIComponent(objectName)}`;
-  await requestGoogleUpload(uploadUrl, accessToken, content);
+  await requestGoogleUpload(uploadUrl, accessToken, content, contentType);
 }
 
 async function downloadStorageEntry(bucketName, objectName, accessToken) {
@@ -98,13 +142,45 @@ async function writeLocalFile(rootPath, relativePath, content) {
 export async function compareLiveStorageTarget({ targetProfile, connectionProfile }) {
   const { accessToken } = await getServiceAccountAccessToken(connectionProfile);
   const config = buildStorageTargetConfig(targetProfile);
-  const localEntries = await collectFileHashes(
+  const collectedLocalEntries = await collectFileHashes(
     resolveLocalStorageRoot(targetProfile),
     "",
     { algorithm: "md5", encoding: "base64" }
   );
+  const localEntries = new Map(
+    [...collectedLocalEntries.entries()].map(([relativePath, entry]) => {
+      const contentType = resolveStorageObjectContentType(relativePath);
+      return [
+        relativePath,
+        {
+          ...entry,
+          contentType,
+          compareHash: buildStorageCompareHash(entry.hash, contentType)
+        }
+      ];
+    })
+  );
   const remoteEntries = await collectRemoteStorageEntries(targetProfile, accessToken);
-  const diff = buildDiff(localEntries, remoteEntries);
+  const diff = buildDiff(
+    new Map(
+      [...localEntries.entries()].map(([relativePath, entry]) => [
+        relativePath,
+        {
+          ...entry,
+          hash: entry.compareHash ?? entry.hash
+        }
+      ])
+    ),
+    new Map(
+      [...remoteEntries.entries()].map(([relativePath, entry]) => [
+        relativePath,
+        {
+          ...entry,
+          hash: entry.compareHash ?? entry.hash
+        }
+      ])
+    )
+  );
   const noun = targetProfile.targetKind === "deployment-storage" ? "Deployment target" : "Media target";
   return {
     summary: buildCompareSummaryFromDiff(diff, createProcedureMessage(noun, diff)),
@@ -127,7 +203,13 @@ export async function executeLiveStorageTarget({ targetProfile, connectionProfil
     if (!entry?.absolutePath) {
       continue;
     }
-    await uploadStorageEntry(bucketName, buildObjectName(prefix, compareKey), entry.absolutePath, accessToken);
+    await uploadStorageEntry(
+      bucketName,
+      buildObjectName(prefix, compareKey),
+      entry.absolutePath,
+      accessToken,
+      entry.contentType
+    );
   }
 
   if (targetProfile.policy?.allowDeletes) {

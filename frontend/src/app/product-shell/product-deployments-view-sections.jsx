@@ -255,7 +255,12 @@ export function DeploymentReleaseHistoryCard({ selectedBundle, runSummary, runs 
   );
 }
 
-export function DeploymentBrowseLinksCard({ selectedPage, bundleForecast, runtimePreviewState }) {
+export function DeploymentBrowseLinksCard({
+  selectedPage,
+  bundleForecast,
+  runtimePreviewState,
+  suppressMissingStoredKeyWarning = false
+}) {
   const browseState = resolveDeploymentBrowseState({
     selectedPage,
     bundleForecast,
@@ -290,7 +295,7 @@ export function DeploymentBrowseLinksCard({ selectedPage, bundleForecast, runtim
                 ) : null}
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                Example page URL: {browseState.publicUrl}
+                Example page URL: {browseState.publicUrl || "Not resolved yet"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Media base: {browseState.publicMediaBaseUrl}
@@ -298,6 +303,13 @@ export function DeploymentBrowseLinksCard({ selectedPage, bundleForecast, runtim
               <Typography variant="body2" color="text.secondary">
                 Page path or pattern: {browseState.pathLabel}
               </Typography>
+              {browseState.publicUrlUnavailableMessage && !suppressMissingStoredKeyWarning ? (
+                <Alert
+                  severity="warning"
+                >
+                  {browseState.publicUrlUnavailableMessage}
+                </Alert>
+              ) : null}
               {browseState.publicUrl !== "Not resolved yet" ? (
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   <Button

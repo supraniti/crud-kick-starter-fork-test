@@ -56,7 +56,7 @@
     - exercised the full create -> page -> bundle -> release -> remote -> runtime chain
     - normalized the live proof cohort to 10 published posts with unique category/tag/media bindings
     - verified category page fan-out and named release bundles against the real `merchant-guild` project
-    - fixed `gcp-temporary` browser delivery so private GCS objects now resolve through signed URLs instead of inaccessible raw storage URLs
+    - fixed `gcp-temporary` browser delivery so it now relies on public-readable bucket objects and emits clean provider URLs
 
 ## Definition Of Done For M04
 - Normal runtime behaves like a product CMS, not a proof-module browser.

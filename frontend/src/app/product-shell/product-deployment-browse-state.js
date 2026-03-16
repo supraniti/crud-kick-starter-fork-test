@@ -18,6 +18,13 @@ function resolveRuntimePage(runtimePreviewState) {
   return payload?.page && typeof payload.page === "object" ? payload.page : null;
 }
 
+function resolveTemporaryAccess(runtimePreviewState) {
+  const delivery = resolveRuntimeDelivery(runtimePreviewState);
+  return delivery?.temporaryAccess && typeof delivery.temporaryAccess === "object"
+    ? delivery.temporaryAccess
+    : null;
+}
+
 function resolveLocalArtifactPath(selectedPage, runtimePreviewState) {
   const explicitArtifactPath = normalizeText(selectedPage?.deploymentArtifactPath);
   if (explicitArtifactPath) {
@@ -48,6 +55,10 @@ function resolvePublicOrigin(bundleForecast, runtimePreviewState) {
 
 function resolvePublicUrl(bundleForecast, runtimePreviewState) {
   const delivery = resolveRuntimeDelivery(runtimePreviewState);
+  const temporaryAccess = resolveTemporaryAccess(runtimePreviewState);
+  if (temporaryAccess?.pageUrlAvailable === false) {
+    return "Not resolved yet";
+  }
   return normalizeText(delivery?.publicUrl) || normalizeText(bundleForecast?.publicUrl) || "Not resolved yet";
 }
 
@@ -66,11 +77,14 @@ function resolvePathLabel(bundleForecast, runtimePreviewState) {
 }
 
 export function resolveDeploymentBrowseState({ selectedPage = null, bundleForecast = null, runtimePreviewState = null }) {
+  const temporaryAccess = resolveTemporaryAccess(runtimePreviewState);
   return {
     localArtifactPath: resolveLocalArtifactPath(selectedPage, runtimePreviewState),
     publicOrigin: resolvePublicOrigin(bundleForecast, runtimePreviewState),
     publicUrl: resolvePublicUrl(bundleForecast, runtimePreviewState),
     publicMediaBaseUrl: resolvePublicMediaBaseUrl(bundleForecast, runtimePreviewState),
-    pathLabel: resolvePathLabel(bundleForecast, runtimePreviewState)
+    pathLabel: resolvePathLabel(bundleForecast, runtimePreviewState),
+    publicUrlUnavailableMessage: normalizeText(temporaryAccess?.pageUrlMessage) || "",
+    unsignedPublicUrl: normalizeText(temporaryAccess?.unsignedPageUrl) || ""
   };
 }

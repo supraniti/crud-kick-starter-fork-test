@@ -12,6 +12,42 @@
 
 ## Entries
 
+### 2026-03-16 - Post-M06 Browser Delivery Reality Check
+- Tasks:
+  - fixed the real browser-delivery bug where deployed HTML objects were uploaded as `application/octet-stream`, causing signed URLs to download instead of render
+  - removed false missing-key warnings in `Deployments` that were coming from historical failed bundle runs rather than current remote state
+  - replaced the weak "go to another desk" recovery behavior with an inline key re-import control on the actual deployment route
+- Easy:
+  - once the live signed URL was opened in the browser, the failure mode was obvious: this was not a routing problem, it was object metadata
+  - the warning bug was local to one UI seam: historical `selectedBundleRuns[].summaryMessage` was being treated as current truth
+- Hard:
+  - the first implementation looked correct at the desk level but still failed the real product bar because it did not prove "browse the deployed page in a browser and see HTML"
+  - tightening storage compare to include `contentType` immediately broke one conformance fixture, so the test had to be updated to model uploaded object metadata honestly
+- Improve:
+  - when preview or delivery claims browser usability, verify with a real browser-opened URL, not just API payload inspection
+  - do not surface historical failure summaries as current state in product routes
+  - if a recovery action belongs on the current route, keep it there; navigation advice is not a substitute for an action
+
+### 2026-03-16 - Post-M06 Missing-Key And Broken Preview Hardening
+- Tasks:
+  - made `Deployments` route directly into the matching `Remotes` connection and `Connection Details` tab when the stored service-account key must be re-imported
+  - stopped the page-delivery/runtime preview path from surfacing anonymous GCS object URLs as if they were valid temporary preview links
+  - split the new deployment key-recovery proof into its own integration file to stay inside the repo LOC gate
+- Easy:
+  - the live defects were concentrated in two seams:
+    - deployments-to-remotes navigation
+    - gcp-temporary signed-url fallback behavior
+  - the product route system already supported query-state handoff once the `Remotes` surface actually read `route.tab` / `route.focus`
+- Hard:
+  - the first implementation was behaviorally right but immediately tripped two repo rules:
+    - frontend test file over `600` LOC
+    - `page-delivery-runtime.mjs` over `600` LOC and one point over complexity
+  - the safe fix was structural extraction and test-file split, not loosening the gates
+- Improve:
+  - when temporary preview depends on signed cloud-object URLs, treat missing signing credentials as `unavailable`, not as permission-blind fallback to raw object URLs
+  - for product recovery actions, the operator should land on the exact tab and control needed; generic "open the other desk" guidance is not enough
+  - when adding focused coverage to already-large integration files, split immediately rather than letting the LOC gate catch it late
+
 ### 2026-03-16 - M06 Product Usability Reset Framing
 - Tasks:
   - preserved the new operator findings as a hard directive file instead of letting them live only in chat
@@ -1843,3 +1879,20 @@
 - Improve:
   - when a route reset changes the product meaning of a desk, update the smoke lane in the same pass instead of treating it as separate polish
   - keep large route-reset slices honest with the full gate before calling them done; the browser can look coherent while one proof still encodes the old workflow
+
+### 2026-03-16 - Temporary Delivery Must Be Real Delivery
+- Tasks:
+  - replaced the `gcp-temporary` mental model from signed private-object links to clean provider URLs backed by public-readable deployment/media buckets
+  - fixed the compatibility layer so `public-read` browser-delivery actions require only the storage permissions they actually use
+  - repaired the persisted `merchant-guild` service-account import after the runtime credential copy had gone missing
+  - provisioned public object read on the live deployment/media buckets through the app's own provisioning route
+  - reran the live post/category release bundles and verified the resulting URLs render as HTML in-browser
+- Easy:
+  - the existing provisioning executor already knew how to set bucket IAM; the real defect was only in the action-availability calculation
+  - once the bucket IAM and object metadata were both correct, the clean provider URLs worked immediately
+- Hard:
+  - earlier passes had normalized on signed URLs as an acceptable temporary contract, which was the wrong product bar
+  - the persisted live connection looked healthy in JSON state while its copied key file was actually missing on disk, so the live proof had to repair the credential seam before anything else could proceed
+- Improve:
+  - do not call browser delivery done until the URL shown in the product desk is the same URL that renders in a browser
+  - when a temporary-delivery mode exists, make it operationally real and visibly different from the owned-domain path, not a hidden signed-link escape hatch

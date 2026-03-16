@@ -191,7 +191,12 @@ function createRuntimePreviewPayload() {
       temporaryDeploymentBaseUrl: "https://storage.googleapis.com/demo-page-deployment-bucket/page-site",
       temporaryMediaBaseUrl: "https://storage.googleapis.com/demo-media-bucket/library",
       publicUrl: "https://storage.googleapis.com/demo-page-deployment-bucket/page-site/posts/launch-story/index.html",
-      publicMediaBaseUrl: "https://storage.googleapis.com/demo-media-bucket/library"
+      publicMediaBaseUrl: "https://storage.googleapis.com/demo-media-bucket/library",
+      temporaryAccess: {
+        pageUrlAvailable: true,
+        pageUrlMessage: null,
+        unsignedPageUrl: "https://storage.googleapis.com/demo-page-deployment-bucket/page-site/posts/launch-story/index.html"
+      }
     },
     runtime: {
       clientRuntime: {

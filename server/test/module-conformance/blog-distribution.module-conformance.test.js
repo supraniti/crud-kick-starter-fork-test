@@ -1486,7 +1486,7 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
-test("gcp temporary browser delivery emits signed page and media URLs for private storage", async () => {
+test("gcp temporary browser delivery emits public provider page and media URLs", async () => {
   const sandbox = await createDeploymentAndMediaSandbox();
   const credentialFixture = await createServiceAccountCredentialFixture();
   const server = await createEphemeralReferenceServer({
@@ -1587,9 +1587,11 @@ test("gcp temporary browser delivery emits signed page and media URLs for privat
       sandbox.deploymentRootDir,
       "post/temporary-delivery-story/index.html"
     );
-    expect(deploymentHtml).toContain("\"publicOrigin\":null");
-    expect(deploymentHtml).toContain("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com");
-    expect(deploymentHtml).toContain("Signature=");
+    expect(deploymentHtml).toContain(
+      "\"publicOrigin\":\"https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site\""
+    );
+    expect(deploymentHtml).not.toContain("GoogleAccessId=");
+    expect(deploymentHtml).not.toContain("Signature=");
     expect(deploymentHtml).toContain("\"temporaryMediaBaseUrl\":\"https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library\"");
 
     const deliveryResponse = await injectJson(
@@ -1602,31 +1604,34 @@ test("gcp temporary browser delivery emits signed page and media URLs for privat
       expect.objectContaining({
         accessMode: "gcp-temporary",
         dnsMode: "external",
-        publicOrigin: null,
-        publicUrl: expect.stringContaining("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"),
+        publicOrigin: "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site",
+        publicUrl:
+          "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/temporary-delivery-story/index.html",
         temporaryDeploymentBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site",
-        temporaryMediaBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
+        temporaryMediaBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library",
+        publicMediaBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
       })
     );
     expect(deliveryResponse.body.payload.media).toEqual(
       expect.objectContaining({
         referencedIds: expect.arrayContaining([heroMedia.id]),
+        publicBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library",
         temporaryBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library",
         items: expect.arrayContaining([
           expect.objectContaining({
             id: heroMedia.id,
-            publicUrl: null,
-            temporaryUrl: expect.stringContaining("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"),
-            preferredUrl: expect.stringContaining("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com")
+            publicUrl: expect.stringContaining("https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"),
+            temporaryUrl: expect.stringContaining("https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"),
+            preferredUrl: expect.stringContaining("https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library")
           })
         ])
       })
     );
-    expect(deliveryResponse.body.payload.head.canonicalUrl).toContain(
-      "GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"
+    expect(deliveryResponse.body.payload.head.canonicalUrl).toBe(
+      "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/temporary-delivery-story/index.html"
     );
     expect(deliveryResponse.body.payload.head.openGraph.imageUrl).toContain(
-      "GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"
+      "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
     );
   } finally {
     await server.close();
@@ -1635,7 +1640,7 @@ test("gcp temporary browser delivery emits signed page and media URLs for privat
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
-test("gcp temporary preview falls back to unsigned storage URLs when the signing key is unavailable", async () => {
+test("gcp temporary preview stays browser-usable even when the local key copy is unavailable", async () => {
   const sandbox = await createDeploymentAndMediaSandbox();
   const credentialFixture = await createServiceAccountCredentialFixture();
   const server = await createEphemeralReferenceServer({
@@ -1736,24 +1741,30 @@ test("gcp temporary preview falls back to unsigned storage URLs when the signing
       expect.objectContaining({
         accessMode: "gcp-temporary",
         dnsMode: "external",
-        publicOrigin: null,
+        publicOrigin: "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site",
         publicUrl:
           "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/preview-fallback-story/index.html",
         temporaryDeploymentBaseUrl:
           "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site",
         temporaryMediaBaseUrl:
+          "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library",
+        publicMediaBaseUrl:
           "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
       })
     );
     expect(deliveryResponse.body.payload.media).toEqual(
       expect.objectContaining({
         referencedIds: expect.arrayContaining([heroMedia.id]),
+        temporaryAccess: {
+          mediaUrlsSigned: false,
+          mediaUrlMessage: null
+        },
         items: expect.arrayContaining([
           expect.objectContaining({
             id: heroMedia.id,
-            publicUrl: null,
-            temporaryUrl: `https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library/${heroMedia.relativePath}`,
-            preferredUrl: `https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library/${heroMedia.relativePath}`
+            publicUrl: expect.stringContaining("https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"),
+            temporaryUrl: expect.stringContaining("https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"),
+            preferredUrl: expect.stringContaining("https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library")
           })
         ])
       })
@@ -1761,8 +1772,8 @@ test("gcp temporary preview falls back to unsigned storage URLs when the signing
     expect(deliveryResponse.body.payload.head.canonicalUrl).toBe(
       "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/preview-fallback-story/index.html"
     );
-    expect(deliveryResponse.body.payload.head.openGraph.imageUrl).toBe(
-      `https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library/${heroMedia.relativePath}`
+    expect(deliveryResponse.body.payload.head.openGraph.imageUrl).toContain(
+      "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
     );
   } finally {
     await server.close();

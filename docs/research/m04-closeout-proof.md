@@ -158,12 +158,12 @@
   - `https://console.cloud.google.com/storage/browser/merchant-guild-dev-media-679134333951?project=merchant-guild`
 
 ## Regeneration Paths
-- To regenerate a current signed page URL:
+- To regenerate a current public page URL:
   - call Pages delivery resolve for a concrete path, for example:
     - `/api/reference/modules/test-modules-pages/delivery/resolve?path=/post/remote-flow-review-post-01`
-- To regenerate a current signed category URL:
+- To regenerate a current public category URL:
   - `/api/reference/modules/test-modules-pages/delivery/resolve?path=/category/blogcate-001`
-- To regenerate current signed media URLs:
+- To regenerate current public media URLs:
   - inspect the `media.items[*].temporaryUrl` descriptors in the same delivery payload
 
 ## Closeout Result
@@ -174,4 +174,4 @@
   - Firestore projection
   - remote media sync
   - remote HTML sync
-  - temporary browser-facing access to private remote artifacts through signed URLs
+  - temporary browser-facing access through clean GCP provider URLs backed by public-readable deployment/media buckets

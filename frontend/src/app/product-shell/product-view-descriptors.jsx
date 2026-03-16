@@ -31,7 +31,7 @@ export const PRODUCT_VIEW_DESCRIPTORS = Object.freeze([
     usesCollectionsDomain: false,
     requiredDomains: [],
     routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
-    render: (context) => <ProductDeploymentsView navigate={context.navigate} />
+    render: (context) => <ProductDeploymentsView navigate={context.navigate} route={context.route} />
   },
   {
     moduleId: "test-modules-remote-ops",

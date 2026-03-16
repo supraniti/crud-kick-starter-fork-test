@@ -426,15 +426,18 @@ async function applyBrowserDeliveryToPayload({ payload, settings, resolvedPath }
   const browserDelivery = await resolveBrowserDeliveryPayloadState({
     browserDeliveryState: settings.browserDeliveryState,
     pagePath: payload?.page?.path ?? resolvedPath ?? payload?.page?.path,
-    artifactRelativePath: resolveArtifactRelativePathFromResolvedPath(
-      payload?.page?.path ?? resolvedPath
-    )
+    artifactRelativePath: resolveArtifactRelativePathFromResolvedPath(payload?.page?.path ?? resolvedPath)
   });
   if (!browserDelivery) {
     return payload;
   }
 
-  const nextPayload = {
+  const nextPayload = createBrowserDeliveryPayloadUpdate(payload, browserDelivery);
+  return browserDelivery.publicUrl ? applyCanonicalUrlToPayload(nextPayload, browserDelivery.publicUrl) : nextPayload;
+}
+
+function createBrowserDeliveryPayloadUpdate(payload, browserDelivery) {
+  return {
     ...payload,
     delivery: {
       ...(payload?.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
@@ -444,16 +447,17 @@ async function applyBrowserDeliveryToPayload({ payload, settings, resolvedPath }
       publicUrl: browserDelivery.publicUrl,
       publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,
       temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
-      temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
+      temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl,
+      temporaryAccess: browserDelivery.temporaryAccess ?? null
     }
   };
-  if (browserDelivery.publicUrl) {
-    nextPayload.head = {
-      ...(nextPayload.head && typeof nextPayload.head === "object" ? nextPayload.head : {}),
-      canonicalUrl: browserDelivery.publicUrl
-    };
-  }
-  return nextPayload;
+}
+
+function applyCanonicalUrlToPayload(payload, canonicalUrl) {
+  return {
+    ...payload,
+    head: { ...(payload?.head && typeof payload.head === "object" ? payload.head : {}), canonicalUrl }
+  };
 }
 async function finalizeDeliveryPayload(payload, collectionHandlerRegistry, browserDeliveryState = null) {
   const mediaAwarePayload = await attachResolvedMediaReferences(payload, collectionHandlerRegistry, browserDeliveryState);

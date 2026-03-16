@@ -10,6 +10,8 @@ import { validateFirestoreCollectionPath } from "./remote-ops-live-firestore-run
 import { normalizeOptionalText } from "./remote-ops-shared-runtime.mjs";
 import { normalizeBrowserDeliveryConfig } from "../shared/browser-delivery-support.mjs";
 
+const REMOTE_TARGETS_COLLECTION_ID = "remote-target-profiles";
+
 function createValidationResult(nextStatus, message, checkedItems, warnings = [], canProceed = false) {
   return {
     nextStatus,
@@ -130,7 +132,65 @@ async function validateStorageTarget(targetProfile, accessToken, checkedItems) {
   );
 }
 
-async function validateBrowserDeliveryTarget(targetProfile, connectionProfile, accessToken, checkedItems) {
+async function findLinkedTarget(collectionHandlerRegistry, targetId) {
+  const normalizedTargetId = normalizeOptionalText(targetId);
+  if (!normalizedTargetId) {
+    return null;
+  }
+  const handler = collectionHandlerRegistry?.get?.(REMOTE_TARGETS_COLLECTION_ID);
+  if (!handler || typeof handler.findById !== "function") {
+    return null;
+  }
+  return handler.findById(normalizedTargetId);
+}
+
+async function loadBucketIamPolicy(bucketName, accessToken) {
+  return requestGoogleJson(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}/iam`,
+    accessToken
+  );
+}
+
+function hasPublicObjectViewerBinding(policy = {}) {
+  const bindings = Array.isArray(policy?.bindings) ? policy.bindings : [];
+  return bindings.some((binding) => {
+    const role = String(binding?.role ?? "");
+    const members = Array.isArray(binding?.members) ? binding.members : [];
+    return members.includes("allUsers") && role === "roles/storage.objectViewer";
+  });
+}
+
+async function inspectBrowserBucketReadiness({
+  label,
+  bucketName,
+  accessToken,
+  checkedItems,
+  warnings
+}) {
+  const normalizedBucketName = normalizeOptionalText(bucketName);
+  if (!normalizedBucketName) {
+    warnings.push(`${label} bucket is not configured.`);
+    return;
+  }
+  await requestGoogleJson(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(normalizedBucketName)}`,
+    accessToken
+  );
+  checkedItems.push(`${label} bucket`);
+  const policy = await loadBucketIamPolicy(normalizedBucketName, accessToken);
+  checkedItems.push(`${label} public-read policy`);
+  if (!hasPublicObjectViewerBinding(policy)) {
+    warnings.push(`${label} bucket still needs public object read enabled for browser delivery.`);
+  }
+}
+
+async function validateBrowserDeliveryTarget(
+  targetProfile,
+  connectionProfile,
+  accessToken,
+  checkedItems,
+  collectionHandlerRegistry
+) {
   if (!connectionProfile.projectId) {
     return createValidationResult(
       "error",
@@ -160,15 +220,48 @@ async function validateBrowserDeliveryTarget(targetProfile, connectionProfile, a
       );
     }
     checkedItems.push("deployment target link");
+    const deploymentTarget = await findLinkedTarget(collectionHandlerRegistry, config.deploymentTargetProfileId);
+    if (!deploymentTarget || deploymentTarget.targetKind !== "deployment-storage") {
+      return createValidationResult(
+        "error",
+        "Linked deployment target is missing or invalid for GCP temporary delivery.",
+        checkedItems,
+        [],
+        false
+      );
+    }
+    await inspectBrowserBucketReadiness({
+      label: "Deployment",
+      bucketName: deploymentTarget.config?.bucketName,
+      accessToken,
+      checkedItems,
+      warnings
+    });
     if (!config.mediaTargetProfileId) {
-      warnings.push("No linked media target configured. Media temporary URLs will be unavailable.");
+      warnings.push("No linked media target is configured for browser-visible media URLs.");
+    } else {
+      checkedItems.push("media target link");
+      const mediaTarget = await findLinkedTarget(collectionHandlerRegistry, config.mediaTargetProfileId);
+      if (!mediaTarget || mediaTarget.targetKind !== "media-storage") {
+        warnings.push("Linked media target is missing or invalid for GCP temporary delivery.");
+      } else {
+        await inspectBrowserBucketReadiness({
+          label: "Media",
+          bucketName: mediaTarget.config?.bucketName,
+          accessToken,
+          checkedItems,
+          warnings
+        });
+      }
     }
     return createValidationResult(
       warnings.length > 0 ? "warning" : "validated",
-      "GCP temporary browser delivery is configured.",
+      warnings.length > 0
+        ? "GCP temporary browser delivery still needs public bucket access before pages and media are live on the web."
+        : "GCP temporary browser delivery is ready with public GCP URLs.",
       checkedItems,
       warnings,
-      true
+      warnings.length === 0
     );
   }
 
@@ -265,7 +358,7 @@ export async function validateLiveConnectionProfile(connectionProfile) {
   }
 }
 
-export async function validateLiveTargetProfile({ targetProfile, connectionProfile }) {
+export async function validateLiveTargetProfile({ targetProfile, connectionProfile, collectionHandlerRegistry }) {
   try {
     const { accessToken } = await getServiceAccountAccessToken(connectionProfile);
     const checkedItems = ["service account credential", "access token"];
@@ -277,7 +370,13 @@ export async function validateLiveTargetProfile({ targetProfile, connectionProfi
       return await validateStorageTarget(targetProfile, accessToken, checkedItems);
     }
     if (targetProfile.targetKind === "browser-delivery") {
-      return await validateBrowserDeliveryTarget(targetProfile, connectionProfile, accessToken, checkedItems);
+      return await validateBrowserDeliveryTarget(
+        targetProfile,
+        connectionProfile,
+        accessToken,
+        checkedItems,
+        collectionHandlerRegistry
+      );
     }
     return createValidationResult("error", "Unsupported live target kind.", checkedItems, [], false);
   } catch (error) {

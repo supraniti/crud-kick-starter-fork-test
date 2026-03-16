@@ -489,7 +489,8 @@ function buildBrowserDeliveryPayload(browserDelivery) {
     publicUrl: browserDelivery.publicUrl,
     publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,
     temporaryDeploymentBaseUrl: browserDelivery.temporaryDeploymentBaseUrl,
-    temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl
+    temporaryMediaBaseUrl: browserDelivery.temporaryMediaBaseUrl,
+    temporaryAccess: browserDelivery.temporaryAccess ?? null
   };
 }
 
