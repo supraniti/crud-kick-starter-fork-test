@@ -12,6 +12,26 @@
 
 ## Entries
 
+### 2026-03-16 - M05 Pass 5 Deployment Flow Simplification
+- Tasks:
+  - turned `Deployments` into a release-first route instead of a flat mix of bundle editing, per-target operations, and release execution
+  - kept the primary lane centered on:
+    - release readiness
+    - forecast
+    - runtime preview
+    - footprint/cost analysis
+    - release history
+  - moved bundle editing/validation and detailed per-target operations into explicit secondary sections
+- Easy:
+  - the release pipeline already existed as one bounded action, so the main work was to make the UI express that reality instead of competing with it
+  - the existing cards already separated the data well enough to reorder without widening backend ownership
+- Hard:
+  - the deployment tests previously asserted on validation and target-binding text as if all sections were always visible
+  - product improvements that intentionally hide secondary panels need the tests to follow the new user journey, not the old DOM shape
+- Improve:
+  - when a route owns both orchestration and manual fallback controls, make orchestration primary and collapse the fallbacks
+  - tests should assert the primary route contract first, then explicitly open secondary sections when they need to inspect detailed controls
+
 ### 2026-03-16 - M05 Pass 4 Presentation Flow Simplification
 - Tasks:
   - turned `Pages` into a page-type-first route instead of a long contract-field-first editor

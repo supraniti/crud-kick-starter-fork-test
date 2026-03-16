@@ -30,6 +30,7 @@
 - `Pass 2` is delivered.
 - `Pass 3` is delivered.
 - `Pass 4` is delivered.
+- `Pass 5` is delivered.
 - Delivered in Pass 1:
   - fixed `/app/authors`
   - expanded product-shell ownership to:
@@ -97,6 +98,27 @@
 - Verified:
   - focused frontend proofs passed
   - `pnpm lint:function-shape` passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+- Delivered in Pass 5:
+  - `Deployments` now keeps the primary release flow centered on:
+    - release readiness
+    - public output forecast
+    - runtime release preview
+    - release footprint and cost analysis
+    - release history
+  - `Deployments` now demotes:
+    - bundle setup
+    - per-target manual compare/execute/validate controls
+    into secondary expandable sections
+  - the route now reads as:
+    - choose or create bundle
+    - inspect forecast
+    - run deployment
+    - inspect result
+    rather than a flat operational dashboard
+- Verified:
+  - focused frontend proofs passed
   - `pnpm quality:protocol` passed
   - `pnpm quality:gate:full` passed
 
@@ -481,6 +503,9 @@ Main work:
 Exit criteria:
 - deployment reads as one coherent workflow
 - the user does not need to jump between multiple desks to complete a release
+
+Status:
+- delivered on `2026-03-16`
 
 ## Pass 6: State Visibility Across The Product
 Objective:

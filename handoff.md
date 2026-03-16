@@ -52,6 +52,7 @@
 - `Pass 2` is delivered.
 - `Pass 3` is delivered.
 - `Pass 4` is delivered.
+- `Pass 5` is delivered.
 - Main M05 artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
 - Pass 1 delivered:
@@ -154,8 +155,29 @@
   - `pnpm quality:gate:full`
   - current status:
     - all passed
+- Pass 5 delivered:
+  - `Deployments` now keeps the primary route focused on:
+    - release readiness
+    - public output forecast
+    - runtime release preview
+    - release footprint and remote-cost analysis
+    - release history
+  - `Deployments` now demotes:
+    - bundle setup
+    - manual per-target operations
+    into secondary expandable sections
+  - the route now reads as a release workflow first and a manual operations desk second
+- Main files:
+  - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+  - [product-deployments.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments.integration.test.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - current status:
+    - all passed
 - Next M05 target:
-  - `Pass 5: Deployment Flow Simplification`
+  - `Pass 6: State Visibility Across The Product`
 
 ## Current delivered slice
 - Fixed the `Authors` route crash.

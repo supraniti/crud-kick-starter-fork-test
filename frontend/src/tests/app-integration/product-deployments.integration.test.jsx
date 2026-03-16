@@ -258,6 +258,7 @@ test("deployment bundles can be created with typed target selectors", async () =
     expect(screen.getByText("No deployment bundles yet.")).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("button", { name: "Show Bundle Setup" }));
   await fillBundleEditor();
   fireEvent.click(screen.getByRole("button", { name: "Create Bundle" }));
 
@@ -312,6 +313,7 @@ test("deployment bundle validation blocks mismatched browser-delivery bindings b
     expect(screen.getByRole("heading", { name: "Release Pipeline Desk" })).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("button", { name: "Show Bundle Setup" }));
   await fillBundleEditor();
 
   await waitFor(() => {
@@ -421,6 +423,7 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Page: page-001")).toBeInTheDocument();
   });
   fireEvent.click(screen.getByRole("button", { name: /Posts Release Bundle\s+Page: page-001/i }));
+  fireEvent.click(screen.getByRole("button", { name: "Show Bundle Setup" }));
 
   await waitFor(() => {
     expect(screen.getByText("Bundle bindings are coherent.")).toBeInTheDocument();
@@ -444,6 +447,11 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Release pipeline completed for 'Posts Release Bundle'")).toBeInTheDocument();
     expect(screen.getByText("Sync local HTML")).toBeInTheDocument();
     expect(screen.getByText("Validate browser delivery")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Show Detailed Target Operations" }));
+
+  await waitFor(() => {
     expect(screen.getAllByText("Binding source: Deployment bundle").length).toBeGreaterThan(0);
   });
 }, 20000);
