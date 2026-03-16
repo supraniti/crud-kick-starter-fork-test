@@ -16,14 +16,10 @@
 
 ## Active execution target
 - M04 remains closed.
-- Active planning target is now product-flow convergence from the delivered M04 baseline.
-- Main planning artifact:
+- M05 product-flow convergence is now delivered.
+- Main artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
-- This is a forward program, not a recovery program.
-- Current user direction:
-  - focus on usability, coherence, and intuitive flow
-  - do not treat the issue as missing capability first
-  - discuss the plan before implementation
+- Next work should start as a new program from the delivered M05 baseline, not by reopening M05.
 
 ## Current planning observations
 - Most required mechanics already exist:
@@ -53,9 +49,23 @@
 - `Pass 3` is delivered.
 - `Pass 4` is delivered.
 - `Pass 5` is delivered.
- - `Pass 6` is delivered.
+- `Pass 6` is delivered.
+- `Pass 7` is delivered.
 - Main M05 artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
+- M05 closed state:
+  - `Remotes` correctly recognizes the full managed target set and reports `6/6`
+  - `Pages` cleanly resolves both post and category proof templates with `20` synced outputs
+  - `Deployments` resolves local artifact paths, example browse URLs, runtime preview, and clean release-state counts from the live proof baseline
+  - gcp-temporary preview no longer fails when the stored service-account key file is unavailable; it falls back to unsigned GCS URLs
+  - the saved M04/M05 proof pages were re-synced against the current Pages settings token so the persisted review baseline is clean
+- Final verification:
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-remotes.integration.test.jsx src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - all passed
 - Pass 1 delivered:
   - stable `Authors` route
   - product-shell descriptor ownership for:
@@ -218,8 +228,7 @@
   - `pnpm quality:gate:full`
   - current status:
     - all passed
-- Next M05 target:
-  - `Pass 7: End-To-End Hardening`
+- M05 is closed. Do not reopen the pass list for follow-up work.
 
 ## Current delivered slice
 - Fixed the `Authors` route crash.

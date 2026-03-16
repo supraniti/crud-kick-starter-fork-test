@@ -5,6 +5,7 @@ import {
   updateReferenceCollectionItem
 } from "../../api/reference.js";
 import {
+  fetchDeskPages as fetchPagesDeskItems,
   fetchDeliveryPayload as fetchPageDeliveryPayload,
   fetchPagePreviewSources as fetchPagePreviewSourceItems
 } from "../../../../modules/test-modules-pages/frontend/blog-distribution-workspace-support.js";
@@ -207,8 +208,12 @@ export function useDeploymentWorkspaceLoad() {
       errorMessage: null
     }));
     try {
+      const pagesPromise = fetchPagesDeskItems()
+        .then((items) => ({ items }))
+        .catch(() => fetchReferenceCollectionItems({ collectionId: PAGES_COLLECTION_ID, limit: 200 }));
+
       const [pagesPayload, bundlesPayload, runsPayload] = await Promise.all([
-        fetchReferenceCollectionItems({ collectionId: PAGES_COLLECTION_ID, limit: 200 }),
+        pagesPromise,
         fetchReferenceCollectionItems({ collectionId: DEPLOYMENT_BUNDLES_COLLECTION_ID, limit: 200 }),
         fetchReferenceCollectionItems({ collectionId: DEPLOYMENT_BUNDLE_RUNS_COLLECTION_ID, limit: 200 })
       ]);

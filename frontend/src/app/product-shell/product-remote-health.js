@@ -1,3 +1,5 @@
+import { resolveManagedProductBindingKey } from "../../../../modules/test-modules-remote-ops/shared/product-binding-support.mjs";
+
 function sortTargetsByTitle(targets = []) {
   return [...targets].sort((left, right) =>
     `${left?.title ?? ""}`.localeCompare(`${right?.title ?? ""}`)
@@ -188,7 +190,7 @@ function countUsableTargetsByBindingKey(targets, connectionById) {
     if (resolveTargetBindingState(target?.id ?? "", targets, connectionById).state !== "ready") {
       return totals;
     }
-    const bindingKey = typeof target?.productBindingKey === "string" ? target.productBindingKey : "";
+    const bindingKey = resolveManagedProductBindingKey(target);
     if (!bindingKey) {
       return totals;
     }

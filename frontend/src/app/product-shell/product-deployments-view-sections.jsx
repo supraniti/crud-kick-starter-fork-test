@@ -13,6 +13,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { resolveDeploymentBrowseState } from "./product-deployment-browse-state.js";
 
 export function DeploymentsHero() {
   return (
@@ -255,15 +256,11 @@ export function DeploymentReleaseHistoryCard({ selectedBundle, runSummary, runs 
 }
 
 export function DeploymentBrowseLinksCard({ selectedPage, bundleForecast, runtimePreviewState }) {
-  const localArtifactPath = selectedPage?.deploymentArtifactPath
-    ? `deployment/${selectedPage.deploymentArtifactPath}`
-    : "Not deployed yet";
-  const publicUrl = bundleForecast?.publicUrl ?? "Not resolved yet";
-  const publicOrigin = bundleForecast?.publicOrigin ?? "Not resolved yet";
-  const mediaBase =
-    bundleForecast?.publicMediaBaseUrl && bundleForecast.publicMediaBaseUrl !== "Not resolved yet"
-      ? bundleForecast.publicMediaBaseUrl
-      : "Not resolved yet";
+  const browseState = resolveDeploymentBrowseState({
+    selectedPage,
+    bundleForecast,
+    runtimePreviewState
+  });
   const previewSourceLabel =
     runtimePreviewState?.previewSource?.title
     ?? runtimePreviewState?.previewSource?.label
@@ -286,20 +283,20 @@ export function DeploymentBrowseLinksCard({ selectedPage, bundleForecast, runtim
           ) : (
             <>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                <Chip size="small" label={`Local artifact ${localArtifactPath}`} variant="outlined" />
-                <Chip size="small" label={`Public origin ${publicOrigin}`} variant="outlined" />
+                <Chip size="small" label={`Local artifact ${browseState.localArtifactPath}`} variant="outlined" />
+                <Chip size="small" label={`Public origin ${browseState.publicOrigin}`} variant="outlined" />
                 {previewSourceLabel ? (
                   <Chip size="small" label={`Preview source ${previewSourceLabel}`} variant="outlined" />
                 ) : null}
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                Example page URL: {publicUrl}
+                Example page URL: {browseState.publicUrl}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Media base: {mediaBase}
+                Media base: {browseState.publicMediaBaseUrl}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Page path or pattern: {bundleForecast?.pathLabel ?? "Not configured"}
+                Page path or pattern: {browseState.pathLabel}
               </Typography>
             </>
           )}

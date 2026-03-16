@@ -12,6 +12,27 @@
 
 ## Entries
 
+### 2026-03-16 - M05 Pass 7 End-To-End Hardening
+- Tasks:
+  - closed the product-flow convergence program by rehearsing the live proof baseline through `Remotes`, `Pages`, and `Deployments`
+  - fixed product remote health so legacy managed targets without explicit `productBindingKey` still count toward the product-owned remote bundle
+  - fixed gcp-temporary page preview/media resolution so missing stored service-account key files no longer hard-fail the delivery payload
+  - re-synced the saved proof pages so the persisted baseline matches the current Pages settings token instead of showing permanent stale drift
+- Easy:
+  - once the live APIs were queried directly, the stale-state issue was clearly a real `Pages module settings changed` drift condition, not a missing-file bug
+  - the missing-key browser-delivery fix stayed bounded because the right place to degrade was the page-facing signed-url seam, not the provider runtime as a whole
+- Hard:
+  - the product surface mixed three different truths at once:
+    - legacy managed target records
+    - real live page-deployment state
+    - stale in-memory runtime preview state from the open browser session
+  - the Windows local review backend still required an unrestricted restart because `node --watch` hit the usual sandbox `spawn EPERM` boundary
+- Improve:
+  - when a product route derives managed-service readiness from persisted targets, always include a compatibility layer for earlier persisted data shapes before blaming the UI
+  - for delivery preview, signed temporary URLs are an enhancement, not a hard precondition; product browseability should degrade to plain storage URLs instead of returning `500`
+  - when a settings-token drift is real, re-sync the saved proof baseline rather than weakening the deployment-state evaluator
+  - reloading the live browser route after backend state repair matters; open product desks can hold stale preview state even when the backend is already fixed
+
 ### 2026-03-16 - M05 Pass 6 State Visibility Across The Product
 - Tasks:
   - moved release-state signals into the primary operator surfaces instead of leaving them mostly inside secondary remote/deployment panels

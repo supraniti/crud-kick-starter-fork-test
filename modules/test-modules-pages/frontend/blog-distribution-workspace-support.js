@@ -19,7 +19,7 @@ const CATEGORIES_COLLECTION_ID = "blog-categories";
 const TAGS_COLLECTION_ID = "blog-tags";
 const MEDIA_COLLECTION_ID = "media-items";
 
-async function fetchDeskPages() {
+export async function fetchDeskPages() {
   const response = await fetch(`/api/reference/modules/${MODULE_ID}/pages/desk-items`, {
     method: "GET",
     headers: {

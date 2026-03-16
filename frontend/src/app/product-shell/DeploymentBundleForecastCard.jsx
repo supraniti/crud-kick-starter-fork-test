@@ -1,6 +1,12 @@
 import { Alert, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
+import { resolveDeploymentBrowseState } from "./product-deployment-browse-state.js";
 
-export function DeploymentBundleForecastCard({ forecast }) {
+export function DeploymentBundleForecastCard({ forecast, selectedPage = null, runtimePreviewState = null }) {
+  const browseState = resolveDeploymentBrowseState({
+    selectedPage,
+    bundleForecast: forecast,
+    runtimePreviewState
+  });
   return (
     <Card variant="outlined">
       <CardContent>
@@ -28,16 +34,16 @@ export function DeploymentBundleForecastCard({ forecast }) {
               Page: {forecast.pageTitle}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Path or pattern: {forecast.pathLabel}
+              Path or pattern: {browseState.pathLabel}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Public origin: {forecast.publicOrigin}
+              Public origin: {browseState.publicOrigin}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Example public URL: {forecast.publicUrl}
+              Example public URL: {browseState.publicUrl}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Media base: {forecast.publicMediaBaseUrl}
+              Media base: {browseState.publicMediaBaseUrl}
             </Typography>
           </Stack>
 

@@ -121,7 +121,11 @@ export function ProductDeploymentsView({ navigate = null }) {
             pipelineState={workspace.pipelineState}
             onRunPipeline={workspace.runReleasePipeline}
           />
-          <DeploymentBundleForecastCard forecast={workspace.bundleForecast} />
+          <DeploymentBundleForecastCard
+            forecast={workspace.bundleForecast}
+            selectedPage={workspace.selectedPage}
+            runtimePreviewState={workspace.runtimePreviewState}
+          />
           <DeploymentBundleRuntimePreviewCard runtimePreviewState={workspace.runtimePreviewState} />
 
           <DeploymentReleaseObservabilityCard

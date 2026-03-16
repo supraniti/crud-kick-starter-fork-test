@@ -5,6 +5,7 @@ import {
   ConnectionList
 } from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsConnectionPanels.jsx";
 import { RemoteOpsConnectionSetupCard } from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsConnectionSetupCard.jsx";
+import { resolveManagedProductBindingKey } from "../../../../modules/test-modules-remote-ops/shared/product-binding-support.mjs";
 import { useRemoteOpsWorkspace } from "../../../../modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js";
 import { SummaryCard } from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsSharedPanels.jsx";
 import { ProductRemoteSetupCards } from "./ProductRemoteSetupCards.jsx";
@@ -42,7 +43,7 @@ function countPreparedManagedTargets(targets = [], connectionId = "") {
   return targets.filter(
     (target) =>
       target?.connectionProfileId === connectionId &&
-      MANAGED_PRODUCT_TARGET_KEYS.has(target?.productBindingKey)
+      MANAGED_PRODUCT_TARGET_KEYS.has(resolveManagedProductBindingKey(target))
   ).length;
 }
 

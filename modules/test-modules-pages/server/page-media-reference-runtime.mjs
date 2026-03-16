@@ -1,4 +1,4 @@
-import { buildSignedStorageObjectGetUrl } from "../../test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs";
+import { tryBuildSignedStorageObjectGetUrl } from "../../test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs";
 
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 const MEDIA_ID_FIELD_PATTERN = /MediaId$/;
@@ -198,7 +198,7 @@ async function buildSignedTemporaryMediaUrls(items = [], delivery = {}, browserD
         return [item?.id ?? "", null];
       }
       const objectName = prefix ? `${prefix}/${item.relativePath}` : item.relativePath;
-      const signedUrl = await buildSignedStorageObjectGetUrl({
+      const signedUrl = await tryBuildSignedStorageObjectGetUrl({
         connectionProfile: browserDeliveryState.connectionProfile,
         bucketName,
         objectName

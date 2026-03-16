@@ -42,6 +42,7 @@ vi.mock("../../../../modules/test-modules-pages/frontend/blog-distribution-works
   );
   return {
     ...actual,
+    fetchDeskPages: vi.fn(),
     fetchDeliveryPayload: vi.fn(),
     fetchPagePreviewSources: vi.fn(),
     syncSelectedPageDeployment: vi.fn(),
@@ -180,6 +181,18 @@ afterEach(() => {
 
 function createRuntimePreviewPayload() {
   return {
+    page: {
+      id: "page-001",
+      path: "/posts/launch-story",
+      deploymentArtifactPath: "posts/launch-story/index.html"
+    },
+    delivery: {
+      accessMode: "gcp-temporary",
+      temporaryDeploymentBaseUrl: "https://storage.googleapis.com/demo-page-deployment-bucket/page-site",
+      temporaryMediaBaseUrl: "https://storage.googleapis.com/demo-media-bucket/library",
+      publicUrl: "https://storage.googleapis.com/demo-page-deployment-bucket/page-site/posts/launch-story/index.html",
+      publicMediaBaseUrl: "https://storage.googleapis.com/demo-media-bucket/library"
+    },
     runtime: {
       clientRuntime: {
         assetUrl: "/assets/client-runtime.global.js",
@@ -222,6 +235,7 @@ function createRuntimePreviewPayload() {
 }
 
 function setupRuntimePreviewMocks() {
+  blogDistributionSupport.fetchDeskPages.mockResolvedValue([createPublishedPage()]);
   blogDistributionSupport.fetchPagePreviewSources.mockResolvedValue([
     {
       id: "post-001",
@@ -434,7 +448,9 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("comments.refresh")).toBeInTheDocument();
     expect(screen.getByText("https://stories.example.com/library/originals/hero.png")).toBeInTheDocument();
     expect(
-      screen.getByText(/Example public URL:\s*https:\/\/stories\.example\.com\/posts\/\{slug\}/)
+      screen.getByText(
+        "Example public URL: https://storage.googleapis.com/demo-page-deployment-bucket/page-site/posts/launch-story/index.html"
+      )
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run Release Pipeline" })).toBeEnabled();
   });
@@ -454,6 +470,7 @@ test("product deployments desk runs the release pipeline across local HTML, proj
 
   await waitFor(() => {
     expect(screen.getAllByText("Binding source: Deployment bundle").length).toBeGreaterThan(0);
+    expect(screen.getByText("Local artifact deployment/posts/launch-story/index.html")).toBeInTheDocument();
   });
 }, 20000);
 

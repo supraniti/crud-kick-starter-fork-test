@@ -62,3 +62,11 @@ export async function buildSignedStorageObjectGetUrl({
     `&Signature=${encodeURIComponent(signature)}`
   );
 }
+
+export async function tryBuildSignedStorageObjectGetUrl(options) {
+  try {
+    return await buildSignedStorageObjectGetUrl(options);
+  } catch {
+    return null;
+  }
+}

@@ -32,6 +32,7 @@
 - `Pass 4` is delivered.
 - `Pass 5` is delivered.
 - `Pass 6` is delivered.
+- `Pass 7` is delivered.
 - Delivered in Pass 1:
   - fixed `/app/authors`
   - expanded product-shell ownership to:
@@ -574,6 +575,27 @@ Main work:
 Exit criteria:
 - the product flow can be exercised from setup to remote browseability
 - docs and tests reflect the converged flow, not the previous fragmented model
+
+Delivered:
+- product remotes now recognizes legacy managed targets through shared binding-key fallback logic, so the product surface correctly reports `Managed services: 6/6`
+- product deployments now resolves pages through the same live desk-items endpoint as the Pages desk
+- bundle forecast and browse links now resolve from live runtime preview data instead of stale bundle-only state
+- gcp-temporary page preview and media URL resolution now fall back to unsigned GCS URLs when the stored service-account key file is unavailable instead of returning `500`
+- the saved M04 proof pages were re-synced so the persisted baseline is clean against the current Pages settings token
+- live browser review confirmed:
+  - `Remotes` shows `Managed services: 6/6`
+  - `Pages` shows both templates clean with `20` synced outputs
+  - `Deployments` shows clean output counts, resolved local artifact paths, and resolved temporary browse URLs
+
+Verified:
+- `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+- `pnpm --filter frontend exec vitest run src/tests/app-integration/product-remotes.integration.test.jsx src/tests/app-integration/product-deployments.integration.test.jsx`
+- `pnpm lint:function-shape`
+- `pnpm quality:protocol`
+- `pnpm quality:gate:full`
+
+Status:
+- delivered on `2026-03-16`
 
 ## Priority Order
 1. Pass 1: Product Information Architecture Tightening

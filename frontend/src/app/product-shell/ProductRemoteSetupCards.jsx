@@ -12,6 +12,7 @@ import {
   Stack,
   Typography
 } from "@mui/material";
+import { resolveManagedProductBindingKey } from "../../../../modules/test-modules-remote-ops/shared/product-binding-support.mjs";
 
 const PRODUCT_STAGE_SPECS = Object.freeze([
   {
@@ -70,8 +71,9 @@ function getStageColor(state) {
 function getManagedTargetsForStage(targets, connectionId, bindingKeys = []) {
   const targetMap = new Map(
     (Array.isArray(targets) ? targets : [])
-      .filter((target) => target?.connectionProfileId === connectionId && typeof target?.productBindingKey === "string")
-      .map((target) => [target.productBindingKey, target])
+      .filter((target) => target?.connectionProfileId === connectionId)
+      .map((target) => [resolveManagedProductBindingKey(target), target])
+      .filter(([bindingKey]) => bindingKey)
   );
   return bindingKeys
     .map((bindingKey) => targetMap.get(bindingKey) ?? null)

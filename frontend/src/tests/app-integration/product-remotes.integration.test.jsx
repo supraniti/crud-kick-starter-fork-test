@@ -26,7 +26,7 @@ function createManagedTargets(connectionId) {
     createTargetItem({
       id: "target-posts-001",
       connectionProfileId: connectionId,
-      productBindingKey: "posts-projection",
+      productBindingKey: null,
       title: "Posts Projection"
     }),
     createTargetItem({

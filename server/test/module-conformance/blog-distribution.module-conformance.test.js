@@ -1635,6 +1635,141 @@ test("gcp temporary browser delivery emits signed page and media URLs for privat
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 
+test("gcp temporary preview falls back to unsigned storage URLs when the signing key is unavailable", async () => {
+  const sandbox = await createDeploymentAndMediaSandbox();
+  const credentialFixture = await createServiceAccountCredentialFixture();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const heroMedia = await seedMedia(server, {
+      fileName: "preview-fallback-story.png"
+    });
+    const post = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Preview Fallback Story",
+      status: "published",
+      publishedOn: "2026-03-09T08:30:00.000Z",
+      featuredMediaId: heroMedia.id,
+      ogImageMediaId: heroMedia.id,
+      galleryMediaIds: [heroMedia.id]
+    });
+
+    const connection = await seedRemoteConnectionProfile(server, {
+      credentialPathHint: credentialFixture.credentialPath
+    });
+    const deploymentTarget = await seedRemoteTargetProfile(server, {
+      title: "Deployment Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "merchant-guild-dev-deployment-679134333951",
+        prefix: "site"
+      }
+    });
+    const mediaTarget = await seedRemoteTargetProfile(server, {
+      title: "Media Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "merchant-guild-dev-media-679134333951",
+        prefix: "library"
+      }
+    });
+    const browserDeliveryTarget = await seedRemoteTargetProfile(server, {
+      title: "Temporary Delivery",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "gcp-temporary",
+        stackMode: "direct-storage",
+        dnsMode: "external",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath(MODULE_ID),
+      {
+        remoteBrowserDeliveryTargetProfileId: browserDeliveryTarget.id
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/post",
+      pathPattern: "/post/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-09T10:00:00.000Z"
+    });
+    expect(templatePage.statusCode).toBe(201);
+
+    await credentialFixture.cleanup();
+
+    const deliveryResponse = await injectJson(
+      server,
+      "GET",
+      `${buildDeliveryRoute(templatePage.body.item.id)}?preview=true&sourceItemId=${post.id}`
+    );
+    expect(deliveryResponse.statusCode).toBe(200);
+    expect(deliveryResponse.body.payload.delivery).toEqual(
+      expect.objectContaining({
+        accessMode: "gcp-temporary",
+        dnsMode: "external",
+        publicOrigin: null,
+        publicUrl:
+          "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/preview-fallback-story/index.html",
+        temporaryDeploymentBaseUrl:
+          "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site",
+        temporaryMediaBaseUrl:
+          "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
+      })
+    );
+    expect(deliveryResponse.body.payload.media).toEqual(
+      expect.objectContaining({
+        referencedIds: expect.arrayContaining([heroMedia.id]),
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: heroMedia.id,
+            publicUrl: null,
+            temporaryUrl: `https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library/${heroMedia.relativePath}`,
+            preferredUrl: `https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library/${heroMedia.relativePath}`
+          })
+        ])
+      })
+    );
+    expect(deliveryResponse.body.payload.head.canonicalUrl).toBe(
+      "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/preview-fallback-story/index.html"
+    );
+    expect(deliveryResponse.body.payload.head.openGraph.imageUrl).toBe(
+      `https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library/${heroMedia.relativePath}`
+    );
+  } finally {
+    await server.close();
+    await sandbox.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
 test("page-owned browser-delivery binding overrides the Pages module default", async () => {
   const sandbox = await createDeploymentSandbox();
   const server = await createEphemeralReferenceServer({

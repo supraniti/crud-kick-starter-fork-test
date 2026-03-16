@@ -3,7 +3,7 @@ import {
   readStoredRemoteConnectionProfileById,
   readStoredRemoteTargetProfileById
 } from "../../test-modules-remote-ops/shared/target-profile-state-support.mjs";
-import { buildSignedStorageObjectGetUrl } from "../../test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs";
+import { tryBuildSignedStorageObjectGetUrl } from "../../test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs";
 
 const REMOTE_TARGETS_COLLECTION_ID = "remote-target-profiles";
 const REMOTE_CONNECTIONS_COLLECTION_ID = "remote-connection-profiles";
@@ -131,7 +131,7 @@ export async function resolveBrowserDeliveryPayloadState({
   return {
     ...descriptor,
     publicUrl:
-      (await buildSignedStorageObjectGetUrl({
+      (await tryBuildSignedStorageObjectGetUrl({
         connectionProfile: browserDeliveryState.connectionProfile,
         bucketName: browserDeliveryState.deploymentTarget.config.bucketName,
         objectName
