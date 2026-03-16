@@ -1,4 +1,4 @@
-import { Alert, Chip, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import { createPageOutputForecast } from "./page-output-forecast-support.js";
 
 export function OutputForecastPanel({ workspace }) {
@@ -72,7 +72,24 @@ export function OutputForecastPanel({ workspace }) {
 
         {forecast.samplePublicUrls.length > 0 ? (
           <Stack spacing={0.5}>
-            <Typography variant="subtitle2">Sample Public URLs</Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", sm: "center" }}
+            >
+              <Typography variant="subtitle2">Sample Public URLs</Typography>
+              <Button
+                component="a"
+                href={forecast.samplePublicUrls[0]}
+                target="_blank"
+                rel="noreferrer"
+                variant="outlined"
+                size="small"
+              >
+                Open Sample URL
+              </Button>
+            </Stack>
             {forecast.samplePublicUrls.map((url) => (
               <Typography key={url} variant="body2" color="text.secondary">
                 {url}

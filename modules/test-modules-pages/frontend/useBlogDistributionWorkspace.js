@@ -486,6 +486,16 @@ function usePageWorkspace({ pages, layouts, reloadSupportData, selectedActorId }
     setPageActionState,
     setDeliveryRefreshToken
   });
+  const selectPage = useCallback((pageId) => {
+    selectExistingPage({ pages, selection, setPageActionState }, pageId);
+  }, [
+    pages,
+    selection,
+    setPageActionState
+  ]);
+  const startNewPage = useCallback(() => {
+    startNewPageDraft(selection, setPageActionState);
+  }, [selection, setPageActionState]);
 
   return {
     ...selection,
@@ -498,8 +508,8 @@ function usePageWorkspace({ pages, layouts, reloadSupportData, selectedActorId }
     pageFilters,
     pageActionState,
     setPageFilters,
-    selectPage: (pageId) => selectExistingPage({ pages, selection, setPageActionState }, pageId),
-    startNewPage: () => startNewPageDraft(selection, setPageActionState),
+    selectPage,
+    startNewPage,
     changePageField: (fieldId, value) => changePageDraftField({ fieldId, value, layoutById, setPageDraftField }),
     changeDataSourceField: (index, fieldId, value) => {
       setPageDraftField((previous) => ({

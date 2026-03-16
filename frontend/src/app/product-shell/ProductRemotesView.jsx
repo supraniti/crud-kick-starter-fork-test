@@ -1,5 +1,5 @@
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ConnectionEditor,
   ConnectionList
@@ -9,6 +9,8 @@ import { resolveManagedProductBindingKey } from "../../../../modules/test-module
 import { useRemoteOpsWorkspace } from "../../../../modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js";
 import { SummaryCard } from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsSharedPanels.jsx";
 import { ProductRemoteSetupCards } from "./ProductRemoteSetupCards.jsx";
+import { DeskSplitLayout } from "../../ui/DeskSplitLayout.jsx";
+import { DeskTabsCard } from "../../ui/DeskTabsCard.jsx";
 
 const MANAGED_PRODUCT_TARGET_KEYS = new Set([
   "posts-projection",
@@ -180,6 +182,7 @@ function RecentRunsPanel({ runs = [] }) {
 }
 
 export function ProductRemotesView({ navigate = null, route = {} }) {
+  const [section, setSection] = useState("setup");
   const workspace = useRemoteOpsWorkspace();
   const routeConnectionId = typeof route?.connectionId === "string" ? route.connectionId : "";
   const effectiveSelectedConnectionId = useMemo(() => {
@@ -294,30 +297,44 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
         onOpenDomains={() => openRoute("domains")}
         onOpenDeployments={() => openRoute("deployments")}
       />
-      <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
-        <Stack sx={{ width: { xs: "100%", xl: 320 }, flexShrink: 0 }} spacing={2}>
-          <ConnectionList workspace={workspace} />
-          <RecentRunsPanel runs={recentRuns} />
-        </Stack>
-        <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
-          <ProductRemoteSetupCards
-            workspace={workspace}
-            selectedConnection={selectedConnection}
-            compatibilityReport={compatibilityReport}
-            targets={workspace.targets}
-            onOpenDomains={() => openRoute("domains")}
-            onOpenDeployments={() => openRoute("deployments")}
-          />
-          <ConnectionEditor
-            workspace={workspace}
-            SetupCard={RemoteOpsConnectionSetupCard}
-            surface="product"
-            showManagedTargetsPanel={false}
-            showCompatibilityReport={false}
-            showProvisioningPanel={false}
-          />
-        </Stack>
-      </Stack>
+      <DeskSplitLayout
+        sidebar={<ConnectionList workspace={workspace} />}
+        sidebarWidth={320}
+        main={
+          <>
+            <DeskTabsCard
+              value={section}
+              onChange={setSection}
+              tabs={[
+                { value: "setup", label: "Setup Stages" },
+                { value: "connection", label: "Connection Details" },
+                { value: "activity", label: "Recent Activity" }
+              ]}
+            />
+            {section === "setup" ? (
+              <ProductRemoteSetupCards
+                workspace={workspace}
+                selectedConnection={selectedConnection}
+                compatibilityReport={compatibilityReport}
+                targets={workspace.targets}
+                onOpenDomains={() => openRoute("domains")}
+                onOpenDeployments={() => openRoute("deployments")}
+              />
+            ) : null}
+            {section === "connection" ? (
+              <ConnectionEditor
+                workspace={workspace}
+                SetupCard={RemoteOpsConnectionSetupCard}
+                surface="product"
+                showManagedTargetsPanel={false}
+                showCompatibilityReport={false}
+                showProvisioningPanel={false}
+              />
+            ) : null}
+            {section === "activity" ? <RecentRunsPanel runs={recentRuns} /> : null}
+          </>
+        }
+      />
     </Stack>
   );
 }

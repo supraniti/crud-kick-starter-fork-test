@@ -44,6 +44,8 @@ test.describe("browser smoke lane", () => {
     await page.locator(`button[data-module-id='${MODULE_IDS.taxonomy}']`).first().click();
     await expect(page).toHaveURL(new RegExp(`/app/${ROUTE_SEGMENTS.taxonomy}$`));
     await page.getByRole("button", { name: "Tags" }).click();
+    await page.getByRole("tab", { name: "Manage Terms" }).click();
+    await expect(page.getByRole("heading", { name: "Taxonomy Workspace" })).toBeVisible();
     await expect(page.getByText("Collection: Tags")).toBeVisible();
 
     await page.getByLabel("Name", { exact: true }).fill(tagName);

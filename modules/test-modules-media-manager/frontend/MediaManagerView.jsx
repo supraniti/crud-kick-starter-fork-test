@@ -29,6 +29,7 @@ import {
   summarizeMediaSyncStates
 } from "./media-manager-remote-state.js";
 import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
+import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
 
 const SORT_OPTIONS = [
   { value: "recent", label: "Recently Updated" },
@@ -67,6 +68,7 @@ export function MediaManagerView({
   const [sortMode, setSortMode] = useState("recent");
   const [selectedMediaIds, setSelectedMediaIds] = useState([]);
   const [remoteOpen, setRemoteOpen] = useState(false);
+  const [detailSection, setDetailSection] = useState("preview");
   const workspace = useMediaManagerWorkspace({
     collectionsDomain
   });
@@ -414,32 +416,53 @@ export function MediaManagerView({
         </Stack>
 
         <Stack spacing={2}>
-          <MediaPreview
-            item={workspace.selectedItem}
-            derivedItems={workspace.derivedItems}
-            mediaContentUrlFor={workspace.mediaContentUrlFor}
-            remoteSyncState={resolveMediaCardRemoteSyncState(workspace.selectedItem, remoteMediaTarget, remoteRuns)}
+          <DeskTabsCard
+            value={detailSection}
+            onChange={setDetailSection}
+            tabs={[
+              { value: "preview", label: "Preview" },
+              { value: "links", label: "Links And URLs" },
+              { value: "metadata", label: "Metadata" },
+              { value: "operations", label: "Operations" },
+              { value: "remote", label: "Remote Sync" }
+            ]}
           />
-          <MediaArtifactLinksPanel
-            item={workspace.selectedItem}
-            mediaTarget={remoteMediaTarget}
-            browserTarget={browserDeliveryTarget}
-            deploymentTarget={deploymentTarget}
-            mediaContentUrlFor={workspace.mediaContentUrlFor}
-          />
-          <MetadataEditor
-            metadataState={workspace.metadataState}
-            onChangeField={workspace.handleMetadataFieldChange}
-            onSave={workspace.handleSaveMetadata}
-          />
-          <OperationsPanel
-            selectedItem={workspace.selectedItem}
-            operationState={workspace.operationState}
-            onRunPreset={workspace.handleRunPreset}
-            onDeleteSelected={workspace.handleDeleteSelected}
-          />
-          <MediaRemoteOnlyPanel mediaTarget={remoteMediaTarget} />
-          <RemoteSyncSection />
+          {detailSection === "preview" ? (
+            <MediaPreview
+              item={workspace.selectedItem}
+              derivedItems={workspace.derivedItems}
+              mediaContentUrlFor={workspace.mediaContentUrlFor}
+              remoteSyncState={resolveMediaCardRemoteSyncState(workspace.selectedItem, remoteMediaTarget, remoteRuns)}
+            />
+          ) : null}
+          {detailSection === "links" ? (
+            <Stack spacing={2}>
+              <MediaArtifactLinksPanel
+                item={workspace.selectedItem}
+                mediaTarget={remoteMediaTarget}
+                browserTarget={browserDeliveryTarget}
+                deploymentTarget={deploymentTarget}
+                mediaContentUrlFor={workspace.mediaContentUrlFor}
+              />
+              <MediaRemoteOnlyPanel mediaTarget={remoteMediaTarget} />
+            </Stack>
+          ) : null}
+          {detailSection === "metadata" ? (
+            <MetadataEditor
+              metadataState={workspace.metadataState}
+              onChangeField={workspace.handleMetadataFieldChange}
+              onSave={workspace.handleSaveMetadata}
+            />
+          ) : null}
+          {detailSection === "operations" ? (
+            <OperationsPanel
+              selectedItem={workspace.selectedItem}
+              operationState={workspace.operationState}
+              onRunPreset={workspace.handleRunPreset}
+              onDeleteSelected={workspace.handleDeleteSelected}
+            />
+          ) : null}
+          {detailSection === "remote" ? <RemoteSyncSection /> : null}
         </Stack>
       </Box>
     </Stack>

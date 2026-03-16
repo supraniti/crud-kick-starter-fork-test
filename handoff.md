@@ -14,12 +14,46 @@
 - Completed through Pass 30.
 - The currently-scoped M04 slice is delivered.
 
+## M06 Position
+- Delivered on `2026-03-16`.
+- Main artifact:
+  - [m06-product-usability-reset-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m06-product-usability-reset-plan.md)
+- Directive and findings:
+  - [m06-directive-and-review-findings-2026-03-16.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m06-directive-and-review-findings-2026-03-16.md)
+- Delivered baseline:
+  - stable `Pages` selection and route syncing
+  - actionable `Deployments` recovery guidance for missing stored keys
+  - direct local/public output links surfaced in posts, taxonomies, pages, and deployments
+  - split-layout + primary-tab composition across the main product desks
+  - smoke test aligned with the new taxonomy flow
+- Final verification:
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - all passed
+
 ## Active execution target
 - M04 remains closed.
 - M05 product-flow convergence is now delivered.
 - Main artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
-- Next work should start as a new program from the delivered M05 baseline, not by reopening M05.
+- Current active program:
+  - [m06-product-usability-reset-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m06-product-usability-reset-plan.md)
+- Directive and findings captured in:
+  - [m06-directive-and-review-findings-2026-03-16.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m06-directive-and-review-findings-2026-03-16.md)
+- M06 starts from the delivered M05 baseline but explicitly treats product usability and flow clarity as still insufficient.
+
+## Active M06 findings
+- `Pages` can loop when switching selected pages because route-state synchronization is still fragile.
+- `Deployments` still exposes too much at once and remains hard to reason about as one release action.
+- missing stored-key guidance in `Deployments` is not actionable enough:
+  - the operator is told what is wrong
+  - but not clearly where to go and what to click
+- direct deployment URLs exist in some surfaces but are not yet prominent enough as a core operator affordance.
+- the main product issue remains:
+  - too many long, mixed-purpose desks
+  - too much stacked information
+  - not enough clear next-step choreography
 
 ## Current planning observations
 - Most required mechanics already exist:

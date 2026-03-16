@@ -383,11 +383,13 @@ test("blog taxonomy view surfaces separate remote projection panels for categori
     />
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Show Remote Publication" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Remote Publication" }));
 
   expect(screen.getByText("Remote Categories Projection")).toBeInTheDocument();
   expect(screen.getAllByText("Categories Projection").length).toBeGreaterThan(0);
-  expect(screen.getAllByText("Nothing To Publish").length).toBeGreaterThan(0);
+  expect(
+    screen.getByText("Only categories with visibility set to public are included in this projection.")
+  ).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Tags" }));
   expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");
@@ -484,7 +486,7 @@ test("blog taxonomy view surfaces posts and pages usage visibility", async () =>
 
   expect(navigate).toHaveBeenCalledWith(
     {
-      moduleId: "test-modules-pages"
+      moduleId: "pages"
     },
     { replace: false }
   );

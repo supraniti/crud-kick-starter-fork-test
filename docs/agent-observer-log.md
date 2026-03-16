@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-16 - M06 Product Usability Reset Framing
+- Tasks:
+  - preserved the new operator findings as a hard directive file instead of letting them live only in chat
+  - re-read the current product against the north-star doc, the current-state map, and the delivered M05 plan
+  - reframed the next work as a product-usability reset, not as a continuation of M05 completion claims
+- Easy:
+  - the gap is obvious once the live browser is compared against the intended empty-system user journey
+  - the current codebase already contains most of the capability; the main mismatch is composition and route purpose
+- Hard:
+  - M05 improved naming and grouping enough to look close on paper while still missing the stronger screen composition and direct actionability the user actually wanted
+  - the live product now has enough real data that overloaded routes can appear successful while still being hard to operate
+- Improve:
+  - after a convergence pass, rehearse the empty-system operator journey directly in browser before declaring the flow "done"
+  - when the product problem is composition, do not let route-level capability proof stand in for route-level usability proof
+
 ### 2026-03-16 - M05 Pass 7 End-To-End Hardening
 - Tasks:
   - closed the product-flow convergence program by rehearsing the live proof baseline through `Remotes`, `Pages`, and `Deployments`
@@ -1811,3 +1826,20 @@
 - Improve:
   - do not treat remote/browser-delivery validation as sufficient proof; always retrieve at least one real HTML object and one real media object before calling the slice closed
   - when temporary delivery depends on private cloud objects, never expose a fake stable `publicOrigin`; emit signed object URLs and state the limitation plainly
+
+### 2026-03-16 - M06 Product Usability Reset
+- Tasks:
+  - hardened product-route stability and removed the `Pages` selection loop
+  - rewired the main desks toward split layout + primary tabs instead of one stacked column
+  - made missing stored-key guidance in `Deployments` actionable
+  - surfaced direct output/public URLs as first-class operator artifacts in content and release routes
+  - aligned the smoke lane with the new taxonomy product flow
+- Easy:
+  - the repo already had the needed mechanics; most of the work was hierarchy, route-state, and screen composition rather than backend invention
+  - a small shared UI pattern (`DeskSplitLayout`, `DeskTabsCard`) gave the main desks a consistent structure quickly
+- Hard:
+  - the real stability seam was not only browser behavior but proof upkeep; route resets broke a smoke assertion and two large files crossed the LOC gate at the same time
+  - frontend checks on this machine still need escalation whenever Vite/esbuild child processes or Playwright are involved
+- Improve:
+  - when a route reset changes the product meaning of a desk, update the smoke lane in the same pass instead of treating it as separate polish
+  - keep large route-reset slices honest with the full gate before calling them done; the browser can look coherent while one proof still encodes the old workflow

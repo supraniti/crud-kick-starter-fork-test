@@ -117,7 +117,15 @@ export function DistributionFilters({ filters, onChangeFilters, onClear }) {
   );
 }
 
-export function DistributionQueue({ pages, selectedPageId, sourceOptionsByType, readinessMap, onSelectPage, onCreatePage }) {
+export function DistributionQueue({
+  pages,
+  selectedPageId,
+  sourceOptionsByType,
+  readinessMap,
+  onSelectPage,
+  onCreatePage,
+  loading = false
+}) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
@@ -127,7 +135,8 @@ export function DistributionQueue({ pages, selectedPageId, sourceOptionsByType, 
             New Page
           </Button>
         </Stack>
-        {pages.length === 0 ? <Alert severity="info">No pages match the current filters.</Alert> : null}
+        {loading ? <Alert severity="info">Loading pages...</Alert> : null}
+        {!loading && pages.length === 0 ? <Alert severity="info">No pages match the current filters.</Alert> : null}
         <Stack spacing={1.5}>
           {pages.map((page) => {
             const issues = readinessMap.get(page.id) ?? [];

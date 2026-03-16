@@ -177,6 +177,11 @@ test("media manager view renders mission history and uses module-owned media rou
 
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Local Media Library" })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Operations" }));
+
+  await waitFor(() => {
     expect(screen.getByText("job-existing")).toBeInTheDocument();
   });
 
@@ -202,6 +207,7 @@ test("media manager view renders mission history and uses module-owned media rou
   );
 
   fireEvent.click(screen.getAllByText("Hero Banner")[0]);
+  fireEvent.click(screen.getByRole("tab", { name: "Metadata" }));
 
   await waitFor(() => {
     expect(screen.getByLabelText("Alt text")).toHaveValue("Original alt");
@@ -233,6 +239,7 @@ test("media manager view renders mission history and uses module-owned media rou
     })
   );
 
+  fireEvent.click(screen.getByRole("tab", { name: "Operations" }));
   fireEvent.click(screen.getByRole("button", { name: "Web Optimized" }));
   await waitFor(() => {
     expect(
@@ -404,9 +411,13 @@ test("media manager embeds remote media compare, sync, and restore procedures", 
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Show Remote Sync" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Remote Sync" })).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("tab", { name: "Remote Sync" }));
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Show Remote Sync" })).toBeInTheDocument();
+  });
   fireEvent.click(screen.getByRole("button", { name: "Show Remote Sync" }));
 
   fireEvent.click(screen.getByRole("button", { name: "Compare Remote" }));
@@ -571,15 +582,18 @@ test("media manager surfaces sync posture, artifact urls, and remote-only visibi
 
   await waitFor(() => {
     expect(screen.getByText("Selection And Bulk Actions")).toBeInTheDocument();
-    expect(screen.getByText("Artifact Links")).toBeInTheDocument();
     expect(screen.getByText("Total Assets")).toBeInTheDocument();
-    expect(screen.getByText("Remote Only")).toBeInTheDocument();
   });
 
   expect(screen.getByRole("button", { name: "Select Visible" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Compare Remote Target" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Sync Remote Target" })).toBeInTheDocument();
   expect(screen.getAllByText("Synced").length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole("tab", { name: "Links And URLs" }));
+  await waitFor(() => {
+    expect(screen.getByText("Artifact Links")).toBeInTheDocument();
+    expect(screen.getByText("Remote-Only Visibility")).toBeInTheDocument();
+  });
   expect(screen.getByText(/Temporary remote URL:/)).toHaveTextContent(
     "https://storage.googleapis.com/merchant-guild-media-679134333951/library/originals/media-0001.png"
   );
@@ -589,7 +603,6 @@ test("media manager surfaces sync posture, artifact urls, and remote-only visibi
   expect(screen.getByText(/Remote object key:/)).toHaveTextContent(
     "library/originals/media-0001.png"
   );
-  expect(screen.getByText("Remote-Only Visibility")).toBeInTheDocument();
   expect(screen.getByText("library/orphans/legacy-banner.png")).toBeInTheDocument();
   expect(screen.getByText("library/orphans/legacy-thumb.jpg")).toBeInTheDocument();
 }, 15000);

@@ -298,6 +298,32 @@ export function DeploymentBrowseLinksCard({ selectedPage, bundleForecast, runtim
               <Typography variant="body2" color="text.secondary">
                 Page path or pattern: {browseState.pathLabel}
               </Typography>
+              {browseState.publicUrl !== "Not resolved yet" ? (
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Button
+                    component="a"
+                    href={browseState.publicUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    variant="outlined"
+                    size="small"
+                  >
+                    Open Example URL
+                  </Button>
+                  {browseState.publicOrigin !== "Not resolved yet" ? (
+                    <Button
+                      component="a"
+                      href={browseState.publicOrigin}
+                      target="_blank"
+                      rel="noreferrer"
+                      variant="text"
+                      size="small"
+                    >
+                      Open Public Origin
+                    </Button>
+                  ) : null}
+                </Stack>
+              ) : null}
             </>
           )}
         </Stack>

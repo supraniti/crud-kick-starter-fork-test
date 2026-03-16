@@ -337,6 +337,7 @@ test("product domains desk renders DNS provider instructions and stack readiness
     expect(screen.getByRole("heading", { name: "Domain Delivery Desk" })).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("tab", { name: "DNS And Setup" }));
   fireEvent.click(screen.getByRole("button", { name: "Analyze Domain Setup" }));
 
   await waitFor(() => {

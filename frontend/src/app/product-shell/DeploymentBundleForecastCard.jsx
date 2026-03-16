@@ -1,4 +1,4 @@
-import { Alert, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
+import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
 import { resolveDeploymentBrowseState } from "./product-deployment-browse-state.js";
 
 export function DeploymentBundleForecastCard({ forecast, selectedPage = null, runtimePreviewState = null }) {
@@ -46,6 +46,33 @@ export function DeploymentBundleForecastCard({ forecast, selectedPage = null, ru
               Media base: {browseState.publicMediaBaseUrl}
             </Typography>
           </Stack>
+
+          {browseState.publicUrl !== "Not resolved yet" ? (
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Button
+                component="a"
+                href={browseState.publicUrl}
+                target="_blank"
+                rel="noreferrer"
+                variant="outlined"
+                size="small"
+              >
+                Open Example URL
+              </Button>
+              {browseState.publicOrigin !== "Not resolved yet" ? (
+                <Button
+                  component="a"
+                  href={browseState.publicOrigin}
+                  target="_blank"
+                  rel="noreferrer"
+                  variant="text"
+                  size="small"
+                >
+                  Open Public Origin
+                </Button>
+              ) : null}
+            </Stack>
+          ) : null}
 
           {forecast.warnings.length > 0 ? (
             <Stack spacing={1}>

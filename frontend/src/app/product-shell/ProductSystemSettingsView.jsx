@@ -348,22 +348,22 @@ export function ProductSystemSettingsView({ navigate = null }) {
       <SetupFlowCard
         remoteHealth={workspace.remoteHealth}
         pages={pages}
-        onOpenRemotes={() => openRoute("test-modules-remote-ops")}
+        onOpenRemotes={() => openRoute("remotes")}
         onOpenDomains={() => openRoute("domains")}
       />
       <RemoteHealthCard
         remoteHealth={workspace.remoteHealth}
         remoteLoading={workspace.remoteLoading}
         remoteErrorMessage={workspace.remoteErrorMessage}
-        onOpenRemotes={() => openRoute("test-modules-remote-ops")}
+        onOpenRemotes={() => openRoute("remotes")}
         onReload={workspace.reloadRemotes}
       />
       <DefaultsSummaryCard
         workspace={workspace}
-        onOpenPages={() => openRoute("test-modules-pages")}
-        onOpenPosts={() => openRoute("test-modules-content")}
-        onOpenTaxonomies={() => openRoute("test-modules-taxonomy")}
-        onOpenMedia={() => openRoute("test-modules-media-manager")}
+        onOpenPages={() => openRoute("pages")}
+        onOpenPosts={() => openRoute("posts")}
+        onOpenTaxonomies={() => openRoute("taxonomies")}
+        onOpenMedia={() => openRoute("media")}
       />
 
       <Card variant="outlined">
@@ -395,7 +395,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
           <SectionCard
             title="Pages Delivery Defaults"
             description="Fallback mount tag, HTML deployment target, and browser-delivery target consumed by Pages and generated HTML."
-            onOpen={() => openRoute("test-modules-pages")}
+            onOpen={() => openRoute("pages")}
             openLabel="Open Pages"
             onSave={() => workspace.saveModule("test-modules-pages")}
             saveLabel="Save Pages Defaults"
@@ -437,7 +437,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
           <SectionCard
             title="Posts Projection Defaults"
             description="Fallback Firestore projection target used by Posts when a product-wide default is needed."
-            onOpen={() => openRoute("test-modules-content")}
+            onOpen={() => openRoute("posts")}
             openLabel="Open Posts"
             onSave={() => workspace.saveModule("test-modules-content")}
             saveLabel="Save Posts Defaults"
@@ -460,7 +460,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
           <SectionCard
             title="Taxonomy Projection Defaults"
             description="Fallback Firestore projection targets for public categories and public tags."
-            onOpen={() => openRoute("test-modules-taxonomy")}
+            onOpen={() => openRoute("taxonomies")}
             openLabel="Open Taxonomies"
             onSave={() => workspace.saveModule("test-modules-taxonomy")}
             saveLabel="Save Taxonomy Defaults"
@@ -496,7 +496,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
           <SectionCard
             title="Media Sync Defaults"
             description="Fallback remote media target used by Media for compare, sync, and restore."
-            onOpen={() => openRoute("test-modules-media-manager")}
+            onOpen={() => openRoute("media")}
             openLabel="Open Media"
             onSave={() => workspace.saveModule("test-modules-media-manager")}
             saveLabel="Save Media Defaults"

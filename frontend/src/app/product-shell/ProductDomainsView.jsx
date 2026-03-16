@@ -1,5 +1,5 @@
 import { Alert, Card, Stack, Typography } from "@mui/material";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   TargetEditor,
   TargetList
@@ -13,6 +13,8 @@ import {
   DomainSummaryPanel,
   ServicePathsPanel
 } from "./ProductDomainSetupPanels.jsx";
+import { DeskSplitLayout } from "../../ui/DeskSplitLayout.jsx";
+import { DeskTabsCard } from "../../ui/DeskTabsCard.jsx";
 
 function Hero() {
   return (
@@ -59,6 +61,7 @@ function summarizeProjectionTargets(targets = [], connectionId = "") {
 }
 
 export function ProductDomainsView({ navigate = null, route = {} }) {
+  const [section, setSection] = useState("overview");
   const workspace = useRemoteOpsWorkspace();
   const browserTargets = workspace.targets.filter((item) => item.targetKind === "browser-delivery");
   const selectedBrowserTarget =
@@ -147,45 +150,63 @@ export function ProductDomainsView({ navigate = null, route = {} }) {
         to the raw target mental model first.
       </Alert>
       {workspace.errorMessage ? <Alert severity="error">{workspace.errorMessage}</Alert> : null}
-      <DomainSummaryPanel
-        selectedTarget={selectedBrowserTarget}
-        selectedConnection={selectedConnection}
-        descriptor={descriptor}
-        bundleReport={bundleReport}
-        deliveryReport={deliveryReport}
+      <DeskSplitLayout
+        sidebar={<TargetList workspace={domainsWorkspace} />}
+        sidebarWidth={320}
+        main={
+          <>
+            <DeskTabsCard
+              value={section}
+              onChange={setSection}
+              tabs={[
+                { value: "overview", label: "Delivery Overview" },
+                { value: "setup", label: "DNS And Setup" },
+                { value: "details", label: "Domain Details" }
+              ]}
+            />
+            {section === "overview" ? (
+              <Stack spacing={2}>
+                <DomainSummaryPanel
+                  selectedTarget={selectedBrowserTarget}
+                  selectedConnection={selectedConnection}
+                  descriptor={descriptor}
+                  bundleReport={bundleReport}
+                  deliveryReport={deliveryReport}
+                />
+                {selectedBrowserTarget ? (
+                  <>
+                    <AccessModePanel descriptor={descriptor} selectedTarget={selectedBrowserTarget} />
+                    <ServicePathsPanel
+                      descriptor={descriptor}
+                      deploymentTarget={deploymentTarget}
+                      mediaTarget={mediaTarget}
+                      projectionTargets={projectionTargets}
+                    />
+                  </>
+                ) : null}
+              </Stack>
+            ) : null}
+            {section === "setup" && selectedBrowserTarget ? (
+              <Stack spacing={2}>
+                <DnsInstructionsPanel
+                  selectedTarget={selectedBrowserTarget}
+                  descriptor={descriptor}
+                  deliveryReport={deliveryReport}
+                  bundleReport={bundleReport}
+                />
+                <DomainProvisioningCard
+                  workspace={workspace}
+                  bundleReport={bundleReport}
+                  selectedTarget={selectedBrowserTarget}
+                  onOpenRemotes={() => openRoute("remotes")}
+                  onOpenDeployments={() => openRoute("deployments")}
+                />
+              </Stack>
+            ) : null}
+            {section === "details" ? <TargetEditor workspace={domainsWorkspace} /> : null}
+          </>
+        }
       />
-      {selectedBrowserTarget ? (
-        <>
-          <AccessModePanel descriptor={descriptor} selectedTarget={selectedBrowserTarget} />
-          <DnsInstructionsPanel
-            selectedTarget={selectedBrowserTarget}
-            descriptor={descriptor}
-            deliveryReport={deliveryReport}
-            bundleReport={bundleReport}
-          />
-          <ServicePathsPanel
-            descriptor={descriptor}
-            deploymentTarget={deploymentTarget}
-            mediaTarget={mediaTarget}
-            projectionTargets={projectionTargets}
-          />
-          <DomainProvisioningCard
-            workspace={workspace}
-            bundleReport={bundleReport}
-            selectedTarget={selectedBrowserTarget}
-            onOpenRemotes={() => openRoute("remotes")}
-            onOpenDeployments={() => openRoute("deployments")}
-          />
-        </>
-      ) : null}
-      <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
-        <Stack sx={{ width: { xs: "100%", xl: 320 }, flexShrink: 0 }}>
-          <TargetList workspace={domainsWorkspace} />
-        </Stack>
-        <Stack sx={{ flex: 1, width: "100%" }}>
-          <TargetEditor workspace={domainsWorkspace} />
-        </Stack>
-      </Stack>
     </Stack>
   );
 }

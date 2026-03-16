@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ProductRemotesView } from "../../app/product-shell/ProductRemotesView.jsx";
 import * as referenceApi from "../../api/reference.js";
 import {
@@ -164,15 +164,22 @@ test("product remotes desk stays on the managed connection workflow instead of t
     expect(screen.getByText("4. Media Storage")).toBeInTheDocument();
     expect(screen.getByText("5. HTML Deployment")).toBeInTheDocument();
     expect(screen.getByText("6. Browser Delivery")).toBeInTheDocument();
-    expect(screen.getByText("Recent Remote Runs")).toBeInTheDocument();
   });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Recent Activity" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("Recent Remote Runs")).toBeInTheDocument();
+    expect(screen.getByText("Validate Posts Projection")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Setup Stages" }));
 
   expect(screen.queryByRole("tab", { name: "Targets" })).not.toBeInTheDocument();
   expect(screen.getAllByText("Service account: merchant-guild@appspot.gserviceaccount.com").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Project: Merchant Guild").length).toBeGreaterThan(0);
   expect(screen.getByText("Managed services: 6/6")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Analyze Compatibility" })).toBeInTheDocument();
-  expect(screen.getByText("Validate Posts Projection")).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "Analyze Compatibility" }).length).toBeGreaterThan(0);
   expect(screen.queryByLabelText("Operator Email")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Region")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Credential Label")).not.toBeInTheDocument();

@@ -14,6 +14,8 @@ import { createTaxonomyPublicationState } from "./blog-taxonomy-publication-stat
 import { useTaxonomyWorkspace } from "./useTaxonomyWorkspace.js";
 import { useTaxonomyUsageAwareness } from "./useTaxonomyUsageAwareness.js";
 import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
+import { resolvePagePublicOutput } from "../../test-modules-pages/frontend/page-public-link-support.js";
+import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
 
 const TAGS_COLLECTION_ID = "blog-tags";
 const CATEGORIES_COLLECTION_ID = "blog-categories";
@@ -167,7 +169,86 @@ function TaxonomyPublicationStatePanel({ publicationState, latestRun, targetTitl
   );
 }
 
-function SecondaryRemoteSection({ open, onToggle, children }) {
+function CategoryOutputPanel({ category, outputCandidates, onOpenPages }) {
+  if (!category) {
+    return (
+      <Alert severity="info">
+        Select a category in Manage Terms to inspect its exact page path and public URL.
+      </Alert>
+    );
+  }
+
+  if (outputCandidates.length === 0) {
+    return (
+      <Alert severity="info">
+        No published category page template currently covers {category.name ?? category.id}.
+      </Alert>
+    );
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+          <Stack spacing={0.35}>
+            <Typography variant="h6">Category Output</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Direct release outcome for the selected category.
+            </Typography>
+          </Stack>
+          {typeof onOpenPages === "function" ? (
+            <Button variant="outlined" onClick={onOpenPages}>
+              Open Pages
+            </Button>
+          ) : null}
+        </Stack>
+        {outputCandidates.map((entry) => (
+          <Paper key={entry.page.id} variant="outlined" sx={{ p: 1.5 }}>
+            <Stack spacing={0.75}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between">
+                <Stack spacing={0.25}>
+                  <Typography variant="subtitle2">{entry.page.title}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Path: {entry.output.path || "Not resolved yet"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Local artifact: {entry.output.localArtifactPath || "Not resolved yet"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Public URL: {entry.output.publicUrl || "Not resolved yet"}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Chip size="small" label={entry.page.deploymentStatus ?? "missing"} variant="outlined" />
+                  {entry.output.deploymentTargetTitle ? (
+                    <Chip size="small" label={`HTML ${entry.output.deploymentTargetTitle}`} variant="outlined" />
+                  ) : null}
+                  {entry.output.browserTargetTitle ? (
+                    <Chip size="small" label={`Delivery ${entry.output.browserTargetTitle}`} variant="outlined" />
+                  ) : null}
+                  {entry.output.publicUrl ? (
+                    <Button
+                      component="a"
+                      href={entry.output.publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      size="small"
+                      variant="outlined"
+                    >
+                      Open URL
+                    </Button>
+                  ) : null}
+                </Stack>
+              </Stack>
+            </Stack>
+          </Paper>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
+function RemotePublicationSection({ children }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
@@ -175,19 +256,14 @@ function SecondaryRemoteSection({ open, onToggle, children }) {
           <Stack spacing={0.35}>
             <Typography variant="h6">Remote Publication</Typography>
             <Typography variant="body2" color="text.secondary">
-              Categories and tags are authored here first. Expand this section only when you need to inspect or drive the secondary Firestore publication flow directly from Taxonomies.
+              Categories and tags are authored here first. Use this section only when you need to inspect or drive the secondary Firestore publication flow directly from Taxonomies.
             </Typography>
           </Stack>
-          <Button variant="outlined" onClick={onToggle}>
-            {open ? "Hide Remote Publication" : "Show Remote Publication"}
-          </Button>
         </Stack>
-        {!open ? (
-          <Alert severity="info">
-            Normal taxonomy work stays focused on categories and tags. Remote projection is secondary.
-          </Alert>
-        ) : null}
-        {open ? children : null}
+        <Alert severity="info">
+          Normal taxonomy work stays focused on categories and tags. Remote projection is secondary.
+        </Alert>
+        {children}
       </Stack>
     </Paper>
   );
@@ -199,7 +275,7 @@ export function BlogTaxonomyView({
   moduleSettingsDomain = null,
   navigate = null
 }) {
-  const [remoteOpen, setRemoteOpen] = useState(false);
+  const [section, setSection] = useState("overview");
   const workspace = useTaxonomyWorkspace({
     collectionsDomain
   });
@@ -225,6 +301,49 @@ export function BlogTaxonomyView({
       }),
     [projectionLatestRun, projectionTarget, workspace.items]
   );
+  const allTargets = remoteOpsSupport.supportState.targets ?? [];
+  const fallbackBrowserTarget = allTargets.find((target) => target?.productBindingKey === "browser-delivery") ?? null;
+  const fallbackDeploymentTarget = allTargets.find((target) => target?.productBindingKey === "deployment-storage") ?? null;
+  const fallbackMediaTarget = allTargets.find((target) => target?.productBindingKey === "media-storage") ?? null;
+  const selectedItem = useMemo(
+    () =>
+      workspace.items.find((item) => item.id === collectionsDomain.collectionFormState?.itemId) ?? null,
+    [collectionsDomain.collectionFormState?.itemId, workspace.items]
+  );
+  const selectedCategoryOutputs = useMemo(() => {
+    if (!isCategories || !selectedItem) {
+      return [];
+    }
+    return usageAwareness.usageState.pages
+      .filter((page) => {
+        if (page?.primarySourceType !== "blog-category" || page?.status !== "published") {
+          return false;
+        }
+        if (page?.deploymentMode === "per-record" && page?.sourceSelectionMode === "all-records") {
+          return true;
+        }
+        return page?.primarySource?.itemId === selectedItem.id;
+      })
+      .map((page) => ({
+        page,
+        output: resolvePagePublicOutput({
+          page,
+          sourceRecord: selectedItem,
+          targets: allTargets,
+          fallbackBrowserTarget,
+          fallbackDeploymentTarget,
+          fallbackMediaTarget
+        })
+      }));
+  }, [
+    allTargets,
+    fallbackBrowserTarget,
+    fallbackDeploymentTarget,
+    fallbackMediaTarget,
+    isCategories,
+    selectedItem,
+    usageAwareness.usageState.pages
+  ]);
 
   const visibleSchemaState = useMemo(
     () => ({
@@ -284,68 +403,96 @@ export function BlogTaxonomyView({
         />
       </Stack>
 
-      <TaxonomyPublicationStatePanel
-        publicationState={publicationState}
-        latestRun={projectionLatestRun}
-        targetTitle={projectionTarget?.title ?? ""}
-        usageSummary={usageAwareness.usageSummary}
-        isCategories={isCategories}
+      <DeskTabsCard
+        value={section}
+        onChange={setSection}
+        tabs={[
+          { value: "overview", label: "Overview" },
+          { value: "terms", label: "Manage Terms" },
+          { value: "publication", label: "Remote Publication" }
+        ]}
       />
 
-      {collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID ? (
-        <CategoryTreePanel rows={workspace.categoryTreeRows} />
+      {section === "overview" ? (
+        <Stack spacing={2}>
+          <TaxonomyPublicationStatePanel
+            publicationState={publicationState}
+            latestRun={projectionLatestRun}
+            targetTitle={projectionTarget?.title ?? ""}
+            usageSummary={usageAwareness.usageSummary}
+            isCategories={isCategories}
+          />
+
+          {collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID ? (
+            <CategoryTreePanel rows={workspace.categoryTreeRows} />
+          ) : null}
+
+          <BlogTaxonomyUsagePanel
+            activeCollectionId={collectionsDomain.activeCollectionId}
+            usageState={usageAwareness.usageState}
+            usageSummary={usageAwareness.usageSummary}
+            usageRows={usageAwareness.usageRows}
+            onOpenPosts={() => navigate?.({ moduleId: "posts" }, { replace: false })}
+            onOpenPages={() => navigate?.({ moduleId: "pages" }, { replace: false })}
+            onRefresh={usageAwareness.reload}
+          />
+
+          {isCategories ? (
+            <CategoryOutputPanel
+              category={selectedItem}
+              outputCandidates={selectedCategoryOutputs}
+              onOpenPages={() => navigate?.({ moduleId: "pages" }, { replace: false })}
+            />
+          ) : null}
+        </Stack>
       ) : null}
 
-      <BlogTaxonomyUsagePanel
-        activeCollectionId={collectionsDomain.activeCollectionId}
-        usageState={usageAwareness.usageState}
-        usageSummary={usageAwareness.usageSummary}
-        usageRows={usageAwareness.usageRows}
-        onOpenPosts={() => navigate?.({ moduleId: "test-modules-content" }, { replace: false })}
-        onOpenPages={() => navigate?.({ moduleId: "test-modules-pages" }, { replace: false })}
-        onRefresh={usageAwareness.reload}
-      />
-
-      {moduleSettingsDomain ? (
-        <SecondaryRemoteSection open={remoteOpen} onToggle={() => setRemoteOpen((value) => !value)}>
+      {section === "publication" && moduleSettingsDomain ? (
+        <RemotePublicationSection>
           <BlogTaxonomyRemoteProjectionPanel
             activeCollectionId={collectionsDomain.activeCollectionId}
             moduleSettingsDomain={moduleSettingsDomain}
             navigate={navigate}
           />
-        </SecondaryRemoteSection>
+        </RemotePublicationSection>
       ) : null}
 
-      <CollectionsView
-        workspaceLabel="Taxonomy Workspace"
-        collectionsState={collectionsDomain.collectionsState}
-        activeCollectionId={collectionsDomain.activeCollectionId}
-        isCollectionAvailable={collectionsDomain.isActiveCollectionAvailable}
-        unavailableMessage={
-          collectionsDomain.isActiveCollectionAvailable
-            ? null
-            : collectionsDomain.activeCollectionUnavailableMessage
-        }
-        onSelectCollection={collectionsDomain.handleSelectCollection}
-        schemaState={visibleSchemaState}
-        itemsState={collectionsDomain.collectionItemsState}
-        referenceOptionsState={collectionsDomain.referenceOptionsState}
-        filterState={collectionsDomain.collectionFilterState}
-        onChangeFilter={collectionsDomain.handleCollectionFilterChange}
-        onClearFilter={collectionsDomain.handleClearCollectionFilters}
-        formState={collectionsDomain.collectionFormState}
-        onChangeForm={collectionsDomain.handleCollectionFormChange}
-        onSubmitForm={collectionsDomain.handleSubmitCollectionForm}
-        onEditItem={collectionsDomain.handleEditCollectionItem}
-        onDeleteItem={collectionsDomain.handleDeleteCollectionItem}
-        onResetForm={collectionsDomain.handleResetCollectionForm}
-        inlineCreateState={collectionsDomain.inlineCreateState}
-        onInlineCreateReference={collectionsDomain.handleInlineCreateReference}
-        onInlineCreateFormChange={collectionsDomain.handleInlineCreateFormChange}
-        onCloseInlineCreate={collectionsDomain.handleCloseInlineCreate}
-        onSubmitInlineCreate={collectionsDomain.handleSubmitInlineCreate}
-        onRunCollectionErrorAction={collectionsDomain.handleRunCollectionErrorAction}
-      />
+      {section === "publication" && !moduleSettingsDomain ? (
+        <Alert severity="info">Remote publication settings are not available on this route.</Alert>
+      ) : null}
+
+      {section === "terms" ? (
+        <CollectionsView
+          workspaceLabel="Taxonomy Workspace"
+          collectionsState={collectionsDomain.collectionsState}
+          activeCollectionId={collectionsDomain.activeCollectionId}
+          isCollectionAvailable={collectionsDomain.isActiveCollectionAvailable}
+          unavailableMessage={
+            collectionsDomain.isActiveCollectionAvailable
+              ? null
+              : collectionsDomain.activeCollectionUnavailableMessage
+          }
+          onSelectCollection={collectionsDomain.handleSelectCollection}
+          schemaState={visibleSchemaState}
+          itemsState={collectionsDomain.collectionItemsState}
+          referenceOptionsState={collectionsDomain.referenceOptionsState}
+          filterState={collectionsDomain.collectionFilterState}
+          onChangeFilter={collectionsDomain.handleCollectionFilterChange}
+          onClearFilter={collectionsDomain.handleClearCollectionFilters}
+          formState={collectionsDomain.collectionFormState}
+          onChangeForm={collectionsDomain.handleCollectionFormChange}
+          onSubmitForm={collectionsDomain.handleSubmitCollectionForm}
+          onEditItem={collectionsDomain.handleEditCollectionItem}
+          onDeleteItem={collectionsDomain.handleDeleteCollectionItem}
+          onResetForm={collectionsDomain.handleResetCollectionForm}
+          inlineCreateState={collectionsDomain.inlineCreateState}
+          onInlineCreateReference={collectionsDomain.handleInlineCreateReference}
+          onInlineCreateFormChange={collectionsDomain.handleInlineCreateFormChange}
+          onCloseInlineCreate={collectionsDomain.handleCloseInlineCreate}
+          onSubmitInlineCreate={collectionsDomain.handleSubmitInlineCreate}
+          onRunCollectionErrorAction={collectionsDomain.handleRunCollectionErrorAction}
+        />
+      ) : null}
     </Stack>
   );
 }

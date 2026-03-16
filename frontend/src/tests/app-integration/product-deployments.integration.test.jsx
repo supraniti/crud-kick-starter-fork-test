@@ -272,6 +272,7 @@ test("deployment bundles can be created with typed target selectors", async () =
     expect(screen.getByText("No deployment bundles yet.")).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("tab", { name: "Advanced" }));
   fireEvent.click(screen.getByRole("button", { name: "Show Bundle Setup" }));
   await fillBundleEditor();
   fireEvent.click(screen.getByRole("button", { name: "Create Bundle" }));
@@ -327,6 +328,7 @@ test("deployment bundle validation blocks mismatched browser-delivery bindings b
     expect(screen.getByRole("heading", { name: "Release Pipeline Desk" })).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("tab", { name: "Advanced" }));
   fireEvent.click(screen.getByRole("button", { name: "Show Bundle Setup" }));
   await fillBundleEditor();
 
@@ -437,16 +439,18 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Page: page-001")).toBeInTheDocument();
   });
   fireEvent.click(screen.getByRole("button", { name: /Posts Release Bundle\s+Page: page-001/i }));
+  fireEvent.click(screen.getByRole("tab", { name: "Advanced" }));
   fireEvent.click(screen.getByRole("button", { name: "Show Bundle Setup" }));
 
   await waitFor(() => {
     expect(screen.getByText("Bundle bindings are coherent.")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Release" }));
+
+  await waitFor(() => {
     expect(screen.getByText("Public Output Forecast")).toBeInTheDocument();
-    expect(screen.getByText("Client Runtime Release Preview")).toBeInTheDocument();
     expect(screen.getByText("Browse Links")).toBeInTheDocument();
-    expect(screen.getByText("page.refresh")).toBeInTheDocument();
-    expect(screen.getByText("comments.refresh")).toBeInTheDocument();
-    expect(screen.getByText("https://stories.example.com/library/originals/hero.png")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Example public URL: https://storage.googleapis.com/demo-page-deployment-bucket/page-site/posts/launch-story/index.html"
@@ -455,6 +459,16 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByRole("button", { name: "Run Release Pipeline" })).toBeEnabled();
   });
 
+  fireEvent.click(screen.getByRole("tab", { name: "Inspect Output" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("Client Runtime Release Preview")).toBeInTheDocument();
+    expect(screen.getByText("page.refresh")).toBeInTheDocument();
+    expect(screen.getByText("comments.refresh")).toBeInTheDocument();
+    expect(screen.getByText("https://stories.example.com/library/originals/hero.png")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Release" }));
   fireEvent.click(screen.getByRole("button", { name: "Run Release Pipeline" }));
 
   await waitFor(() => {
@@ -466,11 +480,12 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Validate browser delivery")).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("tab", { name: "Advanced" }));
   fireEvent.click(screen.getByRole("button", { name: "Show Detailed Target Operations" }));
 
   await waitFor(() => {
     expect(screen.getAllByText("Binding source: Deployment bundle").length).toBeGreaterThan(0);
-    expect(screen.getByText("Local artifact deployment/posts/launch-story/index.html")).toBeInTheDocument();
+    expect(screen.getByText("Local HTML Deployment")).toBeInTheDocument();
   });
 }, 20000);
 
@@ -573,6 +588,7 @@ test("product deployments desk surfaces release footprint and remote cost warnin
     expect(screen.getByRole("heading", { name: "Release Pipeline Desk" })).toBeInTheDocument();
   });
   fireEvent.click(screen.getByRole("button", { name: /Posts Release Bundle\s+Page: page-001/i }));
+  fireEvent.click(screen.getByRole("tab", { name: "Inspect Output" }));
 
   await waitFor(() => {
     expect(screen.getByText("Release Footprint")).toBeInTheDocument();

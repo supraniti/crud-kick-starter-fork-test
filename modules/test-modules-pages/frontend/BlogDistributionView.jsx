@@ -1,4 +1,4 @@
-import { Alert, Button, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import {
   DeploymentInstancesPanel,
@@ -20,6 +20,8 @@ import {
 } from "./BlogDistributionRemotePanels.jsx";
 import { useBlogDistributionWorkspace } from "./useBlogDistributionWorkspace.js";
 import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
+import { DeskSplitLayout } from "../../../frontend/src/ui/DeskSplitLayout.jsx";
+import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
 
 const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
 
@@ -91,6 +93,8 @@ function SummaryGrid({ summary }) {
 }
 
 function OverviewTab({ workspace }) {
+  const [section, setSection] = useState("authoring");
+
   return (
     <Stack spacing={2}>
       <Alert severity="info">
@@ -114,9 +118,8 @@ function OverviewTab({ workspace }) {
           })
         }
       />
-
-      <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
-        <Stack sx={{ width: { xs: "100%", xl: 360 }, flexShrink: 0 }}>
+      <DeskSplitLayout
+        sidebar={
           <DistributionQueue
             pages={workspace.filteredPages}
             selectedPageId={workspace.selectedPageId}
@@ -124,67 +127,92 @@ function OverviewTab({ workspace }) {
             readinessMap={workspace.readinessMap}
             onSelectPage={workspace.selectPage}
             onCreatePage={workspace.startNewPage}
+            loading={workspace.supportState.loading}
           />
-        </Stack>
-        <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
-          <ReadinessPanel workspace={workspace} />
-          <OutputForecastPanel workspace={workspace} />
-          <DeliveryPreviewPanel workspace={workspace} />
-          <DeploymentInstancesPanel workspace={workspace} />
-          <SecondaryOverviewSection
-            title="Delivery Operations"
-            description="Use this when you want to validate browser delivery or compare and sync the local deployment output to remote storage."
-            collapsedLabel="Show Delivery Operations"
-            expandedLabel="Hide Delivery Operations"
-          >
-            <Stack spacing={2}>
-              <PagesRemoteDeploymentPanel
-                latestRun={workspace.remoteDeploymentLatestRun}
-                onCompare={workspace.compareRemoteDeployment}
-                onExecute={workspace.executeRemoteDeployment}
-                onOpenRemoteOps={workspace.openRemoteDeploymentTarget}
-                onValidate={workspace.validateRemoteDeployment}
-                page={workspace.selectedPage}
-                procedureState={workspace.remoteOpsSupport.procedureState}
-                selectedTarget={workspace.remoteDeploymentTarget}
-                bindingSourceLabel={workspace.remoteDeploymentBindingSourceLabel}
-              />
-              <PagesBrowserDeliveryPanel
-                latestRun={workspace.remoteBrowserLatestRun}
-                onOpenRemoteOps={workspace.openRemoteBrowserTarget}
-                onValidate={workspace.validateRemoteBrowserTarget}
-                procedureState={workspace.remoteOpsSupport.procedureState}
-                selectedTarget={workspace.remoteBrowserTarget}
-                bindingSourceLabel={workspace.remoteBrowserBindingSourceLabel}
-              />
-            </Stack>
-          </SecondaryOverviewSection>
-          <SecondaryOverviewSection
-            title="Pages Defaults"
-            description="Pages-level default targets and mount behavior. Most operators should set this once during setup and leave it alone."
-            collapsedLabel="Show Pages Defaults"
-            expandedLabel="Hide Pages Defaults"
-          >
-            <PagesRemoteSettingsPanel
-              appMountTagName={workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.appMountTagName ?? ""}
-              deploymentTargets={workspace.remoteDeploymentTargets}
-              browserTargets={workspace.remoteBrowserTargets}
-              onChangeField={workspace.moduleSettingsDomain?.handleSettingsFieldChange ?? (() => {})}
-              onSave={workspace.saveModuleSettings}
-              saveDisabled={!workspace.moduleSettingsDomain}
-              settingsState={workspace.moduleSettingsDomain?.moduleSettingsState}
+        }
+        main={
+          <>
+            <DeskTabsCard
+              value={section}
+              onChange={setSection}
+              tabs={[
+                { value: "authoring", label: "Authoring" },
+                { value: "preview", label: "Output Preview" },
+                { value: "deployment", label: "Deployment Status" },
+                { value: "advanced", label: "Advanced" }
+              ]}
             />
-          </SecondaryOverviewSection>
-          <SecondaryOverviewSection
-            title="Client Runtime Contract"
-            description="Runtime payload details for the deployed HTML. Use this when you need to inspect the exact browser bootstrap contract."
-            collapsedLabel="Show Client Runtime Contract"
-            expandedLabel="Hide Client Runtime Contract"
-          >
-            <RuntimeContractPanel workspace={workspace} />
-          </SecondaryOverviewSection>
-        </Stack>
-      </Stack>
+
+            {section === "authoring" ? <ReadinessPanel workspace={workspace} /> : null}
+
+            {section === "preview" ? (
+              <Stack spacing={2}>
+                <OutputForecastPanel workspace={workspace} />
+                <DeliveryPreviewPanel workspace={workspace} />
+              </Stack>
+            ) : null}
+
+            {section === "deployment" ? <DeploymentInstancesPanel workspace={workspace} /> : null}
+
+            {section === "advanced" ? (
+              <Stack spacing={2}>
+                <SecondaryOverviewSection
+                  title="Delivery Operations"
+                  description="Use this when you want to validate browser delivery or compare and sync the local deployment output to remote storage."
+                  collapsedLabel="Show Delivery Operations"
+                  expandedLabel="Hide Delivery Operations"
+                >
+                  <Stack spacing={2}>
+                    <PagesRemoteDeploymentPanel
+                      latestRun={workspace.remoteDeploymentLatestRun}
+                      onCompare={workspace.compareRemoteDeployment}
+                      onExecute={workspace.executeRemoteDeployment}
+                      onOpenRemoteOps={workspace.openRemoteDeploymentTarget}
+                      onValidate={workspace.validateRemoteDeployment}
+                      page={workspace.selectedPage}
+                      procedureState={workspace.remoteOpsSupport.procedureState}
+                      selectedTarget={workspace.remoteDeploymentTarget}
+                      bindingSourceLabel={workspace.remoteDeploymentBindingSourceLabel}
+                    />
+                    <PagesBrowserDeliveryPanel
+                      latestRun={workspace.remoteBrowserLatestRun}
+                      onOpenRemoteOps={workspace.openRemoteBrowserTarget}
+                      onValidate={workspace.validateRemoteBrowserTarget}
+                      procedureState={workspace.remoteOpsSupport.procedureState}
+                      selectedTarget={workspace.remoteBrowserTarget}
+                      bindingSourceLabel={workspace.remoteBrowserBindingSourceLabel}
+                    />
+                  </Stack>
+                </SecondaryOverviewSection>
+                <SecondaryOverviewSection
+                  title="Pages Defaults"
+                  description="Pages-level default targets and mount behavior. Most operators should set this once during setup and leave it alone."
+                  collapsedLabel="Show Pages Defaults"
+                  expandedLabel="Hide Pages Defaults"
+                >
+                  <PagesRemoteSettingsPanel
+                    appMountTagName={workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.appMountTagName ?? ""}
+                    deploymentTargets={workspace.remoteDeploymentTargets}
+                    browserTargets={workspace.remoteBrowserTargets}
+                    onChangeField={workspace.moduleSettingsDomain?.handleSettingsFieldChange ?? (() => {})}
+                    onSave={workspace.saveModuleSettings}
+                    saveDisabled={!workspace.moduleSettingsDomain}
+                    settingsState={workspace.moduleSettingsDomain?.moduleSettingsState}
+                  />
+                </SecondaryOverviewSection>
+                <SecondaryOverviewSection
+                  title="Client Runtime Contract"
+                  description="Runtime payload details for the deployed HTML. Use this when you need to inspect the exact browser bootstrap contract."
+                  collapsedLabel="Show Client Runtime Contract"
+                  expandedLabel="Hide Client Runtime Contract"
+                >
+                  <RuntimeContractPanel workspace={workspace} />
+                </SecondaryOverviewSection>
+              </Stack>
+            ) : null}
+          </>
+        }
+      />
     </Stack>
   );
 }
@@ -241,7 +269,24 @@ export function BlogDistributionView({
     collectionsDomain
   });
   const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
+  const routeModuleId = typeof route?.moduleId === "string" ? route.moduleId : "pages";
   const routePageId = typeof route?.pageId === "string" ? route.pageId : "";
+  const syncRoutePageId = useCallback((nextPageId, replace = true) => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    const normalizedNextPageId = typeof nextPageId === "string" ? nextPageId : "";
+    if (routePageId === normalizedNextPageId) {
+      return;
+    }
+    navigate(
+      {
+        moduleId: routeModuleId,
+        pageId: normalizedNextPageId
+      },
+      { replace }
+    );
+  }, [navigate, routeModuleId, routePageId]);
 
   useEffect(() => {
     if (
@@ -252,6 +297,9 @@ export function BlogDistributionView({
       return;
     }
     if (!workspace.pages.some((page) => page.id === routePageId)) {
+      if (workspace.pages.length > 0) {
+        syncRoutePageId(workspace.pages[0].id, true);
+      }
       return;
     }
     workspace.selectPage(routePageId);
@@ -260,25 +308,20 @@ export function BlogDistributionView({
     workspace.isCreatingNewPage,
     workspace.pages,
     workspace.selectPage,
-    workspace.selectedPageId
+    workspace.selectedPageId,
+    syncRoutePageId
   ]);
 
   useEffect(() => {
-    if (typeof navigate !== "function") {
+    if (workspace.isCreatingNewPage) {
       return;
     }
-    const nextPageId = workspace.isCreatingNewPage ? "" : workspace.selectedPageId ?? "";
-    if (routePageId === nextPageId) {
+    const nextPageId = workspace.selectedPageId ?? "";
+    if (!nextPageId || routePageId === nextPageId) {
       return;
     }
-    navigate(
-      {
-        ...route,
-        pageId: nextPageId
-      },
-      { replace: true }
-    );
-  }, [navigate, route, routePageId, workspace.isCreatingNewPage, workspace.selectedPageId]);
+    syncRoutePageId(nextPageId, true);
+  }, [routePageId, syncRoutePageId, workspace.isCreatingNewPage, workspace.selectedPageId]);
 
   const openLayoutBuilder = useCallback(() => {
     if (typeof navigate !== "function") {
@@ -352,6 +395,14 @@ export function BlogDistributionView({
 
   const viewWorkspace = {
     ...workspace,
+    selectPage: (pageId) => {
+      workspace.selectPage(pageId);
+      syncRoutePageId(pageId, true);
+    },
+    startNewPage: () => {
+      workspace.startNewPage();
+      syncRoutePageId("", true);
+    },
     moduleSettingsDomain,
     openLayoutBuilder,
     saveModuleSettings,
@@ -383,12 +434,14 @@ export function BlogDistributionView({
     <Stack spacing={2}>
       <Hero activeModuleLabel={activeModuleLabel} />
       <SummaryGrid summary={workspace.summary} />
-      <Paper variant="outlined" sx={{ px: 2 }}>
-        <Tabs value={tab} onChange={(_, nextValue) => setTab(nextValue)}>
-          <Tab value="overview" label="Pages Overview" />
-          <Tab value="redirects" label="Redirect Manager" />
-        </Tabs>
-      </Paper>
+      <DeskTabsCard
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: "overview", label: "Pages Overview" },
+          { value: "redirects", label: "Redirect Manager" }
+        ]}
+      />
       {tab === "overview" ? <OverviewTab workspace={viewWorkspace} /> : null}
       {tab === "redirects" ? <RedirectsTab workspace={viewWorkspace} /> : null}
     </Stack>

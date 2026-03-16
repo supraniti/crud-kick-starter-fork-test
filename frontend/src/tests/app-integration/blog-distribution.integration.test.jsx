@@ -142,6 +142,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
   });
 
   fireEvent.click(screen.getByText("Launch Story"));
+  fireEvent.click(screen.getByRole("tab", { name: "Output Preview" }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
@@ -156,6 +157,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
     expect(screen.getByLabelText("Resolved Page JSON").value).toContain("\"contractVersion\": 1");
   });
 
+  fireEvent.click(screen.getAllByRole("tab", { name: "Advanced" })[0]);
   fireEvent.click(screen.getByRole("button", { name: "Show Client Runtime Contract" }));
 
   await waitFor(() => {
@@ -165,6 +167,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
     expect(screen.getByLabelText("Resolved Runtime Contract JSON")).toBeInTheDocument();
   });
 
+  fireEvent.click(screen.getByRole("tab", { name: "Authoring" }));
   fireEvent.click(screen.getByRole("button", { name: "Publish Page" }));
 
   await waitFor(() => {
@@ -266,6 +269,7 @@ test("pages editor creates standalone pages and redirect manager persists page-t
       value: "/platform"
     }
   });
+  fireEvent.click(screen.getByRole("tab", { name: "Layout And SEO" }));
   fireEvent.change(screen.getByLabelText("Runtime Script URLs"), {
     target: {
       value: "https://cdn.example.com/runtime.js\n/assets/runtime/platform.js"
@@ -507,11 +511,7 @@ test("pages desk exposes deployment settings and can open the selected layout bu
   });
 
   fireEvent.click(screen.getAllByText("Launch Story")[0]);
-  fireEvent.click(screen.getByRole("button", { name: "Show Pages Defaults" }));
-
-  await waitFor(() => {
-    expect(screen.getByLabelText("App Mount Tag Name")).toBeInTheDocument();
-  });
+  fireEvent.click(screen.getByRole("tab", { name: "Layout And SEO" }));
 
   const editSelectedLayoutButton = await screen.findByRole("button", {
     name: "Edit Selected Layout"
@@ -530,6 +530,13 @@ test("pages desk exposes deployment settings and can open the selected layout bu
       },
       { replace: false }
     );
+  });
+
+  fireEvent.click(screen.getAllByRole("tab", { name: "Advanced" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Show Pages Defaults" }));
+
+  await waitFor(() => {
+    expect(screen.getByLabelText("App Mount Tag Name")).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Save settings" }));

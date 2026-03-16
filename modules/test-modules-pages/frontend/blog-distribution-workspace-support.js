@@ -19,6 +19,24 @@ const CATEGORIES_COLLECTION_ID = "blog-categories";
 const TAGS_COLLECTION_ID = "blog-tags";
 const MEDIA_COLLECTION_ID = "media-items";
 
+async function readJsonPayload(response) {
+  if (typeof response?.text === "function") {
+    const rawBody = await response.text();
+    if (!rawBody) {
+      return {};
+    }
+    try {
+      return JSON.parse(rawBody);
+    } catch {
+      throw new Error("The server returned an unreadable JSON payload.");
+    }
+  }
+  if (typeof response?.json === "function") {
+    return response.json();
+  }
+  return {};
+}
+
 export async function fetchDeskPages() {
   const response = await fetch(`/api/reference/modules/${MODULE_ID}/pages/desk-items`, {
     method: "GET",
@@ -80,7 +98,7 @@ export async function fetchDeliveryPayload(pageId, sourceItemId = "") {
       accept: "application/json"
     }
   });
-  const payload = await response.json();
+  const payload = await readJsonPayload(response);
   if (!response.ok) {
     throw new Error(payload?.error?.message ?? "Failed to load delivery payload");
   }
@@ -94,7 +112,7 @@ export async function fetchPagePreviewSources(pageId) {
       accept: "application/json"
     }
   });
-  const payload = await response.json();
+  const payload = await readJsonPayload(response);
   if (!response.ok) {
     throw new Error(payload?.error?.message ?? "Failed to load preview sources");
   }
@@ -108,7 +126,7 @@ export async function fetchDeploymentInstances(pageId) {
       accept: "application/json"
     }
   });
-  const payload = await response.json();
+  const payload = await readJsonPayload(response);
   if (!response.ok) {
     throw new Error(payload?.error?.message ?? "Failed to load deployment instances");
   }

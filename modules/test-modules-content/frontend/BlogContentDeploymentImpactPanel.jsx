@@ -55,8 +55,18 @@ export function BlogContentDeploymentImpactPanel({
                 <Stack spacing={0.25}>
                   <Typography variant="subtitle2">{page.title}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {page.deploymentMode === "per-record" ? page.pathPattern || page.path : page.path}
+                    {page.publicationOutput?.path || (page.deploymentMode === "per-record" ? page.pathPattern || page.path : page.path)}
                   </Typography>
+                  {page.publicationOutput?.localArtifactPath ? (
+                    <Typography variant="caption" color="text.secondary">
+                      Local artifact: {page.publicationOutput.localArtifactPath}
+                    </Typography>
+                  ) : null}
+                  {page.publicationOutput?.publicUrl ? (
+                    <Typography variant="caption" color="text.secondary">
+                      Public URL: {page.publicationOutput.publicUrl}
+                    </Typography>
+                  ) : null}
                 </Stack>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   <Chip size="small" label={page.deploymentStatus ?? "missing"} variant="outlined" />
@@ -65,6 +75,32 @@ export function BlogContentDeploymentImpactPanel({
                     label={`${page.deploymentSyncedCount ?? 0}/${page.deploymentTargetCount ?? 0} synced`}
                     variant="outlined"
                   />
+                  {page.publicationOutput?.deploymentTargetTitle ? (
+                    <Chip
+                      size="small"
+                      label={`HTML ${page.publicationOutput.deploymentTargetTitle}`}
+                      variant="outlined"
+                    />
+                  ) : null}
+                  {page.publicationOutput?.browserTargetTitle ? (
+                    <Chip
+                      size="small"
+                      label={`Delivery ${page.publicationOutput.browserTargetTitle}`}
+                      variant="outlined"
+                    />
+                  ) : null}
+                  {page.publicationOutput?.publicUrl ? (
+                    <Button
+                      component="a"
+                      href={page.publicationOutput.publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      size="small"
+                      variant="outlined"
+                    >
+                      Open URL
+                    </Button>
+                  ) : null}
                 </Stack>
               </Stack>
             </Paper>
