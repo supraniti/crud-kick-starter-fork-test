@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Divider,
   Paper,
@@ -20,6 +21,7 @@ import { APP_VERSION } from "./01-app-config.js";
 function AppShellLayout({
   moduleState,
   route,
+  activeRouteGuide = null,
   handleSelectModule,
   routeUrl,
   connectivityMode,
@@ -75,12 +77,37 @@ function AppShellLayout({
           >
             <Stack spacing={0.5}>
               <Typography variant="h6">Crud Control v{APP_VERSION}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Active route: {routeUrl}
-              </Typography>
+              {activeRouteGuide ? (
+                <>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                    {activeRouteGuide.stageLabel ? (
+                      <Chip size="small" label={`Stage: ${activeRouteGuide.stageLabel}`} />
+                    ) : null}
+                    <Typography variant="caption" color="text.secondary">
+                      Route: {routeUrl}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {activeRouteGuide.title}: {activeRouteGuide.purpose}
+                  </Typography>
+                </>
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  Active route: {routeUrl}
+                </Typography>
+              )}
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <StatusChip mode={connectivityMode} />
+              {activeRouteGuide?.nextRouteId ? (
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => handleSelectModule(activeRouteGuide.nextRouteId)}
+                >
+                  Next: {activeRouteGuide.nextRouteLabel || activeRouteGuide.nextRouteId}
+                </Button>
+              ) : null}
               <Button size="small" variant="outlined" onClick={runConnectivityCheck}>
                 Re-check API
               </Button>

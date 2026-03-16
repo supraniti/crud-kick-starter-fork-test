@@ -47,6 +47,41 @@
   - `/app/deployments`
   - `/app/authors`
 
+## Current M05 position
+- `Pass 1` is delivered.
+- Main M05 artifact:
+  - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
+- Pass 1 delivered:
+  - stable `Authors` route
+  - product-shell descriptor ownership for:
+    - `Media`
+    - `Taxonomies`
+    - `Posts`
+    - `Layouts`
+    - `Pages`
+  - shell-level workflow grouping in the sidebar:
+    - `Setup`
+    - `Content`
+    - `Presentation`
+    - `Release`
+  - shell-level route guidance:
+    - current stage
+    - current desk purpose
+    - next-step CTA
+- Main files:
+  - [product-shell-catalog.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-shell-catalog.js)
+  - [product-view-descriptors.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-view-descriptors.jsx)
+  - [04-app-shell-layout.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/parts/04-app-shell-layout.jsx)
+  - [ShellViews.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/ui/ShellViews.jsx)
+  - [03-use-app-controller.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/parts/03-use-app-controller.js)
+  - [app-shell-layout.product-flow.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx)
+- Verification:
+  - focused shell/editorial/taxonomy frontend proofs passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+- Next M05 target:
+  - `Pass 2: Core Setup Flow Simplification`
+
 ## Current delivered slice
 - Fixed the `Authors` route crash.
 - Root cause:

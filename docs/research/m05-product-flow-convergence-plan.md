@@ -25,6 +25,30 @@
 - Not a capability-expansion plan.
 - It assumes the platform already has most of the necessary mechanics and focuses on re-expressing them as one usable product flow.
 
+## Execution Status
+- `Pass 1` is delivered.
+- Delivered in Pass 1:
+  - fixed `/app/authors`
+  - expanded product-shell ownership to:
+    - `Media`
+    - `Taxonomies`
+    - `Posts`
+    - `Layouts`
+    - `Pages`
+  - grouped the sidebar by workflow stage:
+    - `Setup`
+    - `Content`
+    - `Presentation`
+    - `Release`
+  - added shell-level route guidance:
+    - current stage
+    - current desk purpose
+    - next-step action
+- Verified:
+  - focused frontend proofs passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+
 ## Intended Operator Flow
 
 ### Step 1: Connect the remote
@@ -250,9 +274,9 @@ User sees:
   - which screen owns the next action
 
 ### 6. One route is currently broken
-- `/app/authors` currently crashes in the browser with:
-  - `Maximum update depth exceeded`
-- This is a real blocker and must be fixed early.
+- This blocker is closed.
+- `/app/authors` no longer crashes.
+- The root fix was passing the routed module id into the collections domain instead of inferring it from the URL path.
 
 ## Design Decisions For Convergence
 
@@ -315,6 +339,9 @@ Exit criteria:
 - every sidebar route has a clear single purpose
 - `Authors` route is stable
 - product shell no longer feels half product / half raw module
+
+Status:
+- delivered on `2026-03-16`
 
 ## Pass 2: Core Setup Flow Simplification
 Objective:

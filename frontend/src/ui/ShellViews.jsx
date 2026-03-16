@@ -236,6 +236,10 @@ function LoginView({ onSignIn }) {
 }
 
 function ModuleSidebar({ modules, activeModuleId, onSelectModule }) {
+  const hasProductStages = modules.some(
+    (moduleItem) =>
+      typeof moduleItem?.productStageLabel === "string" && moduleItem.productStageLabel.length > 0
+  );
   const resolveModuleStateLabel = (moduleItem) => {
     const state =
       typeof moduleItem?.state === "string" && moduleItem.state.length > 0
@@ -271,49 +275,62 @@ function ModuleSidebar({ modules, activeModuleId, onSelectModule }) {
       }}
     >
       <Typography variant="subtitle2" color="text.secondary" sx={{ px: 1 }}>
-        Modules
+        {hasProductStages ? "Workflow" : "Modules"}
       </Typography>
-      {modules.map((moduleItem) => {
+      {modules.map((moduleItem, index) => {
         const active = moduleItem.id === activeModuleId;
         const moduleState = resolveModuleStateLabel(moduleItem);
         const routeAvailable = isModuleRouteAvailable(moduleItem);
+        const currentStage = moduleItem.productStageLabel ?? "";
+        const previousStage =
+          index > 0 ? modules[index - 1]?.productStageLabel ?? "" : "";
         return (
-          <Button
-            key={moduleItem.id}
-            variant={active ? "contained" : "text"}
-            color={active ? "primary" : "inherit"}
-            onClick={() => onSelectModule(moduleItem.id)}
-            aria-label={moduleItem.label}
-            data-module-id={moduleItem.id}
-            data-module-state={moduleState}
-            data-route-available={routeAvailable ? "true" : "false"}
-            sx={{ justifyContent: "flex-start" }}
-          >
-            <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap>
-              <Box
-                component="span"
-                sx={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: "50%",
-                  display: "inline-grid",
-                  placeItems: "center",
-                  fontSize: 12,
-                  bgcolor: active ? "rgba(255,255,255,0.18)" : "action.hover"
-                }}
+          <Stack key={moduleItem.id} spacing={0.75}>
+            {hasProductStages && currentStage && currentStage !== previousStage ? (
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ px: 1, pt: index === 0 ? 0.5 : 1.25 }}
               >
-                {resolveModuleGlyph(moduleItem.icon)}
-              </Box>
-              <span>{moduleItem.label}</span>
-              {moduleState !== "enabled" ? (
-                <Chip
-                  size="small"
-                  color={routeAvailable ? "warning" : "default"}
-                  label={moduleState}
-                />
-              ) : null}
-            </Stack>
-          </Button>
+                {currentStage}
+              </Typography>
+            ) : null}
+            <Button
+              variant={active ? "contained" : "text"}
+              color={active ? "primary" : "inherit"}
+              onClick={() => onSelectModule(moduleItem.id)}
+              aria-label={moduleItem.label}
+              data-module-id={moduleItem.id}
+              data-module-state={moduleState}
+              data-route-available={routeAvailable ? "true" : "false"}
+              sx={{ justifyContent: "flex-start" }}
+            >
+              <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap>
+                <Box
+                  component="span"
+                  sx={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    display: "inline-grid",
+                    placeItems: "center",
+                    fontSize: 12,
+                    bgcolor: active ? "rgba(255,255,255,0.18)" : "action.hover"
+                  }}
+                >
+                  {resolveModuleGlyph(moduleItem.icon)}
+                </Box>
+                <span>{moduleItem.label}</span>
+                {moduleState !== "enabled" ? (
+                  <Chip
+                    size="small"
+                    color={routeAvailable ? "warning" : "default"}
+                    label={moduleState}
+                  />
+                ) : null}
+              </Stack>
+            </Button>
+          </Stack>
         );
       })}
     </Paper>

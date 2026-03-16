@@ -8,7 +8,10 @@ import {
   defaultApiClients,
   readAuthSession
 } from "./01-app-config.js";
-import { buildProductNavigationItems } from "../product-shell/product-shell-catalog.js";
+import {
+  buildProductNavigationItems,
+  resolveProductRouteGuide
+} from "../product-shell/product-shell-catalog.js";
 import { readDeveloperMode } from "../product-shell/product-exposure-policy.js";
 import {
   buildAppControllerResult,
@@ -109,6 +112,27 @@ function useProductModuleState(rawModuleState) {
   );
 }
 
+function useActiveRouteGuide(moduleStateItems, moduleId) {
+  return useMemo(
+    () => resolveProductRouteGuide(moduleStateItems, moduleId),
+    [moduleStateItems, moduleId]
+  );
+}
+
+function useProductShellModuleState({ api, isAuthenticated, reloadToken, routeModuleId }) {
+  const rawModuleState = useModuleStateLoader({
+    api,
+    isAuthenticated,
+    reloadToken
+  });
+  const moduleState = useProductModuleState(rawModuleState);
+  const activeRouteGuide = useActiveRouteGuide(moduleState.items, routeModuleId);
+  return {
+    moduleState,
+    activeRouteGuide
+  };
+}
+
 function useAppController({ api = defaultApiClients }) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => readAuthSession());
   const [route, setRoute] = useState(() => parseRouteFromLocation());
@@ -135,11 +159,7 @@ function useAppController({ api = defaultApiClients }) {
     isCollectionsRouteActive
   } = useResolvedRouteViewState(route, moduleRuntimeItems);
   const navigate = useRouteNavigation(setRoute, moduleRuntimeItems);
-  const collectionRouteHandlers = useCollectionRouteHandlers({
-    navigate,
-    isCollectionsRouteActive,
-    route
-  });
+  const collectionRouteHandlers = useCollectionRouteHandlers({ navigate, isCollectionsRouteActive, route });
   const { connectivityMode, runConnectivityCheck } = useConnectivity(api);
   useRouteLifecycle({
     isAuthenticated,
@@ -148,12 +168,12 @@ function useAppController({ api = defaultApiClients }) {
     navigate,
     route
   });
-  const rawModuleState = useModuleStateLoader({
+  const { moduleState, activeRouteGuide } = useProductShellModuleState({
     api,
     isAuthenticated,
-    reloadToken: remotesDeployDomain.moduleRuntimeReloadToken
+    reloadToken: remotesDeployDomain.moduleRuntimeReloadToken,
+    routeModuleId: route.moduleId
   });
-  const moduleState = useProductModuleState(rawModuleState);
   useEnsureRouteModuleExists({
     isAuthenticated,
     moduleRuntimeItems,
@@ -221,6 +241,7 @@ function useAppController({ api = defaultApiClients }) {
     activeViewRegistration,
     activeModuleView,
     routeUrl,
+    activeRouteGuide,
     handleSelectModule,
     handleOpenRemotes,
     developerModeEnabled: readDeveloperMode(),

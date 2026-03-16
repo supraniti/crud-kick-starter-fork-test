@@ -12,6 +12,34 @@
 
 ## Entries
 
+### 2026-03-16 - M05 Pass 1 Product Information Architecture Tightening
+- Tasks:
+  - widened product-shell descriptor ownership from the earlier `Authors` / `Comments` surfaces to the remaining north-star desks:
+    - `Media`
+    - `Taxonomies`
+    - `Posts`
+    - `Layouts`
+    - `Pages`
+  - added workflow-stage metadata to product navigation
+  - grouped the sidebar by:
+    - `Setup`
+    - `Content`
+    - `Presentation`
+    - `Release`
+  - added shell-level route guidance so each desk now exposes:
+    - current stage
+    - desk purpose
+    - next-step CTA
+- Easy:
+  - the product-shell catalog already owned the north-star navigation order, so it was the right place to attach workflow-stage metadata and next-step guidance
+  - descriptor-level ownership remained the right seam for route conversion; it preserved stable route/module ids while moving control to product-shell code
+- Hard:
+  - a direct app-level test initially exercised the wrong mock universe; the generic reference API mock does not represent the north-star module set, so the correct proof seam was the app-shell layout with explicit product navigation items
+  - widening the app controller state by even a small amount tripped the function-shape gate immediately; the right fix was another small hook extraction, not a gate exception
+- Improve:
+  - when the intended flow is stage-based, express the stages in the shell first; that gives every downstream desk a stable product context before deeper simplification starts
+  - use descriptor ownership to convert routes without route-id churn, but keep focused proofs at the shell boundary so the product-level contract is what actually gets tested
+
 ### 2026-03-16 - Authors Route Fix And Bounded State Cleanup
 - Tasks:
   - fixed the `Authors` route crash on `/app/authors`
