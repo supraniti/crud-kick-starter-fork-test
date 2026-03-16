@@ -50,6 +50,7 @@
 ## Current M05 position
 - `Pass 1` is delivered.
 - `Pass 2` is delivered.
+- `Pass 3` is delivered.
 - Main M05 artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
 - Pass 1 delivered:
@@ -99,8 +100,30 @@
   - `pnpm quality:gate:full`
   - current status:
     - all passed
+- Pass 3 delivered:
+  - `Posts`, `Taxonomies`, and `Media` now keep remote publication/sync controls behind secondary expandable sections
+  - `Taxonomies` now switches explicitly between:
+    - `Categories`
+    - `Tags`
+  - the content routes still preserve the same mechanics, but the default operator emphasis is now:
+    - author content first
+    - inspect remote controls only when needed
+- Main files:
+  - [BlogContentEditorPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentEditorPanel.jsx)
+  - [BlogTaxonomyView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx)
+  - [MediaManagerView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerView.jsx)
+  - [blog-content.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-content.integration.test.jsx)
+  - [blog-editorial-taxonomy.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-editorial-taxonomy.integration.test.jsx)
+  - [media-manager.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/media-manager.integration.test.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-content.integration.test.jsx src/tests/app-integration/media-manager.integration.test.jsx src/tests/app-integration/blog-editorial-taxonomy.integration.test.jsx`
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - current status:
+    - pending rerun while this pass is still uncommitted
 - Next M05 target:
-  - `Pass 3: Content Flow Simplification`
+  - `Pass 4: Presentation Flow Simplification`
 
 ## Current delivered slice
 - Fixed the `Authors` route crash.

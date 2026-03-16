@@ -379,6 +379,8 @@ test("blog taxonomy view surfaces separate remote projection panels for categori
     />
   );
 
+  fireEvent.click(screen.getByRole("button", { name: "Show Remote Publication" }));
+
   expect(screen.getByText("Remote Categories Projection")).toBeInTheDocument();
   expect(screen.getAllByText("Categories Projection").length).toBeGreaterThan(0);
 

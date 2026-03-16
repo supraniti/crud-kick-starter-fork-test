@@ -28,6 +28,7 @@
 ## Execution Status
 - `Pass 1` is delivered.
 - `Pass 2` is delivered.
+- `Pass 3` is delivered.
 - Delivered in Pass 1:
   - fixed `/app/authors`
   - expanded product-shell ownership to:
@@ -47,6 +48,15 @@
     - next-step action
 - Verified:
   - focused frontend proofs passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+- Delivered in Pass 3:
+  - `Posts`, `Taxonomies`, and `Media` now keep remote publication/sync controls in secondary expandable sections instead of making them primary authoring surfaces
+  - `Taxonomies` now reads more clearly as `Categories` plus `Tags` instead of category-first switching language
+  - content desks keep the same remote mechanics, but the default operator emphasis is now on authoring and content structure first
+- Verified:
+  - focused frontend proofs passed
+  - `pnpm lint:function-shape` passed
   - `pnpm quality:protocol` passed
   - `pnpm quality:gate:full` passed
 - Delivered in Pass 2:
@@ -401,6 +411,9 @@ Main work:
 Exit criteria:
 - content creation is understandable without first learning deployment internals
 - categories and tags are clearly both part of Taxonomies
+
+Status:
+- delivered on `2026-03-16`
 
 ## Pass 4: Presentation Flow Simplification
 Objective:

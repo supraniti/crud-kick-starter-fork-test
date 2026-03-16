@@ -605,8 +605,10 @@ test("blog content view embeds remote projection compare and sync actions", asyn
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Compare Projection" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show Remote Publication" })).toBeInTheDocument();
   });
+
+  fireEvent.click(screen.getByRole("button", { name: "Show Remote Publication" }));
 
   fireEvent.click(screen.getByRole("button", { name: "Compare Projection" }));
   await waitFor(() => {

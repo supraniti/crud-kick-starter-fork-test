@@ -98,21 +98,22 @@ describe("Module lifecycle collection availability", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/transitioned disabled -> enabled/i)).toBeInTheDocument();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Records", hidden: true })).toHaveAttribute(
-        "data-module-state",
-        "enabled"
-      );
-      expect(screen.getByRole("button", { name: "Records", hidden: true })).toHaveAttribute(
-        "data-route-available",
-        "true"
-      );
+      const updatedRow = screen.getByText("records").closest("tr");
+      expect(within(updatedRow).getByText("enabled")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => {
+      const recordsButton = document.querySelector("button[data-module-id='records']");
+      expect(recordsButton).not.toBeNull();
+      expect(recordsButton).toHaveAttribute(
+        "data-module-state",
+        "enabled"
+      );
+      expect(recordsButton).toHaveAttribute(
+        "data-route-available",
+        "true"
+      );
       expect(screen.queryByText("Developer Module Runtime Controls")).not.toBeInTheDocument();
     });
 

@@ -404,8 +404,10 @@ test("media manager embeds remote media compare, sync, and restore procedures", 
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Compare Remote" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show Remote Sync" })).toBeInTheDocument();
   });
+
+  fireEvent.click(screen.getByRole("button", { name: "Show Remote Sync" }));
 
   fireEvent.click(screen.getByRole("button", { name: "Compare Remote" }));
   await waitFor(() => {

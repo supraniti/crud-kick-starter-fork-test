@@ -45,6 +45,7 @@ export function MediaManagerView({
   const fileInputRef = useRef(null);
   const [sortMode, setSortMode] = useState("recent");
   const [selectedMediaIds, setSelectedMediaIds] = useState([]);
+  const [remoteOpen, setRemoteOpen] = useState(false);
   const workspace = useMediaManagerWorkspace({
     collectionsDomain
   });
@@ -120,6 +121,46 @@ export function MediaManagerView({
     await moduleSettingsDomain.handleSaveModuleSettings();
     await remoteOpsSupport.reload();
   };
+
+  function RemoteSyncSection() {
+    return (
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+            <Stack spacing={0.35}>
+              <Typography variant="h6">Remote Sync</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Curate assets here first. Expand this section only when you need to inspect or drive the secondary remote media sync flow directly from the Media desk.
+              </Typography>
+            </Stack>
+            <Button variant="outlined" onClick={() => setRemoteOpen((value) => !value)}>
+              {remoteOpen ? "Hide Remote Sync" : "Show Remote Sync"}
+            </Button>
+          </Stack>
+          {!remoteOpen ? (
+            <Alert severity="info">
+              Media authoring remains the primary task here. Remote compare, sync, and restore stay available as a secondary control surface.
+            </Alert>
+          ) : null}
+          {remoteOpen ? (
+            <MediaManagerRemotePanel
+              latestRun={remoteMediaLatestRun}
+              moduleSettingsDomain={moduleSettingsDomain}
+              onCompare={() => remoteOpsSupport.compareTarget(remoteMediaTargetId)}
+              onExecute={() => remoteOpsSupport.executeTarget(remoteMediaTargetId)}
+              onOpenRemoteOps={openRemoteOpsTarget}
+              onRestore={() => remoteOpsSupport.restoreTarget(remoteMediaTargetId)}
+              onSaveSettings={saveModuleSettings}
+              onValidate={() => remoteOpsSupport.validateTarget(remoteMediaTargetId)}
+              procedureState={remoteOpsSupport.procedureState}
+              selectedTarget={remoteMediaTarget}
+              targetOptions={remoteMediaTargets}
+            />
+          ) : null}
+        </Stack>
+      </Paper>
+    );
+  }
 
   return (
     <Stack spacing={2}>
@@ -340,19 +381,7 @@ export function MediaManagerView({
             onDeleteSelected={workspace.handleDeleteSelected}
           />
           <MediaRemoteOnlyPanel mediaTarget={remoteMediaTarget} />
-          <MediaManagerRemotePanel
-            latestRun={remoteMediaLatestRun}
-            moduleSettingsDomain={moduleSettingsDomain}
-            onCompare={() => remoteOpsSupport.compareTarget(remoteMediaTargetId)}
-            onExecute={() => remoteOpsSupport.executeTarget(remoteMediaTargetId)}
-            onOpenRemoteOps={openRemoteOpsTarget}
-            onRestore={() => remoteOpsSupport.restoreTarget(remoteMediaTargetId)}
-            onSaveSettings={saveModuleSettings}
-            onValidate={() => remoteOpsSupport.validateTarget(remoteMediaTargetId)}
-            procedureState={remoteOpsSupport.procedureState}
-            selectedTarget={remoteMediaTarget}
-            targetOptions={remoteMediaTargets}
-          />
+          <RemoteSyncSection />
         </Stack>
       </Box>
     </Stack>

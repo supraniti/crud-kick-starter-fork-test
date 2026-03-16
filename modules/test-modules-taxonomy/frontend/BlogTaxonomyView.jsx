@@ -1,11 +1,12 @@
 import {
+  Alert,
   Button,
   Chip,
   Paper,
   Stack,
   Typography
 } from "@mui/material";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CollectionsView } from "../../../frontend/src/ui/CollectionsView.jsx";
 import { BlogTaxonomyRemoteProjectionPanel } from "./BlogTaxonomyRemoteProjectionPanel.jsx";
 import { BlogTaxonomyUsagePanel } from "./BlogTaxonomyUsagePanel.jsx";
@@ -55,7 +56,7 @@ function CollectionSwitcher({ activeCollectionId, onSelectCollection }) {
   const options = [
     {
       collectionId: CATEGORIES_COLLECTION_ID,
-      label: "Category Tree"
+      label: "Categories"
     },
     {
       collectionId: TAGS_COLLECTION_ID,
@@ -111,12 +112,39 @@ function CategoryTreePanel({ rows }) {
   );
 }
 
+function SecondaryRemoteSection({ open, onToggle, children }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+          <Stack spacing={0.35}>
+            <Typography variant="h6">Remote Publication</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Categories and tags are authored here first. Expand this section only when you need to inspect or drive the secondary Firestore publication flow directly from Taxonomies.
+            </Typography>
+          </Stack>
+          <Button variant="outlined" onClick={onToggle}>
+            {open ? "Hide Remote Publication" : "Show Remote Publication"}
+          </Button>
+        </Stack>
+        {!open ? (
+          <Alert severity="info">
+            Normal taxonomy work stays focused on categories and tags. Remote projection is secondary.
+          </Alert>
+        ) : null}
+        {open ? children : null}
+      </Stack>
+    </Paper>
+  );
+}
+
 export function BlogTaxonomyView({
   activeModuleLabel,
   collectionsDomain,
   moduleSettingsDomain = null,
   navigate = null
 }) {
+  const [remoteOpen, setRemoteOpen] = useState(false);
   const workspace = useTaxonomyWorkspace({
     collectionsDomain
   });
@@ -153,7 +181,7 @@ export function BlogTaxonomyView({
             </Typography>
             <Typography variant="h4">Taxonomy Studio</Typography>
             <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
-              Keep tags reusable and category hierarchy deterministic before content volume grows.
+              Manage categories and tags as shared content structure before posts, pages, and releases depend on them.
             </Typography>
           </Stack>
           <CollectionSwitcher
@@ -198,11 +226,13 @@ export function BlogTaxonomyView({
       />
 
       {moduleSettingsDomain ? (
-        <BlogTaxonomyRemoteProjectionPanel
-          activeCollectionId={collectionsDomain.activeCollectionId}
-          moduleSettingsDomain={moduleSettingsDomain}
-          navigate={navigate}
-        />
+        <SecondaryRemoteSection open={remoteOpen} onToggle={() => setRemoteOpen((value) => !value)}>
+          <BlogTaxonomyRemoteProjectionPanel
+            activeCollectionId={collectionsDomain.activeCollectionId}
+            moduleSettingsDomain={moduleSettingsDomain}
+            navigate={navigate}
+          />
+        </SecondaryRemoteSection>
       ) : null}
 
       <CollectionsView

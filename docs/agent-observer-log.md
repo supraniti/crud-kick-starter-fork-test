@@ -12,6 +12,28 @@
 
 ## Entries
 
+### 2026-03-16 - M05 Pass 3 Content Flow Simplification
+- Tasks:
+  - demoted remote publication/sync panels inside:
+    - `Posts`
+    - `Taxonomies`
+    - `Media`
+    so authoring stays primary
+  - made `Taxonomies` read more clearly as:
+    - `Categories`
+    - `Tags`
+    instead of category-first switching language
+  - kept the same backend mechanics and operator capabilities, but moved them into secondary expandable sections
+- Easy:
+  - the working remote controls were already modular panels, so the pass mostly needed better framing and default visibility instead of more runtime work
+  - focused integration tests already covered the remote actions; they only needed to acknowledge the new toggle-first contract
+- Hard:
+  - the trick was to reduce authoring noise without silently removing capabilities; the right answer was demotion, not deletion
+  - `Media` already had remote actions in both bulk controls and the dedicated remote panel, so the panel itself was the safest thing to demote first
+- Improve:
+  - when the operator should author first and publish second, keep remote mechanics present but secondary
+  - if a module already carries both authoring and remote-operational concerns, default-collapse the operational section before inventing another product route
+
 ### 2026-03-16 - M05 Pass 2 Core Setup Flow Simplification
 - Tasks:
   - demoted `System Settings` from a second setup headquarters into an advanced-defaults route

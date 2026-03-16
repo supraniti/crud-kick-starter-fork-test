@@ -10,7 +10,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { SeoPreview, optionItems } from "./BlogContentPanels.jsx";
 import { StableMultilineTextField } from "./StableMultilineTextField.jsx";
 import { BlogContentDeploymentImpactPanel } from "./BlogContentDeploymentImpactPanel.jsx";
@@ -390,7 +390,34 @@ const SeoFieldsSection = memo(SeoFieldsSectionComponent, (previousProps, nextPro
   );
 });
 
+function RemotePublicationSection({ open, onToggle, children }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+          <Stack spacing={0.35}>
+            <Typography variant="h6">Remote Publication</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Write and revise the post here first. Expand this section only when you need to inspect or drive the secondary Firestore publication flow from the Posts desk.
+            </Typography>
+          </Stack>
+          <Button variant="outlined" onClick={onToggle}>
+            {open ? "Hide Remote Publication" : "Show Remote Publication"}
+          </Button>
+        </Stack>
+        {!open ? (
+          <Alert severity="info">
+            Remote publication is secondary to authoring. Release execution still belongs to Deployments.
+          </Alert>
+        ) : null}
+        {open ? children : null}
+      </Stack>
+    </Paper>
+  );
+}
+
 export function BlogContentEditorPanel({ workspace }) {
+  const [remoteOpen, setRemoteOpen] = useState(false);
   const authorOptions = useMemo(
     () => optionItems(workspace.referenceOptions, "blog-authors"),
     [workspace.referenceOptions]
@@ -417,31 +444,6 @@ export function BlogContentEditorPanel({ workspace }) {
         errorMessage={workspace.deploymentAwareness.state.errorMessage}
         onOpenPages={workspace.openPagesDesk}
       />
-      <BlogContentRemoteProjectionPanel
-        latestRun={workspace.remoteProjectionLatestRun}
-        moduleSettingsDomain={workspace.moduleSettingsDomain}
-        onCompare={() =>
-          workspace.remoteOpsSupport.compareTarget(
-            workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteProjectionTargetProfileId ?? ""
-          )
-        }
-        onExecute={() =>
-          workspace.remoteOpsSupport.executeTarget(
-            workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteProjectionTargetProfileId ?? ""
-          )
-        }
-        onOpenRemoteOps={workspace.openRemoteOpsTarget}
-        onSaveSettings={workspace.saveModuleSettings}
-        onValidate={() =>
-          workspace.remoteOpsSupport.validateTarget(
-            workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteProjectionTargetProfileId ?? ""
-          )
-        }
-        post={workspace.selectedPost}
-        procedureState={workspace.remoteOpsSupport.procedureState}
-        selectedTarget={workspace.remoteProjectionTarget}
-        targetOptions={workspace.remoteProjectionTargets}
-      />
       <BlogContentAuthoringReadinessPanel
         draft={workspace.draft}
         authorOptions={authorOptions}
@@ -454,6 +456,33 @@ export function BlogContentEditorPanel({ workspace }) {
         onOpenMedia={workspace.openMediaDesk}
         onOpenPages={workspace.openPagesDesk}
       />
+      <RemotePublicationSection open={remoteOpen} onToggle={() => setRemoteOpen((value) => !value)}>
+        <BlogContentRemoteProjectionPanel
+          latestRun={workspace.remoteProjectionLatestRun}
+          moduleSettingsDomain={workspace.moduleSettingsDomain}
+          onCompare={() =>
+            workspace.remoteOpsSupport.compareTarget(
+              workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteProjectionTargetProfileId ?? ""
+            )
+          }
+          onExecute={() =>
+            workspace.remoteOpsSupport.executeTarget(
+              workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteProjectionTargetProfileId ?? ""
+            )
+          }
+          onOpenRemoteOps={workspace.openRemoteOpsTarget}
+          onSaveSettings={workspace.saveModuleSettings}
+          onValidate={() =>
+            workspace.remoteOpsSupport.validateTarget(
+              workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteProjectionTargetProfileId ?? ""
+            )
+          }
+          post={workspace.selectedPost}
+          procedureState={workspace.remoteOpsSupport.procedureState}
+          selectedTarget={workspace.remoteProjectionTarget}
+          targetOptions={workspace.remoteProjectionTargets}
+        />
+      </RemotePublicationSection>
       {workspace.saveState.errorMessage ? <Alert severity="error">{workspace.saveState.errorMessage}</Alert> : null}
       {workspace.saveState.successMessage ? <Alert severity="success">{workspace.saveState.successMessage}</Alert> : null}
       <EssentialsSection workspace={workspace} />
