@@ -262,6 +262,10 @@ test("blog taxonomy view renders tree summary and collection switcher", async ()
   );
 
   expect(screen.getByRole("heading", { name: "Taxonomy Studio" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Publication State" })).toBeInTheDocument();
+  expect(
+    screen.getByText("No Firestore projection target is configured for this taxonomy branch.")
+  ).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Category Tree" })).toBeInTheDocument();
   expect(screen.getAllByText("Guides").length).toBeGreaterThan(0);
   expect(screen.getByText("guides/devops")).toBeInTheDocument();
@@ -383,6 +387,7 @@ test("blog taxonomy view surfaces separate remote projection panels for categori
 
   expect(screen.getByText("Remote Categories Projection")).toBeInTheDocument();
   expect(screen.getAllByText("Categories Projection").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Nothing To Publish").length).toBeGreaterThan(0);
 
   fireEvent.click(screen.getByRole("button", { name: "Tags" }));
   expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");
@@ -471,7 +476,7 @@ test("blog taxonomy view surfaces posts and pages usage visibility", async () =>
   await waitFor(() => {
     expect(screen.getByText("Posts + Category Pages")).toBeInTheDocument();
     expect(screen.getByText(/Guides: 1 post reference/i)).toBeInTheDocument();
-    expect(screen.getByText(/Category Templates 1/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Category Templates 1/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Posts Missing Categories 1/i)).toBeInTheDocument();
   });
 

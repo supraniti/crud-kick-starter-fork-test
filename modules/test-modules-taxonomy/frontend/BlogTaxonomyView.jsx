@@ -10,8 +10,10 @@ import { useMemo, useState } from "react";
 import { CollectionsView } from "../../../frontend/src/ui/CollectionsView.jsx";
 import { BlogTaxonomyRemoteProjectionPanel } from "./BlogTaxonomyRemoteProjectionPanel.jsx";
 import { BlogTaxonomyUsagePanel } from "./BlogTaxonomyUsagePanel.jsx";
+import { createTaxonomyPublicationState } from "./blog-taxonomy-publication-state.js";
 import { useTaxonomyWorkspace } from "./useTaxonomyWorkspace.js";
 import { useTaxonomyUsageAwareness } from "./useTaxonomyUsageAwareness.js";
+import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 
 const TAGS_COLLECTION_ID = "blog-tags";
 const CATEGORIES_COLLECTION_ID = "blog-categories";
@@ -112,6 +114,59 @@ function CategoryTreePanel({ rows }) {
   );
 }
 
+function TaxonomyPublicationStatePanel({ publicationState, latestRun, targetTitle, usageSummary, isCategories }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.25}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1}
+          justifyContent="space-between"
+          alignItems={{ md: "center" }}
+        >
+          <Stack spacing={0.25}>
+            <Typography variant="h6">Publication State</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Keep taxonomy structure visible without opening the secondary projection controls.
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip
+              size="small"
+              label={publicationState.label}
+              color={publicationState.tone === "success" ? "success" : publicationState.tone === "warning" ? "warning" : "default"}
+            />
+            <Chip size="small" label={`Public Terms ${publicationState.publicCount}`} variant="outlined" />
+            {latestRun?.procedureType ? (
+              <Chip
+                size="small"
+                label={`Last ${latestRun.procedureType} ${latestRun.status ?? "unknown"}`}
+                variant="outlined"
+              />
+            ) : null}
+          </Stack>
+        </Stack>
+        <Typography variant="body2" color="text.secondary">
+          {publicationState.detail}
+        </Typography>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Chip size="small" label={targetTitle || "No projection target selected"} variant="outlined" />
+          <Chip
+            size="small"
+            label={
+              isCategories
+                ? `Category Templates ${usageSummary.categoryTemplatePages}`
+                : `Tag Listing Pages ${usageSummary.tagListingPages}`
+            }
+            variant="outlined"
+          />
+          <Chip size="small" label={`Unused Terms ${usageSummary.unusedTerms}`} color={usageSummary.unusedTerms > 0 ? "warning" : "default"} />
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
 function SecondaryRemoteSection({ open, onToggle, children }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -148,10 +203,28 @@ export function BlogTaxonomyView({
   const workspace = useTaxonomyWorkspace({
     collectionsDomain
   });
+  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
   const usageAwareness = useTaxonomyUsageAwareness({
     activeCollectionId: collectionsDomain.activeCollectionId,
     items: workspace.items
   });
+  const isCategories = collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID;
+  const projectionTargetFieldId = isCategories
+    ? "remoteCategoriesProjectionTargetProfileId"
+    : "remoteTagsProjectionTargetProfileId";
+  const projectionTargetId =
+    moduleSettingsDomain?.moduleSettingsState?.draftValues?.[projectionTargetFieldId] ?? "";
+  const projectionTarget = remoteOpsSupport.getTargetById(projectionTargetId);
+  const projectionLatestRun = remoteOpsSupport.getLatestRunForTarget(projectionTargetId);
+  const publicationState = useMemo(
+    () =>
+      createTaxonomyPublicationState({
+        items: workspace.items,
+        target: projectionTarget,
+        latestRun: projectionLatestRun
+      }),
+    [projectionLatestRun, projectionTarget, workspace.items]
+  );
 
   const visibleSchemaState = useMemo(
     () => ({
@@ -210,6 +283,14 @@ export function BlogTaxonomyView({
           value={workspace.summary.quaternary}
         />
       </Stack>
+
+      <TaxonomyPublicationStatePanel
+        publicationState={publicationState}
+        latestRun={projectionLatestRun}
+        targetTitle={projectionTarget?.title ?? ""}
+        usageSummary={usageAwareness.usageSummary}
+        isCategories={isCategories}
+      />
 
       {collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID ? (
         <CategoryTreePanel rows={workspace.categoryTreeRows} />

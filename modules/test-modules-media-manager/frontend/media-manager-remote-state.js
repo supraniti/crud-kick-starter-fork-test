@@ -146,3 +146,42 @@ export function summarizeRemoteOnlyArtifacts(mediaTarget = null) {
     sampleKeys: Array.isArray(compareSummary.sampleKeys) ? compareSummary.sampleKeys.filter(Boolean) : []
   };
 }
+
+export function summarizeMediaSyncStates({ items = [], mediaTarget = null, runs = [] }) {
+  const summary = {
+    total: 0,
+    synced: 0,
+    changedLocally: 0,
+    notSynced: 0,
+    noRemote: 0,
+    targetUnvalidated: 0
+  };
+
+  for (const item of Array.isArray(items) ? items : []) {
+    summary.total += 1;
+    const state = resolveMediaRemoteSyncState({
+      item,
+      mediaTarget,
+      runs
+    });
+    if (state.state === "synced") {
+      summary.synced += 1;
+      continue;
+    }
+    if (state.state === "changed-locally") {
+      summary.changedLocally += 1;
+      continue;
+    }
+    if (state.state === "not-synced") {
+      summary.notSynced += 1;
+      continue;
+    }
+    if (state.state === "target-unvalidated") {
+      summary.targetUnvalidated += 1;
+      continue;
+    }
+    summary.noRemote += 1;
+  }
+
+  return summary;
+}

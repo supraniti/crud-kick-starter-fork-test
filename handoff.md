@@ -1,7 +1,7 @@
 # Agent Handoff
 
 ## Current Status
-- Date: `2026-03-15`
+- Date: `2026-03-16`
 - Repository: `crud-kick-starter-fork-test`
 - Branch: `crud-kick-starter-fork-test`
 - Current north-star baseline docs:
@@ -53,6 +53,7 @@
 - `Pass 3` is delivered.
 - `Pass 4` is delivered.
 - `Pass 5` is delivered.
+ - `Pass 6` is delivered.
 - Main M05 artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
 - Pass 1 delivered:
@@ -176,8 +177,49 @@
   - `pnpm quality:gate:full`
   - current status:
     - all passed
+- Pass 6 delivered:
+  - `Posts` now exposes release-state visibility in the primary route:
+    - deployed posts
+    - posts needing deployment
+    - published posts without a page template
+    - per-post impacted-page and deployment-state chips in the main list
+  - `Taxonomies` now exposes collection-level publication state in the primary route:
+    - target readiness
+    - public-term count
+    - sync posture
+    - page/listing impact counts
+  - `Media` now exposes library-wide sync posture in the primary route:
+    - total assets
+    - synced assets
+    - changed locally
+    - not synced
+    - remote-only artifacts
+  - `Pages` output forecast now shows the current local artifact path directly
+  - `Deployments` now exposes a dedicated browse-links card with:
+    - local artifact path
+    - public origin
+    - example page URL
+    - media base
+- Main files:
+  - [blog-content-release-state.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/blog-content-release-state.js)
+  - [BlogContentView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentView.jsx)
+  - [BlogContentPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentPanels.jsx)
+  - [blog-taxonomy-publication-state.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/blog-taxonomy-publication-state.js)
+  - [BlogTaxonomyView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx)
+  - [media-manager-remote-state.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/media-manager-remote-state.js)
+  - [MediaManagerView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerView.jsx)
+  - [BlogDistributionOutputForecastPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionOutputForecastPanel.jsx)
+  - [product-deployments-view-sections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-view-sections.jsx)
+  - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-content.integration.test.jsx src/tests/app-integration/blog-editorial-taxonomy.integration.test.jsx src/tests/app-integration/media-manager.integration.test.jsx src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - current status:
+    - all passed
 - Next M05 target:
-  - `Pass 6: State Visibility Across The Product`
+  - `Pass 7: End-To-End Hardening`
 
 ## Current delivered slice
 - Fixed the `Authors` route crash.

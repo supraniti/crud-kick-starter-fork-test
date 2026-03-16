@@ -41,6 +41,9 @@ export function OutputForecastPanel({ workspace }) {
             Path or pattern: {forecast.pathLabel}
           </Typography>
           <Typography variant="body2" color="text.secondary">
+            Local artifact: {page?.deploymentArtifactPath ? `deployment/${page.deploymentArtifactPath}` : "Not deployed yet"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             Canonical: {forecast.canonicalUrl}
           </Typography>
           <Typography variant="body2" color="text.secondary">

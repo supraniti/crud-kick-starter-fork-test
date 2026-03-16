@@ -129,6 +129,7 @@ export const PostList = memo(function PostList({
   posts,
   selectedPostId,
   postHealthMap,
+  postDeploymentStateMap,
   onSelect,
   onCreate
 }) {
@@ -149,6 +150,7 @@ export const PostList = memo(function PostList({
         <Stack spacing={1.5}>
           {posts.map((post) => {
             const healthIssues = postHealthMap.get(post.id) ?? [];
+            const deploymentState = postDeploymentStateMap.get(post.id) ?? null;
             const selected = selectedPostId === post.id;
             return (
               <Paper
@@ -176,6 +178,21 @@ export const PostList = memo(function PostList({
                       }
                       color={healthIssues.length === 0 ? "success" : "warning"}
                     />
+                    {deploymentState ? (
+                      <Chip
+                        size="small"
+                        label={deploymentState.label}
+                        color={deploymentState.tone === "success" ? "success" : deploymentState.tone === "warning" ? "warning" : "default"}
+                        variant={deploymentState.tone === "success" ? "filled" : "outlined"}
+                      />
+                    ) : null}
+                    {deploymentState?.impactedTemplateCount > 0 ? (
+                      <Chip
+                        size="small"
+                        label={`Impacted Pages ${deploymentState.impactedTemplateCount}`}
+                        variant="outlined"
+                      />
+                    ) : null}
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
                     {post.excerpt || "No excerpt yet."}
@@ -183,6 +200,11 @@ export const PostList = memo(function PostList({
                   <Typography variant="caption" color="text.secondary">
                     {post.wordCount ?? 0} words | {post.readTimeMinutes ?? 0} min read
                   </Typography>
+                  {deploymentState?.detail ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {deploymentState.detail}
+                    </Typography>
+                  ) : null}
                 </Stack>
               </Paper>
             );

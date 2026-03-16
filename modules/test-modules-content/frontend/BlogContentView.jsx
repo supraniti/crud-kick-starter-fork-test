@@ -10,6 +10,11 @@ import {
 import { BlogContentEditorPanel } from "./BlogContentEditorPanel.jsx";
 import { useBlogContentWorkspace } from "./useBlogContentWorkspace.js";
 import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
+import {
+  createContentDeploymentSummary,
+  createContentProjectionState,
+  resolvePostDeploymentState
+} from "./blog-content-release-state.js";
 
 const POSTS_COLLECTION_ID = "blog-posts";
 
@@ -37,21 +42,36 @@ const Hero = memo(function Hero({ activeModuleLabel }) {
   );
 });
 
-const SummaryGrid = memo(function SummaryGrid({ summary }) {
+const SummaryGrid = memo(function SummaryGrid({ summary, deploymentSummary, projectionState }) {
   return (
     <Stack
       direction={{ xs: "column", md: "row" }}
       spacing={2}
-      sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}
+      sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(6, 1fr)" } }}
     >
       <SummaryCard label="Total Posts" value={summary.total} />
       <SummaryCard label="Draft Queue" value={summary.drafts} />
-      <SummaryCard label="Scheduled" value={summary.scheduled} />
       <SummaryCard
         label="Published"
         value={summary.published}
         tone={summary.published > 0 ? "attention" : "default"}
       />
+      <SummaryCard
+        label="Deployed Posts"
+        value={deploymentSummary.deployedCount}
+        tone={deploymentSummary.deployedCount > 0 ? "attention" : "default"}
+      />
+      <SummaryCard
+        label="Need Deployment"
+        value={deploymentSummary.needsDeploymentCount}
+        tone={deploymentSummary.needsDeploymentCount > 0 ? "attention" : "default"}
+      />
+      <SummaryCard
+        label="Published Without Page"
+        value={deploymentSummary.noPageCount}
+        tone={deploymentSummary.noPageCount > 0 ? "attention" : "default"}
+      />
+      <SummaryCard label="Remote Projection" value={projectionState.label} tone={projectionState.tone === "warning" ? "attention" : "default"} />
     </Stack>
   );
 });
@@ -77,6 +97,7 @@ function WorkspaceLayout({ workspace }) {
           posts={workspace.posts}
           selectedPostId={workspace.selectedPostId}
           postHealthMap={workspace.postHealthMap}
+          postDeploymentStateMap={workspace.postDeploymentStateMap}
           onSelect={workspace.selectPost}
           onCreate={workspace.startNew}
         />
@@ -119,6 +140,29 @@ export function BlogContentView({
   const remoteProjectionTargets = remoteOpsSupport.getTargetsByKind("firestore-projection");
   const remoteProjectionTarget = remoteOpsSupport.getTargetById(remoteProjectionTargetId);
   const remoteProjectionLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteProjectionTargetId);
+  const postDeploymentStateMap = useMemo(
+    () =>
+      new Map(
+        workspace.posts.map((post) => [
+          post.id,
+          resolvePostDeploymentState(post, workspace.deploymentAwareness.state.pages)
+        ])
+      ),
+    [workspace.deploymentAwareness.state.pages, workspace.posts]
+  );
+  const deploymentSummary = useMemo(
+    () => createContentDeploymentSummary(workspace.posts, workspace.deploymentAwareness.state.pages),
+    [workspace.deploymentAwareness.state.pages, workspace.posts]
+  );
+  const projectionState = useMemo(
+    () =>
+      createContentProjectionState({
+        posts: workspace.posts,
+        target: remoteProjectionTarget,
+        latestRun: remoteProjectionLatestRun
+      }),
+    [remoteProjectionLatestRun, remoteProjectionTarget, workspace.posts]
+  );
 
   if (
     !collectionsDomain.isActiveCollectionAvailable &&
@@ -186,7 +230,14 @@ export function BlogContentView({
   return (
     <Stack spacing={2}>
       <Hero activeModuleLabel={activeModuleLabel} />
-      <SummaryGrid summary={workspace.summary} />
+      <SummaryGrid
+        summary={workspace.summary}
+        deploymentSummary={deploymentSummary}
+        projectionState={projectionState}
+      />
+      <Alert severity={projectionState.tone === "warning" ? "warning" : "info"}>
+        {projectionState.detail}
+      </Alert>
       <ContentFilterBar collectionsDomain={collectionsDomain} authorOptions={authorOptions} />
       <WorkspaceLayout
         workspace={{
@@ -200,6 +251,7 @@ export function BlogContentView({
           openTaxonomiesDesk,
           openMediaDesk,
           openPagesDesk,
+          postDeploymentStateMap,
           openRemoteOpsTarget,
           saveModuleSettings
         }}

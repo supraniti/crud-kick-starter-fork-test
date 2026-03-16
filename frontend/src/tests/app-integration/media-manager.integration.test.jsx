@@ -572,6 +572,8 @@ test("media manager surfaces sync posture, artifact urls, and remote-only visibi
   await waitFor(() => {
     expect(screen.getByText("Selection And Bulk Actions")).toBeInTheDocument();
     expect(screen.getByText("Artifact Links")).toBeInTheDocument();
+    expect(screen.getByText("Total Assets")).toBeInTheDocument();
+    expect(screen.getByText("Remote Only")).toBeInTheDocument();
   });
 
   expect(screen.getByRole("button", { name: "Select Visible" })).toBeInTheDocument();

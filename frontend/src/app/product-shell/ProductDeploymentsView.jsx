@@ -7,6 +7,7 @@ import { DeploymentReleaseObservabilityCard } from "./DeploymentReleaseObservabi
 import {
   DeploymentBundleEditorCard,
   DeploymentBundleValidationCard,
+  DeploymentBrowseLinksCard,
   DeploymentBundlesSidebar,
   DeploymentPipelineReadinessCard,
   DeploymentReleaseHistoryCard,
@@ -132,6 +133,12 @@ export function ProductDeploymentsView({ navigate = null }) {
             selectedBundle={workspace.selectedBundle}
             runSummary={workspace.bundleRunSummary}
             runs={workspace.selectedBundleRuns}
+          />
+
+          <DeploymentBrowseLinksCard
+            selectedPage={workspace.selectedPage}
+            bundleForecast={workspace.bundleForecast}
+            runtimePreviewState={workspace.runtimePreviewState}
           />
 
           <SecondaryDeploymentSection

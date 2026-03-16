@@ -12,6 +12,22 @@
 
 ## Entries
 
+### 2026-03-16 - M05 Pass 6 State Visibility Across The Product
+- Tasks:
+  - moved release-state signals into the primary operator surfaces instead of leaving them mostly inside secondary remote/deployment panels
+  - added post-level deployment-state visibility in the main Posts list plus collection-level summary cards
+  - added taxonomy publication-state visibility at the main route level without forcing the operator into the remote publication drawer
+  - added media-library sync summary cards and a browse-links card in Deployments
+- Easy:
+  - the underlying state already existed; the pass was mostly about expressing it earlier and more clearly
+  - media already had a reliable item-level sync-state helper, so route-level summary was just a reducer on top of existing logic
+- Hard:
+  - test expectations were sensitive to duplicated labels once the same business state appeared both in the new primary summaries and the older detailed panels
+  - the focused frontend proof still hit the usual Vite/esbuild sandbox boundary and needed unrestricted execution to run reliably on this machine
+- Improve:
+  - once a state graduates into the primary route surface, tests should stop assuming single occurrences of the same label across the whole page
+  - route-level state summaries are worth adding when the backend contract is already real; this is much cheaper and safer than inventing more workflow machinery
+  - state visibility should land before more setup or runtime abstraction work, because it directly reduces operator reasoning load
 ### 2026-03-16 - M05 Pass 5 Deployment Flow Simplification
 - Tasks:
   - turned `Deployments` into a release-first route instead of a flat mix of bundle editing, per-target operations, and release execution

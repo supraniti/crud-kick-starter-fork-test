@@ -458,6 +458,8 @@ test("blog content view surfaces deployment impact for published posts and route
   await waitFor(() => {
     expect(screen.getByText("Deployment Impact")).toBeInTheDocument();
     expect(screen.getByText("Posts Page")).toBeInTheDocument();
+    expect(screen.getAllByText("Needs Deployment").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Impacted Pages 1").length).toBeGreaterThan(0);
   });
 
   fireEvent.click(screen.getAllByRole("button", { name: "Open Pages" }).at(-1));

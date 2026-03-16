@@ -31,6 +31,7 @@
 - `Pass 3` is delivered.
 - `Pass 4` is delivered.
 - `Pass 5` is delivered.
+- `Pass 6` is delivered.
 - Delivered in Pass 1:
   - fixed `/app/authors`
   - expanded product-shell ownership to:
@@ -119,6 +120,36 @@
     rather than a flat operational dashboard
 - Verified:
   - focused frontend proofs passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+- Delivered in Pass 6:
+  - `Posts` now surfaces release state in the primary desk:
+    - published-with-page coverage
+    - posts needing deployment
+    - published posts with no page template
+    - per-post impacted page and deployment chips in the main list
+  - `Taxonomies` now surfaces collection-level publication state directly in the main desk:
+    - no remote
+    - target unvalidated
+    - nothing to publish
+    - not synced
+    - changed locally
+    - synced
+  - `Media` now surfaces library-wide sync posture in the primary desk:
+    - total assets
+    - synced
+    - changed locally
+    - not synced
+    - remote-only artifacts
+  - `Pages` output forecast now shows the current local artifact path directly
+  - `Deployments` now includes a dedicated browse-links card with:
+    - local artifact path
+    - public origin
+    - example page URL
+    - media base
+- Verified:
+  - focused frontend proofs passed
+  - `pnpm lint:function-shape` passed
   - `pnpm quality:protocol` passed
   - `pnpm quality:gate:full` passed
 
@@ -526,6 +557,9 @@ Main work:
 
 Exit criteria:
 - the user can understand release state without reading raw run history
+
+Status:
+- delivered on `2026-03-16`
 
 ## Pass 7: End-To-End Hardening
 Objective:

@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   MenuItem,
   Paper,
@@ -24,7 +25,8 @@ import {
 } from "./MediaManagerPanels.jsx";
 import {
   resolveLinkedBrowserDeliveryTarget,
-  sortMediaItemsForDisplay
+  sortMediaItemsForDisplay,
+  summarizeMediaSyncStates
 } from "./media-manager-remote-state.js";
 import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 
@@ -35,6 +37,25 @@ const SORT_OPTIONS = [
   { value: "name-desc", label: "Name Z-A" },
   { value: "category", label: "Category" }
 ];
+
+function MediaSummaryCard({ label, value, tone = "default" }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={0.5}>
+        <Typography variant="overline" color="text.secondary">
+          {label}
+        </Typography>
+        <Typography variant="h4">{value}</Typography>
+        <Chip
+          size="small"
+          label={tone}
+          color={tone === "attention" ? "warning" : "default"}
+          sx={{ alignSelf: "flex-start" }}
+        />
+      </Stack>
+    </Paper>
+  );
+}
 
 export function MediaManagerView({
   activeModuleLabel,
@@ -67,6 +88,15 @@ export function MediaManagerView({
     [sortMode, workspace.items]
   );
   const remoteRuns = remoteOpsSupport.supportState.runs ?? [];
+  const remoteSummary = useMemo(
+    () =>
+      summarizeMediaSyncStates({
+        items: workspace.items,
+        mediaTarget: remoteMediaTarget,
+        runs: remoteRuns
+      }),
+    [remoteMediaTarget, remoteRuns, workspace.items]
+  );
   const remoteBusy =
     remoteOpsSupport.procedureState.processing &&
     remoteOpsSupport.procedureState.targetId === remoteMediaTarget?.id;
@@ -219,6 +249,34 @@ export function MediaManagerView({
       {collectionsDomain.collectionItemsState.errorMessage ? (
         <Alert severity="error">{collectionsDomain.collectionItemsState.errorMessage}</Alert>
       ) : null}
+
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={2}
+        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(5, 1fr)" } }}
+      >
+        <MediaSummaryCard label="Total Assets" value={remoteSummary.total} />
+        <MediaSummaryCard
+          label="Synced"
+          value={remoteSummary.synced}
+          tone={remoteSummary.synced > 0 ? "attention" : "default"}
+        />
+        <MediaSummaryCard
+          label="Changed Locally"
+          value={remoteSummary.changedLocally}
+          tone={remoteSummary.changedLocally > 0 ? "attention" : "default"}
+        />
+        <MediaSummaryCard
+          label="Not Synced"
+          value={remoteSummary.notSynced}
+          tone={remoteSummary.notSynced > 0 ? "attention" : "default"}
+        />
+        <MediaSummaryCard
+          label="Remote Only"
+          value={remoteMediaTarget?.compareSummary?.remoteOnlyCount ?? 0}
+          tone={Number(remoteMediaTarget?.compareSummary?.remoteOnlyCount ?? 0) > 0 ? "attention" : "default"}
+        />
+      </Stack>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>

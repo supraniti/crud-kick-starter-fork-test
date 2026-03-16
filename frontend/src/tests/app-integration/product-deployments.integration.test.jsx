@@ -429,6 +429,7 @@ test("product deployments desk runs the release pipeline across local HTML, proj
     expect(screen.getByText("Bundle bindings are coherent.")).toBeInTheDocument();
     expect(screen.getByText("Public Output Forecast")).toBeInTheDocument();
     expect(screen.getByText("Client Runtime Release Preview")).toBeInTheDocument();
+    expect(screen.getByText("Browse Links")).toBeInTheDocument();
     expect(screen.getByText("page.refresh")).toBeInTheDocument();
     expect(screen.getByText("comments.refresh")).toBeInTheDocument();
     expect(screen.getByText("https://stories.example.com/library/originals/hero.png")).toBeInTheDocument();
