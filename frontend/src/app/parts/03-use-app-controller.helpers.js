@@ -447,6 +447,7 @@ function useAppDomains({
     isAuthenticated,
     enabled: requiredDomains.has("collections"),
     isCollectionsRouteActive,
+    activeModuleId: route.moduleId,
     moduleRuntimeItems,
     moduleRuntimeReloadToken: remotesDeployDomain.moduleRuntimeReloadToken,
     onCollectionMutation: remotesDeployDomain.bumpDeployReloadToken,

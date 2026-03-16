@@ -12,6 +12,38 @@
 
 ## Entries
 
+### 2026-03-16 - Authors Route Fix And Bounded State Cleanup
+- Tasks:
+  - fixed the `Authors` route crash on `/app/authors`
+  - added a bounded cleanup script for redundant persisted review state
+  - removed old remote connections, remote targets, page artifacts, legacy pages, and stale media records while preserving the current M04 proof cohort
+- Easy:
+  - the render loop was not deep inside the authors workspace; it came from the shared collections domain still inferring the active module from the URL path instead of the routed module id
+  - once the preserve cohort was made explicit from `m04-closeout-proof.md`, the cleanup itself could stay deterministic and API-driven
+- Hard:
+  - product alias routes like `/app/authors` can no longer be treated as a reliable source of module identity, so the fix had to happen in the app-shell-to-domain boundary rather than in the authors view itself
+  - "clean redundant records from mongo" is risky if the actual persistence mapping is not fully explicit; the safe answer was a bounded cleanup script over supported delete seams, not blind DB mutation
+- Improve:
+  - any shared frontend domain that scopes by module must receive the routed module id explicitly from the app controller; path parsing is not a stable contract once product aliases exist
+  - for review-environment cleanup, preserve the exercised baseline first and automate only deletions that are deterministic and explainable
+
+### 2026-03-16 - M05 Product Flow Convergence Framing
+- Tasks:
+  - stopped execution framing and rewrote the next-step planning around product-flow convergence rather than "recovery"
+  - inspected live product routes plus code/docs together before proposing the next program
+  - wrote a forward plan that starts from the existing capabilities and focuses on simplifying the operator journey
+- Easy:
+  - the repo already has strong baseline docs and the live app exposes enough of the current product shell to inspect the real operator burden directly
+  - the current mismatch is clearer in browser snapshots than in code alone; seeing the long mixed-purpose desks made the next program obvious
+- Hard:
+  - it is easy to slide into capability-gap language because the codebase still exposes many raw internal seams, but that was not the user's framing
+  - the right plan needed to distinguish between:
+    - missing capability
+    - missing product coherence
+- Improve:
+  - when the user is describing product fluency, do not translate it into bugfix/recovery language
+  - anchor the next program in the intended operator journey first, then map the current route/code mismatches against that journey
+
 ### 2026-03-15 - M04 Comments Sync And Moderation Hardening
 - Tasks:
   - hardened the product `Comments` desk so it reads as remote-originated intake moving through a moderation pipeline instead of just another CRUD collection

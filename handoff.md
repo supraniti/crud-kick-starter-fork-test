@@ -15,8 +15,87 @@
 - The currently-scoped M04 slice is delivered.
 
 ## Active execution target
-- No additional execution target is active inside the closed M04 program.
-- If work resumes immediately, start from the delivered baseline docs and define the next expansion program rather than reopening the completed M04 pass list.
+- M04 remains closed.
+- Active planning target is now product-flow convergence from the delivered M04 baseline.
+- Main planning artifact:
+  - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
+- This is a forward program, not a recovery program.
+- Current user direction:
+  - focus on usability, coherence, and intuitive flow
+  - do not treat the issue as missing capability first
+  - discuss the plan before implementation
+
+## Current planning observations
+- Most required mechanics already exist:
+  - remote validation/provisioning
+  - domains/temporary delivery
+  - posts/categories/tags/media/authors/comments
+  - layouts/pages/deployments
+  - remote projections and bundle releases
+- The main problem is product fluency:
+  - too many screens
+  - too many forms
+  - too much low-level configuration exposed
+  - unclear "what goes where" and "what happens next"
+- Live inspected routes on `2026-03-16`:
+  - `/app/system-settings`
+  - `/app/remotes`
+  - `/app/domains`
+  - `/app/taxonomies`
+  - `/app/posts`
+  - `/app/pages`
+  - `/app/deployments`
+  - `/app/authors`
+
+## Current delivered slice
+- Fixed the `Authors` route crash.
+- Root cause:
+  - collections-domain module scoping was being inferred from `window.location.pathname`
+  - product alias routes like `/app/authors` do not map 1:1 to module ids, which caused a render loop
+- Fix:
+  - [03-use-app-controller.helpers.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/parts/03-use-app-controller.helpers.js) now passes `route.moduleId` into the collections domain
+  - [useCollectionsDomain.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/domains/collections/useCollectionsDomain.js) accepts the routed module id explicitly
+  - [01-derived-state.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/domains/collections/useCollectionsDomain/parts/01-derived-state.js) uses the routed module id instead of parsing the URL path
+- Live proof:
+  - `/app/authors` now renders the editorial desk correctly after `LOCAL` sign-in
+  - focused proof passed:
+    - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-editorial.integration.test.jsx`
+
+## Current data-state cleanup
+- Added bounded cleanup script:
+  - [cleanup-m05-redundant-state.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/scripts/cleanup-m05-redundant-state.mjs)
+  - root script alias:
+    - `pnpm cleanup:m05-state`
+- The cleanup preserves the current M04 review baseline and removes obvious redundant persisted state through supported APIs.
+- Preserved records:
+  - remote connection:
+    - `remoteco-012`
+  - remote targets:
+    - `remoteta-003`
+    - `remoteta-016`
+    - `remoteta-017`
+    - `remoteta-018`
+    - `remoteta-019`
+    - `remoteta-020`
+  - pages:
+    - `blogpage-013`
+    - `blogpage-014`
+  - bundles:
+    - `pagedepl-001`
+    - `pagedepl-002`
+  - media:
+    - `mdi-005` through `mdi-014`
+- Cleanup executed on `2026-03-16`:
+  - removed `67` redundant records
+  - resulting visible counts:
+    - `remote-connection-profiles`: `1`
+    - `remote-target-profiles`: `6`
+    - `blog-pages`: `2`
+    - `page-deployment-artifacts`: `20`
+    - `media-items`: `10`
+- Important boundary:
+  - this slice did not perform blind direct Mongo surgery against historical content or run-history collections whose persistence mapping was not yet explicit
+  - cleanup stayed inside supported delete seams plus deterministic preserve lists
 
 ## Pass 30 Delivered
 - exercised the full create -> page -> bundle -> release -> remote -> domain/runtime chain on the live app and real `merchant-guild` project

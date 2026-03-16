@@ -30,6 +30,7 @@
     "test": "pnpm -r test",
     "quality:protocol": "node scripts/protocol-integrity-check.mjs",
     "mission:replay-gate": "node scripts/verify-mission-replay-gate.mjs",
+    "cleanup:m05-state": "node scripts/cleanup-m05-redundant-state.mjs",
     "quality:gate": "node scripts/quality-gate.mjs",
     "quality:gate:full": "node scripts/quality-gate.mjs --full"
   },

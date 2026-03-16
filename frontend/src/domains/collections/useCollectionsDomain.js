@@ -6,7 +6,7 @@ import { useCollectionsDomainState } from "./useCollectionsDomain/parts/05-domai
 import { buildCollectionsDomainResult } from "./useCollectionsDomain/parts/06-domain-result.js";
 
 function useCollectionsDomain({
-  api, isAuthenticated, enabled = false, isCollectionsRouteActive, moduleRuntimeItems,
+  api, isAuthenticated, enabled = false, isCollectionsRouteActive, activeModuleId: routedModuleId, moduleRuntimeItems,
   moduleRuntimeReloadToken, onCollectionMutation, onCollectionErrorAction, routeState,
   onCollectionRouteFilterChange, onCollectionRouteSelectionChange
 }) {
@@ -25,6 +25,7 @@ function useCollectionsDomain({
     scopedCollectionsItems, scopedCollectionsState
   } = useCollectionsDomainDerivedState({
     collectionsState, moduleCollectionMap, isCollectionsRouteActive, activeCollectionId,
+    activeModuleId: routedModuleId,
     collectionFilterState, collectionSchemaState, routeState
   });
 

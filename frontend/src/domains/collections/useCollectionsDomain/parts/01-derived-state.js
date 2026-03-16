@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import {
   buildCollectionListOptions,
   buildCollectionUnavailableMessage,
-  resolveActiveModuleIdFromPath,
   resolveModuleScopedCollections
 } from "../../domain-helpers.js";
 import { buildCollectionFilterConfigSignature } from "../../domain-runtime-helpers.js";
@@ -11,12 +10,16 @@ function useCollectionsDomainDerivedState({
   collectionsState,
   moduleCollectionMap,
   isCollectionsRouteActive,
+  activeModuleId: routedModuleId,
   activeCollectionId,
   collectionFilterState,
   collectionSchemaState,
   routeState
 }) {
-  const activeModuleId = resolveActiveModuleIdFromPath(window.location.pathname);
+  const activeModuleId =
+    typeof routedModuleId === "string" && routedModuleId.trim().length > 0
+      ? routedModuleId.trim()
+      : "";
   const scopedCollectionsItems = useMemo(
     () =>
       isCollectionsRouteActive
