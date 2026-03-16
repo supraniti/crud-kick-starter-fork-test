@@ -29,6 +29,7 @@
 - `Pass 1` is delivered.
 - `Pass 2` is delivered.
 - `Pass 3` is delivered.
+- `Pass 4` is delivered.
 - Delivered in Pass 1:
   - fixed `/app/authors`
   - expanded product-shell ownership to:
@@ -70,6 +71,32 @@
   - kept the backend settings model intact while demoting it out of the normal setup path
 - Verified:
   - focused frontend proofs passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+- Delivered in Pass 4:
+  - `Pages` now starts from explicit page-type choices:
+    - `Standalone Page`
+    - `Post Detail Template`
+    - `Category Detail Template`
+  - `Pages` keeps:
+    - output forecast
+    - delivery preview
+    - deployment instances
+    as the central operator surface
+  - `Pages` now demotes:
+    - remote overrides
+    - runtime contract inspection
+    - module defaults
+    - delivery operations
+    into secondary expandable sections
+  - `Layouts` now explains the normal authoring sequence directly in the builder so the route reads as:
+    - name the layout
+    - build structure
+    - preview structure
+    - return to Pages
+- Verified:
+  - focused frontend proofs passed
+  - `pnpm lint:function-shape` passed
   - `pnpm quality:protocol` passed
   - `pnpm quality:gate:full` passed
 
@@ -435,6 +462,9 @@ Main work:
 Exit criteria:
 - a user can create a posts page and a categories page without understanding internal remote binding structure
 - output count and example URL are obvious
+
+Status:
+- delivered on `2026-03-16`
 
 ## Pass 5: Deployment Flow Simplification
 Objective:

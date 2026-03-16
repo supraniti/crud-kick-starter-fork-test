@@ -51,6 +51,7 @@
 - `Pass 1` is delivered.
 - `Pass 2` is delivered.
 - `Pass 3` is delivered.
+- `Pass 4` is delivered.
 - Main M05 artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
 - Pass 1 delivered:
@@ -121,9 +122,40 @@
   - `pnpm quality:protocol`
   - `pnpm quality:gate:full`
   - current status:
-    - pending rerun while this pass is still uncommitted
+    - all passed
+- Pass 4 delivered:
+  - `Pages` now leads with explicit page-type choices:
+    - `Standalone Page`
+    - `Post Detail Template`
+    - `Category Detail Template`
+  - `Pages` keeps the central authoring surface focused on:
+    - page editor
+    - output forecast
+    - delivery preview
+    - deployment instances
+  - `Pages` now demotes:
+    - remote overrides
+    - delivery operations
+    - pages defaults
+    - runtime contract inspection
+    into secondary expandable sections
+  - `Layouts` now includes a compact authoring-flow card so the route explains how it fits into the `Pages -> Layouts -> Pages` journey
+- Main files:
+  - [BlogDistributionPageEditorSections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionPageEditorSections.jsx)
+  - [BlogDistributionView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionView.jsx)
+  - [LayoutsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutsView.jsx)
+  - [blog-distribution.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.integration.test.jsx)
+  - [layouts.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/layouts.integration.test.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.integration.test.jsx`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - current status:
+    - all passed
 - Next M05 target:
-  - `Pass 4: Presentation Flow Simplification`
+  - `Pass 5: Deployment Flow Simplification`
 
 ## Current delivered slice
 - Fixed the `Authors` route crash.

@@ -12,6 +12,28 @@
 
 ## Entries
 
+### 2026-03-16 - M05 Pass 4 Presentation Flow Simplification
+- Tasks:
+  - turned `Pages` into a page-type-first route instead of a long contract-field-first editor
+  - kept output forecast, delivery preview, and deployment instances central
+  - demoted:
+    - remote overrides
+    - pages defaults
+    - delivery operations
+    - runtime contract inspection
+    into secondary expandable sections
+  - added a compact authoring-flow card to `Layouts` so the route explains its role in the broader presentation journey
+- Easy:
+  - the backend/data model was already flexible enough; the pass stayed almost entirely in the frontend composition layer
+  - `Pages` already had the right preview/forecast panels, so the main job was reordering and visibility, not inventing new state
+- Hard:
+  - the existing tests assumed everything was always expanded, so the product improvement immediately required proof updates
+  - `Pages` now has both a secondary section title and an inner panel title for runtime inspection, which makes role-based heading selectors ambiguous if tests stay too literal
+- Improve:
+  - when a route has one primary job and several operational details, keep the primary center visible and move the rest behind explicit toggles
+  - if a test is validating a newly secondary panel, assert on the fields that matter after opening it rather than on duplicated heading text
+  - page-type presets are a low-risk way to simplify authoring when the underlying backend contract already supports the needed shapes
+
 ### 2026-03-16 - M05 Pass 3 Content Flow Simplification
 - Tasks:
   - demoted remote publication/sync panels inside:

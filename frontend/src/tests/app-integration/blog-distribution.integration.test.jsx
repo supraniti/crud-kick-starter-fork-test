@@ -154,10 +154,15 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
     expect(screen.getByText("https://content.example.com/stories/launch-window-update")).toBeInTheDocument();
     expect(screen.getByText(/SEO title:\s*Launch Story SEO/)).toBeInTheDocument();
     expect(screen.getByLabelText("Resolved Page JSON").value).toContain("\"contractVersion\": 1");
-    expect(screen.getByRole("heading", { name: "Client Runtime Contract" })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Show Client Runtime Contract" }));
+
+  await waitFor(() => {
     expect(screen.getByText("page.refresh")).toBeInTheDocument();
     expect(screen.getByText("comments.submit")).toBeInTheDocument();
     expect(screen.getByDisplayValue("/assets/client-runtime.global.js")).toBeInTheDocument();
+    expect(screen.getByLabelText("Resolved Runtime Contract JSON")).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Publish Page" }));
@@ -498,11 +503,15 @@ test("pages desk exposes deployment settings and can open the selected layout bu
   );
 
   await waitFor(() => {
-    expect(screen.getByLabelText("App Mount Tag Name")).toBeInTheDocument();
     expect(screen.getByText("Launch Story")).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getAllByText("Launch Story")[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Show Pages Defaults" }));
+
+  await waitFor(() => {
+    expect(screen.getByLabelText("App Mount Tag Name")).toBeInTheDocument();
+  });
 
   const editSelectedLayoutButton = await screen.findByRole("button", {
     name: "Edit Selected Layout"

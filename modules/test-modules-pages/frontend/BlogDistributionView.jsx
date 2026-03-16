@@ -1,4 +1,4 @@
-import { Alert, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Alert, Button, Paper, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import {
   DeploymentInstancesPanel,
@@ -39,9 +39,36 @@ function Hero({ activeModuleLabel }) {
         </Typography>
         <Typography variant="h4">Pages Desk</Typography>
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
-          Build single pages and reusable page templates, bind them to approved content sources,
-          and inspect the delivery JSON that downstream renderers will consume.
+          Create standalone pages and reusable templates, preview what they will publish, and keep delivery operations secondary until you are ready to release.
         </Typography>
+      </Stack>
+    </Paper>
+  );
+}
+
+function SecondaryOverviewSection({ collapsedLabel, expandedLabel, title, description, children }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.5}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+        >
+          <Stack spacing={0.5}>
+            <Typography variant="subtitle1">{title}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {description}
+            </Typography>
+          </Stack>
+          <Button variant="outlined" onClick={() => setOpen((previous) => !previous)}>
+            {open ? expandedLabel : collapsedLabel}
+          </Button>
+        </Stack>
+        {open ? children : null}
       </Stack>
     </Paper>
   );
@@ -66,6 +93,9 @@ function SummaryGrid({ summary }) {
 function OverviewTab({ workspace }) {
   return (
     <Stack spacing={2}>
+      <Alert severity="info">
+        Normal flow: select or create a page, define its layout and SEO, inspect the forecast and delivery preview, then use the delivery operations section only when you are ready to validate or sync remote outputs.
+      </Alert>
       <DistributionFilters
         filters={workspace.pageFilters}
         onChangeFilters={(fieldId, value) =>
@@ -98,38 +128,61 @@ function OverviewTab({ workspace }) {
         </Stack>
         <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
           <ReadinessPanel workspace={workspace} />
-          <PagesRemoteSettingsPanel
-            appMountTagName={workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.appMountTagName ?? ""}
-            deploymentTargets={workspace.remoteDeploymentTargets}
-            browserTargets={workspace.remoteBrowserTargets}
-            onChangeField={workspace.moduleSettingsDomain?.handleSettingsFieldChange ?? (() => {})}
-            onSave={workspace.saveModuleSettings}
-            saveDisabled={!workspace.moduleSettingsDomain}
-            settingsState={workspace.moduleSettingsDomain?.moduleSettingsState}
-          />
-          <PagesRemoteDeploymentPanel
-            latestRun={workspace.remoteDeploymentLatestRun}
-            onCompare={workspace.compareRemoteDeployment}
-            onExecute={workspace.executeRemoteDeployment}
-            onOpenRemoteOps={workspace.openRemoteDeploymentTarget}
-            onValidate={workspace.validateRemoteDeployment}
-            page={workspace.selectedPage}
-            procedureState={workspace.remoteOpsSupport.procedureState}
-            selectedTarget={workspace.remoteDeploymentTarget}
-            bindingSourceLabel={workspace.remoteDeploymentBindingSourceLabel}
-          />
-          <PagesBrowserDeliveryPanel
-            latestRun={workspace.remoteBrowserLatestRun}
-            onOpenRemoteOps={workspace.openRemoteBrowserTarget}
-            onValidate={workspace.validateRemoteBrowserTarget}
-            procedureState={workspace.remoteOpsSupport.procedureState}
-            selectedTarget={workspace.remoteBrowserTarget}
-            bindingSourceLabel={workspace.remoteBrowserBindingSourceLabel}
-          />
           <OutputForecastPanel workspace={workspace} />
-          <DeploymentInstancesPanel workspace={workspace} />
           <DeliveryPreviewPanel workspace={workspace} />
-          <RuntimeContractPanel workspace={workspace} />
+          <DeploymentInstancesPanel workspace={workspace} />
+          <SecondaryOverviewSection
+            title="Delivery Operations"
+            description="Use this when you want to validate browser delivery or compare and sync the local deployment output to remote storage."
+            collapsedLabel="Show Delivery Operations"
+            expandedLabel="Hide Delivery Operations"
+          >
+            <Stack spacing={2}>
+              <PagesRemoteDeploymentPanel
+                latestRun={workspace.remoteDeploymentLatestRun}
+                onCompare={workspace.compareRemoteDeployment}
+                onExecute={workspace.executeRemoteDeployment}
+                onOpenRemoteOps={workspace.openRemoteDeploymentTarget}
+                onValidate={workspace.validateRemoteDeployment}
+                page={workspace.selectedPage}
+                procedureState={workspace.remoteOpsSupport.procedureState}
+                selectedTarget={workspace.remoteDeploymentTarget}
+                bindingSourceLabel={workspace.remoteDeploymentBindingSourceLabel}
+              />
+              <PagesBrowserDeliveryPanel
+                latestRun={workspace.remoteBrowserLatestRun}
+                onOpenRemoteOps={workspace.openRemoteBrowserTarget}
+                onValidate={workspace.validateRemoteBrowserTarget}
+                procedureState={workspace.remoteOpsSupport.procedureState}
+                selectedTarget={workspace.remoteBrowserTarget}
+                bindingSourceLabel={workspace.remoteBrowserBindingSourceLabel}
+              />
+            </Stack>
+          </SecondaryOverviewSection>
+          <SecondaryOverviewSection
+            title="Pages Defaults"
+            description="Pages-level default targets and mount behavior. Most operators should set this once during setup and leave it alone."
+            collapsedLabel="Show Pages Defaults"
+            expandedLabel="Hide Pages Defaults"
+          >
+            <PagesRemoteSettingsPanel
+              appMountTagName={workspace.moduleSettingsDomain?.moduleSettingsState?.draftValues?.appMountTagName ?? ""}
+              deploymentTargets={workspace.remoteDeploymentTargets}
+              browserTargets={workspace.remoteBrowserTargets}
+              onChangeField={workspace.moduleSettingsDomain?.handleSettingsFieldChange ?? (() => {})}
+              onSave={workspace.saveModuleSettings}
+              saveDisabled={!workspace.moduleSettingsDomain}
+              settingsState={workspace.moduleSettingsDomain?.moduleSettingsState}
+            />
+          </SecondaryOverviewSection>
+          <SecondaryOverviewSection
+            title="Client Runtime Contract"
+            description="Runtime payload details for the deployed HTML. Use this when you need to inspect the exact browser bootstrap contract."
+            collapsedLabel="Show Client Runtime Contract"
+            expandedLabel="Hide Client Runtime Contract"
+          >
+            <RuntimeContractPanel workspace={workspace} />
+          </SecondaryOverviewSection>
         </Stack>
       </Stack>
     </Stack>

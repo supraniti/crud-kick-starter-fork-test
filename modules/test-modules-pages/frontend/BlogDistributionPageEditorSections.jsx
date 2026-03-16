@@ -28,6 +28,10 @@ import {
   PageBindingSection,
   PagePresentationSection
 } from "./BlogDistributionPagePresentationSections.jsx";
+import {
+  PageTypeSection,
+  SecondarySection
+} from "./BlogDistributionPageFlowSections.jsx";
 
 function PageActionBar({ page, workspace }) {
   const isPerRecordMode = workspace.pageDraft.deploymentMode === "per-record";
@@ -555,19 +559,32 @@ export function ReadinessPanel({ workspace }) {
       <Stack spacing={2}>
         <PageActionBar page={page} workspace={workspace} />
         <PageAlerts workspace={workspace} />
+        <PageTypeSection workspace={workspace} />
         <PageIdentitySection workspace={workspace} />
-        <Divider />
         <PageSourceSection workspace={workspace} sourceOptions={sourceOptions} />
-        <Divider />
-        <PageRemoteBindingsSection workspace={workspace} />
         <PagePresentationSection workspace={workspace} />
-        <PageBindingSection workspace={workspace} />
-        <Divider />
-        <DataSourcesSection workspace={workspace} />
-        <Divider />
         <PageSeoSection workspace={workspace} />
         <Divider />
         <PageReadinessSection page={page} readinessIssues={readinessIssues} workspace={workspace} />
+        <SecondarySection
+          title="Advanced Source Controls"
+          description="Use this only when the default page-type presets are not enough."
+          expandedLabel="Hide Advanced Source Controls"
+          collapsedLabel="Show Advanced Source Controls"
+        >
+          <Stack spacing={2}>
+            <PageBindingSection workspace={workspace} />
+            <DataSourcesSection workspace={workspace} />
+          </Stack>
+        </SecondarySection>
+        <SecondarySection
+          title="Remote Overrides"
+          description="Page-owned overrides are optional. In the normal flow, the page uses the Pages defaults that were set during setup."
+          expandedLabel="Hide Remote Overrides"
+          collapsedLabel="Show Remote Overrides"
+        >
+          <PageRemoteBindingsSection workspace={workspace} />
+        </SecondarySection>
       </Stack>
     </Paper>
   );
