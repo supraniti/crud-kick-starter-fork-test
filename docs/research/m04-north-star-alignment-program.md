@@ -3,6 +3,8 @@
 ## Inputs
 - Current-state map:
   - [current-state-repo-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/current-state-repo-map.md)
+- Closeout proof:
+  - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 - North-star brief:
   - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
 - Fixed remaining-pass sequence:
@@ -736,15 +738,28 @@
       - `Open Remote Ops` -> `Open Remotes`
       - `Open Pages Desk` -> `Open Pages`
     - product `Remotes` copy no longer points operators back at raw module-runtime mental models
+  - Pass 30 completed in worktree:
+    - exercised the full create -> page -> bundle -> release -> remote -> domain/runtime chain against the live app and real `merchant-guild` project
+    - normalized the closeout proof cohort to:
+      - `10` published posts
+      - `10` public categories
+      - `10` public tags
+      - `10` closeout media items
+    - created and published:
+      - `M04 North Star Post Page`
+      - `M04 North Star Category Page`
+    - created and released:
+      - `M04 Posts Release Bundle`
+      - `M04 Categories Release Bundle`
+    - fixed `gcp-temporary` delivery so private GCS deployment/media objects resolve through signed URLs instead of inaccessible raw storage URLs
+    - captured the exercised baseline in:
+      - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
 ## Active Gap After Current Passes
-  - Product shell is now close to the current M04 target, but one closeout slice still remains:
-    - end-to-end practiced-flow refresh
-    - current-state/M04 doc refresh
-    - final proof expansion where needed
-    - cleanup/archive of transient planning artifacts
+  - The currently-scoped M04 slice is delivered.
+  - Next work should start from a new expansion program, not by reopening the closed M04 gap list.
 
 ## Fixed Remaining Sequence
 - Use [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md) as the locked remaining order.
 - Current next pass:
-  - Pass 30: End-To-End Closeout Hardening
+  - none within the current M04 slice

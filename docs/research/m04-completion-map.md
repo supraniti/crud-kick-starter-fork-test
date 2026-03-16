@@ -8,10 +8,11 @@
 ## Inputs
 - [m04-north-star-alignment-program.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-north-star-alignment-program.md)
 - [current-state-repo-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/current-state-repo-map.md)
+- [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 - `C:\Users\cmsin\OneDrive\שולחן העבודה\M04-north-start-alignment.txt`
 
 ## Current Position
-- Completed through M04 Pass 29.
+- Completed through M04 Pass 30.
 - Already achieved:
   - product shell routes and labels
   - product `System Settings`, `Remotes`, `Domains`, `Deployments`
@@ -51,6 +52,11 @@
     - developer runtime controls are explicitly opt-in
     - server runtime payloads now expose module maturity
     - remaining operator labels now prefer product language like `Remotes` over `Remote Ops`
+  - end-to-end closeout proof:
+    - exercised the full create -> page -> bundle -> release -> remote -> runtime chain
+    - normalized the live proof cohort to 10 published posts with unique category/tag/media bindings
+    - verified category page fan-out and named release bundles against the real `merchant-guild` project
+    - fixed `gcp-temporary` browser delivery so private GCS objects now resolve through signed URLs instead of inaccessible raw storage URLs
 
 ## Definition Of Done For M04
 - Normal runtime behaves like a product CMS, not a proof-module browser.
@@ -68,12 +74,14 @@
   - remote action seams
   - media links
 - Proof/test modules are not exposed in normal runtime except through explicit product-owned desks or test/dev-only flags.
+- The exercised closeout proof is captured in:
+  - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
 ## Remaining Pass Count
 - Estimated remaining implementation passes to reach the current M04 definition of done:
-  - `1` final hardening/closeout pass
+  - `0`
 - Total remaining passes:
-  - `1`
+  - `0`
 
 ## Locked Remaining Sequence
 
@@ -200,6 +208,7 @@
   - cleanup/archive of transient planning artifacts
 - Exit criteria:
   - the repo can be handed over as the current north-star-aligned baseline for the next expansion wave
+  - status: completed on `2026-03-15`
 
 ## Order Lock
 - Execute the remaining passes in order unless a pass reveals a hard technical blocker that makes the next pass impossible.

@@ -1,60 +1,65 @@
 # Agent Handoff
 
 ## Current Status
-- Date: 2026-03-15
+- Date: `2026-03-15`
 - Repository: `crud-kick-starter-fork-test`
 - Branch: `crud-kick-starter-fork-test`
-- Active program:
+- Current north-star baseline docs:
+  - [current-state-repo-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/current-state-repo-map.md)
   - [m04-north-star-alignment-program.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-north-star-alignment-program.md)
-- Locked sequence:
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
+  - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
-## Current M04 Position
-- Completed through Pass 29.
-- Pass 29 delivered:
-  - normal runtime now hides developer lifecycle/module controls by default
-  - developer controls are explicitly opt-in through developer mode
-  - runtime/module payloads now expose module `maturity`
-  - remaining operator-facing proof labels were tightened to product language:
-    - `Open Remotes`
-    - `Open Pages`
-- Next locked pass:
-  - Pass 30: End-To-End Closeout Hardening
+## M04 Position
+- Completed through Pass 30.
+- The currently-scoped M04 slice is delivered.
 
 ## Active execution target
-- Continue the locked M04 sequence with Pass 30:
-  - practice the full end-to-end north-star slice
-  - refresh current-state and M04 docs
-  - close remaining proof gaps and archive transient planning artifacts
+- No additional execution target is active inside the closed M04 program.
+- If work resumes immediately, start from the delivered baseline docs and define the next expansion program rather than reopening the completed M04 pass list.
 
-## Pass 29 Main Files
-- [frontend/src/app/product-shell/product-exposure-policy.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-exposure-policy.js)
-- [frontend/src/app/parts/04-app-shell-layout.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/parts/04-app-shell-layout.jsx)
-- [frontend/src/ui/RuntimeSettingsDialog.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/ui/RuntimeSettingsDialog.jsx)
-- [frontend/src/ui/ModuleRuntimePanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/ui/ModuleRuntimePanel.jsx)
-- [server/src/domains/reference/runtime/services/reference-runtime-collection-and-navigation-domain-service.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/src/domains/reference/runtime/services/reference-runtime-collection-and-navigation-domain-service.js)
-- [server/src/domains/reference/runtime/services/reference-runtime-payload-domain-service.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/src/domains/reference/runtime/services/reference-runtime-payload-domain-service.js)
+## Pass 30 Delivered
+- exercised the full create -> page -> bundle -> release -> remote -> domain/runtime chain on the live app and real `merchant-guild` project
+- normalized the proof cohort to:
+  - `10` published posts
+  - `10` public categories
+  - `10` public tags
+  - `10` closeout media items
+- created and released:
+  - `M04 North Star Post Page`
+  - `M04 North Star Category Page`
+  - `M04 Posts Release Bundle`
+  - `M04 Categories Release Bundle`
+- fixed `gcp-temporary` browser delivery so private GCS deployment/media objects now resolve through signed URLs instead of inaccessible raw storage URLs
+- captured the exercised baseline in:
+  - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
+
+## Main Files This Pass
+- [remote-ops-gcs-signed-url-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs)
+- [browser-delivery-reference-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/browser-delivery-reference-runtime.mjs)
+- [page-delivery-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-delivery-runtime.mjs)
+- [page-media-reference-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-media-reference-runtime.mjs)
+- [page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
+- [blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
 
 ## Verification
-- Focused proof:
-  - `pnpm --filter frontend exec vitest run src/tests/app-integration/module-lifecycle-runtime.integration.test.jsx src/tests/app-integration/module-lifecycle-collection-availability.integration.test.jsx src/tests/app-integration/blog-content.integration.test.jsx src/tests/app-integration/media-manager.integration.test.jsx src/tests/app-integration/product-remotes.integration.test.jsx`
+- focused server proof:
   - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
-- Repo constraints:
+- live exercised proof:
+  - signed page URL returned `200`
+  - signed media URL returned `200`
+- repo gates:
   - `pnpm lint:function-shape`
-  - `pnpm quality:gate:full`
-- Progress-pointer integrity:
   - `pnpm quality:protocol`
-
-## Next Execution Target
-- Pass 30: End-To-End Closeout Hardening
-- Locked outcomes for the next pass:
-  - practice the full create -> page -> bundle -> release -> remote -> domain/runtime inspection chain
-  - refresh current-state and M04 docs to the delivered baseline
-  - close the M04 slice cleanly and archive transient planning artifacts
+  - `pnpm quality:gate:full`
+- current status:
+  - all passed
 
 ## Repo State
-- Worktree contains the verified Pass 29 slice plus updated progress pointers.
-- Leave unrelated untracked files untouched:
+- tracked worktree contains the Pass 30 closeout slice plus refreshed north-star docs
+- live review app pair is down
+- untracked runtime/service-account copy remains local runtime state, not repo content
+- leave unrelated untracked files untouched:
   - `25344`
   - `3124`
   - `PLACEHOLDER`

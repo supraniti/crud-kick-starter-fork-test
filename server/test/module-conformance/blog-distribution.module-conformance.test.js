@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { generateKeyPairSync } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vitest";
@@ -109,6 +110,39 @@ async function createDeploymentAndMediaSandbox(moduleSettings = null) {
         recursive: true,
         force: true
       });
+    }
+  };
+}
+
+async function createServiceAccountCredentialFixture(overrides = {}) {
+  const { privateKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    privateKeyEncoding: {
+      format: "pem",
+      type: "pkcs8"
+    },
+    publicKeyEncoding: {
+      format: "pem",
+      type: "spki"
+    }
+  });
+  const credentialDir = await fs.mkdtemp(path.join(os.tmpdir(), "pages-service-account-"));
+  const credentialPath = path.join(credentialDir, "service-account.json");
+  const payload = {
+    type: "service_account",
+    project_id: "merchant-guild",
+    private_key_id: "test-private-key-id",
+    private_key: privateKey,
+    client_email: "merchant-guild@appspot.gserviceaccount.com",
+    client_id: "test-client-id",
+    token_uri: "https://oauth2.googleapis.com/token",
+    ...overrides
+  };
+  await fs.writeFile(credentialPath, JSON.stringify(payload, null, 2), "utf8");
+  return {
+    credentialPath,
+    async cleanup() {
+      await fs.rm(credentialDir, { recursive: true, force: true });
     }
   };
 }
@@ -1448,6 +1482,155 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
     );
   } finally {
     await server.close();
+    await sandbox.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("gcp temporary browser delivery emits signed page and media URLs for private storage", async () => {
+  const sandbox = await createDeploymentAndMediaSandbox();
+  const credentialFixture = await createServiceAccountCredentialFixture();
+  const server = await createEphemeralReferenceServer({
+    referenceStatePersistence: sandbox.referenceStatePersistence
+  });
+
+  try {
+    const editor = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const heroMedia = await seedMedia(server, {
+      fileName: "temporary-delivery-story.png"
+    });
+    const post = await seedPost(server, editor.id, category.id, tag.id, {
+      title: "Temporary Delivery Story",
+      status: "published",
+      publishedOn: "2026-03-09T08:30:00.000Z",
+      featuredMediaId: heroMedia.id,
+      ogImageMediaId: heroMedia.id,
+      galleryMediaIds: [heroMedia.id]
+    });
+
+    const connection = await seedRemoteConnectionProfile(server, {
+      credentialPathHint: credentialFixture.credentialPath
+    });
+    const deploymentTarget = await seedRemoteTargetProfile(server, {
+      title: "Deployment Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "merchant-guild-dev-deployment-679134333951",
+        prefix: "site"
+      }
+    });
+    const mediaTarget = await seedRemoteTargetProfile(server, {
+      title: "Media Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "merchant-guild-dev-media-679134333951",
+        prefix: "library"
+      }
+    });
+    const browserDeliveryTarget = await seedRemoteTargetProfile(server, {
+      title: "Temporary Delivery",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "gcp-temporary",
+        stackMode: "direct-storage",
+        dnsMode: "external",
+        deploymentTargetProfileId: deploymentTarget.id,
+        mediaTargetProfileId: mediaTarget.id
+      }
+    });
+
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath(MODULE_ID),
+      {
+        remoteBrowserDeliveryTargetProfileId: browserDeliveryTarget.id
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+
+    const templatePage = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Posts Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      sourceSelectionMode: "all-records",
+      path: "/post",
+      pathPattern: "/post/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-09T10:00:00.000Z"
+    });
+    expect(templatePage.statusCode).toBe(201);
+
+    const syncResponse = await injectJson(
+      server,
+      "POST",
+      buildSyncDeploymentRoute(templatePage.body.item.id),
+      {}
+    );
+    expect(syncResponse.statusCode).toBe(200);
+
+    const deploymentHtml = await readDeploymentHtml(
+      sandbox.deploymentRootDir,
+      "post/temporary-delivery-story/index.html"
+    );
+    expect(deploymentHtml).toContain("\"publicOrigin\":null");
+    expect(deploymentHtml).toContain("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com");
+    expect(deploymentHtml).toContain("Signature=");
+    expect(deploymentHtml).toContain("\"temporaryMediaBaseUrl\":\"https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library\"");
+
+    const deliveryResponse = await injectJson(
+      server,
+      "GET",
+      `${buildDeliveryRoute(templatePage.body.item.id)}?preview=true&sourceItemId=${post.id}`
+    );
+    expect(deliveryResponse.statusCode).toBe(200);
+    expect(deliveryResponse.body.payload.delivery).toEqual(
+      expect.objectContaining({
+        accessMode: "gcp-temporary",
+        dnsMode: "external",
+        publicOrigin: null,
+        publicUrl: expect.stringContaining("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"),
+        temporaryDeploymentBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site",
+        temporaryMediaBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
+      })
+    );
+    expect(deliveryResponse.body.payload.media).toEqual(
+      expect.objectContaining({
+        referencedIds: expect.arrayContaining([heroMedia.id]),
+        temporaryBaseUrl: "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library",
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: heroMedia.id,
+            publicUrl: null,
+            temporaryUrl: expect.stringContaining("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"),
+            preferredUrl: expect.stringContaining("GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com")
+          })
+        ])
+      })
+    );
+    expect(deliveryResponse.body.payload.head.canonicalUrl).toContain(
+      "GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"
+    );
+    expect(deliveryResponse.body.payload.head.openGraph.imageUrl).toContain(
+      "GoogleAccessId=merchant-guild%40appspot.gserviceaccount.com"
+    );
+  } finally {
+    await server.close();
+    await credentialFixture.cleanup();
     await sandbox.cleanup();
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);

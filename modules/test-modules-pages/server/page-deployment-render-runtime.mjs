@@ -502,12 +502,12 @@ function buildClientRuntimeBrowserContext(payload, browserDelivery) {
   };
 }
 
-function applyFallbackBrowserDeliveryPayload(payload, settings, page, artifactRelativePath) {
+async function applyFallbackBrowserDeliveryPayload(payload, settings, page, artifactRelativePath) {
   if (hasPayloadDeliveryMetadata(payload)) {
     return payload;
   }
 
-  const browserDelivery = resolveBrowserDeliveryPayloadState({
+  const browserDelivery = await resolveBrowserDeliveryPayloadState({
     browserDeliveryState: settings.browserDeliveryState,
     pagePath: payload?.page?.path ?? page.path,
     artifactRelativePath
@@ -557,7 +557,7 @@ async function writeArtifactDocument({
     resolveSettingsRepository,
     settingsDefinition
   });
-  const payload = applyFallbackBrowserDeliveryPayload(
+  const payload = await applyFallbackBrowserDeliveryPayload(
     attachClientRuntimeContract(deliveryPayload),
     settings,
     page,

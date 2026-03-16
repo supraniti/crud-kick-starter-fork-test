@@ -1615,3 +1615,20 @@
 - Improve:
   - expose developer-only runtime controls by explicit mode, never as part of the default operator chrome
   - when product cleanup renames generic buttons, immediately rerun the focused screen proofs because duplicate labels are easy to introduce
+
+### 2026-03-15 - M04 Closeout Hardening
+- Tasks:
+  - practiced the full north-star slice against the live app and real `merchant-guild` project
+  - normalized the proof cohort to exactly `10` published posts and paired them with `10` categories, `10` tags, and `10` dedicated media items
+  - created the post/category per-record pages and released them through named bundles
+  - fixed `gcp-temporary` delivery so private GCS deployment/media objects resolve through signed URLs instead of inaccessible raw storage URLs
+- Easy:
+  - the product bundle wiring was already strong enough that once the cohort was normalized, the release chain mostly behaved exactly as designed
+  - the live remote setup work from earlier passes paid off; provisioning the missing buckets and binding product settings took one bounded step
+- Hard:
+  - the original `gcp-temporary` implementation validated shape only and produced raw `storage.googleapis.com` URLs that failed with `AccessDenied`
+  - the correct fix was not in the UI; it belonged in the server-side browser-delivery boundary so delivery payloads and media descriptors emit signed object URLs
+  - one external verification attempt failed for the wrong reason because the PowerShell check assumed string content instead of binary-safe inspection
+- Improve:
+  - do not treat remote/browser-delivery validation as sufficient proof; always retrieve at least one real HTML object and one real media object before calling the slice closed
+  - when temporary delivery depends on private cloud objects, never expose a fake stable `publicOrigin`; emit signed object URLs and state the limitation plainly

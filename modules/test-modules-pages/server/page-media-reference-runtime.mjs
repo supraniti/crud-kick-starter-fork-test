@@ -1,3 +1,5 @@
+import { buildSignedStorageObjectGetUrl } from "../../test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs";
+
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 const MEDIA_ID_FIELD_PATTERN = /MediaId$/;
 const MEDIA_IDS_FIELD_PATTERN = /MediaIds$/;
@@ -42,9 +44,7 @@ function createLocalContentUrl(mediaItemId) {
     : null;
 }
 
-function createMediaDescriptor(mediaItem = {}, delivery = {}) {
-  const publicUrl = joinUrl(delivery?.publicMediaBaseUrl, mediaItem.relativePath);
-  const temporaryUrl = joinUrl(delivery?.temporaryMediaBaseUrl, mediaItem.relativePath);
+function buildBaseMediaDescriptor(mediaItem = {}) {
   return {
     id: mediaItem.id,
     displayName: mediaItem.displayName ?? mediaItem.id,
@@ -59,11 +59,20 @@ function createMediaDescriptor(mediaItem = {}, delivery = {}) {
     relativePath: mediaItem.relativePath ?? null,
     storageKey: mediaItem.storageKey ?? null,
     isDerived: mediaItem.isDerived === true,
-    sourceMediaId: mediaItem.sourceMediaId ?? null,
+    sourceMediaId: mediaItem.sourceMediaId ?? null
+  };
+}
+
+function createMediaDescriptor(mediaItem = {}, delivery = {}, signedTemporaryUrl = null) {
+  const publicUrl = joinUrl(delivery?.publicMediaBaseUrl, mediaItem.relativePath);
+  const temporaryUrl = signedTemporaryUrl ?? joinUrl(delivery?.temporaryMediaBaseUrl, mediaItem.relativePath);
+  const localContentUrl = createLocalContentUrl(mediaItem.id);
+  return {
+    ...buildBaseMediaDescriptor(mediaItem),
     publicUrl,
     temporaryUrl,
-    localContentUrl: createLocalContentUrl(mediaItem.id),
-    preferredUrl: publicUrl ?? temporaryUrl ?? createLocalContentUrl(mediaItem.id)
+    localContentUrl,
+    preferredUrl: publicUrl ?? temporaryUrl ?? localContentUrl
   };
 }
 
@@ -172,8 +181,43 @@ async function readReferencedMediaItems(payload = {}, collectionHandlerRegistry)
   return readMediaItemsById(collectionHandlerRegistry, mediaIds);
 }
 
-function buildMediaRegistry(items = [], delivery = {}) {
-  const descriptors = items.map((item) => createMediaDescriptor(item, delivery));
+async function buildSignedTemporaryMediaUrls(items = [], delivery = {}, browserDeliveryState = null) {
+  if (
+    delivery?.accessMode !== "gcp-temporary" ||
+    !browserDeliveryState?.connectionProfile?.credentialPathHint ||
+    !browserDeliveryState?.mediaTarget?.config?.bucketName
+  ) {
+    return {};
+  }
+
+  const bucketName = browserDeliveryState.mediaTarget.config.bucketName;
+  const prefix = String(browserDeliveryState.mediaTarget.config.prefix ?? "").replace(/^\/+|\/+$/g, "");
+  const signedEntries = await Promise.all(
+    items.map(async (item) => {
+      if (!item?.relativePath) {
+        return [item?.id ?? "", null];
+      }
+      const objectName = prefix ? `${prefix}/${item.relativePath}` : item.relativePath;
+      const signedUrl = await buildSignedStorageObjectGetUrl({
+        connectionProfile: browserDeliveryState.connectionProfile,
+        bucketName,
+        objectName
+      });
+      return [item.id, signedUrl];
+    })
+  );
+  return Object.fromEntries(signedEntries.filter(([mediaId, value]) => mediaId && value));
+}
+
+async function buildMediaRegistry(items = [], delivery = {}, browserDeliveryState = null) {
+  const signedTemporaryUrls = await buildSignedTemporaryMediaUrls(
+    items,
+    delivery,
+    browserDeliveryState
+  );
+  const descriptors = items.map((item) =>
+    createMediaDescriptor(item, delivery, signedTemporaryUrls[item.id] ?? null)
+  );
   return {
     items: descriptors,
     byId: Object.fromEntries(descriptors.map((item) => [item.id, item])),
@@ -212,12 +256,20 @@ function createMediaAwarePayload(payload = {}, mediaRegistry = null) {
   };
 }
 
-export async function attachResolvedMediaReferences(payload = {}, collectionHandlerRegistry) {
+export async function attachResolvedMediaReferences(
+  payload = {},
+  collectionHandlerRegistry,
+  browserDeliveryState = null
+) {
   const mediaItems = await readReferencedMediaItems(payload, collectionHandlerRegistry);
   if (mediaItems.length === 0) {
     return payload;
   }
 
-  const mediaRegistry = buildMediaRegistry(mediaItems, payload?.delivery);
+  const mediaRegistry = await buildMediaRegistry(
+    mediaItems,
+    payload?.delivery,
+    browserDeliveryState
+  );
   return attachOpenGraphMedia(createMediaAwarePayload(payload, mediaRegistry), mediaRegistry);
 }

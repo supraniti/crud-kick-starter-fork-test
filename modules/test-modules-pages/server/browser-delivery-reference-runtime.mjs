@@ -1,7 +1,12 @@
 import { buildBrowserDeliveryDescriptor, normalizeBrowserDeliveryConfig } from "../../test-modules-remote-ops/shared/browser-delivery-support.mjs";
-import { readStoredRemoteTargetProfileById } from "../../test-modules-remote-ops/shared/target-profile-state-support.mjs";
+import {
+  readStoredRemoteConnectionProfileById,
+  readStoredRemoteTargetProfileById
+} from "../../test-modules-remote-ops/shared/target-profile-state-support.mjs";
+import { buildSignedStorageObjectGetUrl } from "../../test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs";
 
 const REMOTE_TARGETS_COLLECTION_ID = "remote-target-profiles";
+const REMOTE_CONNECTIONS_COLLECTION_ID = "remote-connection-profiles";
 
 async function findTargetById(collectionHandlerRegistry, targetId) {
   if (!targetId) {
@@ -17,6 +22,20 @@ async function findTargetById(collectionHandlerRegistry, targetId) {
   return readStoredRemoteTargetProfileById(targetId);
 }
 
+async function findConnectionById(collectionHandlerRegistry, connectionId) {
+  if (!connectionId) {
+    return null;
+  }
+  const handler = collectionHandlerRegistry?.get?.(REMOTE_CONNECTIONS_COLLECTION_ID);
+  if (handler && typeof handler.findById === "function") {
+    const liveItem = await handler.findById(connectionId);
+    if (liveItem) {
+      return liveItem;
+    }
+  }
+  return readStoredRemoteConnectionProfileById(connectionId);
+}
+
 function extractTargetState(target = null) {
   if (!target || typeof target !== "object") {
     return null;
@@ -26,6 +45,20 @@ function extractTargetState(target = null) {
     title: target.title ?? null,
     targetKind: target.targetKind ?? null,
     config: target.config ?? {}
+  };
+}
+
+function extractConnectionState(connection = null) {
+  if (!connection || typeof connection !== "object") {
+    return null;
+  }
+  return {
+    id: connection.id,
+    profileName: connection.profileName ?? null,
+    provider: connection.provider ?? null,
+    authMode: connection.authMode ?? null,
+    credentialPathHint: connection.credentialPathHint ?? null,
+    serviceAccountEmail: connection.serviceAccountEmail ?? null
   };
 }
 
@@ -51,19 +84,21 @@ export async function resolveBrowserDeliverySettingsState({
   }
 
   const browserConfig = normalizeBrowserDeliveryConfig(browserTarget.config);
-  const [deploymentTarget, mediaTarget] = await Promise.all([
+  const [deploymentTarget, mediaTarget, connectionProfile] = await Promise.all([
     findTargetById(collectionHandlerRegistry, browserConfig.deploymentTargetProfileId),
-    findTargetById(collectionHandlerRegistry, browserConfig.mediaTargetProfileId)
+    findTargetById(collectionHandlerRegistry, browserConfig.mediaTargetProfileId),
+    findConnectionById(collectionHandlerRegistry, browserTarget.connectionProfileId)
   ]);
 
   return {
     browserTarget: extractTargetState(browserTarget),
     deploymentTarget: extractTargetState(deploymentTarget),
-    mediaTarget: extractTargetState(mediaTarget)
+    mediaTarget: extractTargetState(mediaTarget),
+    connectionProfile: extractConnectionState(connectionProfile)
   };
 }
 
-export function resolveBrowserDeliveryPayloadState({
+export async function resolveBrowserDeliveryPayloadState({
   browserDeliveryState,
   pagePath,
   artifactRelativePath
@@ -72,11 +107,34 @@ export function resolveBrowserDeliveryPayloadState({
     return null;
   }
 
-  return buildBrowserDeliveryDescriptor({
+  const descriptor = buildBrowserDeliveryDescriptor({
     browserTarget: browserDeliveryState.browserTarget,
     deploymentTarget: browserDeliveryState.deploymentTarget,
     mediaTarget: browserDeliveryState.mediaTarget,
     pagePath,
     artifactRelativePath
   });
+  if (
+    descriptor?.accessMode !== "gcp-temporary" ||
+    !browserDeliveryState?.connectionProfile ||
+    !browserDeliveryState?.deploymentTarget?.config?.bucketName ||
+    !artifactRelativePath
+  ) {
+    return descriptor;
+  }
+
+  const deploymentPrefix = browserDeliveryState.deploymentTarget?.config?.prefix ?? null;
+  const objectName = deploymentPrefix
+    ? `${String(deploymentPrefix).replace(/^\/+|\/+$/g, "")}/${artifactRelativePath}`
+    : artifactRelativePath;
+
+  return {
+    ...descriptor,
+    publicUrl:
+      (await buildSignedStorageObjectGetUrl({
+        connectionProfile: browserDeliveryState.connectionProfile,
+        bucketName: browserDeliveryState.deploymentTarget.config.bucketName,
+        objectName
+      })) ?? descriptor.publicUrl
+  };
 }

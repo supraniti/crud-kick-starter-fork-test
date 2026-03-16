@@ -1221,6 +1221,7 @@ These remain in repo as baseline/test infrastructure and should not be removed c
 - Server implementation:
   - [remote-ops-route-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-route-runtime.mjs)
   - [remote-ops-service-account-auth-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-service-account-auth-runtime.mjs)
+  - [remote-ops-gcs-signed-url-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-gcs-signed-url-runtime.mjs)
   - [remote-ops-live-validation-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-live-validation-runtime.mjs)
   - [remote-ops-live-firestore-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-live-firestore-runtime.mjs)
   - [remote-ops-live-storage-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-live-storage-runtime.mjs)
@@ -1241,6 +1242,7 @@ These remain in repo as baseline/test infrastructure and should not be removed c
   - `direct-storage`
   - `https-load-balancer`
   - `gcp-managed` or external DNS instructions
+  - in `gcp-temporary` mode with private buckets, Pages now emits signed page/media URLs rather than pretending the raw `storage.googleapis.com` path is anonymously usable
 
 ### 8. Engagement
 - Route: `/app/test-modules-engagement`
@@ -1298,6 +1300,7 @@ These remain in repo as baseline/test infrastructure and should not be removed c
    - `publicUrl`
    - `publicMediaBaseUrl`
    - temporary deployment/media URLs
+   - signed temporary object URLs for page and media access when `gcp-temporary` is backed by private GCS buckets
 6. Response returns `{ ok, payload, timestamp }`.
 
 ### Pages local deployment sync chain
@@ -1458,6 +1461,46 @@ These remain in repo as baseline/test infrastructure and should not be removed c
   - temporary URL previews
   - DNS instructions
   - public URL contract injected into page payload/rendering
+  - signed temporary page/media URLs injected into delivered payloads when temporary mode uses private GCS storage
+
+## Exercised M04 Closeout Proof
+
+### Live proof baseline
+- Detailed record:
+  - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
+- Exercised on `2026-03-15` against:
+  - local app runtime
+  - real GCP project `merchant-guild`
+
+### Practiced chain
+1. validated the service-account-backed GCP connection
+2. provisioned missing deployment/media buckets
+3. normalized the release cohort to `10` published posts
+4. created `10` closeout media items
+5. assigned one category, one tag, and one media item per published post
+6. created and published:
+   - one post per-record page
+   - one category per-record page
+7. created and ran two named release bundles
+8. verified:
+   - local HTML output
+   - Firestore projections
+   - remote deployment/media storage sync
+   - delivery payload/runtime contract
+   - signed temporary access to remote HTML and media
+
+### Practiced artifact set
+- Posts page:
+  - `blogpage-013`
+  - `/post/{slug}`
+  - `10` local/remote HTML outputs
+- Category page:
+  - `blogpage-014`
+  - `/category/{id}`
+  - `10` local/remote HTML outputs
+- Release bundles:
+  - `pagedepl-001`
+  - `pagedepl-002`
 
 ## Active Module Field Inventory
 

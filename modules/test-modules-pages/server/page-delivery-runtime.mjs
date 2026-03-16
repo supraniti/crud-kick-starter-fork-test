@@ -418,16 +418,12 @@ function buildPageSummary(page = {}, resolvedPath = null) {
   };
 }
 
-function applyBrowserDeliveryToPayload({
-  payload,
-  settings,
-  resolvedPath
-}) {
+async function applyBrowserDeliveryToPayload({ payload, settings, resolvedPath }) {
   if (!settings?.browserDeliveryState?.browserTarget) {
     return payload;
   }
 
-  const browserDelivery = resolveBrowserDeliveryPayloadState({
+  const browserDelivery = await resolveBrowserDeliveryPayloadState({
     browserDeliveryState: settings.browserDeliveryState,
     pagePath: payload?.page?.path ?? resolvedPath ?? payload?.page?.path,
     artifactRelativePath: resolveArtifactRelativePathFromResolvedPath(
@@ -459,9 +455,8 @@ function applyBrowserDeliveryToPayload({
   }
   return nextPayload;
 }
-
-async function finalizeDeliveryPayload(payload, collectionHandlerRegistry) {
-  const mediaAwarePayload = await attachResolvedMediaReferences(payload, collectionHandlerRegistry);
+async function finalizeDeliveryPayload(payload, collectionHandlerRegistry, browserDeliveryState = null) {
+  const mediaAwarePayload = await attachResolvedMediaReferences(payload, collectionHandlerRegistry, browserDeliveryState);
   return attachClientRuntimeContract(mediaAwarePayload);
 }
 
@@ -475,7 +470,6 @@ function buildPageResolutionContext(primarySource, resolvedPrimary) {
       : null
   };
 }
-
 function buildResolvedDependencyKeys(page, resolvedPrimary, resolvedSources) {
   const dependencyKeys = mergeDependencyKeys([
     resolvedPrimary ?? { dependencyKeys: [] },
@@ -507,13 +501,15 @@ async function finalizePagePayloadWithSettings({
     collectionHandlerRegistry,
     page
   });
+  const browserAwarePayload = await applyBrowserDeliveryToPayload({
+    payload,
+    settings,
+    resolvedPath
+  });
   return finalizeDeliveryPayload(
-    applyBrowserDeliveryToPayload({
-      payload,
-      settings,
-      resolvedPath
-    }),
-    collectionHandlerRegistry
+    browserAwarePayload,
+    collectionHandlerRegistry,
+    settings.browserDeliveryState
   );
 }
 

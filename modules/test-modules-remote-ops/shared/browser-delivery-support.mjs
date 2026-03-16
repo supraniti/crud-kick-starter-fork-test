@@ -217,13 +217,17 @@ function applyTemporaryDescriptor(descriptor, deploymentTarget, artifactRelative
     descriptor.warnings.push("The linked deployment target does not define a temporary GCP base URL.");
     return descriptor;
   }
-  descriptor.publicOrigin = descriptor.temporaryDeploymentBaseUrl;
   descriptor.publicUrl = buildTemporaryArtifactUrl(
     deploymentTarget?.config?.bucketName,
     deploymentTarget?.config?.prefix,
     artifactRelativePath
   );
-  descriptor.notes.push("Temporary GCP mode resolves to direct object URLs, so deployed HTML URLs include the artifact path.");
+  descriptor.notes.push(
+    "Temporary GCP mode resolves to object-level URLs rather than a stable public origin."
+  );
+  descriptor.notes.push(
+    "When the bucket stays private, the product should surface signed object URLs for page and media access."
+  );
   return descriptor;
 }
 
