@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ProductSystemSettingsView } from "../../app/product-shell/ProductSystemSettingsView.jsx";
 import * as referenceApi from "../../api/reference.js";
 import {
@@ -138,13 +138,22 @@ test("product system settings locks remote selectors until a validated remote ex
   render(<ProductSystemSettingsView />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Global Control Surface" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Advanced Product Defaults" })).toBeInTheDocument();
     expect(
       screen.getByText(
         "Validate at least one remote connection in Remotes to unlock remote-dependent product settings."
       )
     ).toBeInTheDocument();
   });
+
+  expect(
+    screen.getByText(
+      "Normal setup lives in `Remotes` and `Domains`. Use `System Settings` only when you need to set or repair product-wide fallback bindings that downstream desks consume."
+    )
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("combobox", { name: "Remote Deployment Target" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Show Advanced Defaults" }));
 
   expect(screen.getByRole("combobox", { name: "Remote Deployment Target" })).toHaveAttribute("aria-disabled", "true");
   expect(screen.getByRole("combobox", { name: "Remote Browser Delivery Target" })).toHaveAttribute("aria-disabled", "true");
@@ -190,6 +199,10 @@ test("product system settings unlocks remote selectors when validated product ta
   await waitFor(() => {
     expect(screen.getByText("Validated remote connections and standard product services are ready.")).toBeInTheDocument();
   });
+
+  expect(screen.queryByRole("combobox", { name: "Remote Deployment Target" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Show Advanced Defaults" }));
 
   expect(screen.getByRole("combobox", { name: "Remote Deployment Target" })).not.toHaveAttribute("aria-disabled");
   expect(screen.getByRole("combobox", { name: "Remote Browser Delivery Target" })).not.toHaveAttribute("aria-disabled");

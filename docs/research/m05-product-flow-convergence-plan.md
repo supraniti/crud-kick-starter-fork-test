@@ -27,6 +27,7 @@
 
 ## Execution Status
 - `Pass 1` is delivered.
+- `Pass 2` is delivered.
 - Delivered in Pass 1:
   - fixed `/app/authors`
   - expanded product-shell ownership to:
@@ -44,6 +45,19 @@
     - current stage
     - current desk purpose
     - next-step action
+- Verified:
+  - focused frontend proofs passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+- Delivered in Pass 2:
+  - `System Settings` now reads as `Advanced Product Defaults` instead of a second setup headquarters
+  - added a setup-flow card that points the normal operator path to:
+    - `Remotes`
+    - `Domains`
+  - added a compact summary of the currently-bound product defaults
+  - moved the remote target selectors and per-module save actions behind:
+    - `Show Advanced Defaults`
+  - kept the backend settings model intact while demoting it out of the normal setup path
 - Verified:
   - focused frontend proofs passed
   - `pnpm quality:protocol` passed
@@ -361,6 +375,9 @@ Main work:
 Exit criteria:
 - a new operator can set up remote + domain without visiting multiple unrelated forms
 - core setup no longer requires understanding target kinds or module settings
+
+Status:
+- delivered on `2026-03-16`
 
 ## Pass 3: Content Flow Simplification
 Objective:

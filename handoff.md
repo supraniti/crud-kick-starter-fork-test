@@ -49,6 +49,7 @@
 
 ## Current M05 position
 - `Pass 1` is delivered.
+- `Pass 2` is delivered.
 - Main M05 artifact:
   - [m05-product-flow-convergence-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m05-product-flow-convergence-plan.md)
 - Pass 1 delivered:
@@ -79,8 +80,27 @@
   - focused shell/editorial/taxonomy frontend proofs passed
   - `pnpm quality:protocol` passed
   - `pnpm quality:gate:full` passed
+- Pass 2 delivered:
+  - `System Settings` now presents itself as `Advanced Product Defaults`
+  - normal setup is explicitly directed to:
+    - `Remotes`
+    - `Domains`
+  - current product defaults are summarized in one compact card
+  - remote target selectors and per-module save actions are hidden behind:
+    - `Show Advanced Defaults`
+  - backend settings ownership did not change; the operator framing did
+- Main files:
+  - [ProductSystemSettingsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductSystemSettingsView.jsx)
+  - [product-system-settings.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-system-settings.integration.test.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-system-settings.integration.test.jsx`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx src/tests/app-integration/product-editorial.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - current status:
+    - all passed
 - Next M05 target:
-  - `Pass 2: Core Setup Flow Simplification`
+  - `Pass 3: Content Flow Simplification`
 
 ## Current delivered slice
 - Fixed the `Authors` route crash.

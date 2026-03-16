@@ -12,6 +12,24 @@
 
 ## Entries
 
+### 2026-03-16 - M05 Pass 2 Core Setup Flow Simplification
+- Tasks:
+  - demoted `System Settings` from a second setup headquarters into an advanced-defaults route
+  - added an explicit setup-flow card that points the normal operator path to:
+    - `Remotes`
+    - `Domains`
+  - added a compact summary of the currently-bound product defaults
+  - hid the selector-heavy per-module settings behind a `Show Advanced Defaults` toggle
+- Easy:
+  - the existing workspace already exposed the right remote-health and target-binding state, so the pass stayed mostly in one product-shell view plus its focused tests
+  - `selection.target` from the shared remote-health helpers was enough to summarize current defaults without widening the backend contract
+- Hard:
+  - the important design constraint was not capability, it was keeping the old settings model intact while clearly demoting it out of the normal setup journey
+  - frontend vitest still needed escalation on this machine because Vite/esbuild child-process spawning hit the sandbox `spawn EPERM` boundary
+- Improve:
+  - when a route should become advanced-only, change the hero language, the first visible cards, and the default expansion state together; hiding fields alone is not enough
+  - keep the normal operator journey visible as explicit steps before exposing any fallback selectors
+
 ### 2026-03-16 - M05 Pass 1 Product Information Architecture Tightening
 - Tasks:
   - widened product-shell descriptor ownership from the earlier `Authors` / `Comments` surfaces to the remaining north-star desks:

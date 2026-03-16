@@ -17,13 +17,13 @@ async function signInLocally(page) {
   await expect(page.getByRole("button", { name: /sign in \(local\)/i })).toBeVisible();
   await page.getByRole("button", { name: /sign in \(local\)/i }).click();
   await expect(page).toHaveURL(new RegExp(`/app/${ROUTE_SEGMENTS.systemSettings}$`));
-  await expect(page.getByRole("heading", { name: "Global Control Surface" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Advanced Product Defaults" })).toBeVisible();
 }
 
 test.describe("browser smoke lane", () => {
   test("shell/auth and workspace load flow", async ({ page }) => {
     await signInLocally(page);
-    await expect(page.getByRole("heading", { name: "Pages Delivery" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Normal Setup Flow" })).toBeVisible();
     await expect(page.locator("button[data-module-id='test-modules-remote-ops']")).toBeVisible();
 
     await page.locator(`button[data-module-id='${MODULE_IDS.taxonomy}']`).first().click();
@@ -62,6 +62,7 @@ test.describe("browser smoke lane", () => {
     await signInLocally(page);
     await expect(page).toHaveURL(new RegExp(`/app/${ROUTE_SEGMENTS.systemSettings}$`));
     const mountTagName = `qa-smoke-root-${Date.now()}`;
+    await page.getByRole("button", { name: "Show Advanced Defaults" }).click();
     await page.getByLabel("App Mount Tag Name", { exact: true }).fill(mountTagName);
     const saveResponsePromise = page.waitForResponse((response) => {
       return (
@@ -71,13 +72,14 @@ test.describe("browser smoke lane", () => {
           .includes(`/api/reference/settings/modules/${MODULE_IDS.pages}`)
       );
     });
-    await page.getByRole("button", { name: "Save Pages Settings" }).click();
+    await page.getByRole("button", { name: "Save Pages Defaults" }).click();
     const saveResponse = await saveResponsePromise;
     expect(saveResponse.ok()).toBeTruthy();
 
     await page.reload();
     await expect(page).toHaveURL(new RegExp(`/app/${ROUTE_SEGMENTS.systemSettings}$`));
-    await expect(page.getByRole("heading", { name: "Global Control Surface" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Advanced Product Defaults" })).toBeVisible();
+    await page.getByRole("button", { name: "Show Advanced Defaults" }).click();
     await expect(page.getByLabel("App Mount Tag Name", { exact: true })).toHaveValue(mountTagName);
   });
 });
