@@ -12,6 +12,21 @@
 
 ## Entries
 
+### 2026-03-17 - MG-001 Pass 1 Canvas Shell
+- Tasks:
+  - converted the layouts route from a stage-card view into a bounded page workspace
+  - added rulers, quiet grid, viewport presets, width/height steppers, and zoom without rewriting the layout model
+  - kept left rail and inspector as support panels for this pass
+- Easy:
+  - the existing root/container model was strong enough; the page-workspace feel was a shell problem, not a persistence problem
+  - once the page boundary was rendered explicitly, the route immediately read closer to the MG-001 ticket
+- Hard:
+  - adding visible quick-add controls introduced selector ambiguity and also exposed a real event-bubbling bug where canvas action buttons could re-select the root after inserting into a child container
+  - the first full-gate attempt timed out only because `quality:gate:full` needed a longer command timeout in this environment, not because the slice was unstable
+- Improve:
+  - on-canvas action buttons must stop propagation by default; otherwise selection state becomes fragile as soon as the canvas gets more interactive
+  - when a builder route gains duplicated verbs like `Add Block`, give quick-action controls distinct accessible names early so tests and operators can distinguish them
+
 ### 2026-03-16 - Product Billing Surface And MG-001 Planning Review
 - Tasks:
   - added a product `Billing & Usage` tab under `Remotes`

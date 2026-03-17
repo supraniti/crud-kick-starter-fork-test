@@ -10,6 +10,44 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-17 MG-001 Layout Builder Pass 1
+- Billing and usage slice is committed and pushed:
+  - `79707ab` `feat: add remote billing and layout planning review`
+- Active MG-001 program:
+  - [mg-001-layout-builder-planning-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/mg-001-layout-builder-planning-review.md)
+  - [mg-001-layout-builder-implementation-program.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/mg-001-layout-builder-implementation-program.md)
+- Pass 1 delivered:
+  - canvas-first shell
+  - top and left rulers
+  - quiet micro and macro grid
+  - centered page boundary
+  - viewport width and height controls
+  - desktop/laptop/tablet/mobile presets
+  - zoom
+  - root content constrained to centered page content width while keeping the current layout model intact
+- Main files:
+  - [LayoutsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutsView.jsx)
+  - [LayoutBuilderCanvas.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvas.jsx)
+  - [LayoutBuilderCanvasShell.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasShell.jsx)
+  - [LayoutBuilderCanvasNodes.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasNodes.jsx)
+  - [LayoutBuilderCanvasPrimitives.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasPrimitives.jsx)
+  - [layout-builder-viewport.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-viewport.js)
+- Live browser check:
+  - `/app/layouts?layoutId=pagelayo-001` now shows:
+    - `Canvas Workspace`
+    - `Viewport: 1440 x 900 px`
+    - rulers
+    - page boundary chip
+    - quick add controls
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - all passed
+- Next queued pass:
+  - Pass 2: contextual interaction shell
+
 ## 2026-03-16 Billing And Layout Planning
 - Billing and usage surface is now implemented on product `Remotes`, under the `Billing & Usage` tab.
 - Current delivered scope:

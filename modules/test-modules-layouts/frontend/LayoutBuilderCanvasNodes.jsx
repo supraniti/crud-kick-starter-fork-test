@@ -451,7 +451,9 @@ export function RootStageContent({
   onToggleMoveMode,
   showDropSlots,
   isMoveMode,
-  moveSourceParentId
+  moveSourceParentId,
+  pageContentWidth = 1200,
+  minimumStageHeight = 960
 }) {
   const rootNode = document?.nodes?.[document.rootId] ?? null;
 
@@ -460,34 +462,36 @@ export function RootStageContent({
   }
 
   return (
-    <Box onClick={() => onSelectNode(rootNode.id)} sx={{ minHeight: 960 }}>
-      <ContainerSurface
-        node={rootNode}
-        nodes={document.nodes}
-        rootId={rootNode.id}
-        parentMode="root"
-        isRoot
-        isRootParent
-        selectedNodeId={selectedNodeId}
-        onSelectNode={onSelectNode}
-        onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
-        onAppendBlockToContainer={onAppendBlockToContainer}
-        onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-        onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
-        onOpenNodeDialog={onOpenNodeDialog}
-        onToggleMoveMode={onToggleMoveMode}
-        dragHandleProps={{
-          setActivatorNodeRef: null,
-          attributes: {},
-          listeners: {}
-        }}
-        containerId={rootNode.id}
-        childIndex={0}
-        showDropSlots={showDropSlots}
-        containerAxis="vertical"
-        isMoveMode={isMoveMode}
-        moveSourceParentId={moveSourceParentId}
-      />
+    <Box onClick={() => onSelectNode(rootNode.id)} sx={{ minHeight: minimumStageHeight }}>
+      <Box sx={{ width: "100%", maxWidth: pageContentWidth, mx: "auto" }}>
+        <ContainerSurface
+          node={rootNode}
+          nodes={document.nodes}
+          rootId={rootNode.id}
+          parentMode="root"
+          isRoot
+          isRootParent
+          selectedNodeId={selectedNodeId}
+          onSelectNode={onSelectNode}
+          onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
+          onAppendBlockToContainer={onAppendBlockToContainer}
+          onAppendGridContainerToContainer={onAppendGridContainerToContainer}
+          onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+          onOpenNodeDialog={onOpenNodeDialog}
+          onToggleMoveMode={onToggleMoveMode}
+          dragHandleProps={{
+            setActivatorNodeRef: null,
+            attributes: {},
+            listeners: {}
+          }}
+          containerId={rootNode.id}
+          childIndex={0}
+          showDropSlots={showDropSlots}
+          containerAxis="vertical"
+          isMoveMode={isMoveMode}
+          moveSourceParentId={moveSourceParentId}
+        />
+      </Box>
     </Box>
   );
 }

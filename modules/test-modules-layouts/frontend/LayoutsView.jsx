@@ -1,12 +1,4 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Stack,
-  Typography
-} from "@mui/material";
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import { LayoutBuilderCanvas } from "./LayoutBuilderCanvas.jsx";
 import { LayoutBuilderInspector } from "./LayoutBuilderInspector.jsx";
 import { LayoutBuilderLeftRail } from "./LayoutBuilderLeftRail.jsx";
@@ -67,7 +59,7 @@ function BuilderHeader({ activeModuleLabel, workspace }) {
               ) : null}
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Build the shared structure first, preview it on the page stage, then return to Pages to bind content and delivery behavior.
+              Build reusable page structure on the canvas. Keep the support panels nearby for layers, details, and preview.
             </Typography>
             {workspace.selectedLayoutDeploymentImpact.totalTemplates > 0 ? (
               <Alert
@@ -116,27 +108,6 @@ function BuilderHeader({ activeModuleLabel, workspace }) {
   );
 }
 
-function BuilderFlowCard({ workspace }) {
-  return (
-    <Paper variant="outlined" sx={{ mx: 2, mt: 2, p: 2 }}>
-      <Stack spacing={1.5}>
-        <Typography variant="subtitle1">Layout Authoring Flow</Typography>
-        <Typography variant="body2" color="text.secondary">
-          1. Name the layout. 2. Compose containers and blocks on the canvas. 3. Check the rendered base preview. 4. Return to Pages when the structure is ready.
-        </Typography>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Chip size="small" label="Left rail: layers + insert" variant="outlined" />
-          <Chip size="small" label="Canvas: structure" variant="outlined" />
-          <Chip size="small" label="Inspector: selected node + preview" variant="outlined" />
-          {workspace.returnRoute ? (
-            <Chip size="small" color="primary" label="Return path active" />
-          ) : null}
-        </Stack>
-      </Stack>
-    </Paper>
-  );
-}
-
 export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) {
   const workspace = useLayoutsWorkspace({
     navigate,
@@ -155,33 +126,29 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#e7edf4"
+        backgroundColor: "#dbe3eb"
       }}
     >
       <BuilderHeader activeModuleLabel={activeModuleLabel} workspace={workspace} />
-      <BuilderFlowCard workspace={workspace} />
       <Box
         sx={{
           flex: 1,
           minHeight: 0,
           display: "grid",
-          gap: 2,
+          gap: 1.5,
           p: 2,
           gridTemplateAreas: {
-            xs: `"rail" "canvas" "inspector"`,
-            lg: `"rail canvas" "rail inspector"`,
-            xl: `"rail canvas inspector"`
+            xs: `"canvas" "rail" "inspector"`,
+            lg: `"canvas rail" "canvas inspector"`,
+            xl: `"canvas rail inspector"`
           },
           gridTemplateColumns: {
             xs: "1fr",
-            lg: "220px minmax(0, 1fr)",
-            xl: "220px minmax(0, 1fr) 320px"
+            lg: "minmax(0, 1fr) 240px",
+            xl: "minmax(0, 1fr) 240px 320px"
           }
         }}
       >
-        <Box sx={{ minHeight: 0, gridArea: "rail" }}>
-          <LayoutBuilderLeftRail workspace={workspace} />
-        </Box>
         <Box sx={{ minHeight: 0, gridArea: "canvas" }}>
           <LayoutBuilderCanvas
             document={workspace.draft.layoutDocument}
@@ -207,6 +174,9 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
               workspace.setMoveMode(!workspace.isMoveMode);
             }}
           />
+        </Box>
+        <Box sx={{ minHeight: 0, gridArea: "rail" }}>
+          <LayoutBuilderLeftRail workspace={workspace} />
         </Box>
         <Box sx={{ minHeight: 0, gridArea: "inspector" }}>
           <LayoutBuilderInspector

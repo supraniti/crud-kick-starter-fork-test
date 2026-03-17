@@ -1,5 +1,5 @@
-import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
-import { useCallback, useState } from "react";
+import { Alert, Box, Button, Chip, Paper, Stack } from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -10,6 +10,14 @@ import {
   useSensors
 } from "@dnd-kit/core";
 import { DragPreview, RootStageContent } from "./LayoutBuilderCanvasNodes.jsx";
+import { LayoutBuilderCanvasShell } from "./LayoutBuilderCanvasShell.jsx";
+import {
+  clampViewportHeight,
+  clampViewportWidth,
+  clampZoomLevel,
+  DEFAULT_VIEWPORT,
+  DEFAULT_ZOOM_LEVEL
+} from "./layout-builder-viewport.js";
 import { findParentContainerId } from "./layout-builder-model.js";
 
 function buildSelectionLabels(document, selectedPathIds) {
@@ -18,38 +26,47 @@ function buildSelectionLabels(document, selectedPathIds) {
     .filter(Boolean);
 }
 
-function StageHeader({ labels, onAddBlock, onAddGridContainer, onAddFlexContainer }) {
+function SelectionPathChips({ labels }) {
+  if (!labels.length) {
+    return null;
+  }
+
   return (
-    <Stack spacing={1.5}>
-      <Stack
-        direction={{ xs: "column", lg: "row" }}
-        spacing={1.5}
-        alignItems={{ xs: "flex-start", lg: "center" }}
-        justifyContent="space-between"
-      >
-        <Stack spacing={0.5}>
-          <Typography variant="h5">Page Stage</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Build from full-width containers first. Then place blocks or nested containers inside those containers.
-          </Typography>
-        </Stack>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Button variant="contained" onClick={onAddGridContainer}>
-            Add Container
-          </Button>
-          <Button variant="outlined" onClick={onAddBlock}>
-            Add Block
-          </Button>
-          <Button variant="outlined" onClick={onAddFlexContainer}>
-            Add Flex Container
-          </Button>
-        </Stack>
-      </Stack>
+    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+      {labels.map((label, index) => (
+        <Chip key={`${index}-${label}`} size="small" variant="outlined" label={label} />
+      ))}
+    </Stack>
+  );
+}
+
+function CanvasStatusStrip({
+  isMoveMode,
+  moveModeLabel,
+  labels,
+  onAddContainer,
+  onAddBlock,
+  onAddFlexContainer
+}) {
+  return (
+    <Stack spacing={1.25} sx={{ p: 1.5 }}>
+      {isMoveMode ? (
+        <Alert severity="info">
+          Moving <strong>{moveModeLabel ?? "selected node"}</strong>. Choose a visible target on the canvas.
+        </Alert>
+      ) : null}
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-        {labels.map((label, index) => (
-          <Chip key={`${index}-${label}`} size="small" variant="outlined" label={label} />
-        ))}
+        <Button variant="contained" onClick={onAddContainer} aria-label="Quick Add Container">
+          Quick Add Container
+        </Button>
+        <Button variant="outlined" onClick={onAddBlock} aria-label="Quick Add Block">
+          Quick Add Block
+        </Button>
+        <Button variant="outlined" onClick={onAddFlexContainer} aria-label="Quick Add Flex Container">
+          Quick Add Flex Container
+        </Button>
       </Stack>
+      <SelectionPathChips labels={labels} />
     </Stack>
   );
 }
@@ -72,6 +89,11 @@ export function LayoutBuilderCanvas({
   const rootNode = document?.nodes?.[document.rootId] ?? null;
   const selectionLabels = buildSelectionLabels(document, selectedPathIds);
   const [activeDragId, setActiveDragId] = useState(null);
+  const [viewport, setViewport] = useState({
+    width: DEFAULT_VIEWPORT.width,
+    height: DEFAULT_VIEWPORT.height
+  });
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
   const moveSourceNodeId = activeDragId ?? (isMoveMode ? selectedNodeId : null);
   const moveSourceParentId = moveSourceNodeId ? findParentContainerId(document, moveSourceNodeId) : null;
   const sensors = useSensors(
@@ -85,6 +107,10 @@ export function LayoutBuilderCanvas({
     const pointerMatches = pointerWithin(args);
     return pointerMatches.length > 0 ? pointerMatches : closestCorners(args);
   }, []);
+  const viewportHeight = useMemo(
+    () => Math.max(720, viewport.height - 96),
+    [viewport.height]
+  );
 
   if (!rootNode) {
     return null;
@@ -95,89 +121,75 @@ export function LayoutBuilderCanvas({
       variant="outlined"
       sx={{
         height: "100%",
-        overflow: "auto",
-        backgroundColor: "#dbe5ef",
-        p: { xs: 1.5, lg: 2.5 }
+        overflow: "hidden",
+        backgroundColor: "#d6dde6",
+        borderRadius: 4,
+        display: "flex",
+        flexDirection: "column"
       }}
     >
-      <Stack spacing={2.5} sx={{ minHeight: "100%" }}>
-        <StageHeader
-          labels={selectionLabels}
-          onAddBlock={() => onAppendBlockToContainer(rootNode.id)}
-          onAddGridContainer={() => onAppendGridContainerToContainer(rootNode.id)}
-          onAddFlexContainer={() => onAppendFlexContainerToContainer(rootNode.id)}
-        />
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            borderRadius: 4,
-            border: "1px solid rgba(15,23,42,0.1)",
-            background: "linear-gradient(180deg, rgba(244,247,250,1), rgba(226,232,240,0.95))",
-            p: { xs: 1.5, lg: 3 }
+      <CanvasStatusStrip
+        isMoveMode={isMoveMode}
+        moveModeLabel={moveModeLabel}
+        labels={selectionLabels}
+        onAddContainer={() => onAppendGridContainerToContainer(rootNode.id)}
+        onAddBlock={() => onAppendBlockToContainer(rootNode.id)}
+        onAddFlexContainer={() => onAppendFlexContainerToContainer(rootNode.id)}
+      />
+      <LayoutBuilderCanvasShell
+        viewport={viewport}
+        zoomLevel={zoomLevel}
+        onWidthStep={(delta) => setViewport((current) => ({
+          ...current,
+          width: clampViewportWidth(current.width + delta)
+        }))}
+        onHeightStep={(delta) => setViewport((current) => ({
+          ...current,
+          height: clampViewportHeight(current.height + delta)
+        }))}
+        onSelectPreset={(preset) => setViewport({
+          width: preset.width,
+          height: preset.height
+        })}
+        onZoomStep={(delta) => setZoomLevel((current) => clampZoomLevel(current + delta))}
+      >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={collisionDetection}
+          onDragStart={(event) => setActiveDragId(event.active?.id ?? null)}
+          onDragCancel={() => setActiveDragId(null)}
+          onDragEnd={(event) => {
+            onDragEnd({
+              activeId: event.active?.id,
+              overId: event.over?.id
+            });
+            setActiveDragId(null);
           }}
         >
-          {isMoveMode ? (
-            <Alert
-              severity="info"
-              sx={{ mb: 2, alignItems: "center" }}
-              action={
-                <Button color="inherit" size="small" onClick={() => onToggleMoveMode?.(null)}>
-                  Cancel Move
-                </Button>
-              }
-            >
-              Moving <strong>{moveModeLabel ?? "selected node"}</strong>. Choose a target slot on the canvas.
-            </Alert>
-          ) : null}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={collisionDetection}
-            onDragStart={(event) => setActiveDragId(event.active?.id ?? null)}
-            onDragCancel={() => setActiveDragId(null)}
-            onDragEnd={(event) => {
-              onDragEnd({
-                activeId: event.active?.id,
-                overId: event.over?.id
-              });
-              setActiveDragId(null);
-            }}
-          >
-            <Box
-              sx={{
-                width: "100%",
-                maxWidth: 1480,
-                mx: "auto",
-                minHeight: 1080,
-                borderRadius: 4,
-                border: "1px solid rgba(15,23,42,0.12)",
-                backgroundColor: "rgba(255,255,255,0.96)",
-                p: { xs: 2, lg: 4 },
-                boxShadow: "0 30px 70px rgba(15,23,42,0.12)"
-              }}
-            >
-              <RootStageContent
-                document={document}
-                selectedNodeId={selectedNodeId}
-                selectedPathIds={selectedPathIds}
-                onSelectNode={onSelectNode}
-                onAppendBlockToContainer={onAppendBlockToContainer}
-                onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-                onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
-                onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
-                onOpenNodeDialog={onOpenNodeDialog}
-                onToggleMoveMode={onToggleMoveMode}
-                showDropSlots={Boolean(activeDragId) || isMoveMode}
-                isMoveMode={isMoveMode}
-                moveSourceParentId={moveSourceParentId}
-              />
-            </Box>
+          <Box sx={{ px: 4, py: 4 }}>
+            <RootStageContent
+              document={document}
+              selectedNodeId={selectedNodeId}
+              selectedPathIds={selectedPathIds}
+              onSelectNode={onSelectNode}
+              onAppendBlockToContainer={onAppendBlockToContainer}
+              onAppendGridContainerToContainer={onAppendGridContainerToContainer}
+              onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+              onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
+              onOpenNodeDialog={onOpenNodeDialog}
+              onToggleMoveMode={onToggleMoveMode}
+              showDropSlots={Boolean(activeDragId) || isMoveMode}
+              isMoveMode={isMoveMode}
+              moveSourceParentId={moveSourceParentId}
+              pageContentWidth={1200}
+              minimumStageHeight={viewportHeight}
+            />
             <DragOverlay>
               <DragPreview node={document.nodes?.[activeDragId] ?? null} />
             </DragOverlay>
-          </DndContext>
-        </Box>
-      </Stack>
+          </Box>
+        </DndContext>
+      </LayoutBuilderCanvasShell>
     </Paper>
   );
 }

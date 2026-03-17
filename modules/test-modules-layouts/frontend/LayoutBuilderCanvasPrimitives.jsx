@@ -14,7 +14,10 @@ function CompactActionButton({ ariaLabel, title, onClick, children, active = fal
     <Tooltip title={title}>
       <ButtonBase
         aria-label={ariaLabel}
-        onClick={onClick}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClick?.(event);
+        }}
         sx={{
           minWidth: 0,
           height: 28,
@@ -360,13 +363,34 @@ export function ContainerEmptyState({ isRoot, onAddBlock, onAddGridContainer, on
         ) : null}
       </Stack>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} useFlexGap flexWrap="wrap">
-        <Button variant="contained" size={isCompact ? "small" : "medium"} onClick={onAddGridContainer}>
+        <Button
+          variant="contained"
+          size={isCompact ? "small" : "medium"}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddGridContainer();
+          }}
+        >
           {isCompact ? "+ Container" : "Add Container"}
         </Button>
-        <Button variant="outlined" size={isCompact ? "small" : "medium"} onClick={onAddBlock}>
+        <Button
+          variant="outlined"
+          size={isCompact ? "small" : "medium"}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddBlock();
+          }}
+        >
           {isCompact ? "+ Block" : "Add Block"}
         </Button>
-        <Button variant="outlined" size={isCompact ? "small" : "medium"} onClick={onAddFlexContainer}>
+        <Button
+          variant="outlined"
+          size={isCompact ? "small" : "medium"}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddFlexContainer();
+          }}
+        >
           {isCompact ? "+ Flex" : "Add Flex Container"}
         </Button>
       </Stack>

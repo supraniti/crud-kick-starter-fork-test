@@ -189,6 +189,12 @@ test("layout builder can compose container and block structures through the live
     expect(screen.getByRole("heading", { name: "Layout Builder" })).toBeInTheDocument();
   });
 
+  expect(screen.getByText("Canvas Workspace")).toBeInTheDocument();
+  expect(screen.getByText("Viewport: 1440 x 900 px")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Desktop 1440" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Tablet 768" })).toBeInTheDocument();
+  expect(screen.getByText("Zoom 100%")).toBeInTheDocument();
+
   fireEvent.click(screen.getByRole("button", { name: "New Layout" }));
   fireEvent.change(screen.getByLabelText("Layout Title"), {
     target: { value: "Campaign Page" }
