@@ -269,6 +269,15 @@ export async function validateConnection(connectionId) {
   return requestModuleAction(`/api/reference/modules/${MODULE_ID}/connections/${connectionId}/validate`);
 }
 
+export async function loadConnectionBillingOverview(connectionId) {
+  return requestModuleAction(
+    `/api/reference/modules/${MODULE_ID}/connections/${connectionId}/billing-overview`,
+    {
+      method: "GET"
+    }
+  );
+}
+
 export async function analyzeConnectionCompatibility(connectionId) {
   return requestModuleAction(
     `/api/reference/modules/${MODULE_ID}/connections/${connectionId}/analyze-compatibility`

@@ -564,7 +564,7 @@ async function writeArtifactDocument({
     page,
     artifactRelativePath
   );
-  await syncClientRuntimeAsset(resolvePageDeploymentRootDir(), payload?.runtime?.clientRuntime?.assetUrl);
+  await syncClientRuntimeAsset(resolvePageDeploymentRootDir());
   const htmlDocument = renderStaticPageDocument({
     payload,
     mountTagName: settings.appMountTagName,

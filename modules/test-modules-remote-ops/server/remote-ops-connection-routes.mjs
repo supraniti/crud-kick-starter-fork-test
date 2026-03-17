@@ -19,6 +19,7 @@ import {
 } from "./remote-ops-route-runtime.mjs";
 import { ensureStandardProductBundle } from "./remote-ops-product-bundle-runtime.mjs";
 import { validateLiveConnectionProfile } from "./remote-ops-live-validation-runtime.mjs";
+import { buildGcpBillingOverview } from "./remote-ops-gcp-billing-runtime.mjs";
 import { normalizeOptionalText, toTimestamp } from "./remote-ops-shared-runtime.mjs";
 
 function buildConnectionPatchFromValidation(connectionProfile, result) {
@@ -323,9 +324,45 @@ function registerValidateConnectionRoute(fastify, routeContext) {
   );
 }
 
+function registerBillingOverviewRoute(fastify, routeContext) {
+  fastify.get(
+    `/api/reference/modules/${routeContext.moduleId}/connections/:connectionId/billing-overview`,
+    async function connectionBillingOverviewRoute(request, reply) {
+      const availability = ensureModuleEnabled(routeContext.moduleRegistry, routeContext.moduleId, reply);
+      if (availability !== true) {
+        return availability;
+      }
+      const connectionProfile = await loadConnectionProfile(routeContext, request, reply);
+      if (connectionProfile?.ok === false) {
+        return connectionProfile;
+      }
+      if (connectionProfile.authMode !== "service-account-key") {
+        reply.code(409);
+        return errorPayload(
+          "REMOTE_OPS_AUTH_MODE_UNSUPPORTED",
+          "Billing overview currently supports service-account-key connections only."
+        );
+      }
+      try {
+        const report = await buildGcpBillingOverview(connectionProfile);
+        return buildSuccessResponse("Loaded GCP billing overview.", {
+          report
+        });
+      } catch (error) {
+        reply.code(400);
+        return errorPayload(
+          "REMOTE_OPS_BILLING_OVERVIEW_FAILED",
+          error?.message ?? "Failed to load the GCP billing overview."
+        );
+      }
+    }
+  );
+}
+
 export function registerConnectionRoutes(fastify, routeContext) {
   registerImportCredentialRoute(fastify, routeContext);
   registerConnectRoute(fastify, routeContext);
   registerSimulateConnectRoute(fastify, routeContext);
   registerValidateConnectionRoute(fastify, routeContext);
+  registerBillingOverviewRoute(fastify, routeContext);
 }

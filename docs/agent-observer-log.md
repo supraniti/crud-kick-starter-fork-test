@@ -12,6 +12,39 @@
 
 ## Entries
 
+### 2026-03-16 - Product Billing Surface And MG-001 Planning Review
+- Tasks:
+  - added a product `Billing & Usage` tab under `Remotes`
+  - wired real GCP billing linkage + budgets visibility through the service-account remote
+  - reviewed the next layout-builder direction from the MG-001 ticket against the current layouts module
+- Easy:
+  - the server-side billing slice fit cleanly inside the existing remote-ops boundary
+  - the current layouts module already has the right model core for MG-001: container/block tree, nested containers, deterministic moves
+- Hard:
+  - the first billing proof looked fine in code but still failed repo standards:
+    - function-shape gate
+    - frontend proof
+  - the billing test failure was misleading at first because the UI rendered, but the actual issue was a bad test helper import and overly strict text selector assumptions
+  - the Desktop `design.png` turned out not to be an image at all; it was an expired-URL JSON response
+- Improve:
+  - for product surfaces that auto-load remote data, tie loading to the explicitly displayed entity id, not only to internal selected-state timing
+  - when a new panel adds text that duplicates a tab label, expect testing-library selector collisions and use role-based assertions early
+  - treat external design assets as untrusted until the file is confirmed to be a real image
+
+### 2026-03-16 - Post-M06 Client Runtime Asset URL Fix
+- Tasks:
+  - fixed deployed page HTML so `client-runtime.global.js` is no longer emitted as the broken root-relative `/assets/...` path
+  - restored the persisted Merchant Guild credential copy and reran both live release bundles after the app surfaced the missing-key warning again
+- Easy:
+  - once the deployed page source was inspected, the bug was explicit: the asset file existed in deployment, but the emitted URL ignored the deployment bucket/prefix
+  - the current saved connection already pointed at the exact missing imported key path, so restoring it was deterministic once the original download was located
+- Hard:
+  - the runtime contract and deployment copier were incorrectly coupled through one `assetUrl` field; the fix needed to preserve a stable deployment copy target while changing the browser-facing URL
+  - the live release rehearsal was necessary because this bug only matters at the real deployed URL, not in local abstract payload inspection
+- Improve:
+  - treat deployed runtime assets as delivery-aware URLs, not root-relative app assets
+  - for remote publishing regressions, inspect the deployed page source and network requests directly before assuming the artifact itself is missing
+
 ### 2026-03-16 - Post-M06 Browser Delivery Reality Check
 - Tasks:
   - fixed the real browser-delivery bug where deployed HTML objects were uploaded as `application/octet-stream`, causing signed URLs to download instead of render

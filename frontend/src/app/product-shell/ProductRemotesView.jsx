@@ -9,6 +9,7 @@ import { resolveManagedProductBindingKey } from "../../../../modules/test-module
 import { useRemoteOpsWorkspace } from "../../../../modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js";
 import { SummaryCard } from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsSharedPanels.jsx";
 import { ProductRemoteSetupCards } from "./ProductRemoteSetupCards.jsx";
+import { ProductRemoteBillingPanel } from "./ProductRemoteBillingPanel.jsx";
 import { DeskSplitLayout } from "../../ui/DeskSplitLayout.jsx";
 import { DeskTabsCard } from "../../ui/DeskTabsCard.jsx";
 
@@ -21,7 +22,7 @@ const MANAGED_PRODUCT_TARGET_KEYS = new Set([
   "browser-delivery"
 ]);
 
-const REMOTES_SECTIONS = new Set(["setup", "connection", "activity"]);
+const REMOTES_SECTIONS = new Set(["setup", "connection", "billing", "activity"]);
 
 function resolveRequestedSection(route = {}) {
   const requestedTab = typeof route?.tab === "string" ? route.tab.trim() : "";
@@ -210,6 +211,9 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
   );
   const compatibilityReport =
     effectiveSelectedConnectionId === workspace.selectedConnectionId ? workspace.compatibilityReport : null;
+  const billingReport = effectiveSelectedConnectionId
+    ? workspace.billingReports?.[effectiveSelectedConnectionId] ?? null
+    : null;
   const preparedTargetCount = useMemo(
     () => countPreparedManagedTargets(workspace.targets, effectiveSelectedConnectionId),
     [effectiveSelectedConnectionId, workspace.targets]
@@ -333,6 +337,7 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
               tabs={[
                 { value: "setup", label: "Setup Stages" },
                 { value: "connection", label: "Connection Details" },
+                { value: "billing", label: "Billing & Usage" },
                 { value: "activity", label: "Recent Activity" }
               ]}
             />
@@ -354,6 +359,14 @@ export function ProductRemotesView({ navigate = null, route = {} }) {
                 showManagedTargetsPanel={false}
                 showCompatibilityReport={false}
                 showProvisioningPanel={false}
+              />
+            ) : null}
+            {section === "billing" ? (
+              <ProductRemoteBillingPanel
+                workspace={workspace}
+                selectedConnection={selectedConnection}
+                report={billingReport}
+                onLoadReport={() => workspace.loadConnectionBillingOverviewFor(effectiveSelectedConnectionId)}
               />
             ) : null}
             {section === "activity" ? <RecentRunsPanel runs={recentRuns} /> : null}

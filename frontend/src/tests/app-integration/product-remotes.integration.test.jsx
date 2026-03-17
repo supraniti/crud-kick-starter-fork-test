@@ -4,6 +4,7 @@ import { ProductRemotesView } from "../../app/product-shell/ProductRemotesView.j
 import * as referenceApi from "../../api/reference.js";
 import {
   createConnectionItem,
+  createJsonResponse,
   createRunItem,
   createTargetItem
 } from "./remote-ops-test-helpers.js";
@@ -19,6 +20,7 @@ vi.mock("../../api/reference.js", async () => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function createManagedTargets(connectionId) {
@@ -233,5 +235,135 @@ test("product remotes desk opens directly in connection details for key re-impor
     expect(screen.getByText(/This remote needs its service-account key re-imported/i)).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Connection Details", selected: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose JSON Key File" })).toBeInTheDocument();
+  });
+}, 15000);
+
+test("product remotes desk loads GCP billing linkage and visible budgets on the billing tab", async () => {
+  const connectionItems = [
+    createConnectionItem({
+      id: "conn-002",
+      profileName: "Primary GCP Dev",
+      serviceAccountEmail: "merchant-guild@appspot.gserviceaccount.com",
+      projectId: "merchant-guild",
+      projectNumber: "679134333951",
+      projectDisplayName: "Merchant Guild",
+      connectionStatus: "validated",
+      lastValidatedOn: "2026-03-15T09:05:00.000Z",
+      validationSummary: {
+        state: "validated",
+        message: "Connection validated.",
+        checkedItems: ["service account", "project access"],
+        warnings: [],
+        canProceed: true
+      }
+    })
+  ];
+
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "remote-connection-profiles") {
+      return { items: connectionItems.map((item) => ({ ...item })) };
+    }
+    if (collectionId === "remote-target-profiles") {
+      return { items: createManagedTargets("conn-002") };
+    }
+    if (collectionId === "remote-operation-runs") {
+      return { items: [] };
+    }
+    return { items: [] };
+  });
+
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      if (String(url).includes("/connections/conn-002/billing-overview")) {
+        return createJsonResponse(200, {
+          ok: true,
+          message: "Loaded GCP billing overview.",
+          report: {
+            provider: "gcp",
+            billingInfo: {
+              state: "enabled",
+              billingEnabled: true,
+              billingAccountId: "ABCDEF-123456-7890AB",
+              billingAccountDisplayName: "Merchant Guild Billing",
+              billingAccountOpen: true,
+              summary: "Billing is enabled and linked to 'Merchant Guild Billing'."
+            },
+            permissions: {
+              project: [
+                { permission: "billing.resourceAssociations.get", label: "Project billing linkage", granted: true },
+                { permission: "billing.resourceCosts.get", label: "Project cost trend visibility", granted: false, guidance: "Grant cost visibility." },
+                { permission: "billing.resourcebudgets.read", label: "Project budget visibility", granted: true }
+              ],
+              summaries: {
+                canReadProjectCosts: false,
+                canReadProjectBudgets: true
+              }
+            },
+            budgets: {
+              state: "loaded",
+              visibleCount: 1,
+              projectScopedCount: 1,
+              accountScopedCount: 0,
+              forecastRuleCount: 1,
+              summary: "1 visible budget, 1 forecast rule.",
+              items: [
+                {
+                  name: "billingAccounts/ABCDEF-123456-7890AB/budgets/primary",
+                  displayName: "Primary Monthly Budget",
+                  amount: {
+                    label: "$150.00",
+                    mode: "specified"
+                  },
+                  period: "MONTH",
+                  scope: "project",
+                  projects: ["projects/merchant-guild"],
+                  hasForecastRule: true,
+                  thresholds: [
+                    { spendBasis: "CURRENT_SPEND", thresholdPercent: 0.5 },
+                    { spendBasis: "FORECASTED_SPEND", thresholdPercent: 1 }
+                  ]
+                }
+              ]
+            },
+            guidance: [
+              {
+                level: "info",
+                message: "Project cost trend visibility is not granted. Budget visibility can still work without cost trend permissions."
+              }
+            ],
+            consoleLinks: {
+              projectBilling: "https://console.cloud.google.com/billing/ABCDEF-123456-7890AB?project=merchant-guild",
+              projectBudgets: "https://console.cloud.google.com/billing/ABCDEF-123456-7890AB/budgets?project=merchant-guild"
+            }
+          }
+        });
+      }
+      return createJsonResponse(404, {
+        ok: false,
+        error: {
+          message: "not found"
+        }
+      });
+    })
+  );
+
+  render(<ProductRemotesView route={{ connectionId: "conn-002" }} />);
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Remote Control Desk" })).toBeInTheDocument();
+    expect(screen.getAllByText("Service account: merchant-guild@appspot.gserviceaccount.com").length).toBeGreaterThan(0);
+    expect(screen.getByText("Managed services: 6/6")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Billing & Usage" }));
+  fireEvent.click(screen.getByRole("button", { name: "Load Billing" }));
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Billing & Usage" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Merchant Guild Billing/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Primary Monthly Budget")).toBeInTheDocument();
+    expect(screen.getByText("Forecast 100%")).toBeInTheDocument();
+    expect(screen.getByText("Project cost trend visibility: missing")).toBeInTheDocument();
   });
 }, 15000);

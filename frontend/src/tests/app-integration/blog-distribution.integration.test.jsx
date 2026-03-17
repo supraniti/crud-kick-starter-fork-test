@@ -55,7 +55,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
           },
           runtime: {
             clientRuntime: {
-              assetUrl: "/assets/client-runtime.global.js",
+              assetUrl: "../../assets/client-runtime.global.js",
               bootstrapDatasets: ["page-payload", "page-media", "post-comments"],
               remote: {
                 baseUrl: "https://content.example.com"
@@ -163,7 +163,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
   await waitFor(() => {
     expect(screen.getByText("page.refresh")).toBeInTheDocument();
     expect(screen.getByText("comments.submit")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("/assets/client-runtime.global.js")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("../../assets/client-runtime.global.js")).toBeInTheDocument();
     expect(screen.getByLabelText("Resolved Runtime Contract JSON")).toBeInTheDocument();
   });
 

@@ -10,6 +10,30 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-16 Billing And Layout Planning
+- Billing and usage surface is now implemented on product `Remotes`, under the `Billing & Usage` tab.
+- Current delivered scope:
+  - project billing linkage
+  - linked billing account visibility
+  - visible Cloud Billing budgets
+  - forecast-rule visibility
+  - permission guidance when cost/budget visibility is missing
+- Main files:
+  - [remote-ops-gcp-billing-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-gcp-billing-runtime.mjs)
+  - [useRemoteOpsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js)
+  - [ProductRemoteBillingPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductRemoteBillingPanel.jsx)
+  - [ProductRemotesView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductRemotesView.jsx)
+- Verification:
+  - focused server conformance passed
+  - focused frontend integration passed
+  - `pnpm lint:function-shape` passed
+  - `pnpm quality:protocol` passed
+  - `pnpm quality:gate:full` passed
+- Planning review for the next layout-builder goal is saved in:
+  - [mg-001-layout-builder-planning-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/mg-001-layout-builder-planning-review.md)
+- Important note:
+  - `C:\Users\cmsin\OneDrive\שולחן העבודה\design.png` is not an actual image file in the current environment; it contains `{"detail":"Invalid signature or expired URL"}` and could not be used as a visual reference
+
 ## M04 Position
 - Completed through Pass 30.
 - The currently-scoped M04 slice is delivered.
@@ -38,6 +62,7 @@
   - `Deployments` missing-key recovery is now inline and action-oriented
   - the live browser-delivery contract for `gcp-temporary` is now clean provider URLs backed by public-readable deployment/media buckets
   - live deployment sync rewrites storage object metadata so published HTML renders in-browser instead of downloading
+  - deployed page HTML now emits a delivery-aware `client-runtime.global.js` URL instead of the broken root-relative `/assets/...` path
 - Operator behavior now:
   - from `Deployments`, a real `Choose JSON Key File` control appears inline when the active temporary preview truly needs a missing key re-import
   - stale failed bundle runs no longer surface false missing-key warnings
@@ -69,6 +94,9 @@
     - no `GoogleAccessId`
     - no `Expires`
     - no `Signature`
+  - deployed post/category HTML now loads:
+    - `https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/assets/client-runtime.global.js`
+    - with `200`
   - `Deployments` now shows clean example URLs from the app itself
 - Final verification:
   - `pnpm quality:protocol`

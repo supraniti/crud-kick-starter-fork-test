@@ -200,7 +200,7 @@ function createRuntimePreviewPayload() {
     },
     runtime: {
       clientRuntime: {
-        assetUrl: "/assets/client-runtime.global.js",
+        assetUrl: "../../assets/client-runtime.global.js",
         remote: {
           baseUrl: "https://stories.example.com"
         },

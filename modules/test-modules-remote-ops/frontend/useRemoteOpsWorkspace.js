@@ -8,6 +8,7 @@ import {
   createTargetConfigForKind,
   createWorkspaceActionState,
   executeTarget,
+  loadConnectionBillingOverview,
   loadRemoteOpsSupportData,
   persistTargetProfile,
   provisionConnectionCompatibility,
@@ -86,6 +87,13 @@ function createCompatibilityActionState(overrides = {}) {
 }
 
 function createProvisioningActionState(overrides = {}) {
+  return {
+    ...createWorkspaceActionState(),
+    ...overrides
+  };
+}
+
+function createBillingActionState(overrides = {}) {
   return {
     ...createWorkspaceActionState(),
     ...overrides
@@ -387,28 +395,19 @@ function createSelectionActions(selection) {
   };
 }
 
-function useRemoteOpsWorkspaceInternal() {
-  const { supportState, reload } = useSupportData();
-  const selection = useRemoteOpsSelection(supportState);
-  const derived = useRemoteOpsDerivedState({
-    supportState,
-    selection
-  });
+function useConnectionInsights(selection, reload) {
   const [compatibilityReports, setCompatibilityReports] = useState({});
   const [compatibilityActionState, setCompatibilityActionState] = useState(createCompatibilityActionState);
   const [provisioningActionState, setProvisioningActionState] = useState(createProvisioningActionState);
+  const [billingReports, setBillingReports] = useState({});
+  const [billingActionState, setBillingActionState] = useState(createBillingActionState);
   const [confirmedSafeguardIds, setConfirmedSafeguardIds] = useState([]);
-  const connectionProcedures = useConnectionProcedures(selection, reload);
-  const targetProcedures = useTargetProcedures(selection, reload);
-  const selectionActions = createSelectionActions(selection);
-
-  const compatibilityReport = selection.selectedConnectionId
-    ? compatibilityReports[selection.selectedConnectionId] ?? null
-    : null;
-
+  const compatibilityReport = selection.selectedConnectionId ? compatibilityReports[selection.selectedConnectionId] ?? null : null;
+  const billingReport = selection.selectedConnectionId ? billingReports[selection.selectedConnectionId] ?? null : null;
   useEffect(() => {
     setProvisioningActionState(createProvisioningActionState());
     setConfirmedSafeguardIds([]);
+    setBillingActionState(createBillingActionState());
   }, [selection.selectedConnectionId]);
 
   const analyzeSelectedConnectionCompatibility = useCallback(async () => {
@@ -475,6 +474,63 @@ function useRemoteOpsWorkspaceInternal() {
     }
   }, [confirmedSafeguardIds, reload, selection.selectedConnectionId]);
 
+  const loadConnectionBillingOverviewFor = useCallback(async (connectionId) => {
+    if (!connectionId) {
+      return;
+    }
+    setBillingActionState(createBillingActionState({ processing: true }));
+    try {
+      const payload = await loadConnectionBillingOverview(connectionId);
+      setBillingReports((previous) => ({
+        ...previous,
+        [connectionId]: payload?.report ?? null
+      }));
+      setBillingActionState(
+        createBillingActionState({
+          successMessage: payload?.message ?? "Loaded billing overview."
+        })
+      );
+    } catch (error) {
+      setBillingActionState(
+        createBillingActionState({
+          errorMessage: error?.message ?? "Failed to load billing overview."
+        })
+      );
+    }
+  }, []);
+
+  const loadSelectedConnectionBillingOverview = useCallback(() => {
+    return loadConnectionBillingOverviewFor(selection.selectedConnectionId);
+  }, [loadConnectionBillingOverviewFor, selection.selectedConnectionId]);
+
+  return {
+    compatibilityReport,
+    compatibilityActionState,
+    provisioningActionState,
+    billingReport,
+    billingReports,
+    billingActionState,
+    confirmedSafeguardIds,
+    analyzeSelectedConnectionCompatibility,
+    loadConnectionBillingOverviewFor,
+    loadSelectedConnectionBillingOverview,
+    toggleProvisioningSafeguard,
+    provisionSelectedConnectionCompatibility
+  };
+}
+
+function useRemoteOpsWorkspaceInternal() {
+  const { supportState, reload } = useSupportData();
+  const selection = useRemoteOpsSelection(supportState);
+  const derived = useRemoteOpsDerivedState({
+    supportState,
+    selection
+  });
+  const connectionProcedures = useConnectionProcedures(selection, reload);
+  const targetProcedures = useTargetProcedures(selection, reload);
+  const selectionActions = createSelectionActions(selection);
+  const connectionInsights = useConnectionInsights(selection, reload);
+
   return {
     loading: supportState.loading,
     errorMessage: supportState.errorMessage,
@@ -489,13 +545,7 @@ function useRemoteOpsWorkspaceInternal() {
     ...selectionActions,
     ...connectionProcedures,
     ...targetProcedures,
-    compatibilityReport,
-    compatibilityActionState,
-    provisioningActionState,
-    confirmedSafeguardIds,
-    analyzeSelectedConnectionCompatibility,
-    toggleProvisioningSafeguard,
-    provisionSelectedConnectionCompatibility,
+    ...connectionInsights,
     reload
   };
 }

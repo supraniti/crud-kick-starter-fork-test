@@ -238,6 +238,13 @@ async function seedPublishedPost(server) {
   return response.body.item;
 }
 
+async function writeCredentialFixture(fileName, payload) {
+  await fs.mkdir(TEST_RUNTIME_ROOT, { recursive: true });
+  const credentialPath = path.join(TEST_RUNTIME_ROOT, fileName);
+  await fs.writeFile(credentialPath, JSON.stringify(payload, null, 2), "utf8");
+  return credentialPath;
+}
+
 test("remote ops loads a service-account key, validates the project, and validates a live storage target", async () => {
   const server = await createRemoteOpsTestServer();
 
@@ -319,6 +326,135 @@ test("remote ops loads a service-account key, validates the project, and validat
     expect(validateTarget.statusCode, JSON.stringify(validateTarget.body)).toBe(200);
     expect(validateTarget.body.item.targetStatus).toBe("validated");
     expect(validateTarget.body.item.validationSummary.message).toContain("deployment-bucket");
+  } finally {
+    await server.close();
+  }
+}, REMOTE_OPS_TEST_TIMEOUT_MS);
+
+test("remote ops loads GCP billing linkage and visible budgets for a validated live connection", async () => {
+  const server = await createRemoteOpsTestServer();
+
+  try {
+    const credentialPath = await writeCredentialFixture(
+      "merchant-guild-service-account.json",
+      createServiceAccountCredentialPayload({
+        project_id: "merchant-guild",
+        private_key_id: "billing-key-001",
+        client_email: "merchant-guild@appspot.gserviceaccount.com"
+      })
+    );
+
+    const fetchMock = vi.fn(async (url) => {
+      const normalized = String(url);
+      if (normalized === "https://oauth2.googleapis.com/token") {
+        return createGoogleJsonResponse(200, {
+          access_token: "billing-access-token-001",
+          expires_in: 3600,
+          token_type: "Bearer"
+        });
+      }
+      if (normalized === "https://cloudresourcemanager.googleapis.com/v1/projects/merchant-guild:testIamPermissions") {
+        return createGoogleJsonResponse(200, {
+          permissions: ["billing.resourceAssociations.get", "billing.resourcebudgets.read"]
+        });
+      }
+      if (normalized === "https://cloudbilling.googleapis.com/v1/projects/merchant-guild/billingInfo") {
+        return createGoogleJsonResponse(200, {
+          name: "projects/merchant-guild/billingInfo",
+          projectId: "merchant-guild",
+          billingAccountName: "billingAccounts/ABCDEF-123456-7890AB",
+          billingEnabled: true
+        });
+      }
+      if (normalized === "https://cloudbilling.googleapis.com/v1/billingAccounts/ABCDEF-123456-7890AB") {
+        return createGoogleJsonResponse(200, {
+          name: "billingAccounts/ABCDEF-123456-7890AB",
+          displayName: "Merchant Guild Billing",
+          open: true
+        });
+      }
+      if (normalized === "https://billingbudgets.googleapis.com/v1/billingAccounts/ABCDEF-123456-7890AB/budgets") {
+        return createGoogleJsonResponse(200, {
+          budgets: [
+            {
+              name: "billingAccounts/ABCDEF-123456-7890AB/budgets/primary",
+              displayName: "Primary Monthly Budget",
+              budgetFilter: {
+                projects: ["projects/merchant-guild"],
+                calendarPeriod: "MONTH"
+              },
+              amount: {
+                specifiedAmount: {
+                  currencyCode: "USD",
+                  units: "150",
+                  nanos: 0
+                }
+              },
+              thresholdRules: [
+                {
+                  spendBasis: "CURRENT_SPEND",
+                  thresholdPercent: 0.5
+                },
+                {
+                  spendBasis: "FORECASTED_SPEND",
+                  thresholdPercent: 1
+                }
+              ]
+            }
+          ]
+        });
+      }
+      throw new Error(`Unexpected fetch URL: ${normalized}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const connection = await seedConnection(server, {
+      profileName: "Merchant Guild",
+      projectId: "merchant-guild",
+      projectNumber: "679134333951",
+      projectDisplayName: "Merchant Guild",
+      credentialPathHint: credentialPath,
+      serviceAccountEmail: "merchant-guild@appspot.gserviceaccount.com",
+      serviceAccountKeyId: "billing-key-001",
+      connectionStatus: "validated"
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: buildConnectionRoute(connection.id, "billing-overview")
+    });
+    const body = JSON.parse(response.body);
+
+    expect(response.statusCode).toBe(200);
+    expect(body.report).toEqual(
+      expect.objectContaining({
+        provider: "gcp",
+        billingInfo: expect.objectContaining({
+          state: "enabled",
+          billingEnabled: true,
+          billingAccountId: "ABCDEF-123456-7890AB",
+          billingAccountDisplayName: "Merchant Guild Billing"
+        }),
+        permissions: expect.objectContaining({
+          summaries: expect.objectContaining({
+            canReadProjectCosts: false,
+            canReadProjectBudgets: true
+          })
+        }),
+        budgets: expect.objectContaining({
+          state: "loaded",
+          visibleCount: 1,
+          forecastRuleCount: 1,
+          items: expect.arrayContaining([
+            expect.objectContaining({
+              displayName: "Primary Monthly Budget",
+              scope: "project",
+              hasForecastRule: true
+            })
+          ])
+        })
+      })
+    );
   } finally {
     await server.close();
   }

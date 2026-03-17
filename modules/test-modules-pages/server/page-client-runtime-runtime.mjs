@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeScriptUrlList } from "./distribution-shared-runtime.mjs";
 
-const DEFAULT_CLIENT_RUNTIME_ASSET_URL = "/assets/client-runtime.global.js";
+const DEFAULT_CLIENT_RUNTIME_ASSET_PATH = "assets/client-runtime.global.js";
 const DEFAULT_PAGE_PAYLOAD_DATASET = "page-payload";
 const DEFAULT_PAGE_MEDIA_DATASET = "page-media";
 const DEFAULT_POST_COMMENTS_DATASET = "post-comments";
@@ -13,10 +13,16 @@ const DEFAULT_PAGE_REFRESH_ACTION = "page.refresh";
 const DEFAULT_MEDIA_REFRESH_ACTION = "media.refresh";
 const DEFAULT_COMMENTS_REFRESH_ACTION = "comments.refresh";
 
-function resolveAssetRelativePath(assetUrl) {
-  return String(assetUrl || "")
-    .split(/[?#]/, 1)[0]
-    .replace(/^\/+/, "");
+function countPathSegments(pagePath) {
+  return String(pagePath || "")
+    .split("/")
+    .map((entry) => entry.trim())
+    .filter(Boolean).length;
+}
+
+function buildRelativeClientRuntimeAssetUrl(pagePath) {
+  const segmentCount = countPathSegments(pagePath);
+  return `${"../".repeat(segmentCount)}${DEFAULT_CLIENT_RUNTIME_ASSET_PATH}`;
 }
 
 function resolveClientRuntimeSourcePath() {
@@ -410,10 +416,13 @@ function buildRuntimeContext(payload = {}) {
 export function buildClientRuntimeContract(payload = {}) {
   const runtimeRegistries = buildRuntimeRegistries(payload);
   const publicOrigin = payload?.delivery?.publicOrigin ?? null;
+  const pagePath = payload?.page?.path ?? "/";
 
   return {
     contractVersion: 1,
-    assetUrl: DEFAULT_CLIENT_RUNTIME_ASSET_URL,
+    assetUrl: publicOrigin
+      ? `${String(publicOrigin).replace(/\/+$/, "")}/${DEFAULT_CLIENT_RUNTIME_ASSET_PATH}`
+      : buildRelativeClientRuntimeAssetUrl(pagePath),
     bootstrapDatasets: runtimeRegistries.bootstrapDatasets,
     context: buildRuntimeContext(payload),
     remote: {
@@ -441,16 +450,18 @@ export function attachClientRuntimeContract(payload = {}) {
 
 export function resolvePageRuntimeScriptUrls(payload, runtimeScriptUrls = []) {
   const normalizedUrls = normalizeScriptUrlList(runtimeScriptUrls);
-  const clientRuntimeAssetUrl = payload?.runtime?.clientRuntime?.assetUrl ?? DEFAULT_CLIENT_RUNTIME_ASSET_URL;
+  const clientRuntimeAssetUrl =
+    payload?.runtime?.clientRuntime?.assetUrl ??
+    buildRelativeClientRuntimeAssetUrl(payload?.page?.path ?? "/");
   if (normalizedUrls.includes(clientRuntimeAssetUrl)) {
     return normalizedUrls;
   }
   return [clientRuntimeAssetUrl, ...normalizedUrls];
 }
 
-export async function syncClientRuntimeAsset(deploymentRootDir, assetUrl = DEFAULT_CLIENT_RUNTIME_ASSET_URL) {
+export async function syncClientRuntimeAsset(deploymentRootDir) {
   const sourcePath = resolveClientRuntimeSourcePath();
-  const targetPath = path.resolve(deploymentRootDir, resolveAssetRelativePath(assetUrl));
+  const targetPath = path.resolve(deploymentRootDir, DEFAULT_CLIENT_RUNTIME_ASSET_PATH);
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   await fs.copyFile(sourcePath, targetPath);
   return targetPath;

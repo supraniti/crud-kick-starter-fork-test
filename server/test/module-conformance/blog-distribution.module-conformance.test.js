@@ -394,7 +394,7 @@ test("pages create standalone records and resolve deterministic delivery payload
         }),
         runtime: expect.objectContaining({
           clientRuntime: expect.objectContaining({
-            assetUrl: "/assets/client-runtime.global.js",
+            assetUrl: "../../assets/client-runtime.global.js",
             bootstrapDatasets: expect.arrayContaining([
               "page-payload",
               "page-slot-primary",
@@ -2077,7 +2077,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
     );
     expect(initialHtml).toContain("<page-runtime");
     expect(initialHtml).toContain("window.__CRUD_CLIENT_RUNTIME_CONFIG__ =");
-    expect(initialHtml).toContain("/assets/client-runtime.global.js");
+    expect(initialHtml).toContain("../../assets/client-runtime.global.js");
     expect(initialHtml).toContain("\"page-slot-primary\"");
     expect(initialHtml).toContain("https://cdn.example.com/runtime/app.js");
     expect(initialHtml).toContain("/assets/runtime/entry.js");
@@ -2130,7 +2130,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
       "stories/launch-rollout-recap/index.html"
     );
     expect(updatedHtml).toContain("Launch Rollout Recap");
-    expect(updatedHtml).toContain("/assets/client-runtime.global.js");
+    expect(updatedHtml).toContain("../../assets/client-runtime.global.js");
     expect(updatedHtml).toContain("/assets/runtime/recap.js");
     expect(updatedHtml).not.toContain("/assets/runtime/entry.js");
 
