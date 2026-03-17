@@ -12,6 +12,24 @@
 
 ## Entries
 
+### 2026-03-17 - MG-001 Passes 2-5 Closeout
+- Tasks:
+  - finished the canvas interaction model instead of reverting to the old rail-first builder
+  - added structural presets and placeholder block vocabulary
+  - added width badges and flex resize handles for row layouts
+  - demoted library/layers/details into a support dock and refreshed the focused layouts proof around the new contract
+- Easy:
+  - the existing layout document model was still the right core; most of the work stayed inside frontend-only shell and mutation helpers
+  - once the tests were rewritten to use the real menu-based interaction model, the builder behavior was stable
+- Hard:
+  - the first green interaction proof still failed the full gate because two layout files crossed the repo LOC limit
+  - the right fix was extraction into module-local helper files, not shrinking the builder behavior or weakening the gate
+  - DOM scoping in the tests needed care because a container shell contains descendant node shells, which created duplicate toolbar selectors
+- Improve:
+  - when a builder moves from explicit buttons to contextual menus, rewrite the proof to the new interaction contract immediately instead of trying to preserve old selector assumptions
+  - for recursive canvas DOM, give tests a stable smallest-scope lookup strategy early, or selector ambiguity will mask real regressions
+  - the repo LOC gate is useful here; it forced the MG-001 implementation to stay agentable instead of turning the main builder files into monoliths
+
 ### 2026-03-17 - MG-001 Pass 1 Canvas Shell
 - Tasks:
   - converted the layouts route from a stage-card view into a bounded page workspace

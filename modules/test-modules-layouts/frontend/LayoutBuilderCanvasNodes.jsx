@@ -1,4 +1,4 @@
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, Paper } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
@@ -15,30 +15,26 @@ import {
   DropSlot,
   NodeHeader
 } from "./LayoutBuilderCanvasPrimitives.jsx";
-
-function resolveContainerMinHeight(node, isRoot) {
-  if (isRoot) {
-    return 0;
-  }
-  return Math.max(180, node.props?.minHeight ?? 320);
-}
-
-function resolveContainerContentMinHeight(node, isRoot) {
-  if (isRoot) {
-    return 0;
-  }
-  const padding = node.props?.padding ?? 24;
-  return Math.max(120, resolveContainerMinHeight(node, false) - padding * 2);
-}
+import { getBlockPlaceholderDefinition } from "./layout-builder-palette.js";
+import {
+  FlexResizeHandle,
+  resolveContainerContentMinHeight,
+  resolveContainerMinHeight,
+  resolveNodeSizeLabel
+} from "./layout-builder-node-support.jsx";
 
 function BlockNode({
   node,
+  parentNode,
   parentMode,
+  pageContentWidth,
   selectedNodeId,
   onSelectNode,
   onMoveSelectedNodeToTarget,
   onOpenNodeDialog,
   onToggleMoveMode,
+  onDuplicateNode,
+  onRemoveNode,
   containerId,
   childIndex,
   showDropSlots,
@@ -48,6 +44,7 @@ function BlockNode({
 }) {
   const isSelected = selectedNodeId === node.id;
   const showContainerSlots = showDropSlots;
+  const sizeLabel = resolveNodeSizeLabel(node, parentNode, pageContentWidth);
 
   return (
     <Box
@@ -99,8 +96,13 @@ function BlockNode({
           isContainer={false}
           isMoveMode={isSelected && isMoveMode}
           canMove
+          canDelete
+          sizeLabel={sizeLabel}
+          placeholderType={node.props?.placeholderType}
           onOpenNodeDialog={() => onOpenNodeDialog(node.id)}
           onToggleMoveMode={() => onToggleMoveMode?.(node.id)}
+          onDuplicateNode={() => onDuplicateNode(node.id)}
+          onDeleteNode={() => onRemoveNode(node.id)}
           dragHandleProps={dragHandleProps}
         />
         <BlockVisual node={node} parentMode={parentMode} isSelected={isSelected} />
@@ -114,14 +116,17 @@ function ContainerChildren({
   nodes,
   rootId,
   isRoot,
+  pageContentWidth,
   selectedNodeId,
   onSelectNode,
   onMoveSelectedNodeToTarget,
-  onAppendBlockToContainer,
-  onAppendGridContainerToContainer,
-  onAppendFlexContainerToContainer,
+  onAppendBlockPresetToContainer,
+  onAppendLayoutPresetToContainer,
   onOpenNodeDialog,
   onToggleMoveMode,
+  onDuplicateNode,
+  onRemoveNode,
+  onResizeFlexPair,
   showDropSlots,
   isMoveMode,
   moveSourceParentId
@@ -164,9 +169,8 @@ function ContainerChildren({
       {childIds.length === 0 ? (
         <ContainerEmptyState
           isRoot={isRoot}
-          onAddBlock={() => onAppendBlockToContainer(node.id)}
-          onAddGridContainer={() => onAppendGridContainerToContainer(node.id)}
-          onAddFlexContainer={() => onAppendFlexContainerToContainer(node.id)}
+          onAddBlockType={(placeholderType) => onAppendBlockPresetToContainer(node.id, placeholderType)}
+          onAddLayoutPreset={(presetId) => onAppendLayoutPresetToContainer(node.id, presetId)}
         />
       ) : (
         <>
@@ -181,14 +185,17 @@ function ContainerChildren({
                   parentNode={node}
                   parentMode={isRoot ? "root" : node.layoutMode}
                   isRootParent={isRoot}
+                  pageContentWidth={pageContentWidth}
                   selectedNodeId={selectedNodeId}
                   onSelectNode={onSelectNode}
                   onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
-                  onAppendBlockToContainer={onAppendBlockToContainer}
-                  onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-                  onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+                  onAppendBlockPresetToContainer={onAppendBlockPresetToContainer}
+                  onAppendLayoutPresetToContainer={onAppendLayoutPresetToContainer}
                   onOpenNodeDialog={onOpenNodeDialog}
                   onToggleMoveMode={onToggleMoveMode}
+                  onDuplicateNode={onDuplicateNode}
+                  onRemoveNode={onRemoveNode}
+                  onResizeFlexPair={onResizeFlexPair}
                   containerId={node.id}
                   childIndex={index}
                   showDropSlots={showContainerSlots}
@@ -216,16 +223,20 @@ function ContainerSurface({
   node,
   nodes,
   rootId,
+  parentNode,
   parentMode,
   isRoot,
+  pageContentWidth,
   selectedNodeId,
   onSelectNode,
   onMoveSelectedNodeToTarget,
-  onAppendBlockToContainer,
-  onAppendGridContainerToContainer,
-  onAppendFlexContainerToContainer,
+  onAppendBlockPresetToContainer,
+  onAppendLayoutPresetToContainer,
   onOpenNodeDialog,
   onToggleMoveMode,
+  onDuplicateNode,
+  onRemoveNode,
+  onResizeFlexPair,
   dragHandleProps,
   containerId,
   childIndex,
@@ -235,6 +246,7 @@ function ContainerSurface({
   moveSourceParentId
 }) {
   const isSelected = selectedNodeId === node.id;
+  const sizeLabel = resolveNodeSizeLabel(node, parentNode, pageContentWidth);
 
   if (isRoot) {
     return (
@@ -243,14 +255,17 @@ function ContainerSurface({
         nodes={nodes}
         rootId={rootId}
         isRoot={isRoot}
+        pageContentWidth={pageContentWidth}
         selectedNodeId={selectedNodeId}
         onSelectNode={onSelectNode}
         onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
-        onAppendBlockToContainer={onAppendBlockToContainer}
-        onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-        onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+        onAppendBlockPresetToContainer={onAppendBlockPresetToContainer}
+        onAppendLayoutPresetToContainer={onAppendLayoutPresetToContainer}
         onOpenNodeDialog={onOpenNodeDialog}
         onToggleMoveMode={onToggleMoveMode}
+        onDuplicateNode={onDuplicateNode}
+        onRemoveNode={onRemoveNode}
+        onResizeFlexPair={onResizeFlexPair}
         showDropSlots={showDropSlots}
         isMoveMode={isMoveMode}
         moveSourceParentId={moveSourceParentId}
@@ -307,11 +322,14 @@ function ContainerSurface({
           isContainer
           isMoveMode={isSelected && isMoveMode}
           canMove
-          onAddBlock={() => onAppendBlockToContainer(node.id)}
-          onAddGridContainer={() => onAppendGridContainerToContainer(node.id)}
-          onAddFlexContainer={() => onAppendFlexContainerToContainer(node.id)}
+          canDelete
+          sizeLabel={sizeLabel}
           onOpenNodeDialog={() => onOpenNodeDialog(node.id)}
           onToggleMoveMode={() => onToggleMoveMode?.(node.id)}
+          onDuplicateNode={() => onDuplicateNode(node.id)}
+          onDeleteNode={() => onRemoveNode(node.id)}
+          onAddLayoutPreset={(presetId) => onAppendLayoutPresetToContainer(node.id, presetId)}
+          onAddBlockType={(placeholderType) => onAppendBlockPresetToContainer(node.id, placeholderType)}
           dragHandleProps={dragHandleProps}
         />
         <ContainerChildren
@@ -319,14 +337,17 @@ function ContainerSurface({
           nodes={nodes}
           rootId={rootId}
           isRoot={isRoot}
+          pageContentWidth={pageContentWidth}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
           onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
-          onAppendBlockToContainer={onAppendBlockToContainer}
-          onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-          onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+          onAppendBlockPresetToContainer={onAppendBlockPresetToContainer}
+          onAppendLayoutPresetToContainer={onAppendLayoutPresetToContainer}
           onOpenNodeDialog={onOpenNodeDialog}
           onToggleMoveMode={onToggleMoveMode}
+          onDuplicateNode={onDuplicateNode}
+          onRemoveNode={onRemoveNode}
+          onResizeFlexPair={onResizeFlexPair}
           showDropSlots={showDropSlots}
           isMoveMode={isMoveMode}
           moveSourceParentId={moveSourceParentId}
@@ -343,14 +364,17 @@ function SortableCanvasNode({
   parentNode,
   parentMode,
   isRootParent,
+  pageContentWidth,
   selectedNodeId,
   onSelectNode,
   onMoveSelectedNodeToTarget,
-  onAppendBlockToContainer,
-  onAppendGridContainerToContainer,
-  onAppendFlexContainerToContainer,
+  onAppendBlockPresetToContainer,
+  onAppendLayoutPresetToContainer,
   onOpenNodeDialog,
   onToggleMoveMode,
+  onDuplicateNode,
+  onRemoveNode,
+  onResizeFlexPair,
   containerId,
   childIndex,
   showDropSlots,
@@ -367,6 +391,13 @@ function SortableCanvasNode({
     transition,
     isDragging
   } = useSortable({ id: node.id });
+  const nextSiblingId = parentNode?.children?.[childIndex + 1] ?? null;
+  const canResizeWithNext = Boolean(
+    nextSiblingId
+    && parentNode?.layoutMode === "flex"
+    && (parentNode?.props?.direction ?? "column") === "row"
+    && (parentNode?.props?.wrap ?? "nowrap") === "nowrap"
+  );
 
   if (!node) {
     return null;
@@ -375,6 +406,7 @@ function SortableCanvasNode({
   return (
     <Box
       ref={setNodeRef}
+      data-layout-node-shell={node.id}
       sx={{
         ...buildPlacementStyle(node, parentNode, nodes, isRootParent),
         transform: CSS.Transform.toString(transform),
@@ -392,16 +424,20 @@ function SortableCanvasNode({
           node={node}
           nodes={nodes}
           rootId={rootId}
+          parentNode={parentNode}
           parentMode={parentMode}
           isRoot={false}
+          pageContentWidth={pageContentWidth}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
           onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
-          onAppendBlockToContainer={onAppendBlockToContainer}
-          onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-          onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+          onAppendBlockPresetToContainer={onAppendBlockPresetToContainer}
+          onAppendLayoutPresetToContainer={onAppendLayoutPresetToContainer}
           onOpenNodeDialog={onOpenNodeDialog}
           onToggleMoveMode={onToggleMoveMode}
+          onDuplicateNode={onDuplicateNode}
+          onRemoveNode={onRemoveNode}
+          onResizeFlexPair={onResizeFlexPair}
           dragHandleProps={{
             setActivatorNodeRef,
             attributes,
@@ -417,12 +453,16 @@ function SortableCanvasNode({
       ) : (
         <BlockNode
           node={node}
+          parentNode={parentNode}
           parentMode={parentMode}
+          pageContentWidth={pageContentWidth}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
           onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
           onOpenNodeDialog={onOpenNodeDialog}
           onToggleMoveMode={onToggleMoveMode}
+          onDuplicateNode={onDuplicateNode}
+          onRemoveNode={onRemoveNode}
           containerId={containerId}
           childIndex={childIndex}
           showDropSlots={showDropSlots}
@@ -435,6 +475,16 @@ function SortableCanvasNode({
           }}
         />
       )}
+      {canResizeWithNext ? (
+        <FlexResizeHandle
+          parentId={parentNode.id}
+          nodeId={node.id}
+          nextSiblingId={nextSiblingId}
+          node={node}
+          nextSiblingNode={nodes[nextSiblingId]}
+          onResizePair={onResizeFlexPair}
+        />
+      ) : null}
     </Box>
   );
 }
@@ -444,11 +494,13 @@ export function RootStageContent({
   selectedNodeId,
   onSelectNode,
   onMoveSelectedNodeToTarget,
-  onAppendBlockToContainer,
-  onAppendGridContainerToContainer,
-  onAppendFlexContainerToContainer,
+  onAppendBlockPresetToContainer,
+  onAppendLayoutPresetToContainer,
   onOpenNodeDialog,
   onToggleMoveMode,
+  onDuplicateNode,
+  onRemoveNode,
+  onResizeFlexPair,
   showDropSlots,
   isMoveMode,
   moveSourceParentId,
@@ -468,17 +520,21 @@ export function RootStageContent({
           node={rootNode}
           nodes={document.nodes}
           rootId={rootNode.id}
+          parentNode={null}
           parentMode="root"
           isRoot
           isRootParent
+          pageContentWidth={pageContentWidth}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
           onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
-          onAppendBlockToContainer={onAppendBlockToContainer}
-          onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-          onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+          onAppendBlockPresetToContainer={onAppendBlockPresetToContainer}
+          onAppendLayoutPresetToContainer={onAppendLayoutPresetToContainer}
           onOpenNodeDialog={onOpenNodeDialog}
           onToggleMoveMode={onToggleMoveMode}
+          onDuplicateNode={onDuplicateNode}
+          onRemoveNode={onRemoveNode}
+          onResizeFlexPair={onResizeFlexPair}
           dragHandleProps={{
             setActivatorNodeRef: null,
             attributes: {},
@@ -503,9 +559,9 @@ export function DragPreview({ node }) {
 
   return (
     <Paper variant="elevation" elevation={10} sx={{ px: 1.5, py: 1 }}>
-      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-        {node.label}
-      </Typography>
+      {node.kind === "block"
+        ? getBlockPlaceholderDefinition(node.props?.placeholderType).label
+        : node.label}
     </Paper>
   );
 }

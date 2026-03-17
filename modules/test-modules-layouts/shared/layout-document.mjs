@@ -86,7 +86,8 @@ function createDefaultContainerProps(layoutMode = "grid", overrides = {}) {
 function createDefaultBlockProps(overrides = {}) {
   return {
     minHeight: clampInteger(overrides.minHeight, 160, { min: 0, max: 2400 }),
-    emphasis: normalizeText(overrides.emphasis, "default")
+    emphasis: normalizeText(overrides.emphasis, "default"),
+    placeholderType: normalizeText(overrides.placeholderType, "content")
   };
 }
 

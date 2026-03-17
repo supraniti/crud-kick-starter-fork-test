@@ -1,7 +1,5 @@
 import {
-  Button,
   Chip,
-  Divider,
   List,
   ListItemButton,
   ListItemText,
@@ -13,27 +11,6 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 
-function buildInsertContext(selectedNode) {
-  if (!selectedNode) {
-    return {
-      title: "Page Stage",
-      description: "Start by adding a full-width container. Use blocks directly only when you really want a top-level block."
-    };
-  }
-
-  if (selectedNode.kind === "container") {
-    return {
-      title: selectedNode.label,
-      description: "Add blocks or nested containers into the selected container."
-    };
-  }
-
-  return {
-    title: selectedNode.label,
-    description: "Add before or after the selected block, or switch to Layers for precise selection."
-  };
-}
-
 function LayoutsPanel({ workspace }) {
   return (
     <Stack spacing={2}>
@@ -43,7 +20,7 @@ function LayoutsPanel({ workspace }) {
           Select an existing layout or create a fresh one from the top bar.
         </Typography>
       </Stack>
-      <List dense disablePadding sx={{ maxHeight: 280, overflow: "auto" }}>
+      <List dense disablePadding sx={{ maxHeight: 320, overflow: "auto" }}>
         {workspace.layouts.map((layout) => (
           <ListItemButton
             key={layout.id}
@@ -66,58 +43,6 @@ function LayoutsPanel({ workspace }) {
           </ListItemButton>
         ))}
       </List>
-    </Stack>
-  );
-}
-
-function InsertPanel({ workspace }) {
-  const insertContext = buildInsertContext(workspace.selectedNode);
-  const blockSelected = workspace.selectedNode?.kind === "block";
-
-  return (
-    <Stack spacing={2}>
-      <Stack spacing={0.5}>
-        <Typography variant="subtitle1">Insert</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {insertContext.title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {insertContext.description}
-        </Typography>
-      </Stack>
-      <Stack spacing={1}>
-        <Button variant="contained" onClick={() => workspace.addContainer("grid")}>
-          Add Container
-        </Button>
-        <Button variant="outlined" onClick={workspace.addBlock}>
-          Add Block
-        </Button>
-        <Button variant="outlined" onClick={() => workspace.addContainer("flex")}>
-          Add Flex Container
-        </Button>
-      </Stack>
-      {blockSelected ? (
-        <>
-          <Divider />
-          <Stack spacing={1}>
-            <Typography variant="subtitle2">Around Selected Block</Typography>
-            <Stack spacing={1}>
-              <Button variant="text" onClick={workspace.addBlockBeforeSelected}>
-                Add Block Before
-              </Button>
-              <Button variant="text" onClick={workspace.addBlockAfterSelected}>
-                Add Block After
-              </Button>
-              <Button variant="text" onClick={() => workspace.addContainerBeforeSelected("grid")}>
-                Add Container Before
-              </Button>
-              <Button variant="text" onClick={() => workspace.addContainerAfterSelected("grid")}>
-                Add Container After
-              </Button>
-            </Stack>
-          </Stack>
-        </>
-      ) : null}
     </Stack>
   );
 }
@@ -154,46 +79,6 @@ function LayerNode({ document, nodeId, depth, workspace }) {
           }
         />
       </ListItemButton>
-      {isSelected ? (
-        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ pl: 1 + depth * 2 }}>
-          <Button size="small" variant="text" onClick={() => workspace.openNodeDialog(node.id)}>
-            Edit
-          </Button>
-          {workspace.isSelectedNodeMovable ? (
-            <>
-              <Button
-                size="small"
-                variant="text"
-                onClick={workspace.moveSelectedBackward}
-                disabled={!workspace.canMoveSelectedBackward}
-              >
-                Up
-              </Button>
-              <Button
-                size="small"
-                variant="text"
-                onClick={workspace.moveSelectedForward}
-                disabled={!workspace.canMoveSelectedForward}
-              >
-                Down
-              </Button>
-            </>
-          ) : null}
-          {node.kind === "container" ? (
-            <>
-              <Button size="small" variant="text" onClick={() => workspace.appendBlockToContainer(node.id)}>
-                + Block
-              </Button>
-              <Button size="small" variant="text" onClick={() => workspace.appendContainerToContainer(node.id, "grid")}>
-                + Container
-              </Button>
-              <Button size="small" variant="text" onClick={() => workspace.appendContainerToContainer(node.id, "flex")}>
-                + Flex
-              </Button>
-            </>
-          ) : null}
-        </Stack>
-      ) : null}
       {node.kind === "container" && node.children.length > 0 ? (
         <Stack spacing={0.25}>
           {node.children.map((childId) => (
@@ -224,7 +109,7 @@ function LayersPanel({ workspace }) {
       <Stack spacing={0.5}>
         <Typography variant="subtitle1">Layers</Typography>
         <Typography variant="body2" color="text.secondary">
-          Use the hierarchy when the canvas selection is ambiguous.
+          Use hierarchy view when the on-canvas selection is ambiguous.
         </Typography>
       </Stack>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -244,8 +129,10 @@ function LayersPanel({ workspace }) {
   );
 }
 
-export function LayoutBuilderLeftRail({ workspace }) {
-  const [tabValue, setTabValue] = useState("layouts");
+export function LayoutBuilderLeftRail({ workspace, tabValue: controlledTabValue = null, onTabChange = null }) {
+  const [uncontrolledTabValue, setUncontrolledTabValue] = useState("layouts");
+  const tabValue = controlledTabValue ?? uncontrolledTabValue;
+  const setTabValue = onTabChange ?? setUncontrolledTabValue;
 
   return (
     <Paper
@@ -254,7 +141,8 @@ export function LayoutBuilderLeftRail({ workspace }) {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden"
+        overflow: "hidden",
+        borderRadius: 3
       }}
     >
       <Tabs
@@ -263,12 +151,10 @@ export function LayoutBuilderLeftRail({ workspace }) {
         variant="fullWidth"
       >
         <Tab value="layouts" label="Layouts" />
-        <Tab value="insert" label="Insert" />
         <Tab value="layers" label="Layers" />
       </Tabs>
       <BoxContent>
         {tabValue === "layouts" ? <LayoutsPanel workspace={workspace} /> : null}
-        {tabValue === "insert" ? <InsertPanel workspace={workspace} /> : null}
         {tabValue === "layers" ? <LayersPanel workspace={workspace} /> : null}
       </BoxContent>
     </Paper>

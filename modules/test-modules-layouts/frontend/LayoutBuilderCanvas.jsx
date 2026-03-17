@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Chip, Paper, Stack } from "@mui/material";
+import { Alert, Box, Chip, Paper, Stack } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import {
   DndContext,
@@ -18,6 +18,11 @@ import {
   DEFAULT_VIEWPORT,
   DEFAULT_ZOOM_LEVEL
 } from "./layout-builder-viewport.js";
+import { LayoutBuilderAddMenu } from "./LayoutBuilderAddMenu.jsx";
+import {
+  BLOCK_PLACEHOLDER_TYPES,
+  STRUCTURAL_LAYOUT_PRESETS
+} from "./layout-builder-palette.js";
 import { findParentContainerId } from "./layout-builder-model.js";
 
 function buildSelectionLabels(document, selectedPathIds) {
@@ -44,9 +49,8 @@ function CanvasStatusStrip({
   isMoveMode,
   moveModeLabel,
   labels,
-  onAddContainer,
-  onAddBlock,
-  onAddFlexContainer
+  onAddLayoutPreset,
+  onAddBlockPreset
 }) {
   return (
     <Stack spacing={1.25} sx={{ p: 1.5 }}>
@@ -55,18 +59,18 @@ function CanvasStatusStrip({
           Moving <strong>{moveModeLabel ?? "selected node"}</strong>. Choose a visible target on the canvas.
         </Alert>
       ) : null}
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-        <Button variant="contained" onClick={onAddContainer} aria-label="Quick Add Container">
-          Quick Add Container
-        </Button>
-        <Button variant="outlined" onClick={onAddBlock} aria-label="Quick Add Block">
-          Quick Add Block
-        </Button>
-        <Button variant="outlined" onClick={onAddFlexContainer} aria-label="Quick Add Flex Container">
-          Quick Add Flex Container
-        </Button>
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+        <LayoutBuilderAddMenu
+          ariaLabel="Add section to page"
+          title="Add section to page"
+          triggerLabel="Add Section"
+          layoutPresets={STRUCTURAL_LAYOUT_PRESETS}
+          blockTypes={BLOCK_PLACEHOLDER_TYPES}
+          onAddLayoutPreset={onAddLayoutPreset}
+          onAddBlockType={onAddBlockPreset}
+        />
+        <SelectionPathChips labels={labels} />
       </Stack>
-      <SelectionPathChips labels={labels} />
     </Stack>
   );
 }
@@ -78,10 +82,14 @@ export function LayoutBuilderCanvas({
   onSelectNode,
   onDragEnd,
   onMoveSelectedNodeToTarget,
-  onAppendBlockToContainer,
-  onAppendGridContainerToContainer,
-  onAppendFlexContainerToContainer,
+  onAddBlockPreset,
+  onAddLayoutPreset,
+  onAppendBlockPresetToContainer,
+  onAppendLayoutPresetToContainer,
   onOpenNodeDialog,
+  onDuplicateNode,
+  onRemoveNode,
+  onResizeFlexPair,
   isMoveMode,
   moveModeLabel,
   onToggleMoveMode
@@ -132,9 +140,8 @@ export function LayoutBuilderCanvas({
         isMoveMode={isMoveMode}
         moveModeLabel={moveModeLabel}
         labels={selectionLabels}
-        onAddContainer={() => onAppendGridContainerToContainer(rootNode.id)}
-        onAddBlock={() => onAppendBlockToContainer(rootNode.id)}
-        onAddFlexContainer={() => onAppendFlexContainerToContainer(rootNode.id)}
+        onAddLayoutPreset={onAddLayoutPreset}
+        onAddBlockPreset={onAddBlockPreset}
       />
       <LayoutBuilderCanvasShell
         viewport={viewport}
@@ -172,12 +179,14 @@ export function LayoutBuilderCanvas({
               selectedNodeId={selectedNodeId}
               selectedPathIds={selectedPathIds}
               onSelectNode={onSelectNode}
-              onAppendBlockToContainer={onAppendBlockToContainer}
-              onAppendGridContainerToContainer={onAppendGridContainerToContainer}
-              onAppendFlexContainerToContainer={onAppendFlexContainerToContainer}
+              onAppendBlockPresetToContainer={onAppendBlockPresetToContainer}
+              onAppendLayoutPresetToContainer={onAppendLayoutPresetToContainer}
               onMoveSelectedNodeToTarget={onMoveSelectedNodeToTarget}
               onOpenNodeDialog={onOpenNodeDialog}
               onToggleMoveMode={onToggleMoveMode}
+              onDuplicateNode={onDuplicateNode}
+              onRemoveNode={onRemoveNode}
+              onResizeFlexPair={onResizeFlexPair}
               showDropSlots={Boolean(activeDragId) || isMoveMode}
               isMoveMode={isMoveMode}
               moveSourceParentId={moveSourceParentId}

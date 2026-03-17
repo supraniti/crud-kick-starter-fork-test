@@ -137,10 +137,10 @@ Exit criteria:
 
 ## Current Execution Status
 - Pass 1: delivered on `2026-03-17`
-- Pass 2: pending
-- Pass 3: pending
-- Pass 4: pending
-- Pass 5: pending
+- Pass 2: delivered on `2026-03-17`
+- Pass 3: delivered on `2026-03-17`
+- Pass 4: delivered on `2026-03-17`
+- Pass 5: delivered on `2026-03-17`
 
 ## Pass 1 Delivered
 - canvas-first shell is now the primary layout-builder surface
@@ -170,6 +170,65 @@ Exit criteria:
   - `pnpm lint:function-shape`
   - `pnpm quality:protocol`
   - `pnpm quality:gate:full`
+
+## Passes 2-5 Delivered
+- contextual interaction shell is now primary:
+  - contextual add menus on the root page and containers
+  - floating node toolbar with:
+    - add
+    - duplicate
+    - move
+    - edit
+    - delete
+  - support panels demoted into an optional dock:
+    - `Layouts`
+    - `Layers`
+    - `Details`
+- structural preset vocabulary is now first-class:
+  - `1 Column`
+  - `2 Columns`
+  - `3 Columns`
+  - `Sidebar + Content`
+  - `Content + Sidebar`
+- placeholder block vocabulary is now first-class:
+  - `Hero`
+  - `Text`
+  - `Image`
+  - `Feature`
+  - `CTA`
+  - `Sidebar`
+  - `Content`
+- spatial fidelity improvements are now live:
+  - width/proportion badges on nodes
+  - flex-pair resize handles for row layouts
+  - stronger selected and hover states
+  - clearer move/drop slots
+- cleanup/integration work closed:
+  - removed the old `Insert`-tab-first workflow from the main builder path
+  - kept save/delete/page-return integration intact
+  - refreshed layout builder integration proof to the new contract
+  - kept repo LOC and function-shape gates green by extracting module-local helpers
+- main files:
+  - [LayoutsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutsView.jsx)
+  - [LayoutBuilderCanvas.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvas.jsx)
+  - [LayoutBuilderCanvasNodes.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasNodes.jsx)
+  - [LayoutBuilderCanvasPrimitives.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasPrimitives.jsx)
+  - [LayoutBuilderAddMenu.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderAddMenu.jsx)
+  - [layout-builder-palette.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-palette.js)
+  - [layout-builder-advanced-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-advanced-model.js)
+  - [layout-builder-node-support.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-node-support.jsx)
+  - [useLayoutsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/useLayoutsWorkspace.js)
+  - [layouts-workspace-selection-actions.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layouts-workspace-selection-actions.js)
+  - [layout-document.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/shared/layout-document.mjs)
+  - [layouts.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/layouts.integration.test.jsx)
+- verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+  - `pnpm lint:repo-loc`
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+- result:
+  - MG-001 is now the repo baseline for layout-builder work
 
 ## Verification Standard Per Pass
 - targeted layout frontend integration tests

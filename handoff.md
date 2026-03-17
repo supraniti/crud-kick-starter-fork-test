@@ -1,7 +1,7 @@
 # Agent Handoff
 
 ## Current Status
-- Date: `2026-03-16`
+- Date: `2026-03-17`
 - Repository: `crud-kick-starter-fork-test`
 - Branch: `crud-kick-starter-fork-test`
 - Current north-star baseline docs:
@@ -9,6 +9,64 @@
   - [m04-north-star-alignment-program.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-north-star-alignment-program.md)
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
+
+## 2026-03-17 MG-001 Layout Builder Complete
+- MG-001 is now delivered through all passes.
+- Commit in progress for this slice should describe:
+  - contextual canvas interaction shell
+  - structural presets and placeholder vocabulary
+  - resize/proportion cues
+  - support dock demotion
+  - refreshed layouts integration proof
+- Delivered builder behavior:
+  - root/page add menu
+  - container add menus
+  - node floating toolbar:
+    - add
+    - duplicate
+    - move
+    - edit
+    - delete
+  - structural presets:
+    - `1 Column`
+    - `2 Columns`
+    - `3 Columns`
+    - `Sidebar + Content`
+    - `Content + Sidebar`
+  - placeholder blocks:
+    - `Hero`
+    - `Text`
+    - `Image`
+    - `Feature`
+    - `CTA`
+    - `Sidebar`
+    - `Content`
+  - width badges and flex resize handles for row layouts
+  - support dock tabs:
+    - `Layouts`
+    - `Layers`
+    - `Details`
+- Main files:
+  - [LayoutsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutsView.jsx)
+  - [LayoutBuilderCanvas.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvas.jsx)
+  - [LayoutBuilderCanvasNodes.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasNodes.jsx)
+  - [LayoutBuilderCanvasPrimitives.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasPrimitives.jsx)
+  - [LayoutBuilderAddMenu.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderAddMenu.jsx)
+  - [layout-builder-palette.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-palette.js)
+  - [layout-builder-advanced-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-advanced-model.js)
+  - [layout-builder-node-support.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-node-support.jsx)
+  - [useLayoutsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/useLayoutsWorkspace.js)
+  - [layouts-workspace-selection-actions.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layouts-workspace-selection-actions.js)
+  - [layouts.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/layouts.integration.test.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+  - `pnpm lint:repo-loc`
+  - `pnpm lint:function-shape`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - all passed
+- Active review route after bringing the app up:
+  - `/app/layouts`
 
 ## 2026-03-17 MG-001 Layout Builder Pass 1
 - Billing and usage slice is committed and pushed:
