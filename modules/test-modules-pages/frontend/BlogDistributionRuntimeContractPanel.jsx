@@ -17,6 +17,10 @@ function formatSlotLabel(slot = {}) {
   return `${slot.bindAs ?? "slot"} • ${slot.sourceType ?? "none"} • ${slot.recordMode ?? "single-item"}`;
 }
 
+function formatFlowLabel(value) {
+  return String(value ?? "").trim() || "flow";
+}
+
 function ValueList({ title, values = [], emptyLabel }) {
   return (
     <Stack spacing={0.75}>
@@ -38,6 +42,7 @@ function ValueList({ title, values = [], emptyLabel }) {
 
 export function RuntimeContractPanel({ workspace }) {
   const clientRuntime = workspace.deliveryState.payload?.runtime?.clientRuntime ?? null;
+  const applicationTester = workspace.deliveryState.payload?.runtime?.applicationTester ?? null;
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -97,6 +102,85 @@ export function RuntimeContractPanel({ workspace }) {
               multiline
               minRows={16}
               value={jsonPreview(clientRuntime)}
+              InputProps={{ readOnly: true }}
+            />
+          </>
+        ) : null}
+        {!workspace.deliveryState.loading && !workspace.deliveryState.errorMessage && !applicationTester ? (
+          <Alert severity="info">No application tester contract is present in the current delivery payload.</Alert>
+        ) : null}
+        {applicationTester ? (
+          <>
+            <Typography variant="h6">Application Tester Contract</Typography>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Chip
+                size="small"
+                label={`Enable Params ${(applicationTester.enabledQueryParams ?? []).length}`}
+                variant="outlined"
+              />
+              <Chip size="small" label={`Flows ${(applicationTester.flows ?? []).length}`} variant="outlined" />
+            </Stack>
+            <TextField
+              label="Application Tester Asset URL"
+              value={applicationTester.assetUrl ?? ""}
+              InputProps={{ readOnly: true }}
+              fullWidth
+            />
+            <TextField
+              label="Published Document URL"
+              value={applicationTester.documentUrl ?? ""}
+              InputProps={{ readOnly: true }}
+              fullWidth
+            />
+            <TextField
+              label="Direct Firestore Document URL"
+              value={applicationTester.firestore?.documentUrl ?? ""}
+              InputProps={{ readOnly: true }}
+              helperText={
+                applicationTester.firestore?.documentUrl
+                  ? "This is the direct Firestore document behind the tester. The tester can also use the public app API path below."
+                  : "No Firestore publication contract is configured for this page yet."
+              }
+              fullWidth
+            />
+            <TextField
+              label="Public Published Document API Path"
+              value={applicationTester.publicPublishedDocumentApiPath ?? ""}
+              InputProps={{ readOnly: true }}
+              helperText="Temporary application tester reads should prefer this bounded app API over direct anonymous Firestore reads."
+              fullWidth
+            />
+            <TextField
+              label="Public Comments API Path"
+              value={applicationTester.publicCommentsApiPath ?? ""}
+              InputProps={{ readOnly: true }}
+              helperText={
+                applicationTester.publicCommentsApiPath
+                  ? "Temporary application tester comment submissions target this path when an application API origin is available."
+                  : "Comment submission is not enabled for the current page payload."
+              }
+              fullWidth
+            />
+            <ValueList
+              title="Enable Query Params"
+              values={applicationTester.enabledQueryParams ?? []}
+              emptyLabel="No enable query params declared."
+            />
+            <ValueList
+              title="Application API Origin Query Params"
+              values={applicationTester.apiOriginQueryParams ?? []}
+              emptyLabel="No application API origin query params declared."
+            />
+            <ValueList
+              title="Flows"
+              values={(applicationTester.flows ?? []).map(formatFlowLabel)}
+              emptyLabel="No tester flows declared."
+            />
+            <TextField
+              label="Resolved Application Tester JSON"
+              multiline
+              minRows={12}
+              value={jsonPreview(applicationTester)}
               InputProps={{ readOnly: true }}
             />
           </>

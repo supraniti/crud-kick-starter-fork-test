@@ -8,6 +8,18 @@ function defaultFetchJson(url, options = {}, fetchImpl = fetch) {
   }));
 }
 
+function buildRemoteFailureMessage(status, url, body) {
+  const remoteMessage =
+    body && typeof body === "object" && typeof body.error?.message === "string"
+      ? body.error.message
+      : body && typeof body === "object" && typeof body.message === "string"
+        ? body.message
+        : "";
+  return remoteMessage
+    ? `[client-runtime] remote request failed with status ${status} for ${url}: ${remoteMessage}`
+    : `[client-runtime] remote request failed with status ${status} for ${url}`;
+}
+
 function readPathValue(source, pathExpression = "") {
   const path = String(pathExpression || "")
     .split(".")
@@ -18,6 +30,62 @@ function readPathValue(source, pathExpression = "") {
       current && typeof current === "object" ? current[segment] : undefined,
     source
   );
+}
+
+function decodeFirestoreValue(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  if ("nullValue" in value) {
+    return null;
+  }
+  if ("booleanValue" in value) {
+    return Boolean(value.booleanValue);
+  }
+  if ("integerValue" in value) {
+    return Number.parseInt(value.integerValue, 10);
+  }
+  if ("doubleValue" in value) {
+    return Number(value.doubleValue);
+  }
+  if ("stringValue" in value) {
+    return String(value.stringValue);
+  }
+  if ("timestampValue" in value) {
+    return String(value.timestampValue);
+  }
+  if ("arrayValue" in value) {
+    const values = Array.isArray(value.arrayValue?.values) ? value.arrayValue.values : [];
+    return values.map(decodeFirestoreValue);
+  }
+  if ("mapValue" in value) {
+    const fields = value.mapValue?.fields ?? {};
+    return Object.entries(fields).reduce((result, [key, fieldValue]) => {
+      result[key] = decodeFirestoreValue(fieldValue);
+      return result;
+    }, {});
+  }
+  return null;
+}
+
+function decodeFirestoreDocument(document = {}) {
+  const decoded = decodeFirestoreValue({
+    mapValue: {
+      fields: document?.fields ?? {}
+    }
+  }) ?? {};
+  if (typeof decoded !== "object" || Array.isArray(decoded)) {
+    return decoded;
+  }
+  const name = typeof document?.name === "string" ? document.name : "";
+  const documentId = name ? name.split("/").at(-1) ?? null : null;
+  return {
+    ...decoded,
+    ...(documentId && !("id" in decoded) ? { id: documentId } : {}),
+    __firestoreDocumentName: name || null,
+    __firestoreCreateTime: document?.createTime ?? null,
+    __firestoreUpdateTime: document?.updateTime ?? null
+  };
 }
 
 function resolveResponseBody(body, remoteDefinition = {}) {
@@ -69,6 +137,9 @@ function normalizeQueryRemoteResult(definition, body, remoteDefinition) {
 
   const resolvedBody = resolveResponseBody(body, remoteDefinition);
   const resultType = typeof remoteResult.type === "string" ? remoteResult.type.trim() : "";
+  if (resultType === "firestore-document") {
+    return decodeFirestoreDocument(resolvedBody);
+  }
   if (resultType !== "collection") {
     return resolvedBody;
   }
@@ -106,9 +177,7 @@ export function createRemoteTransportAdapter(options = {}) {
     );
     const response = await fetchJson(requestDescriptor.url, requestDescriptor.init);
     if (!response.ok) {
-      throw new Error(
-        `[client-runtime] remote request failed with status ${response.status} for ${requestDescriptor.url}`
-      );
+      throw new Error(buildRemoteFailureMessage(response.status, requestDescriptor.url, response.body));
     }
     return response.body;
   }
@@ -156,9 +225,7 @@ export function createRemoteTransportAdapter(options = {}) {
       );
       const response = await fetchJson(requestDescriptor.url, requestDescriptor.init);
       if (!response.ok) {
-        throw new Error(
-          `[client-runtime] remote request failed with status ${response.status} for ${requestDescriptor.url}`
-        );
+        throw new Error(buildRemoteFailureMessage(response.status, requestDescriptor.url, response.body));
       }
       return normalizeDatasetRemoteResult(definition, response.body, remoteDefinition);
     }

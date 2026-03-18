@@ -7,6 +7,9 @@
   "scripts": {
     "dev:server": "pnpm --filter server dev",
     "dev:frontend": "pnpm --filter frontend dev",
+    "review:env:start": "node scripts/review-env.mjs start",
+    "review:env:stop": "node scripts/review-env.mjs stop",
+    "review:env:status": "node scripts/review-env.mjs status",
     "build:client-runtime": "pnpm --filter client-runtime build",
     "infra:live-check": "pnpm --filter server infra:live-check",
     "api-runner:m22": "pnpm --filter server api-runner:m22",

@@ -19,6 +19,8 @@ import {
   listPageDeploymentInstances,
   runExplicitPageDeploymentSync
 } from "./page-deployment-runtime.mjs";
+import { registerPagePublicApplicationRoutes } from "./page-public-application-routes-runtime.mjs";
+import { registerRuntimeProbeRoutes } from "./page-runtime-probe-runtime.mjs";
 
 function buildPayload(payload) {
   return {
@@ -499,5 +501,7 @@ export function registerRoutes({
     createDeploymentInstancesHandler(routeContext)
   );
   fastify.get(`${routeContext.deliveryBasePath}/resolve`, createPathDeliveryHandler(routeContext));
+  registerPagePublicApplicationRoutes(fastify, routeContext);
+  registerRuntimeProbeRoutes(fastify, routeContext);
   registerDeploymentBundleReleaseRoute(fastify, routeContext);
 }

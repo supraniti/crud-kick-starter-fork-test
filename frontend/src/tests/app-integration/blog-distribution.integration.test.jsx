@@ -102,6 +102,30 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
                   dataset: "post-comments"
                 }
               ]
+            },
+            applicationTester: {
+              assetUrl: "../../assets/page-application-tester.global.js",
+              enabledQueryParams: ["appTester", "runtimeProbe"],
+              apiOriginQueryParams: ["appApiOrigin", "apiOrigin"],
+              documentUrl: "https://content.example.com/stories/launch-window-update/runtime-probe.document.json",
+              publicPublishedDocumentApiPath: "/api/reference/modules/test-modules-pages/public/published-document",
+              publicCommentsApiPath: "/api/reference/modules/test-modules-pages/public/comments",
+              firestore: {
+                documentUrl:
+                  "https://firestore.googleapis.com/v1/projects/content-example/databases/(default)/documents/publishedPosts/launch-window-update"
+              },
+              actions: {
+                install: "pageApplicationTester.installPublishedDocument",
+                sync: "pageApplicationTester.syncPublishedDocument",
+                submitComment: "pageApplicationTester.submitComment"
+              },
+              flows: [
+                "render-featured-image",
+                "published-document-snapshot-read",
+                "public-app-firestore-read",
+                "indexeddb-install-and-local-query",
+                "public-app-comment-submit"
+              ]
             }
           }
         }
@@ -165,6 +189,22 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
     expect(screen.getByText("comments.submit")).toBeInTheDocument();
     expect(screen.getByDisplayValue("../../assets/client-runtime.global.js")).toBeInTheDocument();
     expect(screen.getByLabelText("Resolved Runtime Contract JSON")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("../../assets/page-application-tester.global.js")).toBeInTheDocument();
+    expect(screen.getByText("published-document-snapshot-read")).toBeInTheDocument();
+    expect(screen.getByText("public-app-firestore-read")).toBeInTheDocument();
+    expect(screen.getByText("public-app-comment-submit")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue(
+        "https://firestore.googleapis.com/v1/projects/content-example/databases/(default)/documents/publishedPosts/launch-window-update"
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("/api/reference/modules/test-modules-pages/public/published-document")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("/api/reference/modules/test-modules-pages/public/comments")
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Resolved Application Tester JSON")).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Authoring" }));

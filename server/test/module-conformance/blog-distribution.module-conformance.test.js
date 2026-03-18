@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import {
   resolveSimulatedFirestoreRoot,
   resolveSimulatedStorageRoot
@@ -15,6 +15,7 @@ import {
   waitForMissionJob
 } from "./helpers/reference-slice-runtime-test-helpers.js";
 import { PAGE_DEPLOYMENT_BUNDLE_RELEASE_MISSION_ID } from "../../../modules/test-modules-pages/shared/deployment-bundle-release-shared.mjs";
+import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "../../../modules/test-modules-pages/server/page-runtime-probe-runtime.mjs";
 
 const BLOG_DISTRIBUTION_TEST_TIMEOUT_MS = 20_000;
 const MODULE_ID = "test-modules-pages";
@@ -59,6 +60,18 @@ function buildDeploymentInstancesRoute(pageId) {
 
 function buildPathDeliveryRoute(path, preview = false) {
   return `/api/reference/modules/${MODULE_ID}/delivery/resolve?path=${encodeURIComponent(path)}${preview ? "&preview=true" : ""}`;
+}
+
+function buildRuntimeProbeRoute(pagePath) {
+  return `/api/reference/modules/${MODULE_ID}/runtime-probe/firestore-document?path=${encodeURIComponent(pagePath)}`;
+}
+
+function buildPublicPublishedDocumentRoute(pagePath) {
+  return `/api/reference/modules/${MODULE_ID}/public/published-document?path=${encodeURIComponent(pagePath)}`;
+}
+
+function buildPublicCommentsRoute() {
+  return `/api/reference/modules/${MODULE_ID}/public/comments`;
 }
 
 async function createDeploymentSandbox(moduleSettings = null) {
@@ -149,6 +162,13 @@ async function createServiceAccountCredentialFixture(overrides = {}) {
 
 async function readDeploymentHtml(deploymentRootDir, artifactRelativePath) {
   return fs.readFile(path.join(deploymentRootDir, ...artifactRelativePath.split("/")), "utf8");
+}
+
+async function readRuntimeProbeDocument(deploymentRootDir, artifactRelativePath) {
+  const segments = artifactRelativePath.split("/").filter(Boolean);
+  segments.pop();
+  const runtimeProbePath = path.join(deploymentRootDir, ...segments, RUNTIME_PROBE_DOCUMENT_FILE_NAME);
+  return JSON.parse(await fs.readFile(runtimeProbePath, "utf8"));
 }
 
 async function seedAuthor(server, overrides = {}) {
@@ -444,6 +464,22 @@ test("pages create standalone records and resolve deterministic delivery payload
                 valuePath: "data.relatedPosts",
                 remoteValuePath: "payload.data.relatedPosts"
               })
+            ])
+          }),
+          applicationTester: expect.objectContaining({
+            assetUrl: "../../assets/page-application-tester.global.js",
+            enabledQueryParams: expect.arrayContaining(["appTester", "runtimeProbe"]),
+            apiOriginQueryParams: expect.arrayContaining(["appApiOrigin", "apiOrigin"]),
+            documentUrl: "./runtime-probe.document.json",
+            publicPublishedDocumentApiPath:
+              "/api/reference/modules/test-modules-pages/public/published-document",
+            publicCommentsApiPath: "/api/reference/modules/test-modules-pages/public/comments",
+            firestore: null,
+            flows: expect.arrayContaining([
+              "render-featured-image",
+              "published-document-snapshot-read",
+              "indexeddb-install-and-local-query",
+              "public-app-comment-submit"
             ])
           })
         }),
@@ -1593,6 +1629,23 @@ test("gcp temporary browser delivery emits public provider page and media URLs",
     expect(deploymentHtml).not.toContain("GoogleAccessId=");
     expect(deploymentHtml).not.toContain("Signature=");
     expect(deploymentHtml).toContain("\"temporaryMediaBaseUrl\":\"https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library\"");
+    const runtimeProbeDocument = await readRuntimeProbeDocument(
+      sandbox.deploymentRootDir,
+      "post/temporary-delivery-story/index.html"
+    );
+    expect(runtimeProbeDocument).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pagePath: "/post/temporary-delivery-story",
+        primarySourceType: "blog-post",
+        documentId: "temporary-delivery-story",
+        document: expect.objectContaining({
+          id: post.id,
+          slug: "temporary-delivery-story",
+          title: "Temporary Delivery Story"
+        })
+      })
+    );
 
     const deliveryResponse = await injectJson(
       server,
@@ -2077,7 +2130,9 @@ test("pages publish generates deployment html, updates old artifacts, and remove
     );
     expect(initialHtml).toContain("<page-runtime");
     expect(initialHtml).toContain("window.__CRUD_CLIENT_RUNTIME_CONFIG__ =");
+    expect(initialHtml).toContain("window.__CRUD_PAGE_APPLICATION_TESTER__ =");
     expect(initialHtml).toContain("../../assets/client-runtime.global.js");
+    expect(initialHtml).toContain("../../assets/page-application-tester.global.js");
     expect(initialHtml).toContain("\"page-slot-primary\"");
     expect(initialHtml).toContain("https://cdn.example.com/runtime/app.js");
     expect(initialHtml).toContain("/assets/runtime/entry.js");
@@ -2086,6 +2141,9 @@ test("pages publish generates deployment html, updates old artifacts, and remove
     expect(initialHtml).toContain("https://example.com/stories/launch-rollout");
     await expect(
       fs.access(path.join(sandbox.deploymentRootDir, "assets", "client-runtime.global.js"))
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(sandbox.deploymentRootDir, "assets", "page-application-tester.global.js"))
     ).resolves.toBeUndefined();
 
     const updateResponse = await injectJson(
@@ -2131,6 +2189,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
     );
     expect(updatedHtml).toContain("Launch Rollout Recap");
     expect(updatedHtml).toContain("../../assets/client-runtime.global.js");
+    expect(updatedHtml).toContain("../../assets/page-application-tester.global.js");
     expect(updatedHtml).toContain("/assets/runtime/recap.js");
     expect(updatedHtml).not.toContain("/assets/runtime/entry.js");
 
@@ -2807,6 +2866,321 @@ test("deployment bundle release mission executes the full server-owned bundle pi
       ].filter(Boolean).map((promise) => promise.catch(() => {}))
     );
     await sandbox.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("runtime probe route resolves the published Firestore document for a blog-post page", async () => {
+  const credentialFixture = await createServiceAccountCredentialFixture();
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const author = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, author.id, category.id, tag.id, {
+      title: "Probe Story",
+      status: "published",
+      publishedOn: "2026-03-17T09:00:00.000Z",
+      seoTitle: "Probe Story SEO",
+      seoDescription: "Probe story description"
+    });
+    const pageResponse = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Probe Story Page",
+      pageKind: "content-detail",
+      primarySourceType: "blog-post",
+      path: "/post/probe-story",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: post.id,
+        bindAs: "primary"
+      },
+      status: "published",
+      publishedOn: "2026-03-17T09:05:00.000Z"
+    });
+    expect(pageResponse.statusCode).toBe(201);
+
+    const connection = await seedRemoteConnectionProfile(server, {
+      id: "conn-probe-001",
+      credentialPathHint: credentialFixture.credentialPath,
+      serviceAccountEmail: "merchant-guild@appspot.gserviceaccount.com",
+      serviceAccountKeyId: "test-private-key-id"
+    });
+    await seedRemoteTargetProfile(server, {
+      id: "target-posts-probe-001",
+      title: "Posts Projection",
+      connectionProfileId: connection.id,
+      productBindingKey: "posts-projection",
+      targetKind: "firestore-projection",
+      adapterMode: "live-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "published-blog-posts",
+        firestoreCollectionPath: "publishedPosts"
+      }
+    });
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath("test-modules-content"),
+      {
+        remoteProjectionTargetProfileId: "target-posts-probe-001"
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      if (String(url) === "https://oauth2.googleapis.com/token") {
+        expect(String(options.body)).toContain(
+          "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        );
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              access_token: "probe-access-token",
+              token_type: "Bearer",
+              expires_in: 3600
+            })
+        };
+      }
+
+      expect(String(url)).toBe(
+        "https://firestore.googleapis.com/v1/projects/merchant-guild/databases/(default)/documents/publishedPosts/probe-story"
+      );
+      expect(options.headers.authorization).toBe("Bearer probe-access-token");
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            name: "projects/merchant-guild/databases/(default)/documents/publishedPosts/probe-story",
+            fields: {
+              id: { stringValue: "probe-story" },
+              title: { stringValue: "Probe Story" },
+              status: { stringValue: "published" },
+              updatedOn: { timestampValue: "2026-03-17T09:05:00.000Z" },
+              tagIds: {
+                arrayValue: {
+                  values: [{ stringValue: tag.id }]
+                }
+              },
+              featured: {
+                mapValue: {
+                  fields: {
+                    mediaId: { stringValue: "media-001" },
+                    altText: { stringValue: "Probe image" }
+                  }
+                }
+              }
+            }
+          })
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await injectJson(server, "GET", buildRuntimeProbeRoute("/post/probe-story"));
+    if (response.statusCode !== 200) {
+      throw new Error(JSON.stringify(response.body));
+    }
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pagePath: "/post/probe-story",
+        primarySourceType: "blog-post",
+        documentId: "probe-story",
+        firestore: expect.objectContaining({
+          projectId: "merchant-guild",
+          collectionPath: "publishedPosts",
+          documentUrl:
+            "https://firestore.googleapis.com/v1/projects/merchant-guild/databases/(default)/documents/publishedPosts/probe-story"
+        }),
+        document: expect.objectContaining({
+          id: "probe-story",
+          title: "Probe Story",
+          status: "published",
+          updatedOn: "2026-03-17T09:05:00.000Z",
+          tagIds: [tag.id],
+          featured: {
+            mediaId: "media-001",
+            altText: "Probe image"
+          }
+        })
+      })
+    );
+  } finally {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    await server.close();
+    await credentialFixture.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("public published-document route resolves the published Firestore document with CORS headers", async () => {
+  const credentialFixture = await createServiceAccountCredentialFixture();
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const author = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, author.id, category.id, tag.id, {
+      title: "Public API Story",
+      status: "published",
+      publishedOn: "2026-03-17T09:00:00.000Z"
+    });
+    const pageResponse = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Public API Story Page",
+      pageKind: "content-detail",
+      primarySourceType: "blog-post",
+      path: "/post/public-api-story",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: post.id,
+        bindAs: "primary"
+      },
+      status: "published"
+    });
+    expect(pageResponse.statusCode).toBe(201);
+
+    const connection = await seedRemoteConnectionProfile(server, {
+      id: "conn-public-doc-001",
+      credentialPathHint: credentialFixture.credentialPath,
+      serviceAccountEmail: "merchant-guild@appspot.gserviceaccount.com",
+      serviceAccountKeyId: "test-private-key-id"
+    });
+    await seedRemoteTargetProfile(server, {
+      id: "target-public-doc-001",
+      title: "Posts Projection",
+      connectionProfileId: connection.id,
+      productBindingKey: "posts-projection",
+      targetKind: "firestore-projection",
+      adapterMode: "live-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        projectionScope: "published-blog-posts",
+        firestoreCollectionPath: "publishedPosts"
+      }
+    });
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath("test-modules-content"),
+      {
+        remoteProjectionTargetProfileId: "target-public-doc-001"
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      if (String(url) === "https://oauth2.googleapis.com/token") {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              access_token: "public-doc-access-token",
+              token_type: "Bearer",
+              expires_in: 3600
+            })
+        };
+      }
+
+      expect(String(url)).toBe(
+        "https://firestore.googleapis.com/v1/projects/merchant-guild/databases/(default)/documents/publishedPosts/public-api-story"
+      );
+      expect(options.headers.authorization).toBe("Bearer public-doc-access-token");
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            name: "projects/merchant-guild/databases/(default)/documents/publishedPosts/public-api-story",
+            fields: {
+              id: { stringValue: "public-api-story" },
+              title: { stringValue: "Public API Story" },
+              status: { stringValue: "published" }
+            }
+          })
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await server.inject({
+      method: "GET",
+      url: buildPublicPublishedDocumentRoute("/post/public-api-story")
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBe("*");
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        ok: true,
+        pagePath: "/post/public-api-story",
+        documentId: "public-api-story",
+        document: expect.objectContaining({
+          id: "public-api-story",
+          title: "Public API Story",
+          status: "published"
+        })
+      })
+    );
+  } finally {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    await server.close();
+    await credentialFixture.cleanup();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("public comments route creates pending comments with CORS headers", async () => {
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const author = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, author.id, category.id, tag.id, {
+      title: "Public Comment Story",
+      status: "published",
+      allowComments: true,
+      commentPolicy: "open"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: buildPublicCommentsRoute(),
+      payload: {
+        postId: post.id,
+        authorDisplayName: "Runtime Tester",
+        authorEmail: "runtime@example.com",
+        body: "This public comment was submitted through the temporary application tester."
+      }
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.headers["access-control-allow-origin"]).toBe("*");
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        ok: true,
+        item: expect.objectContaining({
+          postId: post.id,
+          authorDisplayName: "Runtime Tester",
+          authorEmail: "runtime@example.com",
+          status: "pending"
+        })
+      })
+    );
+  } finally {
+    await server.close();
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 

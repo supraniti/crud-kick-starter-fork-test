@@ -12,6 +12,59 @@
 
 ## Entries
 
+### 2026-03-17 - Runtime App Layer Works Best As A Separate Asset, Not Another Inline Probe
+- Tasks:
+  - replaced the idea of an inline probe UI with a separate deployed `application-tester` asset
+  - kept `client-runtime` generic and moved page-visible behavior into the tester script
+  - exposed the tester contract in the Pages runtime inspection surface
+- Easy:
+  - `crudClientRuntime.configure(...)` made it straightforward to layer tester-specific datasets/queries/actions on top of the base runtime
+  - the existing published sidecar was already a valid remote seam for the first read/install flows
+- Hard:
+  - the page runtime contract now has two related layers, so the preview surface needed to make that split explicit instead of dumping everything under `clientRuntime`
+  - preview payloads without browser delivery correctly use relative tester URLs, while deployed pages with a public URL should emit absolute ones
+- Improve:
+  - keep page application logic in separate deployable assets whenever the goal is replaceability
+  - if a page supplement depends on runtime registries, inject a small contract and merge it through runtime configuration instead of hardcoding private browser hooks
+
+### 2026-03-17 - Review Env Must Be A Repo Command, Not A Repeated Manual Ritual
+- Tasks:
+  - added a repo-owned review launcher instead of continuing to juggle one-off frontend/backend startup variants
+  - locked the local review contract to:
+    - backend on `127.0.0.1:3001`
+    - static frontend on `localhost:3000`
+    - pid tracking under `.codex-runtime`
+  - documented the next client-runtime direction as an explicit M07 plan instead of keeping it in chat
+- Easy:
+  - once the launcher stopped trying to be clever and just spawned detached Node processes, startup became stable
+  - a static frontend server is enough for review on this machine; Vite dev is not required for most inspection flows
+- Hard:
+  - repeated process-control drift came from treating long-running shell commands as if they were normal startup waits
+  - frontend build on this machine can still fail with the known child-process boundary, so the launcher must tolerate reuse of an existing `frontend/dist`
+- Improve:
+  - use the repo launcher first, not as a fallback after manual attempts
+  - if a launch command does not return in a few seconds, abandon that method immediately
+  - review setup should prefer deterministic static serving over fragile live-dev startup when the task is browser inspection
+  - health checks in the launcher must use explicit request timeouts; default `fetch()` behavior is not acceptable for local-status commands
+  - `review:env:start` and `review:env:status` should be run sequentially, because parallel execution can race the pid-file write even when both services are already healthy
+
+### 2026-03-17 - Runtime Probe Proved The Boundary, Not The Final Product Shape
+- Tasks:
+  - delivered a temporary deployed-page probe that:
+    - renders referenced media
+    - fetches a published document
+    - installs/querys through IndexedDB via `client-runtime`
+  - wrote the M07 plan to replace that probe with a separate application-layer tester script
+- Easy:
+  - the runtime/data-layer part already existed; the missing piece was a small page-owned consumer of that API
+  - same-origin deployed assets are the simplest honest boundary for a live published page
+- Hard:
+  - the first instinct to hit local backend routes from the public page was wrong; deployed pages need deployable boundaries, not `127.0.0.1`
+  - the working probe is useful, but it is still not the intended final runtime/app split
+- Improve:
+  - keep runtime generic and move visible behavior into replaceable app-layer scripts
+  - when the target is a public deployed page, design the boundary first and only then write the browser feature
+
 ### 2026-03-17 - MG-001 Passes 2-5 Closeout
 - Tasks:
   - finished the canvas interaction model instead of reverting to the old rail-first builder
@@ -1962,3 +2015,38 @@
 - Improve:
   - do not call browser delivery done until the URL shown in the product desk is the same URL that renders in a browser
   - when a temporary-delivery mode exists, make it operationally real and visibly different from the owned-domain path, not a hidden signed-link escape hatch
+
+### 2026-03-17 - Runtime Probe Must Use A Deployed Boundary
+- Tasks:
+  - finished the temporary deployed-page probe so the live published post page can render an image, fetch a remote published document, and install it into IndexedDB through `client-runtime`
+  - replaced the broken localhost/backend probe transport with a same-origin deployed JSON sidecar next to each published HTML artifact
+  - reran the live posts release bundle and verified the public storage page in the browser with the probe enabled
+- Easy:
+  - once the probe stopped depending on localhost, the rest of the runtime contract already worked; `client-runtime` install/query behavior was fine
+  - the deployed page already carried enough content/media context to build a useful remote-side probe payload
+- Hard:
+  - the first deployed probe looked partially right but was architecturally wrong because an HTTPS GCS page cannot rely on `127.0.0.1:3001`
+  - browser caching obscured the script-fix verification until the page was re-opened with a cache-busting query string
+- Improve:
+  - for deployed HTML, never route runtime probes through local dev infrastructure unless the page itself is served from that same local origin
+  - when verifying public storage objects, always use a cache-busting query once after redeploy so stale inline scripts do not masquerade as a bad release
+
+### 2026-03-18 - M07 Application Layer Must Stay Separate From Runtime
+- Tasks:
+  - kept `client-runtime` as the reusable data/action layer
+  - added a separate injected application tester on top of it
+  - exposed public app API routes for published-document Firestore reads and public comment creation
+  - added a repo-owned review launcher so the local published-page proof no longer depends on ad hoc startup patterns
+- Easy:
+  - the runtime contract was already close; the missing piece was a thin application layer plus a public API seam
+  - the local published-page review path worked well once the repo served `frontend/dist` and `deployment/` deterministically on `3000`
+- Hard:
+  - the saved live connection lost its copied service-account key repeatedly, so Firestore reads through the public app API failed until the key was re-imported through the supported route
+  - the real browser boundary matters: a public `https://storage.googleapis.com/...` page cannot call `http://127.0.0.1:3001`, so the honest proof path is the locally served published page until a public HTTPS app API host exists
+  - `scripts/review-env.mjs` originally hung because health checks had no request timeout and `start`/`status` were being run in parallel
+- Improve:
+  - for public-page application logic, separate three concerns explicitly:
+    - generic runtime engine
+    - temporary application layer
+    - public API boundary
+  - repo-owned review launchers need hard timeouts and a single canonical sequence or they will regress into process-control guesswork

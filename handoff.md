@@ -10,6 +10,79 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-17 M07 Client Runtime Application Layer And Review Env
+- New active planning artifact:
+  - [m07-client-runtime-application-layer-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m07-client-runtime-application-layer-plan.md)
+- M07 is now delivered on the honest boundary:
+  - keep `client-runtime` generic
+  - inject a separate temporary application-tester script
+  - expose public app API routes for published-document read and comment creation
+  - prove the flows from a locally served published page, not from an ad hoc module preview
+- New repo-owned review environment launcher is now the canonical local review path:
+  - `pnpm review:env:start`
+  - `pnpm review:env:status`
+  - `pnpm review:env:stop`
+- Main files:
+  - [review-env.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/scripts/review-env.mjs)
+  - [review-frontend-static-server.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/scripts/review-frontend-static-server.mjs)
+  - [command-registry.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/command-registry.md)
+- Canonical behavior:
+  - clear listeners on `3000` / `3001`
+  - reuse `frontend/dist` if a fresh frontend build is blocked on this machine
+  - start backend on `127.0.0.1:3001`
+  - start static frontend on `localhost:3000`
+  - verify both health endpoints before returning
+  - run `start` and `status` sequentially, not in parallel
+- Current verified status:
+  - `pnpm review:env:start` returns quickly and writes pid state
+  - `pnpm review:env:status` reports:
+    - `frontendHealthy: true`
+    - `backendHealthy: true`
+- Delivered M07 slice:
+  - deployed HTML injects:
+    - `window.__CRUD_CLIENT_RUNTIME_CONFIG__`
+    - `window.__CRUD_PAGE_APPLICATION_TESTER__`
+    - `assets/client-runtime.global.js`
+    - `assets/page-application-tester-support.global.js`
+    - `assets/page-application-tester.global.js`
+  - the application tester is a separate script from the runtime engine
+  - it activates only when `?appTester=1` or `?runtimeProbe=1` is present
+  - it exercises runtime APIs for:
+    - referenced image render
+    - published snapshot read through `dataLayer.query(...)`
+    - Firestore-backed published document read through the public app API and `dataLayer.query(...)`
+    - IndexedDB install/query through `actionLayer` + `dataLayer`
+    - public comment creation through `actionLayer.dispatch(...)`
+- Main files:
+  - [page-public-application-routes-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-public-application-routes-runtime.mjs)
+  - [page-firestore-publication-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-firestore-publication-runtime.mjs)
+  - [page-application-tester-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-application-tester-runtime.mjs)
+  - [page-runtime-probe-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-runtime-probe-runtime.mjs)
+  - [page-application-tester.global.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/browser/page-application-tester.global.js)
+  - [page-application-tester-support.global.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/browser/page-application-tester-support.global.js)
+  - [page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
+  - [page-delivery-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-delivery-runtime.mjs)
+  - [BlogDistributionRuntimeContractPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionRuntimeContractPanel.jsx)
+- Focused verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/blog-distribution.integration.test.jsx`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter client-runtime test`
+  - `pnpm quality:protocol`
+- Browser proof:
+  - `http://localhost:3000/published/post/remote-flow-review-post-01/index.html?appTester=1`
+  - verified:
+    - image render
+    - snapshot read
+    - Firestore read through `http://127.0.0.1:3001`
+    - IndexedDB install/query
+    - comment submit creating `blogcomm-003`
+- Important boundary:
+  - live remote storage pages cannot use the Firestore/comment tester flows by themselves unless the operator also has a public HTTPS host for the app API
+  - this slice does not deploy that backend host
+- Full-gate note:
+  - focused proofs are green
+  - `pnpm quality:gate:full` still trips over the known dynamic server conformance baseline outside this slice
+
 ## 2026-03-17 MG-001 Layout Builder Complete
 - MG-001 is now delivered through all passes.
 - Commit in progress for this slice should describe:
@@ -526,3 +599,28 @@
   - `25344`
   - `3124`
   - `PLACEHOLDER`
+
+## 2026-03-17 Deployed Page Runtime Probe Working
+- Temporary deployed-page probe is now live on the published post HTML.
+- What works on the live remote page:
+  - referenced image renders
+  - `Load Remote Published Document` fetches a same-origin remote JSON sidecar and displays it
+  - `Install Remote Document To IndexedDB` installs that remote payload through `client-runtime` and reads it back from IndexedDB
+- Important architectural correction:
+  - the first attempt tried to call `127.0.0.1:3001` from an HTTPS storage page
+  - that is the wrong boundary for deployed pages
+  - the working design uses a same-origin deployed JSON sidecar next to each published HTML artifact
+- Main files:
+  - [page-runtime-probe-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-runtime-probe-runtime.mjs)
+  - [page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
+  - [blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
+- Live proof URL:
+  - `https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/remote-flow-review-post-01/index.html?runtimeProbe=1&cb=202603171858`
+- Verification:
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - all passed
+- Current state:
+  - backend was restarted and used to rerun posts bundle `pagedepl-001`
+  - frontend dev server still hits the known local `vite/esbuild spawn EPERM` issue in this sandboxed environment

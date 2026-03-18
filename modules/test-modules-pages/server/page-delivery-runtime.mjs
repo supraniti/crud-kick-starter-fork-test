@@ -22,6 +22,7 @@ import {
 import { parseStoredLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
 import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference-runtime.mjs";
 import { attachClientRuntimeContract } from "./page-client-runtime-runtime.mjs";
+import { attachApplicationTesterContract } from "./page-application-tester-runtime.mjs";
 import { attachResolvedMediaReferences } from "./page-media-reference-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
@@ -461,7 +462,9 @@ function applyCanonicalUrlToPayload(payload, canonicalUrl) {
 }
 async function finalizeDeliveryPayload(payload, collectionHandlerRegistry, browserDeliveryState = null) {
   const mediaAwarePayload = await attachResolvedMediaReferences(payload, collectionHandlerRegistry, browserDeliveryState);
-  return attachClientRuntimeContract(mediaAwarePayload);
+  return attachApplicationTesterContract(attachClientRuntimeContract(mediaAwarePayload), {
+    collectionHandlerRegistry
+  });
 }
 
 function buildPageResolutionContext(primarySource, resolvedPrimary) {
@@ -560,14 +563,7 @@ export async function resolvePageDeliveryPayload({
     },
     resolvedAt: toTimestamp()
   };
-  return finalizePagePayloadWithSettings({
-    payload,
-    collectionHandlerRegistry,
-    resolveSettingsRepository,
-    settingsDefinition,
-    page,
-    resolvedPath
-  });
+  return finalizePagePayloadWithSettings({ payload, collectionHandlerRegistry, resolveSettingsRepository, settingsDefinition, page, resolvedPath });
 }
 
 export async function resolvePageByPath({
@@ -593,11 +589,7 @@ export async function resolvePageByPath({
     });
   }
 
-  const perRecordMatch = await findPublishedPerRecordPageByPath(
-    collectionHandlerRegistry,
-    pagesHandler,
-    normalizedPath
-  );
+  const perRecordMatch = await findPublishedPerRecordPageByPath(collectionHandlerRegistry, pagesHandler, normalizedPath);
   if (!perRecordMatch) {
     return null;
   }

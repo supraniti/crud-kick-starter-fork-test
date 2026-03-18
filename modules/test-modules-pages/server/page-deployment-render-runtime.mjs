@@ -1,32 +1,13 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import {
-  DEFAULT_APP_MOUNT_TAG_NAME,
-  DEPLOYMENT_ARTIFACTS_COLLECTION_ID,
-  LAYOUTS_COLLECTION_ID,
-  hasUnsafePathSegments,
-  isPagePublished,
-  isPerRecordDeploymentMode,
-  normalizePagePath,
-  normalizeScriptUrlList,
-  normalizeTrimmedText,
-  toTimestamp
-} from "./distribution-shared-runtime.mjs";
-import {
-  buildResolvedPagePath,
-  listEligiblePrimarySourceRecords,
-  resolvePageDeliveryPayload
-} from "./page-delivery-runtime.mjs";
+import { DEFAULT_APP_MOUNT_TAG_NAME, DEPLOYMENT_ARTIFACTS_COLLECTION_ID, LAYOUTS_COLLECTION_ID, hasUnsafePathSegments, isPagePublished, isPerRecordDeploymentMode, normalizePagePath, normalizeScriptUrlList, normalizeTrimmedText, toTimestamp } from "./distribution-shared-runtime.mjs";
+import { buildResolvedPagePath, listEligiblePrimarySourceRecords, resolvePageDeliveryPayload } from "./page-delivery-runtime.mjs";
 import { resolvePageDeploymentRootDir } from "./page-deployment-root.mjs";
-import {
-  resolveBrowserDeliveryPayloadState,
-} from "./browser-delivery-reference-runtime.mjs";
-import {
-  attachClientRuntimeContract,
-  resolvePageRuntimeScriptUrls,
-  syncClientRuntimeAsset
-} from "./page-client-runtime-runtime.mjs";
+import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference-runtime.mjs";
+import { attachClientRuntimeContract, resolvePageRuntimeScriptUrls, syncClientRuntimeAsset } from "./page-client-runtime-runtime.mjs";
+import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.mjs";
+import { attachApplicationTesterContract, resolvePageApplicationTesterScriptUrls, syncPageApplicationTesterAsset } from "./page-application-tester-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function escapeHtmlText(value) {
@@ -50,10 +31,9 @@ function serializeJsonForScript(value) {
 }
 
 function buildMetaTag(attributeName, attributeValue, content) {
-  if (!content) {
-    return null;
-  }
-  return `<meta ${attributeName}="${escapeHtmlAttribute(attributeValue)}" content="${escapeHtmlAttribute(content)}">`;
+  return content
+    ? `<meta ${attributeName}="${escapeHtmlAttribute(attributeValue)}" content="${escapeHtmlAttribute(content)}">`
+    : null;
 }
 
 function resolvePageTitle(payload) {
@@ -87,13 +67,12 @@ function resolveHeadContent(payload) {
 }
 
 function buildCanonicalHeadTags(canonicalUrl) {
-  if (!canonicalUrl) {
-    return [];
-  }
-  return [
-    `<link rel="canonical" href="${escapeHtmlAttribute(canonicalUrl)}">`,
-    buildMetaTag("property", "og:url", canonicalUrl)
-  ];
+  return canonicalUrl
+    ? [
+        `<link rel="canonical" href="${escapeHtmlAttribute(canonicalUrl)}">`,
+        buildMetaTag("property", "og:url", canonicalUrl)
+      ]
+    : [];
 }
 
 function buildOpenGraphHeadTags({
@@ -133,18 +112,25 @@ function buildRuntimeScriptsMarkup(scriptUrls = []) {
     .join("\n    ");
 }
 
-function buildClientRuntimeConfigMarkup(clientRuntimeConfig) {
-  if (!clientRuntimeConfig || typeof clientRuntimeConfig !== "object") {
+function buildWindowConfigMarkup(globalKey, configValue) {
+  if (!globalKey || !configValue || typeof configValue !== "object") {
     return "";
   }
-  return `window.__CRUD_CLIENT_RUNTIME_CONFIG__ = ${serializeJsonForScript(clientRuntimeConfig)};`;
+  return `window.${globalKey} = ${serializeJsonForScript(configValue)};`;
 }
 
 function renderStaticPageDocument({ payload, mountTagName, runtimeScriptUrls }) {
   const payloadScriptId = "page-data";
   const headMarkup = buildHeadMarkup(payload);
   const scriptMarkup = buildRuntimeScriptsMarkup(runtimeScriptUrls);
-  const clientRuntimeConfigMarkup = buildClientRuntimeConfigMarkup(payload?.runtime?.clientRuntime);
+  const clientRuntimeConfigMarkup = buildWindowConfigMarkup(
+    "__CRUD_CLIENT_RUNTIME_CONFIG__",
+    payload?.runtime?.clientRuntime
+  );
+  const applicationTesterConfigMarkup = buildWindowConfigMarkup(
+    "__CRUD_PAGE_APPLICATION_TESTER__",
+    payload?.runtime?.applicationTester
+  );
   const mountMarkup = [
     `<${mountTagName}`,
     ` id="page-app"`,
@@ -170,6 +156,7 @@ function renderStaticPageDocument({ payload, mountTagName, runtimeScriptUrls }) 
     "    </main>",
     `    <script type="application/json" id="${payloadScriptId}">${serializeJsonForScript(payload)}</script>`,
     ...(clientRuntimeConfigMarkup ? [`    <script>${clientRuntimeConfigMarkup}</script>`] : []),
+    ...(applicationTesterConfigMarkup ? [`    <script>${applicationTesterConfigMarkup}</script>`] : []),
     ...(scriptMarkup ? [`    ${scriptMarkup}`] : []),
     "  </body>",
     "</html>",
@@ -195,6 +182,43 @@ function resolveArtifactRelativePath(pagePath) {
 
 function resolveArtifactAbsolutePath(rootDir, artifactRelativePath) {
   return path.resolve(rootDir, ...artifactRelativePath.split("/"));
+}
+
+function resolveRuntimeProbeDocumentRelativePath(artifactRelativePath) {
+  const normalizedPath = normalizeTrimmedText(artifactRelativePath);
+  if (!normalizedPath) {
+    throw new Error("Cannot resolve runtime probe document path without an artifact path");
+  }
+  const segments = normalizedPath.split("/").filter(Boolean);
+  if (segments.length === 0) {
+    return RUNTIME_PROBE_DOCUMENT_FILE_NAME;
+  }
+  segments.pop();
+  return [...segments, RUNTIME_PROBE_DOCUMENT_FILE_NAME].join("/");
+}
+
+function readRuntimeProbePrimaryRecord(payload = {}) {
+  const record = payload?.data?.primary?.record;
+  return record && typeof record === "object" ? record : null;
+}
+
+function readRuntimeProbeDocumentId(record = null) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+  return normalizeTrimmedText(record.slug) ?? normalizeTrimmedText(record.id) ?? null;
+}
+
+function buildRuntimeProbeDocumentPayload(payload = {}) {
+  const primaryRecord = readRuntimeProbePrimaryRecord(payload);
+  return {
+    ok: true,
+    pagePath: normalizeTrimmedText(payload?.page?.path) ?? "/",
+    primarySourceType: normalizeTrimmedText(payload?.page?.primarySourceType) ?? null,
+    documentId: readRuntimeProbeDocumentId(primaryRecord),
+    document: primaryRecord,
+    publishedAt: toTimestamp()
+  };
 }
 
 async function removeEmptyParentDirectories(rootDir, artifactAbsolutePath) {
@@ -224,15 +248,22 @@ async function removeArtifactIfPresent(rootDir, artifactRelativePath) {
     return;
   }
 
-  const artifactAbsolutePath = resolveArtifactAbsolutePath(rootDir, normalizedRelativePath);
-  try {
-    await fs.unlink(artifactAbsolutePath);
-  } catch (error) {
-    if (error?.code !== "ENOENT") {
-      throw error;
+  const removablePaths = [
+    normalizedRelativePath,
+    resolveRuntimeProbeDocumentRelativePath(normalizedRelativePath)
+  ];
+
+  for (const relativePath of removablePaths) {
+    const artifactAbsolutePath = resolveArtifactAbsolutePath(rootDir, relativePath);
+    try {
+      await fs.unlink(artifactAbsolutePath);
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw error;
+      }
     }
+    await removeEmptyParentDirectories(rootDir, artifactAbsolutePath);
   }
-  await removeEmptyParentDirectories(rootDir, artifactAbsolutePath);
 }
 
 async function artifactExists(rootDir, artifactRelativePath) {
@@ -559,29 +590,45 @@ async function writeArtifactDocument({
     settingsDefinition
   });
   const payload = await applyFallbackBrowserDeliveryPayload(
-    attachClientRuntimeContract(deliveryPayload),
+    await attachApplicationTesterContract(attachClientRuntimeContract(deliveryPayload), {
+      collectionHandlerRegistry,
+      resolveSettingsRepository
+    }),
     settings,
     page,
     artifactRelativePath
   );
   await syncClientRuntimeAsset(resolvePageDeploymentRootDir());
+  await syncPageApplicationTesterAsset(resolvePageDeploymentRootDir());
   const htmlDocument = renderStaticPageDocument({
     payload,
     mountTagName: settings.appMountTagName,
-    runtimeScriptUrls: resolvePageRuntimeScriptUrls(payload, page.runtimeScriptUrls)
+    runtimeScriptUrls: resolvePageApplicationTesterScriptUrls(
+      payload,
+      resolvePageRuntimeScriptUrls(payload, page.runtimeScriptUrls)
+    )
   });
   const artifactAbsolutePath = resolveArtifactAbsolutePath(
     resolvePageDeploymentRootDir(),
     artifactRelativePath
   );
+  const probeDocumentRelativePath = resolveRuntimeProbeDocumentRelativePath(artifactRelativePath);
+  const probeDocumentAbsolutePath = resolveArtifactAbsolutePath(
+    resolvePageDeploymentRootDir(),
+    probeDocumentRelativePath
+  );
   await fs.mkdir(path.dirname(artifactAbsolutePath), { recursive: true });
   await fs.writeFile(artifactAbsolutePath, htmlDocument, "utf8");
+  await fs.writeFile(
+    probeDocumentAbsolutePath,
+    JSON.stringify(buildRuntimeProbeDocumentPayload(payload), null, 2),
+    "utf8"
+  );
   return {
     payload,
     htmlDocument
   };
 }
-
 
 export {
   artifactExists,

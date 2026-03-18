@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  createCacheStorageAdapter,
   createClientRuntime,
   createIndexedDbAdapter,
   createMemoryDatasetStorageDriver,
@@ -419,6 +420,36 @@ await runScenario("local-first queries answer from installed dataset state", asy
   assert.deepEqual(queryResult.data.items, [{ id: "p1", title: "Atlas" }]);
 });
 
+await runScenario("cache storage adapter uses valid request URLs for browser caches", async () => {
+  const storedEntries = new Map();
+  const cache = {
+    async match(request) {
+      return storedEntries.get(request.url) ?? null;
+    },
+    async put(request, response) {
+      storedEntries.set(request.url, response);
+    },
+    async delete(request) {
+      storedEntries.delete(request.url);
+    }
+  };
+  const adapter = createCacheStorageAdapter({
+    globalObject: {
+      caches: {
+        open: async () => cache
+      },
+      Request
+    }
+  });
+
+  await adapter.write("products.remoteSearch:atlas", { items: [{ id: "p1" }], total: 1 });
+  const cached = await adapter.read("products.remoteSearch:atlas");
+  await adapter.remove("products.remoteSearch:atlas");
+
+  assert.deepEqual(cached, { items: [{ id: "p1" }], total: 1 });
+  assert.equal(storedEntries.size, 0);
+});
+
 await runScenario("cache-first queries reuse memory after the first remote read", async () => {
   const { runtime } = createRuntimeHarness();
   const firstResult = await runtime.query({ resource: "products", query: "remoteSearch", params: { term: "atlas" } });
@@ -581,6 +612,68 @@ await runScenario("collection normalization also works when the remote body is a
   assert.equal(result.data.total, 2);
   assert.equal(result.data.items[1].id, "post-002");
   assert.equal(requests.at(-1).url, "https://example.test/api/page/slot");
+});
+
+await runScenario("firestore-shaped remote queries normalize into plain document data", async () => {
+  const runtime = createClientRuntime({
+    remote: {
+      baseUrl: "https://example.test"
+    },
+    queries: [
+      {
+        resource: "publishedDocument",
+        query: "firestore",
+        policy: "remote-only",
+        remote: {
+          method: "GET",
+          path: "https://firestore.googleapis.com/v1/projects/demo/databases/(default)/documents/publishedPosts/demo-post"
+        },
+        remoteResult: {
+          type: "firestore-document"
+        }
+      }
+    ],
+    adapters: {
+      indexedDb: createIndexedDbAdapter({ storage: createMemoryDatasetStorageDriver() }),
+      remote: createRemoteTransportAdapter({
+        fetchJson: async () => ({
+          ok: true,
+          status: 200,
+          body: {
+            name: "projects/demo/databases/(default)/documents/publishedPosts/demo-post",
+            createTime: "2026-03-17T18:00:00.000Z",
+            updateTime: "2026-03-17T18:05:00.000Z",
+            fields: {
+              title: { stringValue: "Demo Post" },
+              published: { booleanValue: true },
+              categoryIds: {
+                arrayValue: {
+                  values: [{ stringValue: "category-001" }, { stringValue: "category-002" }]
+                }
+              }
+            }
+          }
+        })
+      })
+    },
+    capabilities: {
+      getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
+    }
+  });
+
+  const result = await runtime.query({
+    resource: "publishedDocument",
+    query: "firestore"
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.id, "demo-post");
+  assert.equal(result.data.title, "Demo Post");
+  assert.deepEqual(result.data.categoryIds, ["category-001", "category-002"]);
+  assert.equal(
+    result.data.__firestoreDocumentName,
+    "projects/demo/databases/(default)/documents/publishedPosts/demo-post"
+  );
 });
 
 await runScenario("remote-with-local-update marks dependent datasets dirty", async () => {
