@@ -129,6 +129,9 @@ export function LayoutBuilderCanvas({
       variant="outlined"
       sx={{
         height: "100%",
+        minWidth: 0,
+        width: "100%",
+        maxWidth: "100%",
         overflow: "hidden",
         backgroundColor: "#d6dde6",
         borderRadius: 4,

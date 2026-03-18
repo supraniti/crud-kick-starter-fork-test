@@ -47,12 +47,13 @@ function ViewportToolbar({ viewport, zoomLevel, onWidthStep, onHeightStep, onSel
   const activePreset = detectViewportPreset(viewport);
 
   return (
-    <Stack spacing={1.25}>
+    <Stack spacing={1.25} sx={{ minWidth: 0 }}>
       <Stack
         direction={{ xs: "column", lg: "row" }}
         spacing={1.25}
         alignItems={{ xs: "flex-start", lg: "center" }}
         justifyContent="space-between"
+        sx={{ minWidth: 0 }}
       >
         <Stack spacing={0.35}>
           <Typography variant="h6">Canvas Workspace</Typography>
@@ -60,7 +61,7 @@ function ViewportToolbar({ viewport, zoomLevel, onWidthStep, onHeightStep, onSel
             {formatViewportLabel(viewport)}
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" sx={{ minWidth: 0 }}>
           <ViewportStepper
             label="Width"
             value={viewport.width}
@@ -219,10 +220,11 @@ function PageChrome({ viewport, zoomLevel, children }) {
   const scaledHeight = Math.round(viewport.height * scaleRatio);
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+    <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: "100%", maxWidth: "100%", overflow: "auto" }}>
       <Box
         sx={{
-          minWidth: scaledWidth + RULER_SIZE + CANVAS_PADDING * 2,
+          width: "fit-content",
+          minWidth: "100%",
           minHeight: scaledHeight + RULER_SIZE + CANVAS_PADDING * 2,
           display: "flex",
           justifyContent: "center",
@@ -301,7 +303,7 @@ export function LayoutBuilderCanvasShell({
   children
 }) {
   return (
-    <Stack spacing={1.5} sx={{ minHeight: 0, height: "100%" }}>
+    <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0, width: "100%", maxWidth: "100%", height: "100%", overflow: "hidden" }}>
       <ViewportToolbar
         viewport={viewport}
         zoomLevel={zoomLevel}

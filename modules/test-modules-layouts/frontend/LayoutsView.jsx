@@ -231,10 +231,14 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
     <Box
       sx={{
         minHeight: "100%",
+        minWidth: 0,
+        width: "100%",
+        maxWidth: "100%",
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#dbe3eb"
+        backgroundColor: "#dbe3eb",
+        overflow: "hidden"
       }}
     >
       <BuilderHeader
@@ -243,7 +247,18 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
         activeSupportTab={activeSupportTab}
         onToggleSupportTab={(nextTab) => setActiveSupportTab((current) => current === nextTab ? null : nextTab)}
       />
-      <Box sx={{ flex: 1, minHeight: 0, position: "relative", p: 2 }}>
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          width: "100%",
+          maxWidth: "100%",
+          position: "relative",
+          p: 2,
+          overflow: "hidden"
+        }}
+      >
         <LayoutBuilderCanvas
           document={workspace.draft.layoutDocument}
           selectedNodeId={workspace.selectedNodeId}

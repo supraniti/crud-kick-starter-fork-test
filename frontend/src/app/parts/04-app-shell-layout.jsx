@@ -59,7 +59,7 @@ function AppShellLayout({
         />
       ) : null}
 
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Paper
           square
           sx={{
@@ -131,7 +131,10 @@ function AppShellLayout({
           sx={{
             p: immersiveShell ? 0 : 2,
             overflow: immersiveShell ? "hidden" : "auto",
-            flex: 1
+            flex: 1,
+            minWidth: 0,
+            width: "100%",
+            maxWidth: "100%"
           }}
         >
           {moduleState.loading ? (
