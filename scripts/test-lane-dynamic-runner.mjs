@@ -26,12 +26,16 @@ function parseArgs(argv) {
   return args;
 }
 
-function runCommand(command, args) {
+function runCommand(command, args, env = null) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
     const child = spawn(command, args, {
       stdio: "inherit",
-      shell: true
+      shell: true,
+      env: {
+        ...process.env,
+        ...(env && typeof env === "object" ? env : {})
+      }
     });
     child.on("close", (code) => {
       resolve({
@@ -41,6 +45,19 @@ function runCommand(command, args) {
       });
     });
   });
+}
+
+function buildServerVitestArgs(runFileArgs) {
+  return [
+    "--filter",
+    "server",
+    "exec",
+    "vitest",
+    "run",
+    "--testTimeout=60000",
+    "--hookTimeout=60000",
+    ...runFileArgs
+  ];
 }
 
 function normalizeTargetAndLaneGroup(args) {
@@ -129,9 +146,39 @@ function toRunFileArgs(args, selectedManifestFiles) {
 }
 
 function buildRunArgs(args, runFileArgs) {
-  return args.target === "server"
-    ? ["--filter", "server", "exec", "vitest", "run", ...runFileArgs]
-    : ["--filter", "frontend", "exec", "vitest", "run", ...runFileArgs];
+  if (args.target === "server") {
+    return buildServerVitestArgs(runFileArgs);
+  }
+  return ["--filter", "frontend", "exec", "vitest", "run", ...runFileArgs];
+}
+
+async function runServerFilesIndividually(runFileArgs) {
+  const fileResults = [];
+  const serverTestEnv = {
+    NODE_ENV: "test"
+  };
+
+  for (const runFileArg of runFileArgs) {
+    const result = await runCommand("pnpm", buildServerVitestArgs([runFileArg]), serverTestEnv);
+    fileResults.push({
+      file: runFileArg,
+      ...result
+    });
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        exitCode: result.exitCode,
+        fileResults
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    exitCode: 0,
+    fileResults
+  };
 }
 
 function printJsonAndExit(payload, exitCode) {
@@ -180,6 +227,30 @@ async function main() {
       2
     )
   );
+
+  if (args.target === "server") {
+    const result = await runServerFilesIndividually(runFileArgs);
+    const durationMs = result.fileResults.reduce(
+      (total, fileResult) => total + (fileResult.durationMs ?? 0),
+      0
+    );
+    const resultPayload = {
+      ok: result.ok,
+      mode: "dynamic-lane-runner",
+      target: args.target,
+      laneGroup: args.laneGroup,
+      exitCode: result.exitCode,
+      durationMs,
+      fileResults: result.fileResults
+    };
+    if (!result.ok) {
+      printJsonAndExit(resultPayload, result.exitCode);
+      return;
+    }
+
+    console.log(JSON.stringify(resultPayload, null, 2));
+    return;
+  }
 
   const result = await runCommand("pnpm", buildRunArgs(args, runFileArgs));
   const resultPayload = {

@@ -2050,3 +2050,17 @@
     - temporary application layer
     - public API boundary
   - repo-owned review launchers need hard timeouts and a single canonical sequence or they will regress into process-control guesswork
+
+### 2026-03-18 - Dynamic Server Conformance Needs Per-File Isolation
+- Tasks:
+  - fixed the dynamic server conformance lane that had been called out as still tripping the full gate
+  - updated the lane runner so server conformance files execute one-at-a-time in separate child processes instead of one shared Vitest process
+  - reran the full release gate outside the sandbox to verify the real outcome
+- Easy:
+  - once the runner isolated each server file, the gate env already supplied the correct translation mode (`dual-compat`)
+- Hard:
+  - sandboxed Vitest reproduction was noisy because Windows `spawn EPERM` obscured the actual gate behavior
+  - the earlier failure signature looked like a route/state bug, but the decisive fix was lane isolation, not route surgery
+- Improve:
+  - keep dynamic server lanes file-isolated when tests use global request clients or long-lived runtime state
+  - verify the real gate profile outside the sandbox before diagnosing a lane as still broken

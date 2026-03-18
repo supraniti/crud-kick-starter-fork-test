@@ -624,3 +624,16 @@
 - Current state:
   - backend was restarted and used to rerun posts bundle `pagedepl-001`
   - frontend dev server still hits the known local `vite/esbuild spawn EPERM` issue in this sandboxed environment
+
+## 2026-03-18 Dynamic Server Conformance Gate Fixed
+- `pnpm quality:gate:full` is green again under the real release profile.
+- Root cause:
+  - server dynamic conformance had been batched into a single Vitest process
+  - the reference-slice suites do not behave deterministically when that lane shares one long-running process
+- Fix:
+  - `scripts/test-lane-dynamic-runner.mjs` now runs server conformance files one-by-one in separate child processes
+  - server child runs force `NODE_ENV=test` while preserving gate-provided env such as `REFERENCE_MODULE_ID_TRANSLATION_MODE=dual-compat`
+- Verification:
+  - `pnpm test:server:conformance:dynamic`
+  - `pnpm quality:gate:full`
+  - both passed outside the sandboxed Vitest environment
