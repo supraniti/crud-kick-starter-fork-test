@@ -2073,7 +2073,8 @@ test("remote ops compares, executes, and restores a live deployment storage targ
             name: item.name,
             size: String(item.content.length),
             md5Hash: item.md5Hash,
-            contentType: item.contentType
+            contentType: item.contentType,
+            cacheControl: item.cacheControl ?? null
           }))
         });
       }
@@ -2096,6 +2097,33 @@ test("remote ops compares, executes, and restores a live deployment storage targ
         });
         return createGoogleJsonResponse(200, {
           name: objectName
+        });
+      }
+      if (
+        normalized.startsWith("https://storage.googleapis.com/storage/v1/b/deployment-bucket/o/") &&
+        !normalized.endsWith("?alt=media") &&
+        method === "PATCH"
+      ) {
+        const requestUrl = new URL(normalized);
+        const objectName = decodeURIComponent(
+          requestUrl.pathname.replace("/storage/v1/b/deployment-bucket/o/", "")
+        );
+        const existing = remoteObjects.get(objectName);
+        const metadata = JSON.parse(String(options.body ?? "{}"));
+        remoteObjects.set(objectName, {
+          ...(existing ?? {
+            name: objectName,
+            content: Buffer.from(""),
+            md5Hash: null,
+            contentType: "application/octet-stream"
+          }),
+          ...(typeof metadata.contentType === "string" ? { contentType: metadata.contentType } : {}),
+          ...(typeof metadata.cacheControl === "string" ? { cacheControl: metadata.cacheControl } : {})
+        });
+        return createGoogleJsonResponse(200, {
+          name: objectName,
+          contentType: remoteObjects.get(objectName)?.contentType ?? null,
+          cacheControl: remoteObjects.get(objectName)?.cacheControl ?? null
         });
       }
       if (

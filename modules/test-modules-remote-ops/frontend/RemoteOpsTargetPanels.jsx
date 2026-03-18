@@ -192,6 +192,13 @@ export function TargetEditor({ workspace }) {
                 </TextField>
                 <TextField label="Hostname" value={draft.config.hostname ?? ""} onChange={(event) => workspace.changeTargetConfigField("hostname", event.target.value)} fullWidth />
               </Stack>
+              <TextField
+                label="Application API Origin"
+                value={draft.config.applicationApiOrigin ?? ""}
+                onChange={(event) => workspace.changeTargetConfigField("applicationApiOrigin", event.target.value)}
+                helperText="Optional public API host used by deployed runtime applications for Firestore-backed interactions."
+                fullWidth
+              />
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField select label="Deployment Target" value={draft.config.deploymentTargetProfileId ?? ""} onChange={(event) => workspace.changeTargetConfigField("deploymentTargetProfileId", event.target.value)} fullWidth>
                   <MenuItem value="">None</MenuItem>
@@ -232,6 +239,11 @@ export function TargetEditor({ workspace }) {
                     {deliveryPreview.publicOrigin ? (
                       <Typography variant="body2" color="text.secondary">
                         Public origin: {deliveryPreview.publicOrigin}
+                      </Typography>
+                    ) : null}
+                    {deliveryPreview.applicationApiOrigin ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Application API origin: {deliveryPreview.applicationApiOrigin}
                       </Typography>
                     ) : null}
                     {deliveryPreview.publicUrl ? (

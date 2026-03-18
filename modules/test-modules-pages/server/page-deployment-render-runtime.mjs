@@ -589,14 +589,18 @@ async function writeArtifactDocument({
     resolveSettingsRepository,
     settingsDefinition
   });
-  const payload = await applyFallbackBrowserDeliveryPayload(
-    await attachApplicationTesterContract(attachClientRuntimeContract(deliveryPayload), {
-      collectionHandlerRegistry,
-      resolveSettingsRepository
-    }),
+  const browserAwarePayload = await applyFallbackBrowserDeliveryPayload(
+    deliveryPayload,
     settings,
     page,
     artifactRelativePath
+  );
+  const payload = await attachApplicationTesterContract(
+    attachClientRuntimeContract(browserAwarePayload),
+    {
+      collectionHandlerRegistry,
+      resolveSettingsRepository
+    }
   );
   await syncClientRuntimeAsset(resolvePageDeploymentRootDir());
   await syncPageApplicationTesterAsset(resolvePageDeploymentRootDir());

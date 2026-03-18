@@ -21,6 +21,11 @@ function normalizeText(value) {
   return normalized.length > 0 ? normalized : null;
 }
 
+function normalizeOrigin(value) {
+  const normalized = normalizeText(value);
+  return normalized ? normalized.replace(/\/+$/g, "") : null;
+}
+
 function normalizeEnum(value, allowedValues, fallback) {
   const normalized = normalizeText(value)?.toLowerCase() ?? "";
   return allowedValues.has(normalized) ? normalized : fallback;
@@ -62,6 +67,7 @@ export function normalizeBrowserDeliveryConfig(value = {}) {
     stackMode: normalizeBrowserDeliveryStackMode(config.stackMode),
     dnsMode: normalizeBrowserDeliveryDnsMode(config.dnsMode),
     hostname: normalizeText(config.hostname),
+    applicationApiOrigin: normalizeOrigin(config.applicationApiOrigin),
     dnsZone: normalizeText(config.dnsZone),
     certificateName: normalizeText(config.certificateName),
     urlMapHint: normalizeText(config.urlMapHint),
@@ -147,6 +153,7 @@ function createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget) {
     stackMode: browserConfig.stackMode,
     dnsMode: browserConfig.dnsMode,
     hostname: browserConfig.hostname,
+    applicationApiOrigin: browserConfig.applicationApiOrigin,
     publicOrigin: null,
     publicUrl: null,
     publicMediaBaseUrl: null,

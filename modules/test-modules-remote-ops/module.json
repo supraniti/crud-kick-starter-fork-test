@@ -392,6 +392,14 @@
                   "maxLength": 160
                 },
                 {
+                  "id": "applicationApiOrigin",
+                  "label": "Application API Origin",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 200
+                },
+                {
                   "id": "dnsZone",
                   "label": "DNS Zone",
                   "type": "text",

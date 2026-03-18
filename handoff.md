@@ -637,3 +637,52 @@
   - `pnpm test:server:conformance:dynamic`
   - `pnpm quality:gate:full`
   - both passed outside the sandboxed Vitest environment
+
+## 2026-03-18 Public Page Tester Cache And API Boundary Tightened
+- The deployed page tester no longer relies on stale unversioned runtime assets:
+  - `client-runtime`, `page-application-tester`, and `page-application-tester-support` now emit versioned public asset URLs in deployed HTML
+  - live deployment storage now writes cache metadata:
+    - HTML and JSON sidecars: `no-cache, max-age=0, must-revalidate`
+    - JS/CSS assets: `public, max-age=31536000, immutable`
+- The tester contract no longer depends on the old direct-Firestore flow:
+  - current flow is `public-app-firestore-read`
+  - it requires a reachable application API origin instead of attempting anonymous direct Firestore reads
+- Live state:
+  - local generated deployment HTML is current and versioned
+  - live post/categories bundles were rerun successfully after re-importing and revalidating connection `remoteco-012`
+  - a previously cached `?appTester=1` public URL can still serve stale HTML from older browser/cache layers
+  - the fresh working public tester URL for current review is:
+    - `https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/remote-flow-review-post-01/index.html?appTester=1&cb=20260318-1138&appApiOrigin=http://127.0.0.1:3001`
+- Verification:
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - both passed
+
+## 2026-03-18 Public Page API Service Prepared, Live Deploy Blocked By Cloud Run Role
+- Added a real stateless public page API service under:
+  - `modules/test-modules-pages/public-app-api/`
+- Added deployment automation:
+  - `scripts/deploy-public-page-api.mjs`
+  - `pnpm deploy:public-page-api`
+- Browser-delivery targets can now carry:
+  - `applicationApiOrigin`
+- Deployed page tester contract now supports:
+  - `publicApiMode`
+  - `defaultApiOrigin`
+  - public-service paths (`/published-document`, `/comments`) when a real application API origin is configured
+- Verified locally against the real `merchant-guild` Firestore project:
+  - public document read succeeded through the standalone public page API service
+  - public comment creation succeeded through the standalone public page API service
+- Full repo gates:
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - both passed
+- Remaining live blocker:
+  - current GCP service account `merchant-guild@appspot.gserviceaccount.com` lacks:
+    - `run.services.create`
+  - exact failing probe:
+    - Cloud Run validate-only create returned `403 Permission 'run.services.create' denied`
+- Next live step after the role is granted:
+  - deploy the public page API service to Cloud Run
+  - store that service URL in the browser-delivery target `applicationApiOrigin`
+  - rerun the release bundles so public tester pages stop depending on `appApiOrigin=http://127.0.0.1:3001`

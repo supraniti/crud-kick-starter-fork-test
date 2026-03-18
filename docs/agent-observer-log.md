@@ -2064,3 +2064,44 @@
 - Improve:
   - keep dynamic server lanes file-isolated when tests use global request clients or long-lived runtime state
   - verify the real gate profile outside the sandbox before diagnosing a lane as still broken
+
+### 2026-03-18 - Public Tester Needed Cache Discipline, Not Another Firestore Hack
+- Tasks:
+  - versioned the injected deployed-page runtime/tester asset URLs
+  - added deployment-storage cache-control metadata so public HTML and JSON sidecars revalidate while versioned JS stays cacheable
+  - reran the live category/posts release bundles after restoring and revalidating the saved Merchant Guild service-account key
+  - verified the fresh public tester URL shows the current application-tester UI and no longer exposes the old direct-Firestore flow
+- Easy:
+  - the source/runtime contracts were already correct; the stale behavior came from old cached public HTML and asset URLs
+  - once deployment HTML emitted versioned asset URLs, the current local artifact immediately reflected the right tester contract
+- Hard:
+  - the exact old public tester URL had already been cached externally, so it could continue to serve stale HTML even after the bucket object was updated
+  - restarting the review backend invalidated the copied service-account key reference, which blocked the live bundle release until the key was re-imported
+  - the public Firestore tester still requires a reachable application API origin; direct Firestore from a public storage page remains the wrong boundary
+- Improve:
+  - temporary review/test URLs should be versioned explicitly when the page behavior itself is expected to change rapidly
+  - public object caching and browser object caching are separate problems; fix both the storage metadata and the surfaced review URL contract
+
+### 2026-03-18 - Public Runtime Interaction Needs A Hosted API, Not Localhost
+- Tasks:
+  - added `applicationApiOrigin` to browser-delivery target config and surfaced it in the product/browser-delivery flow
+  - updated the deployed application-tester contract so it can distinguish:
+    - `local-cms-public-routes`
+    - `deployed-public-service`
+  - added a standalone stateless public page API service under `modules/test-modules-pages/public-app-api/`
+  - added `scripts/deploy-public-page-api.mjs` to build/push/deploy that service
+  - verified the standalone service locally against the real `merchant-guild` project for:
+    - Firestore published document reads
+    - public comment creation
+- Easy:
+  - the public page contract already carried enough information to make the hosted service stateless:
+    - `projectId`
+    - `collectionPath`
+    - `documentId`
+  - once the tester could read a default API origin from the delivery contract, the page no longer needed localhost query parameters conceptually
+- Hard:
+  - the current GCP service account still lacks `run.services.create`, so the hosted public API cannot be deployed yet
+  - the original local-server route could not simply be "hosted" because it depended on local CMS state and local collection handlers
+- Improve:
+  - for public deployed application behavior, never treat `127.0.0.1` as anything more than a development harness
+  - keep public-page APIs stateless and deployment-contract-driven so they can actually live outside the local CMS process

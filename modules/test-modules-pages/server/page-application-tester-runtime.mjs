@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.mjs";
 import { resolvePublishedFirestoreDescriptor } from "./page-firestore-publication-runtime.mjs";
+import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
 
 const DEFAULT_APPLICATION_TESTER_ASSET_PATH = "assets/page-application-tester.global.js";
 const DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH = "assets/page-application-tester-support.global.js";
@@ -16,10 +17,13 @@ const DEFAULT_SYNC_ACTION = "pageApplicationTester.syncPublishedDocument";
 const DEFAULT_COMMENT_SUBMIT_ACTION = "pageApplicationTester.submitComment";
 const DEFAULT_QUERY_PARAMS = ["appTester", "runtimeProbe"];
 const DEFAULT_API_ORIGIN_QUERY_PARAMS = ["appApiOrigin", "apiOrigin"];
+const DEFAULT_REVIEW_APPLICATION_API_ORIGINS = ["http://127.0.0.1:3001", "http://localhost:3001"];
 const DEFAULT_PUBLIC_PUBLISHED_DOCUMENT_API_PATH =
   "/api/reference/modules/test-modules-pages/public/published-document";
 const DEFAULT_PUBLIC_COMMENTS_API_PATH =
   "/api/reference/modules/test-modules-pages/public/comments";
+const DEFAULT_DEPLOYED_PUBLIC_PUBLISHED_DOCUMENT_API_PATH = "/published-document";
+const DEFAULT_DEPLOYED_PUBLIC_COMMENTS_API_PATH = "/comments";
 
 function countPathSegments(pagePath) {
   return String(pagePath || "")
@@ -45,6 +49,11 @@ function resolveApplicationTesterSupportSourcePath() {
 
 function normalizeAbsoluteUrl(value) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function normalizeOrigin(value) {
+  const normalized = normalizeAbsoluteUrl(value);
+  return normalized ? normalized.replace(/\/+$/g, "") : null;
 }
 
 function buildDocumentUrl(payload = {}) {
@@ -159,22 +168,96 @@ function supportsCommentSubmission(payload = {}) {
   return primaryRecord.commentPolicy !== "closed";
 }
 
+function resolveApplicationTesterApiOrigin(payload = {}) {
+  return normalizeOrigin(
+    payload?.delivery?.applicationApiOrigin ?? payload?.delivery?.publicApplicationApiOrigin
+  );
+}
+
+function resolveApplicationTesterApiMode(applicationApiOrigin) {
+  return applicationApiOrigin ? "deployed-public-service" : "local-cms-public-routes";
+}
+
+function buildApplicationTesterAssetUrl(payload = {}, publicOrigin = null) {
+  if (!publicOrigin) {
+    return buildRelativeAssetUrl(payload?.page?.path ?? "/", DEFAULT_APPLICATION_TESTER_ASSET_PATH);
+  }
+  return appendRuntimeAssetVersion(
+    `${publicOrigin.replace(/\/+$/, "")}/${DEFAULT_APPLICATION_TESTER_ASSET_PATH}`,
+    payload
+  );
+}
+
+function buildApplicationTesterPreferredOrigins(applicationApiOrigin) {
+  return applicationApiOrigin
+    ? [applicationApiOrigin, ...DEFAULT_REVIEW_APPLICATION_API_ORIGINS]
+    : DEFAULT_REVIEW_APPLICATION_API_ORIGINS;
+}
+
+function buildApplicationTesterActions(allowComments) {
+  return {
+    install: DEFAULT_INSTALL_ACTION,
+    sync: DEFAULT_SYNC_ACTION,
+    submitComment: allowComments ? DEFAULT_COMMENT_SUBMIT_ACTION : null
+  };
+}
+
+function buildApplicationTesterPublicApiPaths(publicApiMode, allowComments) {
+  return {
+    publicPublishedDocumentApiPath:
+      publicApiMode === "deployed-public-service"
+        ? DEFAULT_DEPLOYED_PUBLIC_PUBLISHED_DOCUMENT_API_PATH
+        : DEFAULT_PUBLIC_PUBLISHED_DOCUMENT_API_PATH,
+    publicCommentsApiPath: allowComments
+      ? publicApiMode === "deployed-public-service"
+        ? DEFAULT_DEPLOYED_PUBLIC_COMMENTS_API_PATH
+        : DEFAULT_PUBLIC_COMMENTS_API_PATH
+      : null
+  };
+}
+
+function buildApplicationTesterPrimaryRecord(primaryRecord) {
+  if (!primaryRecord) {
+    return null;
+  }
+  return {
+    id: primaryRecord.id ?? null,
+    title: primaryRecord.title ?? null,
+    slug: primaryRecord.slug ?? null
+  };
+}
+
+function buildApplicationTesterFlows({ firestore, allowComments }) {
+  return [
+    "render-featured-image",
+    "published-document-snapshot-read",
+    ...(firestore ? ["public-app-firestore-read"] : []),
+    "indexeddb-install-and-local-query",
+    ...(allowComments ? ["public-app-comment-submit"] : [])
+  ];
+}
+
 export async function buildApplicationTesterContract(payload = {}, options = {}) {
   const publicOrigin = normalizeAbsoluteUrl(payload?.delivery?.publicOrigin);
+  const applicationApiOrigin = resolveApplicationTesterApiOrigin(payload);
   const pagePath = payload?.page?.path ?? "/";
   const primaryRecord = readPrimaryRecord(payload);
+  const allowComments = supportsCommentSubmission(payload);
   const firestore = await resolvePublishedFirestoreDescriptor({
     collectionHandlerRegistry: options.collectionHandlerRegistry,
     resolveSettingsRepository: options.resolveSettingsRepository,
     payload
   });
+  const publicApiMode = resolveApplicationTesterApiMode(applicationApiOrigin);
+  const publicApiPaths = buildApplicationTesterPublicApiPaths(publicApiMode, allowComments);
   return {
     contractVersion: 1,
-    assetUrl: publicOrigin
-      ? `${publicOrigin.replace(/\/+$/, "")}/${DEFAULT_APPLICATION_TESTER_ASSET_PATH}`
-      : buildRelativeAssetUrl(pagePath, DEFAULT_APPLICATION_TESTER_ASSET_PATH),
+    assetUrl: buildApplicationTesterAssetUrl(payload, publicOrigin),
     enabledQueryParams: DEFAULT_QUERY_PARAMS,
     apiOriginQueryParams: DEFAULT_API_ORIGIN_QUERY_PARAMS,
+    defaultApiOrigin: applicationApiOrigin,
+    preferredApplicationApiOrigins: buildApplicationTesterPreferredOrigins(applicationApiOrigin),
+    publicApiMode,
     dataset: DEFAULT_APPLICATION_TESTER_DATASET,
     remoteQuery: {
       resource: DEFAULT_APPLICATION_TESTER_RESOURCE,
@@ -190,31 +273,17 @@ export async function buildApplicationTesterContract(payload = {}, options = {})
       resource: DEFAULT_APPLICATION_TESTER_RESOURCE,
       query: DEFAULT_LOCAL_QUERY
     },
-    actions: {
-      install: DEFAULT_INSTALL_ACTION,
-      sync: DEFAULT_SYNC_ACTION,
-      submitComment: supportsCommentSubmission(payload) ? DEFAULT_COMMENT_SUBMIT_ACTION : null
-    },
+    actions: buildApplicationTesterActions(allowComments),
     documentUrl: buildDocumentUrl(payload),
     pagePath,
     firestore,
-    publicPublishedDocumentApiPath: DEFAULT_PUBLIC_PUBLISHED_DOCUMENT_API_PATH,
-    publicCommentsApiPath: supportsCommentSubmission(payload) ? DEFAULT_PUBLIC_COMMENTS_API_PATH : null,
-    primaryRecord: primaryRecord
-      ? {
-          id: primaryRecord.id ?? null,
-          title: primaryRecord.title ?? null,
-          slug: primaryRecord.slug ?? null
-        }
-      : null,
+    ...publicApiPaths,
+    primaryRecord: buildApplicationTesterPrimaryRecord(primaryRecord),
     featuredMedia: buildFeaturedMediaDescriptor(payload),
-    flows: [
-      "render-featured-image",
-      "published-document-snapshot-read",
-      ...(firestore ? ["public-app-firestore-read"] : []),
-      "indexeddb-install-and-local-query",
-      ...(supportsCommentSubmission(payload) ? ["public-app-comment-submit"] : [])
-    ],
+    flows: buildApplicationTesterFlows({
+      firestore,
+      allowComments
+    }),
     runtimeAugment: buildRuntimeAugment(payload, firestore)
   };
 }
@@ -236,7 +305,10 @@ export function resolvePageApplicationTesterScriptUrls(payload, runtimeScriptUrl
         .filter(Boolean)
     : [];
   const applicationTesterSupportAssetUrl = payload?.delivery?.publicOrigin
-    ? `${payload.delivery.publicOrigin.replace(/\/+$/, "")}/${DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH}`
+    ? appendRuntimeAssetVersion(
+        `${payload.delivery.publicOrigin.replace(/\/+$/, "")}/${DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH}`,
+        payload
+      )
     : buildRelativeAssetUrl(payload?.page?.path ?? "/", DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH);
   const applicationTesterAssetUrl =
     payload?.runtime?.applicationTester?.assetUrl

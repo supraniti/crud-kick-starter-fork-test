@@ -10,7 +10,13 @@ import {
   createProcedureMessage
 } from "./remote-ops-simulated-target-runtime.mjs";
 import { getServiceAccountAccessToken } from "./remote-ops-service-account-auth-runtime.mjs";
-import { collectGoogleJsonPages, requestGoogleBuffer, requestGoogleEmpty, requestGoogleUpload } from "./remote-ops-live-google-runtime.mjs";
+import {
+  collectGoogleJsonPages,
+  requestGoogleBuffer,
+  requestGoogleEmpty,
+  requestGoogleJson,
+  requestGoogleUpload
+} from "./remote-ops-live-google-runtime.mjs";
 import { normalizeOptionalText, normalizeTargetConfig } from "./remote-ops-shared-runtime.mjs";
 
 function buildStorageTargetConfig(targetProfile) {
@@ -74,8 +80,59 @@ function resolveStorageObjectContentType(relativePath) {
   return "application/octet-stream";
 }
 
-function buildStorageCompareHash(hash, contentType) {
-  return `${normalizeOptionalText(hash) ?? ""}:${normalizeOptionalText(contentType) ?? ""}`;
+function resolveStorageObjectCacheControl(relativePath, targetKind) {
+  const normalizedPath = normalizeOptionalText(relativePath)?.toLowerCase() ?? "";
+  if (targetKind !== "deployment-storage") {
+    return null;
+  }
+  if (normalizedPath.endsWith(".html") || normalizedPath.endsWith(".json")) {
+    return "no-cache, max-age=0, must-revalidate";
+  }
+  if (
+    normalizedPath.endsWith(".js")
+    || normalizedPath.endsWith(".mjs")
+    || normalizedPath.endsWith(".css")
+  ) {
+    return "public, max-age=31536000, immutable";
+  }
+  return "public, max-age=86400";
+}
+
+function buildStorageCompareHash(hash, contentType, cacheControl) {
+  return [
+    normalizeOptionalText(hash) ?? "",
+    normalizeOptionalText(contentType) ?? "",
+    normalizeOptionalText(cacheControl) ?? ""
+  ].join(":");
+}
+
+function buildRemoteStorageEntry(object, prefix) {
+  const objectName = normalizeOptionalText(object?.name);
+  if (!objectName) {
+    return null;
+  }
+  const relativePath = buildRelativePath(objectName, prefix);
+  if (!relativePath) {
+    return null;
+  }
+  const hash =
+    normalizeOptionalText(object?.md5Hash)
+    ?? normalizeOptionalText(object?.etag)
+    ?? normalizeOptionalText(object?.generation);
+  const contentType = normalizeOptionalText(object?.contentType) ?? "application/octet-stream";
+  const cacheControl = normalizeOptionalText(object?.cacheControl) ?? null;
+  return {
+    relativePath,
+    entry: {
+      relativePath,
+      objectName,
+      sizeBytes: Number.parseInt(object?.size ?? "0", 10),
+      hash,
+      contentType,
+      cacheControl,
+      compareHash: buildStorageCompareHash(hash, contentType, cacheControl)
+    }
+  };
 }
 
 async function collectRemoteStorageEntries(targetProfile, accessToken) {
@@ -95,35 +152,47 @@ async function collectRemoteStorageEntries(targetProfile, accessToken) {
   });
 
   return objects.reduce((entries, object) => {
-    const objectName = normalizeOptionalText(object?.name);
-    if (!objectName) {
+    const normalizedEntry = buildRemoteStorageEntry(object, prefix);
+    if (!normalizedEntry) {
       return entries;
     }
-    const relativePath = buildRelativePath(objectName, prefix);
-    if (!relativePath) {
-      return entries;
-    }
-    entries.set(relativePath, {
-      relativePath,
-      objectName,
-      sizeBytes: Number.parseInt(object?.size ?? "0", 10),
-      hash: normalizeOptionalText(object?.md5Hash) ?? normalizeOptionalText(object?.etag) ?? normalizeOptionalText(object?.generation),
-      contentType: normalizeOptionalText(object?.contentType) ?? "application/octet-stream",
-      compareHash: buildStorageCompareHash(
-        normalizeOptionalText(object?.md5Hash) ?? normalizeOptionalText(object?.etag) ?? normalizeOptionalText(object?.generation),
-        normalizeOptionalText(object?.contentType) ?? "application/octet-stream"
-      )
-    });
+    entries.set(normalizedEntry.relativePath, normalizedEntry.entry);
     return entries;
   }, new Map());
 }
 
-async function uploadStorageEntry(bucketName, objectName, absolutePath, accessToken, contentType) {
+async function applyStorageObjectMetadata(bucketName, objectName, accessToken, metadata = {}) {
+  const contentType = normalizeOptionalText(metadata.contentType);
+  const cacheControl = normalizeOptionalText(metadata.cacheControl);
+  if (!contentType && !cacheControl) {
+    return;
+  }
+  await requestGoogleJson(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}/o/${encodeObjectName(objectName)}`,
+    accessToken,
+    {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        ...(contentType ? { contentType } : {}),
+        ...(cacheControl ? { cacheControl } : {})
+      })
+    }
+  );
+}
+
+async function uploadStorageEntry(bucketName, objectName, absolutePath, accessToken, contentType, cacheControl) {
   const content = await fs.readFile(absolutePath);
   const uploadUrl =
     `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucketName)}` +
     `/o?uploadType=media&name=${encodeURIComponent(objectName)}`;
   await requestGoogleUpload(uploadUrl, accessToken, content, contentType);
+  await applyStorageObjectMetadata(bucketName, objectName, accessToken, {
+    contentType,
+    cacheControl
+  });
 }
 
 async function downloadStorageEntry(bucketName, objectName, accessToken) {
@@ -150,12 +219,14 @@ export async function compareLiveStorageTarget({ targetProfile, connectionProfil
   const localEntries = new Map(
     [...collectedLocalEntries.entries()].map(([relativePath, entry]) => {
       const contentType = resolveStorageObjectContentType(relativePath);
+      const cacheControl = resolveStorageObjectCacheControl(relativePath, targetProfile.targetKind);
       return [
         relativePath,
         {
           ...entry,
           contentType,
-          compareHash: buildStorageCompareHash(entry.hash, contentType)
+          cacheControl,
+          compareHash: buildStorageCompareHash(entry.hash, contentType, cacheControl)
         }
       ];
     })
@@ -208,7 +279,8 @@ export async function executeLiveStorageTarget({ targetProfile, connectionProfil
       buildObjectName(prefix, compareKey),
       entry.absolutePath,
       accessToken,
-      entry.contentType
+      entry.contentType,
+      entry.cacheControl
     );
   }
 

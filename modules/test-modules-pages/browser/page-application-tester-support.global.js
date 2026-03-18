@@ -183,8 +183,21 @@
 
   function readApiOriginFromQuery(targetGlobal, contract) {
     var params = new URLSearchParams(targetGlobal.location.search);
-    return normalizeArray(contract && contract.apiOriginQueryParams).reduce(function (current, paramName) {
+    var queryOrigin = normalizeArray(contract && contract.apiOriginQueryParams).reduce(function (current, paramName) {
       return current || normalizeApiOrigin(params.get(paramName));
+    }, "");
+    if (queryOrigin) {
+      return queryOrigin;
+    }
+    var defaultOrigin = normalizeApiOrigin(contract && contract.defaultApiOrigin);
+    if (defaultOrigin) {
+      return defaultOrigin;
+    }
+    if (!isLocalReviewOrigin(targetGlobal)) {
+      return "";
+    }
+    return normalizeArray(contract && contract.preferredApplicationApiOrigins).reduce(function (current, entry) {
+      return current || normalizeApiOrigin(entry);
     }, "");
   }
 
@@ -215,6 +228,7 @@
       return {};
     }
 
+    var usingDeployedPublicService = contract && contract.publicApiMode === "deployed-public-service";
     var queries = [];
     if (contract.firestoreQuery && contract.publicPublishedDocumentApiPath) {
       queries.push({
@@ -224,9 +238,15 @@
         remote: {
           method: "GET",
           path: apiOrigin + contract.publicPublishedDocumentApiPath,
-          queryParams: {
-            path: "context.pagePath"
-          },
+          queryParams: usingDeployedPublicService
+            ? {
+                projectId: contract.firestore && contract.firestore.projectId,
+                collectionPath: contract.firestore && contract.firestore.collectionPath,
+                documentId: contract.firestore && contract.firestore.documentId
+              }
+            : {
+                path: "context.pagePath"
+              },
           responsePath: "document"
         }
       });
@@ -246,13 +266,23 @@
         remote: {
           method: "POST",
           path: apiOrigin + contract.publicCommentsApiPath,
-          body: {
-            postId: contract.primaryRecord.id,
-            parentCommentId: "payload.parentCommentId",
-            authorDisplayName: "payload.authorDisplayName",
-            authorEmail: "payload.authorEmail",
-            body: "payload.body"
-          },
+          body: usingDeployedPublicService
+            ? {
+                projectId: contract.firestore && contract.firestore.projectId,
+                postId: contract.primaryRecord.id,
+                pagePath: contract.pagePath || null,
+                parentCommentId: "payload.parentCommentId",
+                authorDisplayName: "payload.authorDisplayName",
+                authorEmail: "payload.authorEmail",
+                body: "payload.body"
+              }
+            : {
+                postId: contract.primaryRecord.id,
+                parentCommentId: "payload.parentCommentId",
+                authorDisplayName: "payload.authorDisplayName",
+                authorEmail: "payload.authorEmail",
+                body: "payload.body"
+              },
           responsePath: "item"
         }
       });
@@ -375,6 +405,12 @@
       meta,
       "Public app document API",
       contract.publicPublishedDocumentApiPath || "Not configured"
+    );
+    appendMetaRow(
+      documentObject,
+      meta,
+      "Application API origin",
+      contract.defaultApiOrigin || "Set by query parameter or local review fallback"
     );
     appendMetaRow(
       documentObject,

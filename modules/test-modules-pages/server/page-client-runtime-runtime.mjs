@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeScriptUrlList } from "./distribution-shared-runtime.mjs";
+import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
 
 const DEFAULT_CLIENT_RUNTIME_ASSET_PATH = "assets/client-runtime.global.js";
 const DEFAULT_PAGE_PAYLOAD_DATASET = "page-payload";
@@ -417,12 +418,16 @@ export function buildClientRuntimeContract(payload = {}) {
   const runtimeRegistries = buildRuntimeRegistries(payload);
   const publicOrigin = payload?.delivery?.publicOrigin ?? null;
   const pagePath = payload?.page?.path ?? "/";
+  const publicAssetUrl = publicOrigin
+    ? appendRuntimeAssetVersion(
+        `${String(publicOrigin).replace(/\/+$/, "")}/${DEFAULT_CLIENT_RUNTIME_ASSET_PATH}`,
+        payload
+      )
+    : null;
 
   return {
     contractVersion: 1,
-    assetUrl: publicOrigin
-      ? `${String(publicOrigin).replace(/\/+$/, "")}/${DEFAULT_CLIENT_RUNTIME_ASSET_PATH}`
-      : buildRelativeClientRuntimeAssetUrl(pagePath),
+    assetUrl: publicAssetUrl ?? buildRelativeClientRuntimeAssetUrl(pagePath),
     bootstrapDatasets: runtimeRegistries.bootstrapDatasets,
     context: buildRuntimeContext(payload),
     remote: {

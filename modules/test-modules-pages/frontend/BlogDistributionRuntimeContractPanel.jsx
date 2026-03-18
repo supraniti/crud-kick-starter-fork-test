@@ -127,6 +127,20 @@ export function RuntimeContractPanel({ workspace }) {
               fullWidth
             />
             <TextField
+              label="Application API Mode"
+              value={applicationTester.publicApiMode ?? ""}
+              InputProps={{ readOnly: true }}
+              helperText="Local CMS public routes are for local review. Deployed public service is the real online interaction path."
+              fullWidth
+            />
+            <TextField
+              label="Default Application API Origin"
+              value={applicationTester.defaultApiOrigin ?? ""}
+              InputProps={{ readOnly: true }}
+              helperText="When set, deployed pages can exercise Firestore/comment flows without a localhost query parameter."
+              fullWidth
+            />
+            <TextField
               label="Published Document URL"
               value={applicationTester.documentUrl ?? ""}
               InputProps={{ readOnly: true }}

@@ -130,6 +130,11 @@ export function DomainSummaryPanel({
                 Public origin: {descriptor.publicOrigin}
               </Typography>
             ) : null}
+            {descriptor.applicationApiOrigin ? (
+              <Typography variant="body2" color="text.secondary">
+                Application API origin: {descriptor.applicationApiOrigin}
+              </Typography>
+            ) : null}
             {descriptor.publicUrl ? (
               <Typography variant="body2" color="text.secondary">
                 Example page URL: {descriptor.publicUrl}
@@ -203,6 +208,11 @@ export function AccessModePanel({ descriptor, selectedTarget }) {
                 {descriptor.publicOrigin ? (
                   <Typography variant="caption" color="text.secondary">
                     Public origin: {descriptor.publicOrigin}
+                  </Typography>
+                ) : null}
+                {descriptor.applicationApiOrigin ? (
+                  <Typography variant="caption" color="text.secondary">
+                    Application API origin: {descriptor.applicationApiOrigin}
                   </Typography>
                 ) : null}
                 {descriptor.publicMediaBaseUrl ? (

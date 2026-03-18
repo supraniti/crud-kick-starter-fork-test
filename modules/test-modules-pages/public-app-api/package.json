@@ -1,0 +1,9 @@
+{
+  "name": "test-modules-pages-public-app-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs"
+  }
+}
