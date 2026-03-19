@@ -10,6 +10,56 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-18 M07 Browser-Firestore Pivot Delivered
+- M07 is now delivered on the simpler repo boundary:
+  - keep `client-runtime` generic
+  - keep the temporary `application-tester` as a separate injected script
+  - support direct browser Firestore read/write through the runtime layer when browser-delivery carries Firebase web-app config
+  - keep the bounded public app API route available for local review fallback only
+- Browser-delivery targets now support:
+  - `firebaseProjectId`
+  - `firebaseApiKey`
+  - `firebaseAppId`
+  - `firebaseAuthDomain`
+  - `firebaseStorageBucket`
+  - `firebaseMessagingSenderId`
+  - `firebaseMeasurementId`
+  - `publicCommentsCollectionPath`
+- The page runtime now carries those values through:
+  - browser-delivery descriptor
+  - page delivery payload
+  - deployment-render payload
+  - application-tester contract
+- The tester browser support is now split into three assets:
+  - `assets/page-application-tester-firestore.global.js`
+  - `assets/page-application-tester-support.global.js`
+  - `assets/page-application-tester.global.js`
+- Direct-browser Firestore mode requirements:
+  - browser-delivery target includes Firebase browser config
+  - a matching published Firestore projection target exists for the page source type
+  - remote Firestore security rules intentionally allow the bounded public read/write flows
+- Main files:
+  - [browser-delivery-support.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/shared/browser-delivery-support.mjs)
+  - [remote-ops-shared-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/server/remote-ops-shared-runtime.mjs)
+  - [browser-delivery-reference-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/browser-delivery-reference-runtime.mjs)
+  - [page-delivery-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-delivery-runtime.mjs)
+  - [page-deployment-render-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-deployment-render-runtime.mjs)
+  - [page-application-tester-runtime.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/server/page-application-tester-runtime.mjs)
+  - [page-application-tester-firestore.global.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/browser/page-application-tester-firestore.global.js)
+  - [page-application-tester-support.global.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/browser/page-application-tester-support.global.js)
+  - [page-application-tester.global.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/browser/page-application-tester.global.js)
+  - [ProductDomainSetupPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainSetupPanels.jsx)
+  - [RemoteOpsTargetPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-remote-ops/frontend/RemoteOpsTargetPanels.jsx)
+  - [blog-distribution.module-conformance.test.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/server/test/module-conformance/blog-distribution.module-conformance.test.js)
+- Verification:
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm quality:gate:full`
+  - all passed
+- Important boundary:
+  - the repo no longer needs a second deployed backend to manifest the tester contract
+  - live public proof still requires real Firebase web-app config and Firestore rules in the remote project
+
 ## 2026-03-17 M07 Client Runtime Application Layer And Review Env
 - New active planning artifact:
   - [m07-client-runtime-application-layer-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m07-client-runtime-application-layer-plan.md)

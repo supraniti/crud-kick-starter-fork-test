@@ -6,6 +6,7 @@ import { resolvePublishedFirestoreDescriptor } from "./page-firestore-publicatio
 import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
 
 const DEFAULT_APPLICATION_TESTER_ASSET_PATH = "assets/page-application-tester.global.js";
+const DEFAULT_APPLICATION_TESTER_FIRESTORE_ASSET_PATH = "assets/page-application-tester-firestore.global.js";
 const DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH = "assets/page-application-tester-support.global.js";
 const DEFAULT_APPLICATION_TESTER_DATASET = "page-application-tester-published-document";
 const DEFAULT_APPLICATION_TESTER_RESOURCE = "pageApplicationTester";
@@ -24,6 +25,7 @@ const DEFAULT_PUBLIC_COMMENTS_API_PATH =
   "/api/reference/modules/test-modules-pages/public/comments";
 const DEFAULT_DEPLOYED_PUBLIC_PUBLISHED_DOCUMENT_API_PATH = "/published-document";
 const DEFAULT_DEPLOYED_PUBLIC_COMMENTS_API_PATH = "/comments";
+const DEFAULT_PUBLIC_COMMENTS_COLLECTION_PATH = "publicComments";
 
 function countPathSegments(pagePath) {
   return String(pagePath || "")
@@ -40,6 +42,11 @@ function buildRelativeAssetUrl(pagePath, assetPath) {
 function resolveApplicationTesterSourcePath() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(currentDir, "../browser/page-application-tester.global.js");
+}
+
+function resolveApplicationTesterFirestoreSourcePath() {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(currentDir, "../browser/page-application-tester-firestore.global.js");
 }
 
 function resolveApplicationTesterSupportSourcePath() {
@@ -174,7 +181,15 @@ function resolveApplicationTesterApiOrigin(payload = {}) {
   );
 }
 
-function resolveApplicationTesterApiMode(applicationApiOrigin) {
+function resolveApplicationTesterFirebaseConfig(payload = {}) {
+  const firebase = payload?.delivery?.firebaseWebApp;
+  return firebase && typeof firebase === "object" ? firebase : null;
+}
+
+function resolveApplicationTesterApiMode(applicationApiOrigin, firebaseConfig) {
+  if (firebaseConfig?.apiKey && firebaseConfig?.appId && firebaseConfig?.projectId) {
+    return "browser-firestore";
+  }
   return applicationApiOrigin ? "deployed-public-service" : "local-cms-public-routes";
 }
 
@@ -194,6 +209,21 @@ function buildApplicationTesterPreferredOrigins(applicationApiOrigin) {
     : DEFAULT_REVIEW_APPLICATION_API_ORIGINS;
 }
 
+function buildOptionalTesterAssetUrl(payload = {}, assetPath) {
+  const publicOrigin = normalizeAbsoluteUrl(payload?.delivery?.publicOrigin);
+  if (publicOrigin) {
+    return appendRuntimeAssetVersion(
+      `${publicOrigin.replace(/\/+$/, "")}/${assetPath}`,
+      payload
+    );
+  }
+  return buildRelativeAssetUrl(payload?.page?.path ?? "/", assetPath);
+}
+
+function appendUniqueAssetUrl(urls = [], assetUrl) {
+  return urls.includes(assetUrl) ? urls : [...urls, assetUrl];
+}
+
 function buildApplicationTesterActions(allowComments) {
   return {
     install: DEFAULT_INSTALL_ACTION,
@@ -203,6 +233,12 @@ function buildApplicationTesterActions(allowComments) {
 }
 
 function buildApplicationTesterPublicApiPaths(publicApiMode, allowComments) {
+  if (publicApiMode === "browser-firestore") {
+    return {
+      publicPublishedDocumentApiPath: null,
+      publicCommentsApiPath: null
+    };
+  }
   return {
     publicPublishedDocumentApiPath:
       publicApiMode === "deployed-public-service"
@@ -227,19 +263,26 @@ function buildApplicationTesterPrimaryRecord(primaryRecord) {
   };
 }
 
-function buildApplicationTesterFlows({ firestore, allowComments }) {
+function buildApplicationTesterFlows({ firestore, allowComments, publicApiMode }) {
+  const firestoreFlow =
+    publicApiMode === "browser-firestore" ? "browser-firestore-read" : "public-app-firestore-read";
+  const commentFlow =
+    publicApiMode === "browser-firestore"
+      ? "browser-firestore-comment-submit"
+      : "public-app-comment-submit";
   return [
     "render-featured-image",
     "published-document-snapshot-read",
-    ...(firestore ? ["public-app-firestore-read"] : []),
+    ...(firestore ? [firestoreFlow] : []),
     "indexeddb-install-and-local-query",
-    ...(allowComments ? ["public-app-comment-submit"] : [])
+    ...(allowComments ? [commentFlow] : [])
   ];
 }
 
 export async function buildApplicationTesterContract(payload = {}, options = {}) {
   const publicOrigin = normalizeAbsoluteUrl(payload?.delivery?.publicOrigin);
   const applicationApiOrigin = resolveApplicationTesterApiOrigin(payload);
+  const firebase = resolveApplicationTesterFirebaseConfig(payload);
   const pagePath = payload?.page?.path ?? "/";
   const primaryRecord = readPrimaryRecord(payload);
   const allowComments = supportsCommentSubmission(payload);
@@ -248,7 +291,7 @@ export async function buildApplicationTesterContract(payload = {}, options = {})
     resolveSettingsRepository: options.resolveSettingsRepository,
     payload
   });
-  const publicApiMode = resolveApplicationTesterApiMode(applicationApiOrigin);
+  const publicApiMode = resolveApplicationTesterApiMode(applicationApiOrigin, firebase);
   const publicApiPaths = buildApplicationTesterPublicApiPaths(publicApiMode, allowComments);
   return {
     contractVersion: 1,
@@ -258,6 +301,7 @@ export async function buildApplicationTesterContract(payload = {}, options = {})
     defaultApiOrigin: applicationApiOrigin,
     preferredApplicationApiOrigins: buildApplicationTesterPreferredOrigins(applicationApiOrigin),
     publicApiMode,
+    firebase,
     dataset: DEFAULT_APPLICATION_TESTER_DATASET,
     remoteQuery: {
       resource: DEFAULT_APPLICATION_TESTER_RESOURCE,
@@ -277,12 +321,14 @@ export async function buildApplicationTesterContract(payload = {}, options = {})
     documentUrl: buildDocumentUrl(payload),
     pagePath,
     firestore,
+    commentsCollectionPath: firebase?.publicCommentsCollectionPath ?? DEFAULT_PUBLIC_COMMENTS_COLLECTION_PATH,
     ...publicApiPaths,
     primaryRecord: buildApplicationTesterPrimaryRecord(primaryRecord),
     featuredMedia: buildFeaturedMediaDescriptor(payload),
     flows: buildApplicationTesterFlows({
       firestore,
-      allowComments
+      allowComments,
+      publicApiMode
     }),
     runtimeAugment: buildRuntimeAugment(payload, firestore)
   };
@@ -304,35 +350,45 @@ export function resolvePageApplicationTesterScriptUrls(payload, runtimeScriptUrl
         .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
         .filter(Boolean)
     : [];
-  const applicationTesterSupportAssetUrl = payload?.delivery?.publicOrigin
-    ? appendRuntimeAssetVersion(
-        `${payload.delivery.publicOrigin.replace(/\/+$/, "")}/${DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH}`,
-        payload
-      )
-    : buildRelativeAssetUrl(payload?.page?.path ?? "/", DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH);
+  const applicationTesterFirestoreAssetUrl = buildOptionalTesterAssetUrl(
+    payload,
+    DEFAULT_APPLICATION_TESTER_FIRESTORE_ASSET_PATH
+  );
+  const applicationTesterSupportAssetUrl = buildOptionalTesterAssetUrl(
+    payload,
+    DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH
+  );
   const applicationTesterAssetUrl =
     payload?.runtime?.applicationTester?.assetUrl
-    ?? buildRelativeAssetUrl(payload?.page?.path ?? "/", DEFAULT_APPLICATION_TESTER_ASSET_PATH);
-  const withSupportUrl = normalizedUrls.includes(applicationTesterSupportAssetUrl)
-    ? normalizedUrls
-    : [...normalizedUrls, applicationTesterSupportAssetUrl];
-  return withSupportUrl.includes(applicationTesterAssetUrl)
-    ? withSupportUrl
-    : [...withSupportUrl, applicationTesterAssetUrl];
+    ?? buildOptionalTesterAssetUrl(payload, DEFAULT_APPLICATION_TESTER_ASSET_PATH);
+  return appendUniqueAssetUrl(
+    appendUniqueAssetUrl(
+      appendUniqueAssetUrl(normalizedUrls, applicationTesterFirestoreAssetUrl),
+      applicationTesterSupportAssetUrl
+    ),
+    applicationTesterAssetUrl
+  );
 }
 
 export async function syncPageApplicationTesterAsset(deploymentRootDir) {
   const sourcePath = resolveApplicationTesterSourcePath();
+  const firestoreSourcePath = resolveApplicationTesterFirestoreSourcePath();
   const supportSourcePath = resolveApplicationTesterSupportSourcePath();
   const targetPath = path.resolve(deploymentRootDir, DEFAULT_APPLICATION_TESTER_ASSET_PATH);
+  const firestoreTargetPath = path.resolve(
+    deploymentRootDir,
+    DEFAULT_APPLICATION_TESTER_FIRESTORE_ASSET_PATH
+  );
   const supportTargetPath = path.resolve(
     deploymentRootDir,
     DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH
   );
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.copyFile(firestoreSourcePath, firestoreTargetPath);
   await fs.copyFile(supportSourcePath, supportTargetPath);
   await fs.copyFile(sourcePath, targetPath);
   return {
+    firestoreTargetPath,
     supportTargetPath,
     targetPath
   };

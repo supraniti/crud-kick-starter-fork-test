@@ -24,7 +24,7 @@ async function runSnapshotRead(globalObject, contract, controls) {
 async function runFirestoreRead(globalObject, contract, controls) {
   var support = getSupport(globalObject);
   var apiOrigin = support.readApiOrigin(controls);
-  if (!apiOrigin) {
+  if (contract.publicApiMode !== "browser-firestore" && !apiOrigin) {
     throw new Error("Application API Origin is required for Firestore reads through the public app API.");
   }
   await support.ensureRuntimeAugment(globalObject, contract, apiOrigin);
@@ -34,8 +34,8 @@ async function runFirestoreRead(globalObject, contract, controls) {
     query: firestoreQuery.query
   });
   support.setOutput(controls.output, {
-    flow: "public-app-firestore-read",
-    apiOrigin: apiOrigin,
+    flow: contract.publicApiMode === "browser-firestore" ? "browser-firestore-read" : "public-app-firestore-read",
+    apiOrigin: apiOrigin || null,
     directFirestoreUrl: contract.firestore && contract.firestore.documentUrl ? contract.firestore.documentUrl : null,
     result: result
   });
@@ -66,7 +66,7 @@ async function runInstall(globalObject, contract, controls) {
 async function runCommentSubmit(globalObject, contract, controls) {
   var support = getSupport(globalObject);
   var apiOrigin = support.readApiOrigin(controls);
-  if (!apiOrigin) {
+  if (contract.publicApiMode !== "browser-firestore" && !apiOrigin) {
     throw new Error("Application API Origin is required for comment submission.");
   }
   var payload = support.readCommentPayload(controls);
@@ -79,8 +79,8 @@ async function runCommentSubmit(globalObject, contract, controls) {
     payload: payload
   });
   support.setOutput(controls.output, {
-    flow: "public-app-comment-submit",
-    apiOrigin: apiOrigin,
+    flow: contract.publicApiMode === "browser-firestore" ? "browser-firestore-comment-submit" : "public-app-comment-submit",
+    apiOrigin: apiOrigin || null,
     result: result
   });
 }
@@ -114,7 +114,7 @@ function bindActions(globalObject, contract, controls) {
     } catch (error) {
       support.setOutput(controls.output, {
         ok: false,
-        flow: "public-app-firestore-read",
+        flow: contract.publicApiMode === "browser-firestore" ? "browser-firestore-read" : "public-app-firestore-read",
         error: error && error.message ? error.message : String(error)
       });
     } finally {
@@ -146,7 +146,10 @@ function bindActions(globalObject, contract, controls) {
       } catch (error) {
         support.setOutput(controls.output, {
           ok: false,
-          flow: "public-app-comment-submit",
+          flow:
+            contract.publicApiMode === "browser-firestore"
+              ? "browser-firestore-comment-submit"
+              : "public-app-comment-submit",
           error: error && error.message ? error.message : String(error)
         });
       } finally {
@@ -174,7 +177,7 @@ function renderPanel(globalObject, contract) {
 
   var intro = documentObject.createElement("p");
   intro.textContent =
-    "Temporary application layer on top of client-runtime. It exercises the published snapshot, IndexedDB install, a bounded public app API read, and comment submission when an application API origin is available.";
+    "Temporary application layer on top of client-runtime. It exercises the published snapshot, IndexedDB install, and remote Firestore interaction either directly from the browser or through a bounded public API, depending on the delivery configuration.";
   stack.appendChild(intro);
 
   support.appendBadgeRow(documentObject, stack, contract);

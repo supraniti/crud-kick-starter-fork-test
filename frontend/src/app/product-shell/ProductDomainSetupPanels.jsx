@@ -135,6 +135,11 @@ export function DomainSummaryPanel({
                 Application API origin: {descriptor.applicationApiOrigin}
               </Typography>
             ) : null}
+            {descriptor.firebaseWebApp ? (
+              <Typography variant="body2" color="text.secondary">
+                Firebase browser tester: {descriptor.firebaseWebApp.projectId}
+              </Typography>
+            ) : null}
             {descriptor.publicUrl ? (
               <Typography variant="body2" color="text.secondary">
                 Example page URL: {descriptor.publicUrl}
@@ -213,6 +218,11 @@ export function AccessModePanel({ descriptor, selectedTarget }) {
                 {descriptor.applicationApiOrigin ? (
                   <Typography variant="caption" color="text.secondary">
                     Application API origin: {descriptor.applicationApiOrigin}
+                  </Typography>
+                ) : null}
+                {descriptor.firebaseWebApp ? (
+                  <Typography variant="caption" color="text.secondary">
+                    Firebase browser tester: {descriptor.firebaseWebApp.projectId}
                   </Typography>
                 ) : null}
                 {descriptor.publicMediaBaseUrl ? (

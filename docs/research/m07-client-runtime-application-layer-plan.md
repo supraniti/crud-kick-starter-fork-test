@@ -23,21 +23,20 @@
    - no dependency on `127.0.0.1`
 
 ## Current State
-- Delivered today:
+- Delivered:
   - `client-runtime` is injected into deployed HTML.
   - `window.dataLayer` and `window.actionLayer` are available.
-  - page payload, media, comments, and slot datasets already bootstrap into runtime config.
-  - Pass 1 and Pass 2 are now implemented:
-    - deployed HTML injects a separate `application-tester` contract and asset
-    - the application tester augments `client-runtime` through `crudClientRuntime.configure(...)`
-    - the tester panel renders only when `?appTester=1` or `?runtimeProbe=1` is present
-    - the tester can:
-      - render a referenced image
-      - read the published document through `window.dataLayer.query(...)`
-      - install/query that document through IndexedDB using `window.actionLayer` and `window.dataLayer`
-- Gap:
-  - remote Firestore read is not yet exposed through a valid deployed-page contract.
-  - no real remote write flow is wired through the tester yet.
+  - deployed HTML injects a separate `application-tester` contract and assets.
+  - the tester panel renders only when `?appTester=1` or `?runtimeProbe=1` is present.
+  - the tester can:
+    - render a referenced image
+    - read the published snapshot through `window.dataLayer.query(...)`
+    - install/query that document through IndexedDB using `window.actionLayer` and `window.dataLayer`
+    - when browser-delivery includes Firebase browser config and the page resolves a published Firestore descriptor:
+      - read the projected Firestore document directly from the browser through the runtime layer
+      - submit a pending comment directly to Firestore through the runtime action layer
+- Remaining external requirement:
+  - live activation of the direct-browser Firestore path needs real Firebase web-app config and Firestore security rules in the remote project.
 
 ## Required Architecture
 
@@ -108,9 +107,9 @@
 ### Pass 3. Real Remote Read Contract
 - Stop treating the same-origin sidecar as the only remote read seam.
 - Add a real runtime-readable remote dataset contract for published content.
-- Preferred order:
-  1. public remote HTTP contract for published documents
-  2. public Firestore contract if rules and security model truly allow it
+- Delivered route:
+  1. direct browser Firestore when browser-delivery carries Firebase web-app config
+  2. local review can still fall back to the bounded public app API path when needed
 - Output:
   - runtime query definition for published document retrieval
   - application tester button that exercises it through `dataLayer.query(...)`
@@ -192,6 +191,7 @@
   - `window.__CRUD_CLIENT_RUNTIME_CONFIG__`
   - `window.__CRUD_PAGE_APPLICATION_TESTER__`
   - `assets/client-runtime.global.js`
+  - `assets/page-application-tester-firestore.global.js`
   - `assets/page-application-tester-support.global.js`
   - `assets/page-application-tester.global.js`
 - The runtime stays generic.
@@ -199,13 +199,14 @@
 - The application tester can:
   - render the referenced image
   - read the published snapshot through `window.dataLayer.query(...)`
-  - read the Firestore-projected document through a public app API route and `window.dataLayer.query(...)`
+  - read the Firestore-projected document directly from the browser through `window.dataLayer.query(...)` when Firebase browser config is present
   - install/query the document through IndexedDB using `window.actionLayer` and `window.dataLayer`
-  - submit a real pending comment through a public app API route and `window.actionLayer.dispatch(...)`
+  - submit a real pending comment directly to Firestore through `window.actionLayer.dispatch(...)` when Firebase browser config is present
 - Pages desk inspection now exposes:
   - direct Firestore URL
-  - public published-document API path
-  - public comments API path
+  - browser tester Firebase config summary
+  - public published-document API path when the bounded app API route is still used
+  - public comments API path when the bounded app API route is still used
   - application API origin query-param contract
 
 ## Browser-Proved Review Path
@@ -218,11 +219,12 @@
 - Browser-verified flows:
   - featured image render
   - published snapshot read
-  - Firestore read through the public app API
   - IndexedDB install/query
-  - public comment submit
+  - direct browser Firestore read/write is now repo-supported and contract-tested, but still depends on live Firebase config + rules for public remote proof
 
 ## Important Boundary
-- The Firestore/comment flows are deployable through the public app API contract.
-- For a real public remote page to use those flows outside local review, the operator still needs a public HTTPS host for the app API.
-- This slice does not deploy that backend host. It delivers the runtime/app split, the public app API contract, and the local published-page proof path.
+- The simpler delivered route is direct browser Firestore, not a second deployed backend.
+- To activate that path live, the operator still needs:
+  - Firebase web-app config for the chosen project
+  - Firestore security rules that intentionally allow the bounded public read/write flows
+- This slice delivers the runtime/app split and the direct-browser contract inside the repo.

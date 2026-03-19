@@ -57,7 +57,8 @@ function extractConnectionState(connection = null) {
     provider: connection.provider ?? null,
     authMode: connection.authMode ?? null,
     credentialPathHint: connection.credentialPathHint ?? null,
-    serviceAccountEmail: connection.serviceAccountEmail ?? null
+    serviceAccountEmail: connection.serviceAccountEmail ?? null,
+    projectId: connection.projectId ?? null
   };
 }
 
@@ -110,6 +111,7 @@ export async function resolveBrowserDeliveryPayloadState({
     browserTarget: browserDeliveryState.browserTarget,
     deploymentTarget: browserDeliveryState.deploymentTarget,
     mediaTarget: browserDeliveryState.mediaTarget,
+    connectionProfile: browserDeliveryState.connectionProfile,
     pagePath,
     artifactRelativePath
   });

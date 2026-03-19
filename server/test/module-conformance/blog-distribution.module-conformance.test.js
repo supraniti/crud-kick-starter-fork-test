@@ -1568,6 +1568,17 @@ test("gcp temporary browser delivery emits public provider page and media URLs",
         prefix: "library"
       }
     });
+    await seedRemoteTargetProfile(server, {
+      title: "Published Posts",
+      productBindingKey: "posts-projection",
+      connectionProfileId: connection.id,
+      targetKind: "firestore-projection",
+      adapterMode: "live-gcp",
+      config: {
+        projectionScope: "published-blog-posts",
+        firestoreCollectionPath: "publishedPosts"
+      }
+    });
     const browserDeliveryTarget = await seedRemoteTargetProfile(server, {
       title: "Temporary Delivery",
       connectionProfileId: connection.id,
@@ -1577,6 +1588,10 @@ test("gcp temporary browser delivery emits public provider page and media URLs",
         accessMode: "gcp-temporary",
         stackMode: "direct-storage",
         dnsMode: "external",
+        firebaseProjectId: "merchant-guild",
+        firebaseApiKey: "firebase-api-key",
+        firebaseAppId: "1:679134333951:web:abcdef123456",
+        publicCommentsCollectionPath: "publicComments",
         deploymentTargetProfileId: deploymentTarget.id,
         mediaTargetProfileId: mediaTarget.id
       }
@@ -1657,6 +1672,13 @@ test("gcp temporary browser delivery emits public provider page and media URLs",
       expect.objectContaining({
         accessMode: "gcp-temporary",
         dnsMode: "external",
+        firebaseWebApp: expect.objectContaining({
+          projectId: "merchant-guild",
+          apiKey: "firebase-api-key",
+          appId: "1:679134333951:web:abcdef123456",
+          authDomain: "merchant-guild.firebaseapp.com",
+          publicCommentsCollectionPath: "publicComments"
+        }),
         publicOrigin: "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site",
         publicUrl:
           "https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/temporary-delivery-story/index.html",
@@ -1685,6 +1707,23 @@ test("gcp temporary browser delivery emits public provider page and media URLs",
     );
     expect(deliveryResponse.body.payload.head.openGraph.imageUrl).toContain(
       "https://storage.googleapis.com/merchant-guild-dev-media-679134333951/library"
+    );
+    expect(deliveryResponse.body.payload.runtime.applicationTester).toEqual(
+      expect.objectContaining({
+        publicApiMode: "browser-firestore",
+        commentsCollectionPath: "publicComments",
+        firebase: expect.objectContaining({
+          projectId: "merchant-guild",
+          apiKey: "firebase-api-key",
+          appId: "1:679134333951:web:abcdef123456"
+        }),
+        flows: expect.arrayContaining([
+          "browser-firestore-read",
+          "browser-firestore-comment-submit"
+        ]),
+        publicPublishedDocumentApiPath: null,
+        publicCommentsApiPath: null
+      })
     );
   } finally {
     await server.close();

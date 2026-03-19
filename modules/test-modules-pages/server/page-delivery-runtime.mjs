@@ -444,6 +444,8 @@ function createBrowserDeliveryPayloadUpdate(payload, browserDelivery) {
       ...(payload?.delivery && typeof payload.delivery === "object" ? payload.delivery : {}),
       accessMode: browserDelivery.accessMode,
       dnsMode: browserDelivery.dnsMode,
+      applicationApiOrigin: browserDelivery.applicationApiOrigin ?? null,
+      firebaseWebApp: browserDelivery.firebaseWebApp ?? null,
       publicOrigin: browserDelivery.publicOrigin,
       publicUrl: browserDelivery.publicUrl,
       publicMediaBaseUrl: browserDelivery.publicMediaBaseUrl,

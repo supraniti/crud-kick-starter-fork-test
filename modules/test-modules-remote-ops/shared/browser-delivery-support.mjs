@@ -68,11 +68,37 @@ export function normalizeBrowserDeliveryConfig(value = {}) {
     dnsMode: normalizeBrowserDeliveryDnsMode(config.dnsMode),
     hostname: normalizeText(config.hostname),
     applicationApiOrigin: normalizeOrigin(config.applicationApiOrigin),
+    firebaseProjectId: normalizeText(config.firebaseProjectId),
+    firebaseApiKey: normalizeText(config.firebaseApiKey),
+    firebaseAppId: normalizeText(config.firebaseAppId),
+    firebaseAuthDomain: normalizeText(config.firebaseAuthDomain),
+    firebaseStorageBucket: normalizeText(config.firebaseStorageBucket),
+    firebaseMessagingSenderId: normalizeText(config.firebaseMessagingSenderId),
+    firebaseMeasurementId: normalizeText(config.firebaseMeasurementId),
+    publicCommentsCollectionPath: normalizeText(config.publicCommentsCollectionPath),
     dnsZone: normalizeText(config.dnsZone),
     certificateName: normalizeText(config.certificateName),
     urlMapHint: normalizeText(config.urlMapHint),
     deploymentTargetProfileId: normalizeText(config.deploymentTargetProfileId),
     mediaTargetProfileId: normalizeText(config.mediaTargetProfileId)
+  };
+}
+
+function buildFirebaseWebAppDescriptor(browserConfig, connectionProfile = null) {
+  const projectId = browserConfig.firebaseProjectId ?? normalizeText(connectionProfile?.projectId);
+  if (!projectId || !browserConfig.firebaseApiKey || !browserConfig.firebaseAppId) {
+    return null;
+  }
+
+  return {
+    projectId,
+    apiKey: browserConfig.firebaseApiKey,
+    appId: browserConfig.firebaseAppId,
+    authDomain: browserConfig.firebaseAuthDomain ?? `${projectId}.firebaseapp.com`,
+    storageBucket: browserConfig.firebaseStorageBucket,
+    messagingSenderId: browserConfig.firebaseMessagingSenderId,
+    measurementId: browserConfig.firebaseMeasurementId,
+    publicCommentsCollectionPath: browserConfig.publicCommentsCollectionPath ?? "publicComments"
   };
 }
 
@@ -147,13 +173,14 @@ export function buildCustomDomainDnsInstruction(config = {}) {
   };
 }
 
-function createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget) {
+function createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget, connectionProfile = null) {
   return {
     accessMode: browserConfig.accessMode,
     stackMode: browserConfig.stackMode,
     dnsMode: browserConfig.dnsMode,
     hostname: browserConfig.hostname,
     applicationApiOrigin: browserConfig.applicationApiOrigin,
+    firebaseWebApp: buildFirebaseWebAppDescriptor(browserConfig, connectionProfile),
     publicOrigin: null,
     publicUrl: null,
     publicMediaBaseUrl: null,
@@ -244,11 +271,12 @@ export function buildBrowserDeliveryDescriptor({
   browserTarget = null,
   deploymentTarget = null,
   mediaTarget = null,
+  connectionProfile = null,
   pagePath = null,
   artifactRelativePath = null
 }) {
   const browserConfig = normalizeBrowserDeliveryConfig(browserTarget?.config);
-  const descriptor = createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget);
+  const descriptor = createBaseDescriptor(browserConfig, deploymentTarget, mediaTarget, connectionProfile);
   if (browserConfig.accessMode === "custom-domain") {
     return applyCustomDomainDescriptor(descriptor, browserConfig, deploymentTarget, pagePath, mediaTarget);
   }

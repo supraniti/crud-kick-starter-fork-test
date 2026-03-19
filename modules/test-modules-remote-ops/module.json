@@ -400,6 +400,70 @@
                   "maxLength": 200
                 },
                 {
+                  "id": "firebaseProjectId",
+                  "label": "Firebase Project ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
+                  "id": "firebaseApiKey",
+                  "label": "Firebase API Key",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 200
+                },
+                {
+                  "id": "firebaseAppId",
+                  "label": "Firebase App ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 200
+                },
+                {
+                  "id": "firebaseAuthDomain",
+                  "label": "Firebase Auth Domain",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 200
+                },
+                {
+                  "id": "firebaseStorageBucket",
+                  "label": "Firebase Storage Bucket",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 200
+                },
+                {
+                  "id": "firebaseMessagingSenderId",
+                  "label": "Firebase Messaging Sender ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "firebaseMeasurementId",
+                  "label": "Firebase Measurement ID",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 80
+                },
+                {
+                  "id": "publicCommentsCollectionPath",
+                  "label": "Public Comments Collection Path",
+                  "type": "text",
+                  "required": false,
+                  "minLength": 0,
+                  "maxLength": 160
+                },
+                {
                   "id": "dnsZone",
                   "label": "DNS Zone",
                   "type": "text",

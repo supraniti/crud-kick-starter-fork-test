@@ -181,7 +181,23 @@
     return value.trim().replace(/\/+$/g, "");
   }
 
+  function resolveFirestoreSupport(targetGlobal) {
+    return targetGlobal.__CRUD_PAGE_APPLICATION_TESTER_FIRESTORE__ || null;
+  }
+
+  function hasFirebaseBrowserConfig(targetGlobal, contract) {
+    var support = resolveFirestoreSupport(targetGlobal);
+    return Boolean(
+      support &&
+        typeof support.hasFirebaseBrowserConfig === "function" &&
+        support.hasFirebaseBrowserConfig(contract)
+    );
+  }
+
   function readApiOriginFromQuery(targetGlobal, contract) {
+    if (contract && contract.publicApiMode === "browser-firestore") {
+      return "";
+    }
     var params = new URLSearchParams(targetGlobal.location.search);
     var queryOrigin = normalizeArray(contract && contract.apiOriginQueryParams).reduce(function (current, paramName) {
       return current || normalizeApiOrigin(params.get(paramName));
@@ -304,9 +320,17 @@
       targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ || {},
       contract
     );
+    var firestoreSupport = resolveFirestoreSupport(targetGlobal);
+    var transportAugment =
+      contract && contract.publicApiMode === "browser-firestore"
+        ? firestoreSupport &&
+          typeof firestoreSupport.buildBrowserFirestoreRuntimeAugment === "function"
+          ? firestoreSupport.buildBrowserFirestoreRuntimeAugment(contract, targetGlobal)
+          : {}
+        : buildPublicApiRuntimeAugment(contract, apiOrigin);
     var mergedConfig = mergeRuntimeConfig(
       cleanedBaseConfig,
-      mergeRuntimeConfig(contract.runtimeAugment || {}, buildPublicApiRuntimeAugment(contract, apiOrigin))
+      mergeRuntimeConfig(contract.runtimeAugment || {}, transportAugment)
     );
 
     targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ = mergedConfig;
@@ -403,20 +427,22 @@
     appendMetaRow(
       documentObject,
       meta,
-      "Public app document API",
-      contract.publicPublishedDocumentApiPath || "Not configured"
+      "Tester mode",
+      contract.publicApiMode || "unknown"
     );
     appendMetaRow(
       documentObject,
       meta,
       "Application API origin",
-      contract.defaultApiOrigin || "Set by query parameter or local review fallback"
+      contract.publicApiMode === "browser-firestore"
+        ? "Not required in browser Firestore mode"
+        : contract.defaultApiOrigin || "Set by query parameter or local review fallback"
     );
     appendMetaRow(
       documentObject,
       meta,
-      "Public comments API",
-      contract.publicCommentsApiPath || "Not configured"
+      "Direct Firestore project",
+      contract.firebase && contract.firebase.projectId ? contract.firebase.projectId : "Not configured"
     );
     return meta;
   }
@@ -444,7 +470,10 @@
     loadButton.textContent = "Load Published Snapshot";
 
     var firestoreButton = documentObject.createElement("button");
-    firestoreButton.textContent = "Load Firestore Document Via App API";
+    firestoreButton.textContent =
+      contract.publicApiMode === "browser-firestore"
+        ? "Load Firestore Document Directly"
+        : "Load Firestore Document Via App API";
 
     var installButton = documentObject.createElement("button");
     installButton.className = "alt";
@@ -476,9 +505,14 @@
 
       var submitButton = documentObject.createElement("button");
       submitButton.className = "warn";
-      submitButton.textContent = "Submit Comment Through App API";
+      submitButton.textContent =
+        contract.publicApiMode === "browser-firestore"
+          ? "Submit Comment Directly To Firestore"
+          : "Submit Comment Through App API";
 
-      actions.appendChild(apiOriginField.label);
+      if (contract.publicApiMode !== "browser-firestore") {
+        actions.appendChild(apiOriginField.label);
+      }
       actions.appendChild(commentGrid);
       actions.appendChild(bodyField.label);
       actions.appendChild(submitButton);
@@ -490,7 +524,9 @@
         submitButton: submitButton
       };
     } else {
-      actions.appendChild(apiOriginField.label);
+      if (contract.publicApiMode !== "browser-firestore") {
+        actions.appendChild(apiOriginField.label);
+      }
     }
 
     return {
@@ -522,11 +558,19 @@
   function refreshActionAvailability(contract, controls) {
     var apiOrigin = readApiOrigin(controls);
     var hasPublicApi = Boolean(apiOrigin);
+    var usesBrowserFirestore = contract && contract.publicApiMode === "browser-firestore";
+    var hasBrowserFirestore = hasFirebaseBrowserConfig(window, contract);
 
-    if (!contract.firestoreQuery || !contract.publicPublishedDocumentApiPath) {
+    if (!contract.firestoreQuery) {
+      controls.firestoreButton.disabled = true;
+      controls.firestoreButton.title = "No Firestore contract is configured for this page.";
+    } else if (usesBrowserFirestore && !hasBrowserFirestore) {
+      controls.firestoreButton.disabled = true;
+      controls.firestoreButton.title = "Firebase web app config is required for direct browser Firestore mode.";
+    } else if (!usesBrowserFirestore && !contract.publicPublishedDocumentApiPath) {
       controls.firestoreButton.disabled = true;
       controls.firestoreButton.title = "No Firestore application API contract is configured for this page.";
-    } else if (!hasPublicApi) {
+    } else if (!usesBrowserFirestore && !hasPublicApi) {
       controls.firestoreButton.disabled = true;
       controls.firestoreButton.title = "Set Application API Origin to enable Firestore reads through the public app API.";
     } else {
@@ -535,12 +579,20 @@
     }
 
     if (controls.commentFields && controls.commentFields.submitButton) {
-      if (!contract.actions || !contract.actions.submitComment || !contract.publicCommentsApiPath) {
+      if (!contract.actions || !contract.actions.submitComment) {
+        controls.commentFields.submitButton.disabled = true;
+        controls.commentFields.submitButton.title = "Comment submission is not available for this page.";
+      } else if (usesBrowserFirestore && !hasBrowserFirestore) {
+        controls.commentFields.submitButton.disabled = true;
+        controls.commentFields.submitButton.title = "Firebase web app config is required for direct browser Firestore mode.";
+      } else if (!usesBrowserFirestore && !contract.publicCommentsApiPath) {
         controls.commentFields.submitButton.disabled = true;
         controls.commentFields.submitButton.title = "Comment submission is not available for this page.";
       } else if (!hasPublicApi) {
-        controls.commentFields.submitButton.disabled = true;
-        controls.commentFields.submitButton.title = "Set Application API Origin to enable comment submission.";
+        controls.commentFields.submitButton.disabled = !usesBrowserFirestore;
+        controls.commentFields.submitButton.title = usesBrowserFirestore
+          ? ""
+          : "Set Application API Origin to enable comment submission.";
       } else {
         controls.commentFields.submitButton.disabled = false;
         controls.commentFields.submitButton.title = "";

@@ -199,6 +199,76 @@ export function TargetEditor({ workspace }) {
                 helperText="Optional public API host used by deployed runtime applications for Firestore-backed interactions."
                 fullWidth
               />
+              <Paper variant="outlined" sx={{ p: 1.25 }}>
+                <Stack spacing={1.25}>
+                  <Stack spacing={0.35}>
+                    <Typography variant="subtitle2">Firebase Browser Tester</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Optional temporary path for direct Firestore reads and comment writes from the deployed page.
+                      When provided, the tester can use Firestore directly from the browser instead of a separate public API.
+                    </Typography>
+                  </Stack>
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    <TextField
+                      label="Firebase Project ID"
+                      value={draft.config.firebaseProjectId ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("firebaseProjectId", event.target.value)}
+                      helperText="Defaults to the connection project when left empty."
+                      fullWidth
+                    />
+                    <TextField
+                      label="Firebase API Key"
+                      value={draft.config.firebaseApiKey ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("firebaseApiKey", event.target.value)}
+                      fullWidth
+                    />
+                  </Stack>
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    <TextField
+                      label="Firebase App ID"
+                      value={draft.config.firebaseAppId ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("firebaseAppId", event.target.value)}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Firebase Auth Domain"
+                      value={draft.config.firebaseAuthDomain ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("firebaseAuthDomain", event.target.value)}
+                      helperText="Optional override. Defaults to <project>.firebaseapp.com."
+                      fullWidth
+                    />
+                  </Stack>
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    <TextField
+                      label="Firebase Storage Bucket"
+                      value={draft.config.firebaseStorageBucket ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("firebaseStorageBucket", event.target.value)}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Firebase Messaging Sender ID"
+                      value={draft.config.firebaseMessagingSenderId ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("firebaseMessagingSenderId", event.target.value)}
+                      fullWidth
+                    />
+                  </Stack>
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    <TextField
+                      label="Firebase Measurement ID"
+                      value={draft.config.firebaseMeasurementId ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("firebaseMeasurementId", event.target.value)}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Public Comments Collection Path"
+                      value={draft.config.publicCommentsCollectionPath ?? ""}
+                      onChange={(event) => workspace.changeTargetConfigField("publicCommentsCollectionPath", event.target.value)}
+                      helperText="Defaults to publicComments."
+                      fullWidth
+                    />
+                  </Stack>
+                </Stack>
+              </Paper>
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField select label="Deployment Target" value={draft.config.deploymentTargetProfileId ?? ""} onChange={(event) => workspace.changeTargetConfigField("deploymentTargetProfileId", event.target.value)} fullWidth>
                   <MenuItem value="">None</MenuItem>
@@ -244,6 +314,11 @@ export function TargetEditor({ workspace }) {
                     {deliveryPreview.applicationApiOrigin ? (
                       <Typography variant="body2" color="text.secondary">
                         Application API origin: {deliveryPreview.applicationApiOrigin}
+                      </Typography>
+                    ) : null}
+                    {deliveryPreview.firebaseWebApp ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Firebase browser tester: {deliveryPreview.firebaseWebApp.projectId}
                       </Typography>
                     ) : null}
                     {deliveryPreview.publicUrl ? (

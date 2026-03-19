@@ -12,6 +12,26 @@
 
 ## Entries
 
+### 2026-03-18 - Browser-Firestore Was Easier Than A Second Public Backend, But Only After Fixing The Canonical Config Path
+- Tasks:
+  - abandoned the Cloud Run detour for the tester path
+  - moved the direct-browser Firestore contract into browser-delivery config and page payload propagation
+  - split the temporary tester into three assets so the repo gates stayed green while adding the browser-firestore seam
+- Easy:
+  - the correct product boundary was simpler once stated clearly: public page -> runtime/action layer -> Firestore
+  - existing published Firestore projection descriptors gave the page a natural document target once the browser-delivery payload actually carried the new config
+- Hard:
+  - the first implementation looked complete but the new Firebase fields were being dropped by `normalizeTargetConfig(...)` in remote-ops shared runtime
+  - the next failure was also real: direct Firestore mode needs an actual published Firestore projection target for the page source type, not just browser config
+  - the repo gates forced a real cleanup:
+    - support script exceeded repo LOC
+    - new helper asset exceeded function-shape by one line
+    - script-url resolver exceeded complexity
+- Improve:
+  - when adding new target config fields, update the canonical target normalizer immediately or the UI and payload layers will silently drift apart
+  - treat public-page runtime transport as a first-class delivery contract, not as a patch on top of local review behavior
+  - when a temporary browser supplement grows, split assets early instead of waiting for LOC/function-shape gates to catch it
+
 ### 2026-03-17 - Runtime App Layer Works Best As A Separate Asset, Not Another Inline Probe
 - Tasks:
   - replaced the idea of an inline probe UI with a separate deployed `application-tester` asset
