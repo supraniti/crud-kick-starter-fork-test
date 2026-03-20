@@ -6,6 +6,7 @@ const appRoot = path.resolve("frontend/dist");
 const publishedRoot = path.resolve("deployment");
 const port = Number.parseInt(process.env.REVIEW_FRONTEND_PORT ?? "3000", 10);
 const host = process.env.REVIEW_FRONTEND_HOST ?? "127.0.0.1";
+const backendOrigin = process.env.REVIEW_BACKEND_ORIGIN ?? "http://127.0.0.1:3001";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -63,7 +64,43 @@ function resolveFilePath(urlPath) {
   };
 }
 
+function shouldProxyToBackend(urlPath) {
+  const cleanPath = String(urlPath || "/").split("?")[0].split("#")[0];
+  return cleanPath === "/health" || cleanPath === "/ready" || cleanPath.startsWith("/api/");
+}
+
+async function proxyToBackend(request, response) {
+  const targetUrl = new URL(request.url || "/", backendOrigin);
+  const upstreamResponse = await fetch(targetUrl, {
+    method: request.method,
+    headers: request.headers,
+    body:
+      request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS"
+        ? undefined
+        : request,
+    duplex: "half"
+  });
+
+  const headers = {};
+  upstreamResponse.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  response.writeHead(upstreamResponse.status, headers);
+  const arrayBuffer = await upstreamResponse.arrayBuffer();
+  response.end(Buffer.from(arrayBuffer));
+}
+
 const server = http.createServer(async (request, response) => {
+  if (shouldProxyToBackend(request.url)) {
+    try {
+      await proxyToBackend(request, response);
+    } catch {
+      response.writeHead(502);
+      response.end("backend unavailable");
+    }
+    return;
+  }
+
   const resolvedPath = resolveFilePath(request.url);
   const candidatePath = resolvedPath.filePath;
   const normalizedCandidate = path.normalize(candidatePath);

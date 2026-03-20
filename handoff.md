@@ -1,7 +1,7 @@
 # Agent Handoff
 
 ## Current Status
-- Date: `2026-03-17`
+- Date: `2026-03-20`
 - Repository: `crud-kick-starter-fork-test`
 - Branch: `crud-kick-starter-fork-test`
 - Current north-star baseline docs:
@@ -9,6 +9,31 @@
   - [m04-north-star-alignment-program.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-north-star-alignment-program.md)
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
+
+## 2026-03-20 Review Env Frontend/API Fix Delivered
+- The local review app failure on `http://localhost:3000/` was not a backend outage.
+- Root cause:
+  - the review launcher was serving stale `frontend/dist`
+  - the static review frontend did not proxy `/api`, `/health`, or `/ready`
+  - so the app shell received HTML where it expected JSON and surfaced:
+    - `Unexpected token '<'`
+    - `API disconnected`
+    - `FRONTEND_VIEW_REGISTRATION_MISSING`
+- Delivered fix:
+  - [review-frontend-static-server.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/scripts/review-frontend-static-server.mjs)
+    - now proxies `/api`, `/health`, and `/ready` to `127.0.0.1:3001`
+  - [review-env.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/scripts/review-env.mjs)
+    - tightened launcher behavior while diagnosing stale port ownership and frontend startup fallback
+- Verification boundary used for this fix:
+  - `http://localhost:3000/api/system/ping` returns backend JSON, not HTML
+  - `http://localhost:3000/api/reference/modules` returns backend JSON
+  - browser shell now shows `API connected` instead of the broken registration state
+- Important runtime note:
+  - sandboxed `vite build` / `vite dev` still hit Windows `spawn EPERM`
+  - the review path is therefore:
+    - build frontend outside the sandbox when needed
+    - serve fresh `frontend/dist`
+    - proxy all backend API traffic through the static review frontend
 
 ## 2026-03-18 M07 Browser-Firestore Pivot Delivered
 - M07 is now delivered on the simpler repo boundary:

@@ -2125,3 +2125,24 @@
 - Improve:
   - for public deployed application behavior, never treat `127.0.0.1` as anything more than a development harness
   - keep public-page APIs stateless and deployment-contract-driven so they can actually live outside the local CMS process
+
+### 2026-03-20 - Review Env Must Proxy Backend APIs Or The App Is Fake-Healthy
+- Tasks:
+  - diagnosed the local review app failure where `http://localhost:3000/` returned the shell but product routes still showed `API disconnected` and `FRONTEND_VIEW_REGISTRATION_MISSING`
+  - confirmed the real symptom by checking `http://localhost:3000/api/system/ping` and `http://localhost:3000/api/reference/modules`
+  - both were returning frontend HTML instead of backend JSON
+  - patched the static review frontend to proxy `/api`, `/health`, and `/ready` to `127.0.0.1:3001`
+  - refreshed `handoff.md` so the next turn starts from the correct boundary
+- Easy:
+  - once the proxied endpoints were checked directly, the problem was obvious: this was an HTTP-path bug, not a React/module-registration bug
+- Hard:
+  - process liveness was misleading because `3000` returned `200` while serving the wrong content type for API paths
+  - Windows sandbox restrictions (`spawn EPERM`) still block reliable in-sandbox `vite build` / `vite dev`, so the launcher can look healthy while actually falling back to stale assets
+  - stale listeners on `3000` / `3001` made launcher pid files untrustworthy until the bound ports were checked directly
+- Improve:
+  - never treat `200 OK` on the frontend root as sufficient proof that the review app is usable
+  - the minimum validation for this repo is:
+    - `localhost:3000/api/system/ping` returns backend JSON
+    - `localhost:3000/api/reference/modules` returns backend JSON
+    - browser shell shows `API connected`
+  - every shell command should keep an explicit timeout; no long open-ended waits

@@ -134,8 +134,8 @@ async function isFrontendHealthy() {
   }
 }
 
-function startDetachedNode(argumentList, { stdoutPath, stderrPath }) {
-  const child = spawn(process.execPath, argumentList, {
+function startDetachedProcess(command, argumentList, { stdoutPath, stderrPath }) {
+  const child = spawn(command, argumentList, {
     cwd: ROOT_DIR,
     detached: true,
     stdio: ["ignore", openLogFile(stdoutPath), openLogFile(stderrPath)],
@@ -145,7 +145,20 @@ function startDetachedNode(argumentList, { stdoutPath, stderrPath }) {
   return child.pid;
 }
 
-async function buildFrontend() {
+function startDetachedNode(argumentList, options) {
+  return startDetachedProcess(process.execPath, argumentList, options);
+}
+
+function stopPidSafe(pid) {
+  try {
+    stopPid(pid);
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+async function buildFrontendDist() {
   try {
     runChecked(PNPM_CMD, ["--filter", "frontend", "build"]);
     return {
@@ -164,22 +177,50 @@ async function buildFrontend() {
   }
 }
 
-async function startReviewEnv() {
-  ensureRuntimeDir();
-  const stoppedPids = clearPorts();
-  const frontendBuild = await buildFrontend();
+async function startFrontendDevServer(stamp) {
+  const frontendCommand =
+    process.platform === "win32"
+      ? {
+          command: "cmd.exe",
+          args: [
+            "/c",
+            PNPM_CMD,
+            "--filter",
+            "frontend",
+            "dev",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "3000",
+            "--strictPort"
+          ]
+        }
+      : {
+          command: PNPM_CMD,
+          args: ["--filter", "frontend", "dev", "--host", "127.0.0.1", "--port", "3000", "--strictPort"]
+        };
 
-  const stamp = timestampTag();
-  const backendPid = startDetachedNode([path.join(ROOT_DIR, "server", "src", "index.js")], {
-    stdoutPath: path.join(RUNTIME_DIR, `review-backend-${stamp}.log`),
-    stderrPath: path.join(RUNTIME_DIR, `review-backend-${stamp}.err.log`)
+  const frontendPid = startDetachedProcess(frontendCommand.command, frontendCommand.args, {
+    stdoutPath: path.join(RUNTIME_DIR, `review-frontend-dev-${stamp}.log`),
+    stderrPath: path.join(RUNTIME_DIR, `review-frontend-dev-${stamp}.err.log`)
   });
 
-  const backendReady = await waitFor(isBackendHealthy, 20_000);
-  if (!backendReady) {
-    throw new Error("Backend did not become healthy on 127.0.0.1:3001");
+  const frontendReady = await waitFor(isFrontendHealthy, 20_000);
+  if (!frontendReady) {
+    stopPidSafe(frontendPid);
+    return null;
   }
 
+  return {
+    pid: frontendPid,
+    frontendBuild: {
+      mode: "vite-dev"
+    }
+  };
+}
+
+async function startFrontendStaticServer(stamp) {
+  const frontendBuild = await buildFrontendDist();
   const frontendPid = startDetachedNode(
     [path.join(ROOT_DIR, "scripts", "review-frontend-static-server.mjs")],
     {
@@ -193,15 +234,39 @@ async function startReviewEnv() {
     throw new Error("Frontend did not become healthy on localhost:3000");
   }
 
+  return {
+    pid: frontendPid,
+    frontendBuild
+  };
+}
+
+async function startReviewEnv() {
+  ensureRuntimeDir();
+  const stoppedPids = clearPorts();
+
+  const stamp = timestampTag();
+  const backendPid = startDetachedNode([path.join(ROOT_DIR, "server", "src", "index.js")], {
+    stdoutPath: path.join(RUNTIME_DIR, `review-backend-${stamp}.log`),
+    stderrPath: path.join(RUNTIME_DIR, `review-backend-${stamp}.err.log`)
+  });
+
+  const backendReady = await waitFor(isBackendHealthy, 20_000);
+  if (!backendReady) {
+    throw new Error("Backend did not become healthy on 127.0.0.1:3001");
+  }
+
+  const frontendStart =
+    (await startFrontendDevServer(stamp)) ?? (await startFrontendStaticServer(stamp));
+
   const payload = {
     startedAt: new Date().toISOString(),
     frontendUrl: FRONTEND_URL,
     backendHealthUrl: BACKEND_HEALTH_URL,
     clearedPids: stoppedPids,
-    frontendBuild,
+    frontendBuild: frontendStart.frontendBuild,
     processes: {
       backendPid,
-      frontendPid
+      frontendPid: frontendStart.pid
     }
   };
   await fsp.writeFile(PID_FILE, JSON.stringify(payload, null, 2), "utf8");
