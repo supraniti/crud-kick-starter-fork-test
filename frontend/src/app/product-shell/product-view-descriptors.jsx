@@ -66,6 +66,7 @@ export const PRODUCT_VIEW_DESCRIPTORS = Object.freeze([
         collectionsDomain={context.collectionsDomain}
         moduleSettingsDomain={context.moduleSettingsDomain}
         navigate={context.navigate}
+        route={context.route}
       />
     )
   },

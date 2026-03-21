@@ -10,6 +10,45 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-21 Taxonomies Follow-Up Ready For Review
+- The first taxonomy desk pass was not yet good enough on three user-visible points:
+  - the category tree still read too flat
+  - the publication flow still felt too abstract
+  - the desk still showed too many simultaneous widgets
+- Follow-up rework now in the worktree, still uncommitted:
+  - category tree now has an explicit root node plus stronger branch framing
+  - the categories branch now uses a single contextual side rail with tabs:
+    - `Selected`
+    - `Impact`
+    - `Publication`
+  - the tags branch now uses the same idea:
+    - `Publication`
+    - `Impact`
+    - `Batch`
+  - the publication branch is now split into:
+    - scope picker
+    - compact `Publication Flow`
+    - current state snapshot
+    - the actual compare/sync surface
+- Main files:
+  - [BlogTaxonomyView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx)
+  - [TaxonomyDeskPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/TaxonomyDeskPanels.jsx)
+  - [BlogTaxonomyRemoteProjectionPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/BlogTaxonomyRemoteProjectionPanel.jsx)
+  - [taxonomy-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/taxonomy-desk-model.js)
+  - [useTaxonomyDeskWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/useTaxonomyDeskWorkspace.js)
+  - [taxonomies-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/taxonomies-story-implementation-plan.md)
+- Verification used for this review slice:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - direct browser review on:
+    - `http://localhost:3000/app/taxonomies?taxonomyBranch=categories`
+    - `http://localhost:3000/app/taxonomies?taxonomyBranch=tags`
+    - `http://localhost:3000/app/taxonomies?taxonomyBranch=publication`
+- Important boundary:
+  - the focused taxonomy frontend vitest path timed out again in this Windows environment and is not being counted as proof for this slice
+  - the honest proof is build + review env + live route inspection
+
 ## 2026-03-21 Media Story Slice Ready For Review
 - Story sequence is now:
   - developer story: delivered and committed
@@ -911,4 +950,61 @@
     - `Not Synced: 0`
     - `Synced: 7`
   - narrower viewport check no longer showed the filter controls spilling into one forced row
+- Worktree remains uncommitted for review.
+
+## 2026-03-21 Taxonomies Story Slice Ready For Review
+- Story sequence now:
+  - developer story: delivered and committed
+  - authors story: delivered and committed
+  - media story: delivered and committed
+  - taxonomies story: implemented and waiting for review, not committed
+- Planning artifact:
+  - [taxonomies-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/taxonomies-story-implementation-plan.md)
+- Delivered taxonomy-desk changes in the worktree:
+  - route-backed taxonomy branch state:
+    - `taxonomyBranch`
+    - `publicationScope`
+    - category search/filter/sort/expanded/selection
+    - tag search/filter/sort/page/selection
+  - bespoke category workflow:
+    - tree browser
+    - guided category drawer
+    - path preview before save
+    - featured-image gallery with upload
+    - category output links
+  - bespoke tag workflow:
+    - tag roster table
+    - quick batch creation
+    - bulk delete
+    - drawer-based tag editing
+  - preserved usage/publication visibility and the remote publication tab
+- Main files:
+  - [BlogTaxonomyView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx)
+  - [TaxonomyDeskPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/TaxonomyDeskPanels.jsx)
+  - [useTaxonomyDeskWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/useTaxonomyDeskWorkspace.js)
+  - [taxonomy-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/taxonomy-desk-model.js)
+  - [view-entrypoint.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-taxonomy/frontend/view-entrypoint.jsx)
+  - [product-view-descriptors.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-view-descriptors.jsx)
+  - [blog-editorial-taxonomy.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-editorial-taxonomy.integration.test.jsx)
+- Verification completed:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+  - live browser review on `/app/taxonomies`
+- Important verification note:
+  - the focused frontend integration command hit the known Windows/sandbox vitest boundary and did not produce a clean result in this session
+  - the slice was therefore verified through:
+    - fresh frontend build
+    - healthy review env
+    - direct browser interaction on categories and tags
+- Review env:
+  - app: `http://localhost:3000/`
+  - route: `http://localhost:3000/app/taxonomies`
+  - backend health: `http://127.0.0.1:3001/health`
+- Browser proof completed:
+  - switching `Categories <-> Tags` updates the URL and keeps the desk stable
+  - editing a tag opens a drawer on `/app/taxonomies?taxonomyBranch=tags&tagId=...`
+  - editing a category opens a drawer on `/app/taxonomies?taxonomyBranch=categories&categoryId=...`
+  - category drawer shows path preview and featured-image controls
 - Worktree remains uncommitted for review.

@@ -2229,3 +2229,37 @@
 - Improve:
   - for any desk that derives status from operational history, load the complete relevant history or page it explicitly; do not assume one collection response is exhaustive
   - when the live browser and a local reproduction disagree, verify the served frontend bundle before changing more logic
+
+### 2026-03-21 - Taxonomies Needed A Real Split Between Structure And Cleanup
+- Tasks:
+  - replaced the old generic taxonomy manage surface with a route-backed desk
+  - made categories tree-driven with drawer editing and image picking
+  - made tags table-driven with batch creation and bulk deletion
+  - kept publication and page-impact visibility present without letting them dominate the desk
+- Easy:
+  - the existing taxonomy handlers already enforced the right data rules, so the main work stayed in route state, browser structure, and workspace orchestration
+  - the Authors drawer and gallery patterns transferred cleanly into taxonomy editing
+- Hard:
+  - the current collections-domain contract is collection-at-a-time, so the desk had to switch active collection cleanly while still feeling like one product surface
+  - the focused vitest path was not trustworthy in this environment because the frontend test invocation hit the known Windows sandbox boundary and then hung instead of failing cleanly
+- Improve:
+  - stories that describe two related but different tools should not be implemented as one generic tab plus a different label
+  - when the test runner boundary is noisy, use build + review-env + direct browser route checks as the honest interim proof instead of pretending the automated test result is clean
+
+### 2026-03-21 - Taxonomy Review Follow-Up Needed More Structure, Not More Cards
+- Tasks:
+  - responded to user review that the category tree still did not read like a tree, the publication flow was still unclear, and the page still felt noisy
+  - added an explicit category-root frame so the hierarchy reads like a tree even when all current categories are top-level
+  - reduced simultaneous side widgets by turning category/tag context into a single-tabbed side rail
+  - simplified publication into a sequence:
+    - flow summary
+    - current state snapshot
+    - target compare/sync controls
+- Easy:
+  - the underlying taxonomy workspace already had enough state to support a cleaner presentation without changing handlers
+- Hard:
+  - the sample review data currently has all categories at the root level, so the tree UI had to explain why the structure is shallow instead of pretending deep branches exist
+  - the taxonomy frontend vitest run still timed out in this environment, so route verification had to rely on build + review env + browser inspection again
+- Improve:
+  - when users say a surface feels noisy, remove simultaneous decisions before adding more explanation
+  - a tree UI must visually teach the hierarchy state, including the case where no nested branches exist yet

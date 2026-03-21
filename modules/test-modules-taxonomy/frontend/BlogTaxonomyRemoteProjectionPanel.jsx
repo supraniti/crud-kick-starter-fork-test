@@ -60,6 +60,23 @@ function RemoteProjectionSummary({ latestRun, target }) {
   );
 }
 
+function StepCard({ step, title, description, children }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5 }}>
+      <Stack spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip size="small" label={step} color="primary" />
+          <Typography variant="subtitle2">{title}</Typography>
+        </Stack>
+        <Typography variant="body2" color="text.secondary">
+          {description}
+        </Typography>
+        {children}
+      </Stack>
+    </Paper>
+  );
+}
+
 export function BlogTaxonomyRemoteProjectionPanel({
   activeCollectionId,
   moduleSettingsDomain,
@@ -134,86 +151,105 @@ export function BlogTaxonomyRemoteProjectionPanel({
           <Alert severity="error">{remoteOpsSupport.supportState.errorMessage}</Alert>
         ) : null}
 
-        <TextField
-          select
-          label="Remote Projection Target"
-          value={selectedTargetId}
-          onChange={(event) =>
-            moduleSettingsDomain?.handleSettingsFieldChange(
-              descriptor.settingsFieldId,
-              event.target.value
-            )
-          }
-          helperText={
-            hasScopeMismatch
-              ? "The selected target exists, but it uses the wrong projection scope."
-              : targetOptions.length === 0
-                ? "No targets for this taxonomy projection scope are configured yet."
-                : ""
-          }
+        <StepCard
+          step="1"
+          title="Choose the remote projection target"
+          description="Pick the Firestore target that should receive this public taxonomy branch."
         >
-          <MenuItem value="">None</MenuItem>
-          {targetOptions.map((target) => (
-            <MenuItem key={target.id} value={target.id}>
-              {target.title}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <Stack direction="row" justifyContent="flex-end">
-          <Button
-            variant="contained"
-            onClick={saveSettings}
-            disabled={!moduleSettingsDomain || settingsState?.saving}
+          <TextField
+            select
+            label="Remote Projection Target"
+            value={selectedTargetId}
+            onChange={(event) =>
+              moduleSettingsDomain?.handleSettingsFieldChange(
+                descriptor.settingsFieldId,
+                event.target.value
+              )
+            }
+            helperText={
+              hasScopeMismatch
+                ? "The selected target exists, but it uses the wrong projection scope."
+                : targetOptions.length === 0
+                  ? "No targets for this taxonomy projection scope are configured yet."
+                  : ""
+            }
           >
-            {settingsState?.saving ? "Saving..." : descriptor.saveLabel}
-          </Button>
-        </Stack>
+            <MenuItem value="">None</MenuItem>
+            {targetOptions.map((target) => (
+              <MenuItem key={target.id} value={target.id}>
+                {target.title}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Stack direction="row" justifyContent="flex-end">
+            <Button
+              variant="contained"
+              onClick={saveSettings}
+              disabled={!moduleSettingsDomain || settingsState?.saving}
+            >
+              {settingsState?.saving ? "Saving..." : descriptor.saveLabel}
+            </Button>
+          </Stack>
+        </StepCard>
 
         {!selectedTarget ? (
           <Alert severity="info">{descriptor.emptyMessage}</Alert>
         ) : (
           <>
-            <Typography variant="subtitle2">{selectedTarget.title}</Typography>
-            <RemoteProjectionSummary target={selectedTarget} latestRun={latestRun} />
-            <Alert severity={hasScopeMismatch ? "warning" : "info"}>
-              {hasScopeMismatch ? "Fix the target scope before running projection procedures." : descriptor.inclusionMessage}
-            </Alert>
-            {remoteOpsSupport.procedureState.errorMessage ? (
-              <Alert severity="error">{remoteOpsSupport.procedureState.errorMessage}</Alert>
-            ) : null}
-            {remoteOpsSupport.procedureState.successMessage ? (
-              <Alert severity="success">{remoteOpsSupport.procedureState.successMessage}</Alert>
-            ) : null}
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <Button
-                variant="outlined"
-                onClick={() => remoteOpsSupport.validateTarget(selectedTarget.id)}
-                disabled={isBusy || hasScopeMismatch}
-              >
-                {isBusy && remoteOpsSupport.procedureState.procedureType === "validate"
-                  ? "Validating..."
-                  : "Validate Target"}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => remoteOpsSupport.compareTarget(selectedTarget.id)}
-                disabled={isBusy || hasScopeMismatch}
-              >
-                {isBusy && remoteOpsSupport.procedureState.procedureType === "compare"
-                  ? "Comparing..."
-                  : "Compare Projection"}
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => remoteOpsSupport.executeTarget(selectedTarget.id)}
-                disabled={isBusy || hasScopeMismatch}
-              >
-                {isBusy && remoteOpsSupport.procedureState.procedureType === "execute"
-                  ? "Syncing..."
-                  : "Sync Projection"}
-              </Button>
-            </Stack>
+            <StepCard
+              step="2"
+              title="Review the target state"
+              description="Confirm that the selected target is valid for this branch and see what changed since the last run."
+            >
+              <Typography variant="subtitle2">{selectedTarget.title}</Typography>
+              <RemoteProjectionSummary target={selectedTarget} latestRun={latestRun} />
+              <Alert severity={hasScopeMismatch ? "warning" : "info"}>
+                {hasScopeMismatch ? "Fix the target scope before running projection procedures." : descriptor.inclusionMessage}
+              </Alert>
+            </StepCard>
+
+            <StepCard
+              step="3"
+              title="Compare and sync"
+              description="Compare first so you can see the change set. Sync only when the projection looks correct."
+            >
+              {remoteOpsSupport.procedureState.errorMessage ? (
+                <Alert severity="error">{remoteOpsSupport.procedureState.errorMessage}</Alert>
+              ) : null}
+              {remoteOpsSupport.procedureState.successMessage ? (
+                <Alert severity="success">{remoteOpsSupport.procedureState.successMessage}</Alert>
+              ) : null}
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button
+                  variant="outlined"
+                  onClick={() => remoteOpsSupport.validateTarget(selectedTarget.id)}
+                  disabled={isBusy || hasScopeMismatch}
+                >
+                  {isBusy && remoteOpsSupport.procedureState.procedureType === "validate"
+                    ? "Validating..."
+                    : "Validate Target"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => remoteOpsSupport.compareTarget(selectedTarget.id)}
+                  disabled={isBusy || hasScopeMismatch}
+                >
+                  {isBusy && remoteOpsSupport.procedureState.procedureType === "compare"
+                    ? "Comparing..."
+                    : "Compare Projection"}
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => remoteOpsSupport.executeTarget(selectedTarget.id)}
+                  disabled={isBusy || hasScopeMismatch}
+                >
+                  {isBusy && remoteOpsSupport.procedureState.procedureType === "execute"
+                    ? "Syncing..."
+                    : "Sync Projection"}
+                </Button>
+              </Stack>
+            </StepCard>
           </>
         )}
       </Stack>

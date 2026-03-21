@@ -16,6 +16,7 @@ export function registerModuleViews() {
           collectionsDomain={context.collectionsDomain}
           moduleSettingsDomain={context.moduleSettingsDomain}
           navigate={context.navigate}
+          route={context.route}
         />
       )
     }

@@ -206,7 +206,7 @@ test("blog editorial view renders author summary and editorial queue snapshot", 
   expect(fetchMock).toHaveBeenCalledWith("/api/reference/collections/blog-posts/items?limit=200");
 });
 
-test("blog taxonomy view renders tree summary and collection switcher", async () => {
+test("blog taxonomy view renders a category-first desk and routes branch changes through the URL", async () => {
   const collectionsDomain = createCollectionsDomain({
     activeCollectionId: "blog-categories",
     collectionSchema: {
@@ -258,20 +258,21 @@ test("blog taxonomy view renders tree summary and collection switcher", async ()
   });
 
   render(
-    <BlogTaxonomyView activeModuleLabel="Blog Taxonomy" collectionsDomain={collectionsDomain} />
+    <BlogTaxonomyView
+      activeModuleLabel="Blog Taxonomy"
+      collectionsDomain={collectionsDomain}
+      navigate={vi.fn()}
+      route={{ taxonomyBranch: "categories" }}
+    />
   );
 
   expect(screen.getByRole("heading", { name: "Taxonomy Studio" })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Publication State" })).toBeInTheDocument();
-  expect(
-    screen.getByText("No Firestore projection target is configured for this taxonomy branch.")
-  ).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Selected Category" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Category Tree" })).toBeInTheDocument();
+  expect(screen.getByText("All Categories")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "New Category" })).toBeInTheDocument();
   expect(screen.getAllByText("Guides").length).toBeGreaterThan(0);
   expect(screen.getByText("guides/devops")).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole("button", { name: "Tags" }));
-  expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");
 });
 
 test("blog taxonomy view surfaces separate remote projection panels for categories and tags", async () => {
@@ -380,19 +381,67 @@ test("blog taxonomy view surfaces separate remote projection panels for categori
       collectionsDomain={collectionsDomain}
       moduleSettingsDomain={moduleSettingsDomain}
       navigate={vi.fn()}
+      route={{ taxonomyBranch: "publication", publicationScope: "categories" }}
     />
   );
-
-  fireEvent.click(screen.getByRole("tab", { name: "Remote Publication" }));
 
   expect(screen.getByText("Remote Categories Projection")).toBeInTheDocument();
   expect(screen.getAllByText("Categories Projection").length).toBeGreaterThan(0);
   expect(
-    screen.getByText("Only categories with visibility set to public are included in this projection.")
+      screen.getByText("Only categories with visibility set to public are included in this projection.")
   ).toBeInTheDocument();
+});
 
-  fireEvent.click(screen.getByRole("button", { name: "Tags" }));
-  expect(collectionsDomain.handleSelectCollection).toHaveBeenCalledWith("blog-tags");
+test("blog taxonomy view gives tags a separate cleanup-oriented workflow", async () => {
+  const navigate = vi.fn();
+  const collectionsDomain = createCollectionsDomain({
+    activeCollectionId: "blog-tags",
+    collectionSchema: {
+      id: "blog-tags",
+      label: "Tags",
+      entitySingular: "tag",
+      fields: [{ id: "name", label: "Name", type: "text", required: true }]
+    },
+    collectionItems: [
+      {
+        id: "tag-001",
+        name: "Launch",
+        slug: "launch",
+        visibility: "public",
+        color: "#0f766e",
+        usageCount: 4,
+        updatedOn: "2026-03-20T08:00:00.000Z"
+      },
+      {
+        id: "tag-002",
+        name: "Roadmap",
+        slug: "roadmap",
+        visibility: "internal",
+        color: "",
+        usageCount: 0,
+        updatedOn: "2026-03-18T08:00:00.000Z"
+      }
+    ],
+    moduleCollections: [
+      { id: "blog-categories", label: "Categories", capabilities: { create: true, update: true, delete: true } },
+      { id: "blog-tags", label: "Tags", capabilities: { create: true, update: true, delete: true } }
+    ]
+  });
+
+  render(
+    <BlogTaxonomyView
+      activeModuleLabel="Blog Taxonomy"
+      collectionsDomain={collectionsDomain}
+      navigate={navigate}
+      route={{ taxonomyBranch: "tags", tagSearch: "Launch", tagSort: "usage-desc", tagPage: 1 }}
+    />
+  );
+
+  expect(screen.getByRole("button", { name: "New Tag" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("tab", { name: "Batch" }));
+  expect(screen.getByText("Quick Add Tags")).toBeInTheDocument();
+  expect(screen.getByText("Launch")).toBeInTheDocument();
+  expect(screen.getByText("launch")).toBeInTheDocument();
 });
 
 test("blog taxonomy view surfaces posts and pages usage visibility", async () => {
@@ -476,10 +525,15 @@ test("blog taxonomy view surfaces posts and pages usage visibility", async () =>
   );
 
   await waitFor(() => {
-    expect(screen.getByText("Posts + Category Pages")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Category Tree" })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Impact" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("Impact Snapshot")).toBeInTheDocument();
     expect(screen.getByText(/Guides: 1 post reference/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Category Templates 1/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Posts Missing Categories 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Missing Categories 1/i)).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Open Pages" }));

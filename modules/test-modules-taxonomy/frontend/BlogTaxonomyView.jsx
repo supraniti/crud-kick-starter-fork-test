@@ -1,498 +1,304 @@
-import {
-  Alert,
-  Button,
-  Chip,
-  Paper,
-  Stack,
-  Typography
-} from "@mui/material";
-import { useMemo, useState } from "react";
-import { CollectionsView } from "../../../frontend/src/ui/CollectionsView.jsx";
-import { BlogTaxonomyRemoteProjectionPanel } from "./BlogTaxonomyRemoteProjectionPanel.jsx";
-import { BlogTaxonomyUsagePanel } from "./BlogTaxonomyUsagePanel.jsx";
-import { createTaxonomyPublicationState } from "./blog-taxonomy-publication-state.js";
-import { useTaxonomyWorkspace } from "./useTaxonomyWorkspace.js";
-import { useTaxonomyUsageAwareness } from "./useTaxonomyUsageAwareness.js";
-import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
-import { resolvePagePublicOutput } from "../../test-modules-pages/frontend/page-public-link-support.js";
+import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
+import { useState } from "react";
 import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
+import { BlogTaxonomyRemoteProjectionPanel } from "./BlogTaxonomyRemoteProjectionPanel.jsx";
+import {
+  CategoryFormDrawer,
+  CategoryMainPanel,
+  CategorySelectionCard,
+  CategoryToolbar,
+  CategoryTreeBrowser,
+  PublicationBranchCard,
+  PublicationGuideCard,
+  PublicationStatusCard,
+  TagBatchCard,
+  TagFormDrawer,
+  TagRosterTable,
+  TagsToolbar,
+  TaxonomyContextRail,
+  TaxonomyDeskHeader,
+  TaxonomyImpactCard,
+  TaxonomyDeskSnackbar,
+  TaxonomyFeaturedMediaDialog,
+  TaxonomyPublicationStateCard
+} from "./TaxonomyDeskPanels.jsx";
+import { useTaxonomyDeskWorkspace } from "./useTaxonomyDeskWorkspace.js";
+import { buildTagBatchCandidates } from "./taxonomy-desk-model.js";
 
-const TAGS_COLLECTION_ID = "blog-tags";
 const CATEGORIES_COLLECTION_ID = "blog-categories";
-const HIDDEN_FIELD_IDS_BY_COLLECTION = Object.freeze({
-  [TAGS_COLLECTION_ID]: new Set(["slug", "usageCount", "createdOn", "updatedOn"]),
-  [CATEGORIES_COLLECTION_ID]: new Set([
-    "slug",
-    "path",
-    "depth",
-    "usageCount",
-    "createdOn",
-    "updatedOn"
-  ])
-});
-
-function SummaryCard({ label, value }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={0.5}>
-        <Typography variant="overline" color="text.secondary">
-          {label}
-        </Typography>
-        <Typography variant="h4">{value}</Typography>
-      </Stack>
-    </Paper>
-  );
-}
-
-function buildVisibleSchema(collectionId, schema) {
-  if (!schema || typeof schema !== "object") {
-    return schema;
-  }
-
-  const hiddenFieldIds = HIDDEN_FIELD_IDS_BY_COLLECTION[collectionId] ?? new Set();
-  return {
-    ...schema,
-    fields: (schema.fields ?? []).filter((field) => !hiddenFieldIds.has(field.id))
-  };
-}
-
-function CollectionSwitcher({ activeCollectionId, onSelectCollection }) {
-  const options = [
-    {
-      collectionId: CATEGORIES_COLLECTION_ID,
-      label: "Categories"
-    },
-    {
-      collectionId: TAGS_COLLECTION_ID,
-      label: "Tags"
-    }
-  ];
-
-  return (
-    <Stack direction="row" spacing={1} flexWrap="wrap">
-      {options.map((option) => (
-        <Button
-          key={option.collectionId}
-          variant={activeCollectionId === option.collectionId ? "contained" : "outlined"}
-          size="small"
-          onClick={() => onSelectCollection(option.collectionId)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </Stack>
-  );
-}
-
-function CategoryTreePanel({ rows }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={1.5}>
-        <Typography variant="h6">Category Tree</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Path and depth are module-managed. The tree below reflects persisted parent links only.
-        </Typography>
-        {rows.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No categories yet. Create a root category to seed the tree.
-          </Typography>
-        ) : (
-          rows.map((row) => (
-            <Paper key={row.id} variant="outlined" sx={{ p: 1.5, ml: row.treeDepth * 2 }}>
-              <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
-                <Typography variant="subtitle2">{row.name}</Typography>
-                <Chip size="small" label={`depth ${row.depth ?? row.treeDepth}`} />
-                <Chip size="small" label={row.visibility ?? "public"} />
-                {row.featuredMediaId ? <Chip size="small" label="featured media" color="secondary" /> : null}
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {row.path}
-              </Typography>
-            </Paper>
-          ))
-        )}
-      </Stack>
-    </Paper>
-  );
-}
-
-function TaxonomyPublicationStatePanel({ publicationState, latestRun, targetTitle, usageSummary, isCategories }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={1.25}>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={1}
-          justifyContent="space-between"
-          alignItems={{ md: "center" }}
-        >
-          <Stack spacing={0.25}>
-            <Typography variant="h6">Publication State</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Keep taxonomy structure visible without opening the secondary projection controls.
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip
-              size="small"
-              label={publicationState.label}
-              color={publicationState.tone === "success" ? "success" : publicationState.tone === "warning" ? "warning" : "default"}
-            />
-            <Chip size="small" label={`Public Terms ${publicationState.publicCount}`} variant="outlined" />
-            {latestRun?.procedureType ? (
-              <Chip
-                size="small"
-                label={`Last ${latestRun.procedureType} ${latestRun.status ?? "unknown"}`}
-                variant="outlined"
-              />
-            ) : null}
-          </Stack>
-        </Stack>
-        <Typography variant="body2" color="text.secondary">
-          {publicationState.detail}
-        </Typography>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Chip size="small" label={targetTitle || "No projection target selected"} variant="outlined" />
-          <Chip
-            size="small"
-            label={
-              isCategories
-                ? `Category Templates ${usageSummary.categoryTemplatePages}`
-                : `Tag Listing Pages ${usageSummary.tagListingPages}`
-            }
-            variant="outlined"
-          />
-          <Chip size="small" label={`Unused Terms ${usageSummary.unusedTerms}`} color={usageSummary.unusedTerms > 0 ? "warning" : "default"} />
-        </Stack>
-      </Stack>
-    </Paper>
-  );
-}
-
-function CategoryOutputPanel({ category, outputCandidates, onOpenPages }) {
-  if (!category) {
-    return (
-      <Alert severity="info">
-        Select a category in Manage Terms to inspect its exact page path and public URL.
-      </Alert>
-    );
-  }
-
-  if (outputCandidates.length === 0) {
-    return (
-      <Alert severity="info">
-        No published category page template currently covers {category.name ?? category.id}.
-      </Alert>
-    );
-  }
-
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={1.5}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
-          <Stack spacing={0.35}>
-            <Typography variant="h6">Category Output</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Direct release outcome for the selected category.
-            </Typography>
-          </Stack>
-          {typeof onOpenPages === "function" ? (
-            <Button variant="outlined" onClick={onOpenPages}>
-              Open Pages
-            </Button>
-          ) : null}
-        </Stack>
-        {outputCandidates.map((entry) => (
-          <Paper key={entry.page.id} variant="outlined" sx={{ p: 1.5 }}>
-            <Stack spacing={0.75}>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between">
-                <Stack spacing={0.25}>
-                  <Typography variant="subtitle2">{entry.page.title}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Path: {entry.output.path || "Not resolved yet"}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Local artifact: {entry.output.localArtifactPath || "Not resolved yet"}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Public URL: {entry.output.publicUrl || "Not resolved yet"}
-                  </Typography>
-                </Stack>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  <Chip size="small" label={entry.page.deploymentStatus ?? "missing"} variant="outlined" />
-                  {entry.output.deploymentTargetTitle ? (
-                    <Chip size="small" label={`HTML ${entry.output.deploymentTargetTitle}`} variant="outlined" />
-                  ) : null}
-                  {entry.output.browserTargetTitle ? (
-                    <Chip size="small" label={`Delivery ${entry.output.browserTargetTitle}`} variant="outlined" />
-                  ) : null}
-                  {entry.output.publicUrl ? (
-                    <Button
-                      component="a"
-                      href={entry.output.publicUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      size="small"
-                      variant="outlined"
-                    >
-                      Open URL
-                    </Button>
-                  ) : null}
-                </Stack>
-              </Stack>
-            </Stack>
-          </Paper>
-        ))}
-      </Stack>
-    </Paper>
-  );
-}
-
-function RemotePublicationSection({ children }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={1.5}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
-          <Stack spacing={0.35}>
-            <Typography variant="h6">Remote Publication</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Categories and tags are authored here first. Use this section only when you need to inspect or drive the secondary Firestore publication flow directly from Taxonomies.
-            </Typography>
-          </Stack>
-        </Stack>
-        <Alert severity="info">
-          Normal taxonomy work stays focused on categories and tags. Remote projection is secondary.
-        </Alert>
-        {children}
-      </Stack>
-    </Paper>
-  );
-}
+const TAGS_COLLECTION_ID = "blog-tags";
 
 export function BlogTaxonomyView({
   activeModuleLabel,
   collectionsDomain,
   moduleSettingsDomain = null,
-  navigate = null
+  navigate = null,
+  route = {}
 }) {
-  const [section, setSection] = useState("overview");
-  const workspace = useTaxonomyWorkspace({
-    collectionsDomain
+  const workspace = useTaxonomyDeskWorkspace({
+    collectionsDomain,
+    moduleSettingsDomain,
+    navigate,
+    route
   });
-  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
-  const usageAwareness = useTaxonomyUsageAwareness({
-    activeCollectionId: collectionsDomain.activeCollectionId,
-    items: workspace.items
-  });
-  const isCategories = collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID;
-  const projectionTargetFieldId = isCategories
-    ? "remoteCategoriesProjectionTargetProfileId"
-    : "remoteTagsProjectionTargetProfileId";
-  const projectionTargetId =
-    moduleSettingsDomain?.moduleSettingsState?.draftValues?.[projectionTargetFieldId] ?? "";
-  const projectionTarget = remoteOpsSupport.getTargetById(projectionTargetId);
-  const projectionLatestRun = remoteOpsSupport.getLatestRunForTarget(projectionTargetId);
-  const publicationState = useMemo(
-    () =>
-      createTaxonomyPublicationState({
-        items: workspace.items,
-        target: projectionTarget,
-        latestRun: projectionLatestRun
-      }),
-    [projectionLatestRun, projectionTarget, workspace.items]
-  );
-  const allTargets = remoteOpsSupport.supportState.targets ?? [];
-  const fallbackBrowserTarget = allTargets.find((target) => target?.productBindingKey === "browser-delivery") ?? null;
-  const fallbackDeploymentTarget = allTargets.find((target) => target?.productBindingKey === "deployment-storage") ?? null;
-  const fallbackMediaTarget = allTargets.find((target) => target?.productBindingKey === "media-storage") ?? null;
-  const selectedItem = useMemo(
-    () =>
-      workspace.items.find((item) => item.id === collectionsDomain.collectionFormState?.itemId) ?? null,
-    [collectionsDomain.collectionFormState?.itemId, workspace.items]
-  );
-  const selectedCategoryOutputs = useMemo(() => {
-    if (!isCategories || !selectedItem) {
-      return [];
-    }
-    return usageAwareness.usageState.pages
-      .filter((page) => {
-        if (page?.primarySourceType !== "blog-category" || page?.status !== "published") {
-          return false;
-        }
-        if (page?.deploymentMode === "per-record" && page?.sourceSelectionMode === "all-records") {
-          return true;
-        }
-        return page?.primarySource?.itemId === selectedItem.id;
-      })
-      .map((page) => ({
-        page,
-        output: resolvePagePublicOutput({
-          page,
-          sourceRecord: selectedItem,
-          targets: allTargets,
-          fallbackBrowserTarget,
-          fallbackDeploymentTarget,
-          fallbackMediaTarget
-        })
-      }));
-  }, [
-    allTargets,
-    fallbackBrowserTarget,
-    fallbackDeploymentTarget,
-    fallbackMediaTarget,
-    isCategories,
-    selectedItem,
-    usageAwareness.usageState.pages
-  ]);
-
-  const visibleSchemaState = useMemo(
-    () => ({
-      ...collectionsDomain.collectionSchemaState,
-      collection: buildVisibleSchema(
-        collectionsDomain.activeCollectionId,
-        collectionsDomain.collectionSchemaState.collection
-      )
-    }),
-    [collectionsDomain.activeCollectionId, collectionsDomain.collectionSchemaState]
-  );
+  const tagBatchPreview = buildTagBatchCandidates(workspace.tagBatchInput, workspace.allTags)
+    .duplicateNames
+    .slice(0, 6);
+  const [categoryContextTab, setCategoryContextTab] = useState("selected");
+  const [tagContextTab, setTagContextTab] = useState("publication");
+  const parentCategoryOptions = (workspace.fullCategoryRows.length > 0 ? workspace.fullCategoryRows : [])
+    .filter((row) => row.id !== workspace.formState.itemId)
+    .map((row) => ({
+      id: row.id,
+      label: `${"— ".repeat(row.treeDepth)}${row.name}`
+    }));
 
   return (
     <Stack spacing={2}>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 2,
-          background: "linear-gradient(135deg, #102a43 0%, #486581 100%)",
-          color: "common.white"
-        }}
-      >
-        <Stack spacing={1.5}>
-          <Stack spacing={0.5}>
-            <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.75)" }}>
-              {activeModuleLabel}
-            </Typography>
-            <Typography variant="h4">Taxonomy Studio</Typography>
-            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
-              Manage categories and tags as shared content structure before posts, pages, and releases depend on them.
-            </Typography>
-          </Stack>
-          <CollectionSwitcher
-            activeCollectionId={collectionsDomain.activeCollectionId}
-            onSelectCollection={collectionsDomain.handleSelectCollection}
-          />
-        </Stack>
-      </Paper>
-
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={2}
-        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" } }}
-      >
-        <SummaryCard label={`Total ${workspace.summary.primaryLabel}`} value={workspace.summary.total} />
-        <SummaryCard
-          label={collectionsDomain.activeCollectionId === TAGS_COLLECTION_ID ? "Internal Tags" : "Root Categories"}
-          value={workspace.summary.secondary}
-        />
-        <SummaryCard
-          label={collectionsDomain.activeCollectionId === TAGS_COLLECTION_ID ? "Colored Tags" : "Internal Categories"}
-          value={workspace.summary.tertiary}
-        />
-        <SummaryCard
-          label={collectionsDomain.activeCollectionId === TAGS_COLLECTION_ID ? "Unused Tags" : "Deepest Branch"}
-          value={workspace.summary.quaternary}
-        />
-      </Stack>
+      <TaxonomyDeskHeader
+        branch={workspace.activeBranch}
+        categorySummary={workspace.categorySummary}
+        tagSummary={workspace.tagSummary}
+      />
 
       <DeskTabsCard
-        value={section}
-        onChange={setSection}
+        value={workspace.routeState.branch}
+        onChange={workspace.handleSelectBranch}
         tabs={[
-          { value: "overview", label: "Overview" },
-          { value: "terms", label: "Manage Terms" },
+          { value: "categories", label: "Categories" },
+          { value: "tags", label: "Tags" },
           { value: "publication", label: "Remote Publication" }
         ]}
       />
 
-      {section === "overview" ? (
-        <Stack spacing={2}>
-          <TaxonomyPublicationStatePanel
-            publicationState={publicationState}
-            latestRun={projectionLatestRun}
-            targetTitle={projectionTarget?.title ?? ""}
-            usageSummary={usageAwareness.usageSummary}
-            isCategories={isCategories}
-          />
-
-          {collectionsDomain.activeCollectionId === CATEGORIES_COLLECTION_ID ? (
-            <CategoryTreePanel rows={workspace.categoryTreeRows} />
-          ) : null}
-
-          <BlogTaxonomyUsagePanel
-            activeCollectionId={collectionsDomain.activeCollectionId}
-            usageState={usageAwareness.usageState}
-            usageSummary={usageAwareness.usageSummary}
-            usageRows={usageAwareness.usageRows}
-            onOpenPosts={() => navigate?.({ moduleId: "posts" }, { replace: false })}
-            onOpenPages={() => navigate?.({ moduleId: "pages" }, { replace: false })}
-            onRefresh={usageAwareness.reload}
-          />
-
-          {isCategories ? (
-            <CategoryOutputPanel
-              category={selectedItem}
-              outputCandidates={selectedCategoryOutputs}
-              onOpenPages={() => navigate?.({ moduleId: "pages" }, { replace: false })}
+      {workspace.routeState.branch === "categories" ? (
+        <CategoryMainPanel
+          browser={
+            <CategoryTreeBrowser
+              rows={workspace.categoryRows}
+              selectedCategoryId={workspace.selectedCategory?.id ?? ""}
+              expandedCategoryIds={new Set(workspace.routeState.categorySearch ? workspace.categoryRows.map((row) => row.id) : workspace.routeState.categoryExpanded.length > 0 ? workspace.routeState.categoryExpanded : workspace.categoryRows.filter((row) => row.treeDepth === 0).map((row) => row.id))}
+              onToggleExpanded={workspace.handleToggleExpanded}
+              onSelect={workspace.handleOpenEditCategory}
             />
-          ) : null}
+          }
+          toolbar={
+            <CategoryToolbar
+              routeState={workspace.routeState}
+              onChangeFilter={workspace.handleCategoryFilterChange}
+              onOpenCreate={workspace.handleOpenCreateCategory}
+              onExpandAll={workspace.handleExpandAll}
+              onCollapseAll={workspace.handleCollapseAll}
+            />
+          }
+          insights={
+            <Stack spacing={1.5}>
+              {workspace.termsErrorMessage ? <Alert severity="error">{workspace.termsErrorMessage}</Alert> : null}
+              <TaxonomyContextRail
+                value={categoryContextTab}
+                onChange={setCategoryContextTab}
+                tabs={[
+                  { value: "selected", label: "Selected" },
+                  { value: "impact", label: "Impact" },
+                  { value: "publication", label: "Publication" }
+                ]}
+                content={
+                  categoryContextTab === "impact" ? (
+                    <TaxonomyImpactCard
+                      branch="categories"
+                      usageSummary={workspace.usageAwareness.usageSummary}
+                      usageRows={workspace.usageAwareness.usageRows}
+                      onOpenPosts={workspace.openPosts}
+                      onOpenPages={workspace.openPages}
+                      onRefresh={workspace.usageAwareness.reload}
+                    />
+                  ) : categoryContextTab === "publication" ? (
+                    <TaxonomyPublicationStateCard
+                      publicationState={workspace.publicationState}
+                      latestRun={workspace.projectionLatestRun}
+                      targetTitle={workspace.projectionTarget?.title ?? ""}
+                      branch="categories"
+                      usageSummary={workspace.usageAwareness.usageSummary}
+                    />
+                  ) : (
+                    <CategorySelectionCard
+                      category={workspace.selectedCategory}
+                      outputCandidates={workspace.selectedCategoryOutputs}
+                      onOpenPages={workspace.openPages}
+                    />
+                  )
+                }
+              />
+            </Stack>
+          }
+        />
+      ) : null}
+
+      {workspace.routeState.branch === "tags" ? (
+        <Stack spacing={2}>
+          <TagsToolbar
+            routeState={workspace.routeState}
+            selectedCount={workspace.selectedTagIds.length}
+            onChangeFilter={workspace.handleTagFilterChange}
+            onOpenCreate={workspace.handleOpenCreateTag}
+            onDeleteSelected={workspace.handleBulkDeleteTags}
+          />
+          {workspace.termsErrorMessage ? <Alert severity="error">{workspace.termsErrorMessage}</Alert> : null}
+          <CategoryMainPanel
+            browser={
+              <TagRosterTable
+                rows={workspace.pagedTagRows.rows}
+                page={workspace.pagedTagRows.page}
+                pageSize={workspace.pagedTagRows.pageSize}
+                totalCount={workspace.tagRows.length}
+                selectedTagIds={workspace.selectedTagIds}
+                onToggleSelection={workspace.handleToggleTagSelection}
+                onEdit={workspace.handleOpenEditTag}
+                onChangePage={workspace.handleTagPageChange}
+              />
+            }
+            toolbar={
+              <TaxonomyContextRail
+                value={tagContextTab}
+                onChange={setTagContextTab}
+                tabs={[
+                  { value: "publication", label: "Publication" },
+                  { value: "impact", label: "Impact" },
+                  { value: "batch", label: "Batch" }
+                ]}
+                content={
+                  tagContextTab === "impact" ? (
+                    <TaxonomyImpactCard
+                      branch="tags"
+                      usageSummary={workspace.usageAwareness.usageSummary}
+                      usageRows={workspace.usageAwareness.usageRows}
+                      onOpenPosts={workspace.openPosts}
+                      onOpenPages={workspace.openPages}
+                      onRefresh={workspace.usageAwareness.reload}
+                    />
+                  ) : tagContextTab === "batch" ? (
+                    <TagBatchCard
+                      value={workspace.tagBatchInput}
+                      onChange={workspace.setTagBatchInput}
+                      onCreate={workspace.handleCreateTagBatch}
+                      duplicatePreview={tagBatchPreview}
+                    />
+                  ) : (
+                    <TaxonomyPublicationStateCard
+                      publicationState={workspace.publicationState}
+                      latestRun={workspace.projectionLatestRun}
+                      targetTitle={workspace.projectionTarget?.title ?? ""}
+                      branch="tags"
+                      usageSummary={workspace.usageAwareness.usageSummary}
+                    />
+                  )
+                }
+              />
+            }
+            insights={null}
+          />
         </Stack>
       ) : null}
 
-      {section === "publication" && moduleSettingsDomain ? (
-        <RemotePublicationSection>
-          <BlogTaxonomyRemoteProjectionPanel
-            activeCollectionId={collectionsDomain.activeCollectionId}
-            moduleSettingsDomain={moduleSettingsDomain}
-            navigate={navigate}
-          />
-        </RemotePublicationSection>
+      {workspace.routeState.branch === "publication" ? (
+        <Stack spacing={2}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+              <Stack spacing={0.35}>
+                <Typography variant="h6">Projection Scope</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Switch between categories and tags when you need to inspect the exact remote projection state.
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button
+                  variant={workspace.publicationScope === "categories" ? "contained" : "outlined"}
+                  onClick={() => workspace.handleSelectPublicationScope("categories")}
+                >
+                  Categories
+                </Button>
+                <Button
+                  variant={workspace.publicationScope === "tags" ? "contained" : "outlined"}
+                  onClick={() => workspace.handleSelectPublicationScope("tags")}
+                >
+                  Tags
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+
+          <PublicationGuideCard scope={workspace.publicationScope} />
+
+          {moduleSettingsDomain ? (
+            <CategoryMainPanel
+              toolbar={
+                <PublicationStatusCard
+                  publicationState={workspace.publicationState}
+                  latestRun={workspace.projectionLatestRun}
+                  targetTitle={workspace.projectionTarget?.title ?? ""}
+                />
+              }
+              browser={
+                <PublicationBranchCard scope={workspace.publicationScope}>
+                  <BlogTaxonomyRemoteProjectionPanel
+                    activeCollectionId={workspace.publicationScope === "tags" ? TAGS_COLLECTION_ID : CATEGORIES_COLLECTION_ID}
+                    moduleSettingsDomain={moduleSettingsDomain}
+                    navigate={navigate}
+                  />
+                </PublicationBranchCard>
+              }
+              insights={
+                <Alert severity="info">
+                  Keep everyday category and tag work on the other tabs. Use this branch only when you need to compare or sync the public projection.
+                </Alert>
+              }
+            />
+          ) : (
+            <Alert severity="info">Remote publication settings are not available on this route.</Alert>
+          )}
+        </Stack>
       ) : null}
 
-      {section === "publication" && !moduleSettingsDomain ? (
-        <Alert severity="info">Remote publication settings are not available on this route.</Alert>
-      ) : null}
+      <CategoryFormDrawer
+        open={workspace.isCategoryDrawerOpen}
+        formState={workspace.formState}
+        validationErrors={workspace.categoryValidationErrors}
+        pathPreview={workspace.categoryPathPreview}
+        parentCategoryOptions={parentCategoryOptions}
+        selectedFeaturedMedia={workspace.selectedFeaturedMedia}
+        mediaContentUrlFor={workspace.mediaContentUrlFor}
+        onClose={workspace.handleCloseCategoryDrawer}
+        onChangeField={workspace.handleCategoryFieldChange}
+        onOpenGallery={workspace.featuredMediaGallery.openGallery}
+        onDelete={workspace.handleDeleteCategory}
+        onSubmit={workspace.handleSubmitCategory}
+      />
 
-      {section === "terms" ? (
-        <CollectionsView
-          workspaceLabel="Taxonomy Workspace"
-          collectionsState={collectionsDomain.collectionsState}
-          activeCollectionId={collectionsDomain.activeCollectionId}
-          isCollectionAvailable={collectionsDomain.isActiveCollectionAvailable}
-          unavailableMessage={
-            collectionsDomain.isActiveCollectionAvailable
-              ? null
-              : collectionsDomain.activeCollectionUnavailableMessage
-          }
-          onSelectCollection={collectionsDomain.handleSelectCollection}
-          schemaState={visibleSchemaState}
-          itemsState={collectionsDomain.collectionItemsState}
-          referenceOptionsState={collectionsDomain.referenceOptionsState}
-          filterState={collectionsDomain.collectionFilterState}
-          onChangeFilter={collectionsDomain.handleCollectionFilterChange}
-          onClearFilter={collectionsDomain.handleClearCollectionFilters}
-          formState={collectionsDomain.collectionFormState}
-          onChangeForm={collectionsDomain.handleCollectionFormChange}
-          onSubmitForm={collectionsDomain.handleSubmitCollectionForm}
-          onEditItem={collectionsDomain.handleEditCollectionItem}
-          onDeleteItem={collectionsDomain.handleDeleteCollectionItem}
-          onResetForm={collectionsDomain.handleResetCollectionForm}
-          inlineCreateState={collectionsDomain.inlineCreateState}
-          onInlineCreateReference={collectionsDomain.handleInlineCreateReference}
-          onInlineCreateFormChange={collectionsDomain.handleInlineCreateFormChange}
-          onCloseInlineCreate={collectionsDomain.handleCloseInlineCreate}
-          onSubmitInlineCreate={collectionsDomain.handleSubmitInlineCreate}
-          onRunCollectionErrorAction={collectionsDomain.handleRunCollectionErrorAction}
-        />
-      ) : null}
+      <TagFormDrawer
+        open={workspace.isTagDrawerOpen}
+        formState={workspace.formState}
+        validationErrors={workspace.tagValidationErrors}
+        onClose={workspace.handleCloseTagDrawer}
+        onChangeField={workspace.handleTagFieldChange}
+        onDelete={workspace.handleDeleteTag}
+        onSubmit={workspace.handleSubmitTag}
+      />
+
+      <TaxonomyFeaturedMediaDialog
+        open={workspace.featuredMediaGallery.galleryState.open}
+        selectedMediaId={workspace.formState.featuredMediaId ?? ""}
+        items={workspace.featuredMediaGallery.mediaItems}
+        loading={workspace.featuredMediaGallery.galleryState.loading}
+        uploading={workspace.featuredMediaGallery.galleryState.uploading}
+        errorMessage={workspace.featuredMediaGallery.galleryState.errorMessage}
+        mediaContentUrlFor={workspace.mediaContentUrlFor}
+        onClose={workspace.featuredMediaGallery.closeGallery}
+        onRefresh={workspace.featuredMediaGallery.refreshMediaItems}
+        onUploadFiles={workspace.handleUploadFeaturedMedia}
+        onSelectMedia={workspace.handleSelectFeaturedMedia}
+      />
+
+      <TaxonomyDeskSnackbar snackbarState={workspace.snackbarState} onClose={workspace.handleCloseSnackbar} />
     </Stack>
   );
 }
