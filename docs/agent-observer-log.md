@@ -2146,3 +2146,16 @@
     - `localhost:3000/api/reference/modules` returns backend JSON
     - browser shell shows `API connected`
   - every shell command should keep an explicit timeout; no long open-ended waits
+
+### 2026-03-20 - Developer Story Needs Repo-Level Orientation, Not More Memory
+- Tasks:
+  - turned the developer product story into an implementation plan
+  - added a checked-in developer desk map plus a terminal command for it
+  - extended the review launcher with a dedicated `verify` command and stronger startup verification
+- Easy:
+  - the current product shell already exposes a stable desk set, so mapping route -> surface -> proof was mostly a matter of making that knowledge explicit
+- Hard:
+  - the repo had enough launcher history that `review:env:start` and `review:env:status` looked useful while still leaving a gap in truthful usability verification
+- Improve:
+  - when a story says "the developer should know where to look", implement that as a repo artifact, not tribal memory
+  - keep the local review contract executable: one command should tell the truth about whether the app is actually reviewable

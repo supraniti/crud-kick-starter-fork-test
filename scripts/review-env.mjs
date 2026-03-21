@@ -8,6 +8,8 @@ const RUNTIME_DIR = path.join(ROOT_DIR, ".codex-runtime");
 const PID_FILE = path.join(RUNTIME_DIR, "review-env-pids.json");
 const FRONTEND_URL = "http://localhost:3000/";
 const BACKEND_HEALTH_URL = "http://127.0.0.1:3001/health";
+const FRONTEND_API_PING_URL = "http://localhost:3000/api/system/ping";
+const FRONTEND_REFERENCE_MODULES_URL = "http://localhost:3000/api/reference/modules";
 const PORTS = [3000, 3001];
 const PNPM_CMD = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const HEALTH_REQUEST_TIMEOUT_MS = 3_000;
@@ -134,6 +136,138 @@ async function isFrontendHealthy() {
   }
 }
 
+async function verifyJsonProbe(url, validatePayload) {
+  try {
+    const response = await fetchWithTimeout(url);
+    const text = await response.text();
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!response.ok) {
+      return {
+        ok: false,
+        url,
+        status: response.status,
+        reason: `unexpected-status-${response.status}`
+      };
+    }
+    if (!contentType.toLowerCase().includes("application/json")) {
+      return {
+        ok: false,
+        url,
+        status: response.status,
+        reason: "unexpected-content-type",
+        contentType
+      };
+    }
+    let payload = null;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      return {
+        ok: false,
+        url,
+        status: response.status,
+        reason: "invalid-json"
+      };
+    }
+    const validation = validatePayload(payload);
+    if (validation?.ok !== true) {
+      return {
+        ok: false,
+        url,
+        status: response.status,
+        reason: validation?.reason ?? "invalid-payload",
+        payloadSummary: validation?.payloadSummary ?? null
+      };
+    }
+    return {
+      ok: true,
+      url,
+      status: response.status,
+      payloadSummary: validation?.payloadSummary ?? null
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      url,
+      status: 0,
+      reason: error?.name === "AbortError" ? "timeout" : error?.message ?? "request-failed"
+    };
+  }
+}
+
+async function runReviewVerification() {
+  const frontendRoot = (() => {
+    return fetchWithTimeout(FRONTEND_URL)
+      .then(async (response) => {
+        const text = await response.text();
+        return {
+          ok: response.ok && /<!doctype html>/i.test(text),
+          url: FRONTEND_URL,
+          status: response.status,
+          reason:
+            response.ok && /<!doctype html>/i.test(text)
+              ? ""
+              : response.ok
+                ? "missing-doctype"
+                : `unexpected-status-${response.status}`
+        };
+      })
+      .catch((error) => ({
+        ok: false,
+        url: FRONTEND_URL,
+        status: 0,
+        reason: error?.name === "AbortError" ? "timeout" : error?.message ?? "request-failed"
+      }));
+  })();
+
+  const backendHealth = verifyJsonProbe(BACKEND_HEALTH_URL, (payload) => ({
+    ok: payload?.ok === true && payload?.status === "healthy",
+    reason: "unexpected-health-payload",
+    payloadSummary: {
+      ok: payload?.ok ?? null,
+      status: payload?.status ?? null
+    }
+  }));
+
+  const frontendApiPing = verifyJsonProbe(FRONTEND_API_PING_URL, (payload) => ({
+    ok: payload?.ok === true && payload?.ping === "pong",
+    reason: "unexpected-ping-payload",
+    payloadSummary: {
+      ok: payload?.ok ?? null,
+      ping: payload?.ping ?? null
+    }
+  }));
+
+  const frontendReferenceModules = verifyJsonProbe(FRONTEND_REFERENCE_MODULES_URL, (payload) => {
+    const isArrayPayload = Array.isArray(payload);
+    const moduleCount = isArrayPayload
+      ? payload.length
+      : Array.isArray(payload?.items)
+        ? payload.items.length
+        : null;
+    return {
+      ok: Number.isInteger(moduleCount) && moduleCount > 0,
+      reason: "unexpected-reference-modules-payload",
+      payloadSummary: {
+        moduleCount
+      }
+    };
+  });
+
+  const checks = {
+    frontendRoot: await frontendRoot,
+    backendHealth: await backendHealth,
+    frontendApiPing: await frontendApiPing,
+    frontendReferenceModules: await frontendReferenceModules
+  };
+
+  return {
+    ok: Object.values(checks).every((check) => check?.ok === true),
+    checkedAt: new Date().toISOString(),
+    checks
+  };
+}
+
 function startDetachedProcess(command, argumentList, { stdoutPath, stderrPath }) {
   const child = spawn(command, argumentList, {
     cwd: ROOT_DIR,
@@ -258,12 +392,18 @@ async function startReviewEnv() {
   const frontendStart =
     (await startFrontendDevServer(stamp)) ?? (await startFrontendStaticServer(stamp));
 
+  const verification = await runReviewVerification();
+  if (!verification.ok) {
+    throw new Error(`Review env failed verification: ${JSON.stringify(verification.checks)}`);
+  }
+
   const payload = {
     startedAt: new Date().toISOString(),
     frontendUrl: FRONTEND_URL,
     backendHealthUrl: BACKEND_HEALTH_URL,
     clearedPids: stoppedPids,
     frontendBuild: frontendStart.frontendBuild,
+    verification,
     processes: {
       backendPid,
       frontendPid: frontendStart.pid
@@ -295,6 +435,14 @@ async function statusReviewEnv() {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
 }
 
+async function verifyReviewEnv() {
+  const payload = await runReviewVerification();
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+  if (!payload.ok) {
+    process.exitCode = 1;
+  }
+}
+
 async function main() {
   const command = process.argv[2] ?? "start";
   if (command === "start" || command === "restart") {
@@ -307,6 +455,10 @@ async function main() {
   }
   if (command === "status") {
     await statusReviewEnv();
+    return;
+  }
+  if (command === "verify") {
+    await verifyReviewEnv();
     return;
   }
   throw new Error(`Unsupported review-env command '${command}'`);

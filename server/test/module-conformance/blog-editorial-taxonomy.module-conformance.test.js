@@ -69,6 +69,18 @@ test("blog editorial enforces active email uniqueness and slug uniqueness", asyn
     });
     expect(duplicateSlug.statusCode).toBe(400);
     expect(duplicateSlug.body.error.code).toBe("BLOG_AUTHOR_SLUG_CONFLICT");
+
+    const duplicateDisplayName = await injectJson(server, "POST", buildItemsRoute("blog-authors"), {
+      displayName: "Alice Stone",
+      bio: "Display name conflict proof.",
+      email: "alice.stone+display@example.com",
+      role: "author",
+      status: "inactive",
+      locale: "en-US",
+      expertiseTagIds: []
+    });
+    expect(duplicateDisplayName.statusCode).toBe(400);
+    expect(duplicateDisplayName.body.error.code).toBe("BLOG_AUTHOR_DISPLAY_NAME_CONFLICT");
   } finally {
     await server.close();
   }

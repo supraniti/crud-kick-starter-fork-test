@@ -19,6 +19,10 @@ function normalizeOptionalText(value) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function normalizeDisplayName(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
 function listAuthorItems(handler) {
   return handler.list({
     limit: 5000,
@@ -68,6 +72,7 @@ async function collectAuthorConflicts({
   const conflicts = [];
   const normalizedSlug = slugify(value?.displayName ?? "") ?? "";
   const normalizedEmail = normalizeEmail(value?.email);
+  const normalizedDisplayName = normalizeDisplayName(value?.displayName);
 
   if (!EMAIL_PATTERN.test(normalizedEmail)) {
     conflicts.push(
@@ -75,6 +80,23 @@ async function collectAuthorConflicts({
         "BLOG_AUTHOR_EMAIL_INVALID",
         "Author email must be a valid email address",
         "email"
+      )
+    );
+  }
+
+  if (
+    normalizedDisplayName.length > 0 &&
+    items.some(
+      (item) =>
+        item.id !== excludeId &&
+        normalizeDisplayName(item.displayName) === normalizedDisplayName
+    )
+  ) {
+    conflicts.push(
+      toValidationConflict(
+        "BLOG_AUTHOR_DISPLAY_NAME_CONFLICT",
+        `Author display name '${value?.displayName ?? ""}' already exists`,
+        "displayName"
       )
     );
   }

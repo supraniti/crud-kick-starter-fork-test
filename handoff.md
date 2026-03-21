@@ -761,3 +761,20 @@
   - deploy the public page API service to Cloud Run
   - store that service URL in the browser-delivery target `applicationApiOrigin`
   - rerun the release bundles so public tester pages stop depending on `appApiOrigin=http://127.0.0.1:3001`
+
+## 2026-03-20 Developer Story Slice 1 In Progress
+- Current story being executed:
+  - `docs/product-stories/12-developer-implementation.md`
+- Plan doc added:
+  - `docs/research/developer-implementation-story-plan.md`
+- Desk map added:
+  - `docs/research/developer-desk-map.md`
+  - `pnpm developer:desk-map`
+- Review env contract tightened:
+  - `pnpm review:env:verify`
+  - `review:env:start` now fails if:
+    - frontend HTML is not real
+    - backend health is not healthy
+    - `localhost:3000/api/system/ping` is not backend JSON
+    - `localhost:3000/api/reference/modules` is not backend JSON
+- This slice should stop for review without commit once focused verification passes.

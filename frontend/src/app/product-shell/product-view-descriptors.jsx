@@ -90,7 +90,11 @@ export const PRODUCT_VIEW_DESCRIPTORS = Object.freeze([
     requiredDomains: ["collections"],
     routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
     render: (context) => (
-      <ProductEditorialView navigate={context.navigate} collectionsDomain={context.collectionsDomain} />
+      <ProductEditorialView
+        navigate={context.navigate}
+        route={context.route}
+        collectionsDomain={context.collectionsDomain}
+      />
     )
   },
   {
