@@ -4,6 +4,10 @@ function parseTimestamp(value) {
   return Date.parse(value ?? "") || 0;
 }
 
+function isSuccessfulRemoteRunStatus(status) {
+  return status === "success" || status === "succeeded" || status === "completed";
+}
+
 function encodePathSegments(value) {
   return String(value ?? "")
     .split("/")
@@ -108,7 +112,7 @@ export function resolveMediaRemoteSyncState({ item, mediaTarget = null, runs = [
 
   const targetRuns = (Array.isArray(runs) ? runs : []).filter((run) => run?.targetProfileId === mediaTarget.id);
   const lastExecuteRun = [...targetRuns]
-    .filter((run) => run?.procedureType === "execute" && run?.status === "success")
+    .filter((run) => run?.procedureType === "execute" && isSuccessfulRemoteRunStatus(run?.status))
     .sort((left, right) => parseTimestamp(right?.finishedOn ?? right?.startedOn) - parseTimestamp(left?.finishedOn ?? left?.startedOn))[0];
 
   if (!lastExecuteRun) {

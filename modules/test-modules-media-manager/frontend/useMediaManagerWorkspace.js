@@ -96,7 +96,7 @@ function useMediaSelection(collectionsDomain) {
       setSelectedMediaId("");
       return;
     }
-    if (!selectedMediaId || !items.some((item) => item.id === selectedMediaId)) {
+    if (selectedMediaId && !items.some((item) => item.id === selectedMediaId)) {
       setSelectedMediaId(items[0].id);
     }
   }, [items, selectedMediaId]);

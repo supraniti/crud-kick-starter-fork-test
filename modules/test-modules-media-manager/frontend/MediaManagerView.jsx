@@ -4,40 +4,45 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Drawer,
   MenuItem,
   Paper,
   Stack,
   TextField,
   Typography
 } from "@mui/material";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MediaManagerRemotePanel } from "./MediaManagerRemotePanel.jsx";
 import { useMediaManagerWorkspace } from "./useMediaManagerWorkspace.js";
 import {
   MediaArtifactLinksPanel,
   MediaBulkSelectionPanel,
   MediaCard,
+  MediaListView,
   MediaPreview,
+  MediaRemoteProcedureFeedback,
   MediaRemoteOnlyPanel,
+  MediaUploadTile,
+  MediaUsagePanel,
   MetadataEditor,
   OperationsPanel,
   resolveMediaCardRemoteSyncState
 } from "./MediaManagerPanels.jsx";
 import {
   resolveLinkedBrowserDeliveryTarget,
-  sortMediaItemsForDisplay,
   summarizeMediaSyncStates
 } from "./media-manager-remote-state.js";
 import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
-
-const SORT_OPTIONS = [
-  { value: "recent", label: "Recently Updated" },
-  { value: "oldest", label: "Oldest Updated" },
-  { value: "name-asc", label: "Name A-Z" },
-  { value: "name-desc", label: "Name Z-A" },
-  { value: "category", label: "Category" }
-];
+import {
+  MEDIA_DETAIL_TABS,
+  MEDIA_SORT_OPTIONS,
+  MEDIA_VIEW_OPTIONS,
+  buildMediaSummary,
+  resolveMediaDeskRouteState,
+  sortMediaItemsForDesk
+} from "./media-desk-model.js";
+import { useMediaUsageAwareness } from "./useMediaUsageAwareness.js";
 
 function MediaSummaryCard({ label, value, tone = "default" }) {
   return (
@@ -62,16 +67,24 @@ export function MediaManagerView({
   activeModuleLabel,
   collectionsDomain,
   moduleSettingsDomain = null,
-  navigate = null
+  navigate = null,
+  route = {}
 }) {
   const fileInputRef = useRef(null);
-  const [sortMode, setSortMode] = useState("recent");
+  const routeState = useMemo(() => resolveMediaDeskRouteState(route), [route]);
   const [selectedMediaIds, setSelectedMediaIds] = useState([]);
   const [remoteOpen, setRemoteOpen] = useState(false);
-  const [detailSection, setDetailSection] = useState("preview");
+  const [localSortMode, setLocalSortMode] = useState(routeState.sort);
+  const [localDetailSection, setLocalDetailSection] = useState(routeState.tab);
+  const [localViewMode, setLocalViewMode] = useState(routeState.view);
+  const usesRouteState = typeof navigate === "function";
+  const activeSortMode = localSortMode;
+  const activeDetailSection = localDetailSection;
+  const activeViewMode = localViewMode;
   const workspace = useMediaManagerWorkspace({
     collectionsDomain
   });
+  const usageAwareness = useMediaUsageAwareness(workspace.items);
   const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
   const remoteMediaTargetId =
     moduleSettingsDomain?.moduleSettingsState?.draftValues?.remoteMediaTargetProfileId ?? "";
@@ -86,8 +99,8 @@ export function MediaManagerView({
   );
   const remoteMediaLatestRun = remoteOpsSupport.getLatestRunForTarget(remoteMediaTargetId);
   const visibleItems = useMemo(
-    () => sortMediaItemsForDisplay(workspace.items, sortMode),
-    [sortMode, workspace.items]
+    () => sortMediaItemsForDesk(workspace.items, activeSortMode, usageAwareness.usageByMediaId),
+    [activeSortMode, usageAwareness.usageByMediaId, workspace.items]
   );
   const remoteRuns = remoteOpsSupport.supportState.runs ?? [];
   const remoteSummary = useMemo(
@@ -99,14 +112,98 @@ export function MediaManagerView({
       }),
     [remoteMediaTarget, remoteRuns, workspace.items]
   );
+  const mediaSummary = useMemo(
+    () => buildMediaSummary(workspace.items, usageAwareness.usageByMediaId, remoteSummary),
+    [remoteSummary, usageAwareness.usageByMediaId, workspace.items]
+  );
   const remoteBusy =
     remoteOpsSupport.procedureState.processing &&
     remoteOpsSupport.procedureState.targetId === remoteMediaTarget?.id;
+  const selectedUsage = useMemo(
+    () =>
+      usageAwareness.usageByMediaId.get(workspace.selectedItem?.id) ?? {
+        entries: [],
+        totalReferences: 0,
+        authorCount: 0,
+        postCount: 0,
+        categoryCount: 0,
+        pageCount: 0
+      },
+    [usageAwareness.usageByMediaId, workspace.selectedItem?.id]
+  );
+
+  const updateRouteState = useCallback(
+    (patch = {}, replace = true) => {
+      if (typeof navigate !== "function") {
+        return;
+      }
+      navigate(
+        {
+          ...route,
+          ...patch
+        },
+        { replace }
+      );
+    },
+    [navigate, route]
+  );
+
+  useEffect(() => {
+    if (!usesRouteState) {
+      return;
+    }
+    setLocalSortMode(routeState.sort);
+    setLocalDetailSection(routeState.tab);
+    setLocalViewMode(routeState.view);
+  }, [routeState.sort, routeState.tab, routeState.view, usesRouteState]);
 
   useEffect(() => {
     const visibleIds = new Set(visibleItems.map((item) => item.id));
     setSelectedMediaIds((previous) => previous.filter((itemId) => visibleIds.has(itemId)));
   }, [visibleItems]);
+
+  useEffect(() => {
+    if (!usesRouteState) {
+      return;
+    }
+    const filterKeys = ["search", "status", "category", "isDerived"];
+    for (const fieldId of filterKeys) {
+      const nextValue = routeState[fieldId] ?? "";
+      if ((collectionsDomain.collectionFilterState[fieldId] ?? "") !== nextValue) {
+        collectionsDomain.handleCollectionFilterChange(fieldId, nextValue);
+      }
+    }
+  }, [
+    collectionsDomain,
+    collectionsDomain.collectionFilterState,
+    routeState,
+    usesRouteState
+  ]);
+
+  useEffect(() => {
+    if (!usesRouteState) {
+      return;
+    }
+    if (!routeState.mediaId) {
+      if (workspace.selectedItem?.id) {
+        updateRouteState({ mediaId: workspace.selectedItem.id }, true);
+      }
+      return;
+    }
+    if (workspace.selectedItem?.id === routeState.mediaId) {
+      return;
+    }
+    if (visibleItems.some((item) => item.id === routeState.mediaId)) {
+      workspace.setSelectedMediaId(routeState.mediaId);
+    }
+  }, [
+    routeState.mediaId,
+    updateRouteState,
+    usesRouteState,
+    visibleItems,
+    workspace.selectedItem?.id,
+    workspace.setSelectedMediaId
+  ]);
 
   function toggleMediaSelection(mediaItemId) {
     setSelectedMediaIds((previous) =>
@@ -131,6 +228,106 @@ export function MediaManagerView({
     await workspace.handleDeleteItems(selectedMediaIds);
     setSelectedMediaIds([]);
   }
+
+  const handleFilterChange = useCallback(
+    (fieldId, value) => {
+      collectionsDomain.handleCollectionFilterChange(fieldId, value);
+      if (!usesRouteState) {
+        return;
+      }
+      updateRouteState(
+        {
+          [fieldId]: value
+        },
+        true
+      );
+    },
+    [collectionsDomain, updateRouteState, usesRouteState]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    collectionsDomain.handleClearCollectionFilters();
+    if (!usesRouteState) {
+      return;
+    }
+    updateRouteState(
+      {
+        search: "",
+        status: "",
+        category: "",
+        isDerived: ""
+      },
+      true
+    );
+  }, [collectionsDomain, updateRouteState, usesRouteState]);
+
+  const handleSortChange = useCallback(
+    (value) => {
+      setLocalSortMode(value);
+      if (usesRouteState) {
+        updateRouteState(
+          {
+            mediaSort: value
+          },
+          true
+        );
+      }
+    },
+    [updateRouteState, usesRouteState]
+  );
+
+  const handleViewChange = useCallback(
+    (value) => {
+      setLocalViewMode(value);
+      if (usesRouteState) {
+        updateRouteState(
+          {
+            mediaView: value
+          },
+          true
+        );
+      }
+    },
+    [updateRouteState, usesRouteState]
+  );
+
+  const handleSelectItem = useCallback(
+    (mediaItemId) => {
+      workspace.setSelectedMediaId(mediaItemId);
+      if (usesRouteState) {
+        updateRouteState(
+          {
+            mediaId: mediaItemId
+          },
+          true
+        );
+      }
+    },
+    [updateRouteState, usesRouteState, workspace]
+  );
+
+  const handleCloseEditor = useCallback(() => {
+    workspace.setSelectedMediaId("");
+    if (!usesRouteState) {
+      return;
+    }
+    updateRouteState(
+      {
+        mediaId: ""
+      },
+      true
+    );
+  }, [updateRouteState, usesRouteState, workspace]);
+
+  const handleOpenReference = useCallback(
+    (entry) => {
+      if (typeof navigate !== "function" || !entry?.route) {
+        return;
+      }
+      navigate(entry.route, { replace: false });
+    },
+    [navigate]
+  );
 
   const openRemoteOpsTarget = () => {
     if (typeof navigate !== "function") {
@@ -257,47 +454,83 @@ export function MediaManagerView({
         spacing={2}
         sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(5, 1fr)" } }}
       >
-        <MediaSummaryCard label="Total Assets" value={remoteSummary.total} />
+        <MediaSummaryCard label="Total Assets" value={mediaSummary.total} />
         <MediaSummaryCard
-          label="Synced"
-          value={remoteSummary.synced}
-          tone={remoteSummary.synced > 0 ? "attention" : "default"}
+          label="In Use"
+          value={mediaSummary.inUse}
+          tone={mediaSummary.inUse > 0 ? "attention" : "default"}
         />
         <MediaSummaryCard
-          label="Changed Locally"
-          value={remoteSummary.changedLocally}
-          tone={remoteSummary.changedLocally > 0 ? "attention" : "default"}
+          label="Missing Alt"
+          value={mediaSummary.missingAlt}
+          tone={mediaSummary.missingAlt > 0 ? "attention" : "default"}
         />
         <MediaSummaryCard
           label="Not Synced"
-          value={remoteSummary.notSynced}
-          tone={remoteSummary.notSynced > 0 ? "attention" : "default"}
+          value={mediaSummary.notSynced}
+          tone={mediaSummary.notSynced > 0 ? "attention" : "default"}
         />
         <MediaSummaryCard
-          label="Remote Only"
-          value={remoteMediaTarget?.compareSummary?.remoteOnlyCount ?? 0}
-          tone={Number(remoteMediaTarget?.compareSummary?.remoteOnlyCount ?? 0) > 0 ? "attention" : "default"}
+          label="Synced"
+          value={mediaSummary.synced}
+          tone={mediaSummary.synced > 0 ? "attention" : "default"}
         />
       </Stack>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+        <Stack spacing={1.5}>
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ lg: "center" }}
+          >
+            <Stack spacing={0.35}>
+              <Typography variant="subtitle1">Search And Filter</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Narrow the library by status, category, asset type, and sort order without losing your selected asset.
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {MEDIA_VIEW_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={activeViewMode === option.value ? "contained" : "outlined"}
+                  size="small"
+                  onClick={() => handleViewChange(option.value)}
+                >
+                  {option.label} View
+                </Button>
+              ))}
+            </Stack>
+          </Stack>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(3, minmax(0, 1fr))",
+                xl: "minmax(240px, 2fr) repeat(4, minmax(140px, 1fr)) auto"
+              },
+              gap: 2,
+              alignItems: "start"
+            }}
+          >
           <TextField
             label="Search"
             size="small"
-            value={collectionsDomain.collectionFilterState.search ?? ""}
-            onChange={(event) =>
-              collectionsDomain.handleCollectionFilterChange("search", event.target.value)
-            }
+            fullWidth
+            value={usesRouteState ? routeState.search : collectionsDomain.collectionFilterState.search ?? ""}
+            onChange={(event) => handleFilterChange("search", event.target.value)}
           />
           <TextField
             select
             label="Status"
             size="small"
-            value={collectionsDomain.collectionFilterState.status ?? ""}
-            onChange={(event) =>
-              collectionsDomain.handleCollectionFilterChange("status", event.target.value)
-            }
+            fullWidth
+            value={usesRouteState ? routeState.status : collectionsDomain.collectionFilterState.status ?? ""}
+            onChange={(event) => handleFilterChange("status", event.target.value)}
           >
             <MenuItem value="">All</MenuItem>
             {["ready", "processing", "failed"].map((option) => (
@@ -310,10 +543,9 @@ export function MediaManagerView({
             select
             label="Category"
             size="small"
-            value={collectionsDomain.collectionFilterState.category ?? ""}
-            onChange={(event) =>
-              collectionsDomain.handleCollectionFilterChange("category", event.target.value)
-            }
+            fullWidth
+            value={usesRouteState ? routeState.category : collectionsDomain.collectionFilterState.category ?? ""}
+            onChange={(event) => handleFilterChange("category", event.target.value)}
           >
             <MenuItem value="">All</MenuItem>
             {["library", "campaign", "product", "social"].map((option) => (
@@ -326,10 +558,9 @@ export function MediaManagerView({
             select
             label="Asset Type"
             size="small"
-            value={collectionsDomain.collectionFilterState.isDerived ?? ""}
-            onChange={(event) =>
-              collectionsDomain.handleCollectionFilterChange("isDerived", event.target.value)
-            }
+            fullWidth
+            value={usesRouteState ? routeState.isDerived : collectionsDomain.collectionFilterState.isDerived ?? ""}
+            onChange={(event) => handleFilterChange("isDerived", event.target.value)}
           >
             <MenuItem value="">All</MenuItem>
             <MenuItem value="false">Originals</MenuItem>
@@ -339,18 +570,29 @@ export function MediaManagerView({
             select
             label="Sort"
             size="small"
-            value={sortMode}
-            onChange={(event) => setSortMode(event.target.value)}
+            fullWidth
+            value={activeSortMode}
+            onChange={(event) => handleSortChange(event.target.value)}
           >
-            {SORT_OPTIONS.map((option) => (
+            {MEDIA_SORT_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
               </MenuItem>
             ))}
           </TextField>
-          <Button variant="text" onClick={collectionsDomain.handleClearCollectionFilters}>
+          <Button
+            variant="text"
+            onClick={handleClearFilters}
+            sx={{
+              minHeight: 40,
+              whiteSpace: "nowrap",
+              width: { xs: "100%", xl: "auto" },
+              gridColumn: { xs: "1 / -1", xl: "auto" }
+            }}
+          >
             Clear Filters
           </Button>
+          </Box>
         </Stack>
       </Paper>
 
@@ -362,17 +604,13 @@ export function MediaManagerView({
         onDeleteSelected={handleDeleteSelectedItems}
         onCompareRemote={() => remoteOpsSupport.compareTarget(remoteMediaTargetId)}
         onSyncRemote={() => remoteOpsSupport.executeTarget(remoteMediaTargetId)}
-        remoteEnabled={Boolean(remoteMediaTargetId)}
+        remoteTarget={remoteMediaTarget}
+        procedureState={remoteOpsSupport.procedureState}
+        remoteEnabled={Boolean(remoteMediaTarget)}
         remoteBusy={remoteBusy}
       />
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.2fr) minmax(340px, 0.8fr)" },
-          gap: 2
-        }}
-      >
+      <Box sx={{ minWidth: 0 }}>
         <Stack spacing={2}>
           {collectionsDomain.collectionItemsState.loading ? (
             <Stack direction="row" spacing={1} alignItems="center">
@@ -387,7 +625,7 @@ export function MediaManagerView({
                 Upload a PNG, JPEG, or WebP file to seed the library.
               </Typography>
             </Paper>
-          ) : (
+          ) : activeViewMode === "gallery" ? (
             <Box
               sx={{
                 display: "grid",
@@ -399,35 +637,124 @@ export function MediaManagerView({
                 gap: 2
               }}
             >
+              <MediaUploadTile onUpload={() => fileInputRef.current?.click()} />
               {visibleItems.map((item) => (
                 <MediaCard
                   key={item.id}
                   item={item}
                   selected={workspace.selectedItem?.id === item.id}
                   checked={selectedMediaIds.includes(item.id)}
-                  onSelect={() => workspace.setSelectedMediaId(item.id)}
+                  onSelect={() => handleSelectItem(item.id)}
                   onToggleSelect={() => toggleMediaSelection(item.id)}
                   mediaContentUrlFor={workspace.mediaContentUrlFor}
                   remoteSyncState={resolveMediaCardRemoteSyncState(item, remoteMediaTarget, remoteRuns)}
+                  usageSummary={usageAwareness.usageByMediaId.get(item.id) ?? null}
                 />
               ))}
             </Box>
+          ) : (
+            <MediaListView
+              items={visibleItems}
+              selectedItemId={workspace.selectedItem?.id ?? ""}
+              onSelect={handleSelectItem}
+              mediaContentUrlFor={workspace.mediaContentUrlFor}
+              remoteSyncStateFor={(item) => resolveMediaCardRemoteSyncState(item, remoteMediaTarget, remoteRuns)}
+              usageSummaryFor={(item) =>
+                usageAwareness.usageByMediaId.get(item.id) ?? {
+                  totalReferences: 0
+                }
+              }
+            />
           )}
         </Stack>
+      </Box>
 
-        <Stack spacing={2}>
+      <Drawer
+        anchor="right"
+        variant="persistent"
+        open={Boolean(workspace.selectedItem)}
+        onClose={handleCloseEditor}
+        PaperProps={{
+          sx: {
+            width: { xs: "100%", md: 520 },
+            maxWidth: "100%"
+          }
+        }}
+      >
+        <Stack spacing={2} sx={{ p: 2, height: "100%", overflowY: "auto" }}>
+          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <Typography variant="overline" color="text.secondary">
+                Asset Editor
+              </Typography>
+              <Typography variant="h5" noWrap>
+                {workspace.selectedItem?.displayName ?? "Media Asset"}
+              </Typography>
+              {workspace.selectedItem ? (
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Chip size="small" label={workspace.selectedItem.status} />
+                  <Chip
+                    size="small"
+                    label={resolveMediaCardRemoteSyncState(workspace.selectedItem, remoteMediaTarget, remoteRuns).label}
+                    color={resolveMediaCardRemoteSyncState(workspace.selectedItem, remoteMediaTarget, remoteRuns).tone === "success" ? "success" : resolveMediaCardRemoteSyncState(workspace.selectedItem, remoteMediaTarget, remoteRuns).tone === "warning" ? "warning" : "default"}
+                  />
+                  {workspace.selectedItem.isDerived ? <Chip size="small" label="Derived" color="secondary" /> : null}
+                </Stack>
+              ) : null}
+            </Stack>
+            <Button variant="text" onClick={handleCloseEditor}>
+              Close
+            </Button>
+          </Stack>
+
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              <Stack spacing={0.35}>
+                <Typography variant="subtitle1">Create Variants</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Generate web-optimized outputs and thumbnails from the current source asset.
+                </Typography>
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <Button
+                  variant="outlined"
+                  onClick={() => workspace.handleRunPreset("web-optimized")}
+                  disabled={!workspace.selectedItem || workspace.selectedItem.isDerived || workspace.operationState.runningPreset.length > 0}
+                >
+                  Create Web Optimized
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => workspace.handleRunPreset("thumbnail")}
+                  disabled={!workspace.selectedItem || workspace.selectedItem.isDerived || workspace.operationState.runningPreset.length > 0}
+                >
+                  Create Thumbnail
+                </Button>
+              </Stack>
+              {workspace.operationState.runningPreset ? (
+                <Alert severity="info">Starting {workspace.operationState.runningPreset}...</Alert>
+              ) : null}
+              {workspace.derivedItems.length > 0 ? (
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  {workspace.derivedItems.map((item) => (
+                    <Chip key={item.id} label={item.displayName} size="small" variant="outlined" color="secondary" />
+                  ))}
+                </Stack>
+              ) : null}
+            </Stack>
+          </Paper>
+
           <DeskTabsCard
-            value={detailSection}
-            onChange={setDetailSection}
-            tabs={[
-              { value: "preview", label: "Preview" },
-              { value: "links", label: "Links And URLs" },
-              { value: "metadata", label: "Metadata" },
-              { value: "operations", label: "Operations" },
-              { value: "remote", label: "Remote Sync" }
-            ]}
+            value={activeDetailSection}
+            onChange={(value) => {
+              setLocalDetailSection(value);
+              if (usesRouteState) {
+                updateRouteState({ mediaTab: value }, true);
+              }
+            }}
+            tabs={MEDIA_DETAIL_TABS}
           />
-          {detailSection === "preview" ? (
+          {activeDetailSection === "preview" ? (
             <MediaPreview
               item={workspace.selectedItem}
               derivedItems={workspace.derivedItems}
@@ -435,8 +762,38 @@ export function MediaManagerView({
               remoteSyncState={resolveMediaCardRemoteSyncState(workspace.selectedItem, remoteMediaTarget, remoteRuns)}
             />
           ) : null}
-          {detailSection === "links" ? (
+          {activeDetailSection === "details" ? (
             <Stack spacing={2}>
+              <MetadataEditor
+                metadataState={workspace.metadataState}
+                onChangeField={workspace.handleMetadataFieldChange}
+                onSave={workspace.handleSaveMetadata}
+              />
+              <OperationsPanel
+                selectedItem={workspace.selectedItem}
+                derivedItems={workspace.derivedItems}
+                operationState={workspace.operationState}
+                onRunPreset={workspace.handleRunPreset}
+                onDeleteSelected={workspace.handleDeleteSelected}
+              />
+            </Stack>
+          ) : null}
+          {activeDetailSection === "usage" ? (
+            <MediaUsagePanel
+              item={workspace.selectedItem}
+              usageState={usageAwareness.usageState}
+              usageSummary={selectedUsage}
+              usageEntries={selectedUsage.entries}
+              onRefresh={usageAwareness.reload}
+              onOpenReference={handleOpenReference}
+            />
+          ) : null}
+          {activeDetailSection === "publish" ? (
+            <Stack spacing={2}>
+              <MediaRemoteProcedureFeedback
+                remoteTarget={remoteMediaTarget}
+                procedureState={remoteOpsSupport.procedureState}
+              />
               <MediaArtifactLinksPanel
                 item={workspace.selectedItem}
                 mediaTarget={remoteMediaTarget}
@@ -445,26 +802,11 @@ export function MediaManagerView({
                 mediaContentUrlFor={workspace.mediaContentUrlFor}
               />
               <MediaRemoteOnlyPanel mediaTarget={remoteMediaTarget} />
+              <RemoteSyncSection />
             </Stack>
           ) : null}
-          {detailSection === "metadata" ? (
-            <MetadataEditor
-              metadataState={workspace.metadataState}
-              onChangeField={workspace.handleMetadataFieldChange}
-              onSave={workspace.handleSaveMetadata}
-            />
-          ) : null}
-          {detailSection === "operations" ? (
-            <OperationsPanel
-              selectedItem={workspace.selectedItem}
-              operationState={workspace.operationState}
-              onRunPreset={workspace.handleRunPreset}
-              onDeleteSelected={workspace.handleDeleteSelected}
-            />
-          ) : null}
-          {detailSection === "remote" ? <RemoteSyncSection /> : null}
         </Stack>
-      </Box>
+      </Drawer>
     </Stack>
   );
 }

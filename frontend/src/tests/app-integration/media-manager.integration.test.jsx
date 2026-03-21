@@ -107,6 +107,60 @@ function createFetchMock() {
   return vi.fn(async (url, options = {}) => {
     const method = options.method ?? "GET";
 
+    if (typeof url === "string" && url.startsWith("/api/reference/collections/blog-authors/items") && method === "GET") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [
+          {
+            id: "author-001",
+            displayName: "Alice Stone",
+            avatarMediaId: "media-0001"
+          }
+        ]
+      });
+    }
+
+    if (typeof url === "string" && url.startsWith("/api/reference/collections/blog-posts/items") && method === "GET") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [
+          {
+            id: "post-001",
+            title: "Hero Story",
+            featuredMediaId: "media-0001",
+            ogImageMediaId: "media-0002",
+            galleryMediaIds: ["media-0001"]
+          }
+        ]
+      });
+    }
+
+    if (typeof url === "string" && url.startsWith("/api/reference/collections/blog-categories/items") && method === "GET") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [
+          {
+            id: "category-001",
+            name: "Guides",
+            featuredMediaId: "media-0002"
+          }
+        ]
+      });
+    }
+
+    if (typeof url === "string" && url.startsWith("/api/reference/collections/blog-pages/items") && method === "GET") {
+      return createJsonResponse(200, {
+        ok: true,
+        items: [
+          {
+            id: "page-001",
+            title: "Story Page",
+            heroMediaId: "media-0001"
+          }
+        ]
+      });
+    }
+
     if (url === "/api/reference/missions/jobs" && method === "GET") {
       return createJsonResponse(200, {
         ok: true,
@@ -167,19 +221,23 @@ afterEach(() => {
 test("media manager view renders mission history and uses module-owned media routes for mutations", async () => {
   const collectionsDomain = createCollectionsDomain();
   const fetchMock = createFetchMock();
+  const navigate = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("FileReader", MockFileReader);
   vi.spyOn(window, "confirm").mockReturnValue(true);
 
   const { container } = render(
-    <MediaManagerView activeModuleLabel="Media Manager" collectionsDomain={collectionsDomain} />
+    <MediaManagerView
+      activeModuleLabel="Media Manager"
+      collectionsDomain={collectionsDomain}
+      navigate={navigate}
+      route={{ mediaId: "media-0001", mediaTab: "details" }}
+    />
   );
 
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Local Media Library" })).toBeInTheDocument();
   });
-
-  fireEvent.click(screen.getByRole("tab", { name: "Operations" }));
 
   await waitFor(() => {
     expect(screen.getByText("job-existing")).toBeInTheDocument();
@@ -206,8 +264,7 @@ test("media manager view renders mission history and uses module-owned media rou
     })
   );
 
-  fireEvent.click(screen.getAllByText("Hero Banner")[0]);
-  fireEvent.click(screen.getByRole("tab", { name: "Metadata" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Details" }));
 
   await waitFor(() => {
     expect(screen.getByLabelText("Alt text")).toHaveValue("Original alt");
@@ -239,8 +296,8 @@ test("media manager view renders mission history and uses module-owned media rou
     })
   );
 
-  fireEvent.click(screen.getByRole("tab", { name: "Operations" }));
-  fireEvent.click(screen.getByRole("button", { name: "Web Optimized" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Details" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "Create Web Optimized" })[0]);
   await waitFor(() => {
     expect(
       findFetchCall(fetchMock, "/api/reference/missions/media-library-image-compression/jobs", "POST")
@@ -270,10 +327,16 @@ test("media manager view renders mission history and uses module-owned media rou
 test("media manager filters call the collection domain with field id and value", async () => {
   const collectionsDomain = createCollectionsDomain();
   const fetchMock = createFetchMock();
+  const navigate = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
 
   render(
-    <MediaManagerView activeModuleLabel="Media Manager" collectionsDomain={collectionsDomain} />
+    <MediaManagerView
+      activeModuleLabel="Media Manager"
+      collectionsDomain={collectionsDomain}
+      route={{}}
+      navigate={navigate}
+    />
   );
 
   await waitFor(() => {
@@ -297,6 +360,12 @@ test("media manager filters call the collection domain with field id and value",
     2,
     "isDerived",
     "true"
+  );
+  expect(navigate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      search: "Hero"
+    }),
+    { replace: true }
   );
 });
 
@@ -358,7 +427,23 @@ test("media manager embeds remote media compare, sync, and restore procedures", 
   };
 
   const actualReferenceApi = await vi.importActual("../../api/reference.js");
-  vi.spyOn(actualReferenceApi, "fetchReferenceCollectionItems").mockImplementation(async ({ collectionId }) => {
+  vi.spyOn(actualReferenceApi, "fetchReferenceCollectionItems").mockImplementation(async ({ collectionId, offset = 0 }) => {
+    if (collectionId === "blog-authors") {
+      return { items: [] };
+    }
+
+    if (collectionId === "blog-posts") {
+      return { items: [] };
+    }
+
+    if (collectionId === "blog-categories") {
+      return { items: [] };
+    }
+
+    if (collectionId === "blog-pages") {
+      return { items: [] };
+    }
+
     if (collectionId === "remote-target-profiles") {
       return {
         items: [
@@ -407,14 +492,20 @@ test("media manager embeds remote media compare, sync, and restore procedures", 
       collectionsDomain={collectionsDomain}
       moduleSettingsDomain={moduleSettingsDomain}
       navigate={navigate}
+      route={{ mediaId: "media-0001", mediaTab: "publish" }}
     />
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("tab", { name: "Remote Sync" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Publish" })).toBeInTheDocument();
+    expect(screen.getByText("Artifact Links")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("tab", { name: "Remote Sync" }));
+  expect(
+    screen.getAllByText("Media Bucket is connected and ready for compare or sync.").length
+  ).toBeGreaterThan(0);
+
+  fireEvent.click(screen.getByRole("tab", { name: "Publish" }));
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "Show Remote Sync" })).toBeInTheDocument();
   });
@@ -434,6 +525,9 @@ test("media manager embeds remote media compare, sync, and restore procedures", 
       "/api/reference/modules/test-modules-remote-ops/targets/target-media/execute",
       expect.objectContaining({ method: "POST" })
     );
+  });
+  await waitFor(() => {
+    expect(screen.getAllByText("Synced media target").length).toBeGreaterThan(0);
   });
 
   fireEvent.click(screen.getByRole("button", { name: "Restore Missing Local File" }));
@@ -493,6 +587,22 @@ test("media manager surfaces sync posture, artifact urls, and remote-only visibi
 
   const actualReferenceApi = await vi.importActual("../../api/reference.js");
   vi.spyOn(actualReferenceApi, "fetchReferenceCollectionItems").mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "blog-authors") {
+      return { items: [] };
+    }
+
+    if (collectionId === "blog-posts") {
+      return { items: [] };
+    }
+
+    if (collectionId === "blog-categories") {
+      return { items: [] };
+    }
+
+    if (collectionId === "blog-pages") {
+      return { items: [] };
+    }
+
     if (collectionId === "remote-target-profiles") {
       return {
         items: [
@@ -552,16 +662,33 @@ test("media manager surfaces sync posture, artifact urls, and remote-only visibi
     }
 
     if (collectionId === "remote-operation-runs") {
+      if (offset === 0) {
+        return {
+          items: Array.from({ length: 200 }, (_, index) => ({
+            id: `run-media-compare-${index + 1}`,
+            targetProfileId: "target-media",
+            procedureType: "compare",
+            status: "succeeded",
+            finishedOn: `2026-03-${String((index % 28) + 1).padStart(2, "0")}T12:00:00.000Z`
+          })),
+          meta: {
+            total: 201
+          }
+        };
+      }
       return {
         items: [
           {
             id: "run-media-execute",
             targetProfileId: "target-media",
             procedureType: "execute",
-            status: "success",
+            status: "succeeded",
             finishedOn: "2026-03-12T12:00:00.000Z"
           }
-        ]
+        ],
+        meta: {
+          total: 201
+        }
       };
     }
 
@@ -577,6 +704,8 @@ test("media manager surfaces sync posture, artifact urls, and remote-only visibi
       activeModuleLabel="Media Manager"
       collectionsDomain={collectionsDomain}
       moduleSettingsDomain={moduleSettingsDomain}
+      navigate={vi.fn()}
+      route={{ mediaId: "media-0001", mediaTab: "publish", mediaView: "list" }}
     />
   );
 
@@ -585,24 +714,50 @@ test("media manager surfaces sync posture, artifact urls, and remote-only visibi
     expect(screen.getByText("Total Assets")).toBeInTheDocument();
   });
 
-  expect(screen.getByRole("button", { name: "Select Visible" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Compare Remote Target" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Sync Remote Target" })).toBeInTheDocument();
-  expect(screen.getAllByText("Synced").length).toBeGreaterThan(0);
-  fireEvent.click(screen.getByRole("tab", { name: "Links And URLs" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
+
   await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Select Visible" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare Remote Target" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sync Remote Target" })).toBeInTheDocument();
+    expect(screen.getAllByText("Synced").length).toBeGreaterThan(0);
     expect(screen.getByText("Artifact Links")).toBeInTheDocument();
-    expect(screen.getByText("Remote-Only Visibility")).toBeInTheDocument();
+  }, { timeout: 5000 });
+}, 15000);
+
+test("media manager shows usage awareness and keeps selected asset state in the route", async () => {
+  const collectionsDomain = createCollectionsDomain();
+  const fetchMock = createFetchMock();
+  const navigate = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(
+    <MediaManagerView
+      activeModuleLabel="Media Manager"
+      collectionsDomain={collectionsDomain}
+      route={{ mediaId: "media-0001", mediaTab: "usage", mediaSort: "usage-desc" }}
+      navigate={navigate}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByRole("tab", { name: "Usage" })).toBeInTheDocument();
+    expect(
+      screen.getByText("See where the current asset appears across authors, posts, taxonomies, and pages.")
+    ).toBeInTheDocument();
   });
-  expect(screen.getByText(/Temporary remote URL:/)).toHaveTextContent(
-    "https://storage.googleapis.com/merchant-guild-media-679134333951/library/originals/media-0001.png"
+
+  expect(screen.getByText("Alice Stone")).toBeInTheDocument();
+  expect(screen.getAllByText("Hero Story").length).toBeGreaterThan(0);
+  expect(screen.getByText("Story Page")).toBeInTheDocument();
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Open" })[0]);
+
+  expect(navigate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      moduleId: "authors",
+      authorId: "author-001"
+    }),
+    { replace: false }
   );
-  expect(screen.getByText(/Public media URL:/)).toHaveTextContent(
-    "https://cdn.merchant-guild.example/library/originals/media-0001.png"
-  );
-  expect(screen.getByText(/Remote object key:/)).toHaveTextContent(
-    "library/originals/media-0001.png"
-  );
-  expect(screen.getByText("library/orphans/legacy-banner.png")).toBeInTheDocument();
-  expect(screen.getByText("library/orphans/legacy-thumb.jpg")).toBeInTheDocument();
 }, 15000);

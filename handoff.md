@@ -1,7 +1,7 @@
 # Agent Handoff
 
 ## Current Status
-- Date: `2026-03-20`
+- Date: `2026-03-21`
 - Repository: `crud-kick-starter-fork-test`
 - Branch: `crud-kick-starter-fork-test`
 - Current north-star baseline docs:
@@ -9,6 +9,110 @@
   - [m04-north-star-alignment-program.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-north-star-alignment-program.md)
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
+
+## 2026-03-21 Media Story Slice Ready For Review
+- Story sequence is now:
+  - developer story: delivered and committed
+  - authors story: delivered and committed
+  - media story: implemented and waiting for review, not committed
+- Planning artifact:
+  - [media-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/media-story-implementation-plan.md)
+- Delivered media-desk changes in the worktree:
+  - route-backed media desk state for search, filters, sort, selected asset, and detail tab
+  - visual gallery-first desk with upload tile in the grid
+  - usage awareness across authors, posts, categories, and pages
+  - publish tab that groups artifact links, remote-only visibility, and remote sync
+  - immediate local tab/sort updates while still syncing route state
+- Main files:
+  - [MediaManagerView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerView.jsx)
+  - [MediaManagerPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerPanels.jsx)
+  - [media-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/media-desk-model.js)
+  - [useMediaUsageAwareness.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/useMediaUsageAwareness.js)
+  - [media-manager.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/media-manager.integration.test.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/media-manager.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Review env:
+  - app: `http://localhost:3000/`
+  - route: `http://localhost:3000/app/media`
+  - backend health: `http://127.0.0.1:3001/health`
+- Browser review note:
+  - `/app/media` was opened and verified in the browser after the fix
+  - the desk now loads with `API connected`, the visual library, and the `Preview / Details / Usage / Publish` tabs
+
+## 2026-03-21 Media Pass A Follow-Up Ready For Review
+- User review on the first Media pass found six real product gaps:
+  - sync feedback was too weak
+  - derivation/WebP flow felt removed
+  - filter selectors were too cramped
+  - gallery + editor on one page still felt awkward
+  - large libraries need a list/table view
+  - the desk still needs more convergence work overall
+- The plan was rewritten as a multi-pass Media convergence plan in:
+  - [media-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/media-story-implementation-plan.md)
+- Pass A delivered in the worktree:
+  - visible remote procedure status near the bulk compare/sync actions
+  - visible remote procedure status in the `Publish` tab
+  - stale target-id protection for bulk compare/sync enablement
+  - wider, grouped filter layout with a clearer `Search And Filter` section
+- Main changed files in this follow-up:
+  - [MediaManagerView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerView.jsx)
+  - [MediaManagerPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerPanels.jsx)
+  - [media-manager.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/media-manager.integration.test.jsx)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/media-manager.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:stop`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Browser review note:
+  - `/app/media?mediaId=mdi-006&mediaTab=publish` was opened in a fresh browser page after restart
+  - the desk now visibly shows:
+    - `Search And Filter`
+    - ready-state remote sync alert in bulk actions
+    - matching ready-state alert in the `Publish` tab
+    - processing-state alert when `Compare Remote Target` is clicked
+
+## 2026-03-21 Media Story Completed For Review
+- The Media story passes are now complete in the worktree, still uncommitted.
+- Final delivered Media desk:
+  - full-width library surface
+  - persistent right-side asset editor drawer
+  - first-class variant workflow
+  - gallery/list browse modes
+  - route-backed:
+    - `mediaId`
+    - `mediaTab`
+    - `mediaView`
+    - search/filter/sort
+- Main files:
+  - [MediaManagerView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerView.jsx)
+  - [MediaManagerPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/MediaManagerPanels.jsx)
+  - [media-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/media-desk-model.js)
+  - [useMediaUsageAwareness.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/useMediaUsageAwareness.js)
+  - [useMediaManagerWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-media-manager/frontend/useMediaManagerWorkspace.js)
+  - [media-manager.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/media-manager.integration.test.jsx)
+  - [media-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/media-story-implementation-plan.md)
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/media-manager.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:stop`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Browser review state:
+  - app: `http://localhost:3000/`
+  - media route: `http://localhost:3000/app/media`
+  - list-mode route: `http://localhost:3000/app/media?mediaView=list`
+  - health: `http://127.0.0.1:3001/health`
+- Browser proof completed:
+  - `/app/media` shows the gallery-first library with the new view toggle
+  - `/app/media?mediaView=list` shows the large-library list mode
+  - selecting a media row opens the persistent asset drawer
 
 ## 2026-03-20 Review Env Frontend/API Fix Delivered
 - The local review app failure on `http://localhost:3000/` was not a backend outage.
@@ -778,3 +882,33 @@
     - `localhost:3000/api/system/ping` is not backend JSON
     - `localhost:3000/api/reference/modules` is not backend JSON
 - This slice should stop for review without commit once focused verification passes.
+
+## 2026-03-21 Media Story Follow-Up Ready For Review
+- Media desk follow-up implemented for two review findings:
+  - responsive filter/search/sort controls no longer force a single overflowing row on narrower widths
+  - remote media sync posture now reflects the real persisted media execute runs after sync
+- Root cause of the false `Not Synced` posture:
+  - the shared embedded remote support loader only saw the first page of `remote-operation-runs`
+  - the live media target execute runs were outside that first page, so the desk never saw a successful media sync
+- Files changed in this follow-up:
+  - `modules/test-modules-media-manager/frontend/MediaManagerView.jsx`
+  - `modules/test-modules-media-manager/frontend/media-manager-remote-state.js`
+  - `modules/test-modules-remote-ops/frontend/remote-ops-workspace-support.js`
+  - `frontend/src/tests/app-integration/media-manager.integration.test.jsx`
+- Verification:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/media-manager.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Live review env:
+  - app: `http://localhost:3000/`
+  - media desk: `http://localhost:3000/app/media`
+  - list view: `http://localhost:3000/app/media?mediaView=list`
+  - backend health: `http://127.0.0.1:3001/health`
+- Browser-verified current state:
+  - fresh `/app/media?mediaView=list` shows `Synced` on the live media rows
+  - summary chips now show:
+    - `Not Synced: 0`
+    - `Synced: 7`
+  - narrower viewport check no longer showed the filter controls spilling into one forced row
+- Worktree remains uncommitted for review.

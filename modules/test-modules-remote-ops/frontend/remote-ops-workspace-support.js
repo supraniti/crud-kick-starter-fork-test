@@ -13,6 +13,9 @@ function toArray(items) {
   return Array.isArray(items) ? items : [];
 }
 
+const SUPPORT_COLLECTION_PAGE_SIZE = 200;
+const SUPPORT_COLLECTION_MAX_PAGES = 20;
+
 async function requestModuleAction(path, options = {}) {
   const method = options.method ?? "POST";
   const body = options.body;
@@ -168,17 +171,46 @@ export function createTargetConfigForKind(targetKind) {
   };
 }
 
+async function fetchAllReferenceCollectionItems(collectionId, limit = SUPPORT_COLLECTION_PAGE_SIZE) {
+  const items = [];
+  let offset = 0;
+
+  for (let pageIndex = 0; pageIndex < SUPPORT_COLLECTION_MAX_PAGES; pageIndex += 1) {
+    const payload = await fetchReferenceCollectionItems({
+      collectionId,
+      limit,
+      offset
+    });
+    const pageItems = toArray(payload?.items);
+    items.push(...pageItems);
+
+    const total = Number(payload?.meta?.total);
+    if (pageItems.length === 0) {
+      break;
+    }
+    offset += pageItems.length;
+    if (Number.isFinite(total) && offset >= total) {
+      break;
+    }
+    if (pageItems.length < limit) {
+      break;
+    }
+  }
+
+  return items;
+}
+
 export async function loadRemoteOpsSupportData() {
-  const [connectionsPayload, targetsPayload, runsPayload] = await Promise.all([
-    fetchReferenceCollectionItems({ collectionId: CONNECTIONS_COLLECTION_ID, limit: 200 }),
-    fetchReferenceCollectionItems({ collectionId: TARGETS_COLLECTION_ID, limit: 200 }),
-    fetchReferenceCollectionItems({ collectionId: RUNS_COLLECTION_ID, limit: 500 })
+  const [connectionsPayload, targetsPayload, runs] = await Promise.all([
+    fetchReferenceCollectionItems({ collectionId: CONNECTIONS_COLLECTION_ID, limit: SUPPORT_COLLECTION_PAGE_SIZE }),
+    fetchReferenceCollectionItems({ collectionId: TARGETS_COLLECTION_ID, limit: SUPPORT_COLLECTION_PAGE_SIZE }),
+    fetchAllReferenceCollectionItems(RUNS_COLLECTION_ID)
   ]);
 
   return {
     connections: toArray(connectionsPayload?.items),
     targets: toArray(targetsPayload?.items),
-    runs: toArray(runsPayload?.items)
+    runs
   };
 }
 

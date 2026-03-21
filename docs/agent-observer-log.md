@@ -12,6 +12,60 @@
 
 ## Entries
 
+### 2026-03-21 - URL-Driven Desks Still Need Immediate Local UI State
+- Tasks:
+  - finished the Media story slice and closed the last failing integration test
+  - kept the desk URL-backed for sort and detail tab state
+  - rebuilt and reverified the review env before handing off the slice
+- Easy:
+  - the failing test pointed to the exact user-facing weakness: route-backed tabs were not visually switching in a render that did not get a parent route update
+  - the media desk already had enough structure to absorb the fix without redesign
+- Hard:
+  - route state alone is not enough for a responsive desk when tests or some runtime situations do not immediately rerender from the new URL
+- Improve:
+  - when a desk owns URL state for tabs, sort, or drawers, also update the local visible state immediately and let the route catch up
+  - the review stop point is stronger when it includes:
+    - focused test proof
+    - fresh frontend build
+    - review env verify
+    - one direct browser route check
+
+### 2026-03-21 - Media Desk Needed Visible Remote Feedback At The Point Of Action
+- Tasks:
+  - executed the first Media follow-up pass after review
+  - added remote procedure feedback to the bulk-action area and the publish tab
+  - widened/regrouped the filter area into a real search/filter section
+- Easy:
+  - the remote support hook already exposed enough state:
+    - `processing`
+    - `procedureType`
+    - `targetId`
+    - `errorMessage`
+    - `successMessage`
+  - the missing piece was simply placing that state where the user actually clicks
+- Hard:
+  - the live browser route initially kept showing an older publish stack even though tests were green
+  - restarting the review env and opening a fresh page was required to verify the actual updated desk
+- Improve:
+  - if a desk offers secondary remote actions from a primary workspace, show status right next to those actions
+  - “button disabled” is not an explanation; every blocked remote action needs an explicit visible reason
+
+### 2026-03-21 - Media Needed A Real Library Surface, Not A Permanent Side Stack
+- Tasks:
+  - finished the remaining Media passes
+  - moved asset editing into a persistent right-side drawer
+  - restored derivation as a first-class asset workflow
+  - added gallery/list browse modes
+- Easy:
+  - route state already carried most of the needed semantics once `mediaView` was added
+  - usage awareness and remote sync state could be reused inside the new drawer without new backend work
+- Hard:
+  - modal drawer behavior hid the underlying desk in tests and felt heavier than the intended sidebar workflow
+  - switching to a persistent drawer solved both the product feel and the testing/accessibility mismatch
+- Improve:
+  - if a story says “the right side becomes a working bench”, prefer a persistent drawer/workbench over a permanent second column
+  - large-library stories should get a list mode from the start, not as a late enhancement
+
 ### 2026-03-18 - Browser-Firestore Was Easier Than A Second Public Backend, But Only After Fixing The Canonical Config Path
 - Tasks:
   - abandoned the Cloud Run detour for the tester path
@@ -2159,3 +2213,19 @@
 - Improve:
   - when a story says "the developer should know where to look", implement that as a repo artifact, not tribal memory
   - keep the local review contract executable: one command should tell the truth about whether the app is actually reviewable
+
+### 2026-03-21 - Sync Posture Must Use Real Run History, Not The First Page
+- Tasks:
+  - fixed the Media desk follow-up where every asset still showed `Not Synced` after a successful remote sync
+  - confirmed the immediate status-string mismatch (`success` vs `succeeded`) and fixed that
+  - found the deeper live bug: embedded remote support only loaded the first page of `remote-operation-runs`
+  - updated the remote support loader to page through the run collection and return the full history for desk consumers
+  - tightened the Media desk filter layout so search/filter/sort controls collapse across more breakpoints instead of forcing a wide single row
+- Easy:
+  - once the live APIs were inspected directly, the persisted media execute runs were obvious and the sync resolver could be reproduced outside the UI
+- Hard:
+  - the browser kept showing stale `Not Synced` posture until the review env was restarted, because the frontend process was still serving the pre-patch transformed module graph
+  - test mocks around publish links were too tightly coupled to descriptor details, which masked the actual sync-history regression
+- Improve:
+  - for any desk that derives status from operational history, load the complete relevant history or page it explicitly; do not assume one collection response is exhaustive
+  - when the live browser and a local reproduction disagree, verify the served frontend bundle before changing more logic
