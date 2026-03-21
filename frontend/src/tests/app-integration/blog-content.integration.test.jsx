@@ -47,9 +47,10 @@ function createCollectionsDomain() {
         {
           id: "post-001",
           title: "Launch Post",
+          subtitle: "Launch subtitle",
           excerpt: "Launch excerpt",
           body: "<p>Body content</p>".repeat(30),
-          status: "draft",
+          status: "published",
           format: "article",
           primaryAuthorId: "author-001",
           coAuthorIds: [],
@@ -159,98 +160,111 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("blog content view renders custom editor and revision timeline", async () => {
-  installContentFetchMocks({
-    revisions: [
-      {
-        id: "rev-002",
-        revisionNumber: 2,
-        titleSnapshot: "Launch Post Revised",
-        bodySnapshot: "<p>Updated body</p>",
-        taxonomySnapshot: {
-          categoryIds: ["cat-001"],
-          tagIds: ["tag-001"]
-        },
-        mediaSnapshot: {
-          featuredMediaId: "media-001",
-          galleryMediaIds: [],
-          ogImageMediaId: "media-001"
-        },
-        seoSnapshot: {
-          seoTitle: "Launch SEO",
-          seoDescription: "Launch description",
-          ogTitle: "Launch OG",
-          ogDescription: "Launch OG description"
-        },
-        statusSnapshot: "in-review",
-        changedByAuthorId: "author-001",
-        changedOn: "2026-03-08T10:06:00.000Z",
-        source: "manual"
-      }
-    ]
-  });
-
-  render(
-    <BlogContentView activeModuleLabel="Content" collectionsDomain={createCollectionsDomain()} />
-  );
-
-  await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Content Desk" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Post Editor" })).toBeInTheDocument();
-    expect(screen.getByText("Launch Post")).toBeInTheDocument();
-  });
-
-  fireEvent.click(screen.getByRole("tab", { name: "Release Context" }));
-
-  await waitFor(() => {
-    expect(
-      screen.getByText("Standalone pages and deployed post templates are managed in the Pages module.")
-    ).toBeInTheDocument();
-  });
-
-  fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
-
-  await waitFor(() => {
-    expect(screen.getByText("Revision Timeline")).toBeInTheDocument();
-    expect(screen.getByText("Rev 2")).toBeInTheDocument();
-  });
-}, 12000);
-
-test("blog content view surfaces authoring readiness and cross-module navigation hints", async () => {
+test("posts view keeps the editorial backlog on the page and opens one story in a drawer", async () => {
   installContentFetchMocks({
     pages: [
       {
         id: "page-011",
         title: "Launch Post Page",
         status: "published",
+        deploymentStatus: "clean",
         deploymentMode: "single-page",
         primarySourceType: "blog-post",
         primarySource: {
           sourceType: "blog-post",
           itemId: "post-001"
-        }
+        },
+        path: "/launch-post"
       }
     ]
   });
 
-  const navigate = vi.fn();
-  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={createCollectionsDomain()} navigate={navigate} />);
-
-  fireEvent.click(screen.getByRole("tab", { name: "Release Context" }));
+  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={createCollectionsDomain()} />);
 
   await waitFor(() => {
-    expect(screen.getByText("Authoring Readiness")).toBeInTheDocument();
-    expect(screen.getByText(/Primary author: Alice Stone/i)).toBeInTheDocument();
-    expect(screen.getByText(/Featured media: Launch Hero/i)).toBeInTheDocument();
-    expect(screen.getByText(/Impacted pages: Launch Post Page/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Editorial Backlog" })).toBeInTheDocument();
+    expect(screen.getByText("Launch Post")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "Open Taxonomies" }));
+  fireEvent.click(screen.getByText("Launch Post"));
 
-  expect(navigate).toHaveBeenCalledWith({ moduleId: "taxonomies" }, { replace: false });
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Launch Post" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Write The Post" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Publish" })).toBeInTheDocument();
+  });
 }, 15000);
 
-test("blog content editor saves posts and restores revisions through the module route", async () => {
+test("posts view restores filter and publish state from the URL", async () => {
+  installContentFetchMocks({
+    pages: [
+      {
+        id: "page-011",
+        title: "Launch Post Page",
+        status: "published",
+        deploymentStatus: "stale",
+        deploymentMode: "single-page",
+        primarySourceType: "blog-post",
+        primarySource: {
+          sourceType: "blog-post",
+          itemId: "post-001"
+        },
+        path: "/launch-post"
+      }
+    ]
+  });
+
+  const collectionsDomain = createCollectionsDomain();
+
+  render(
+    <BlogContentView
+      activeModuleLabel="Content"
+      collectionsDomain={collectionsDomain}
+      route={{
+        postSearch: "Launch",
+        postStatus: "published",
+        postId: "post-001",
+        postEditorSection: "publish"
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(collectionsDomain.handleCollectionFilterChange).toHaveBeenCalledWith("search", "Launch");
+    expect(collectionsDomain.handleCollectionFilterChange).toHaveBeenCalledWith("status", "published");
+    expect(screen.getByRole("heading", { name: "Publication Path" })).toBeInTheDocument();
+  });
+
+  expect(screen.getByDisplayValue("Launch")).toBeInTheDocument();
+  expect(screen.getByText("The page template exists, but the public HTML needs a fresh release before this story is live.")).toBeInTheDocument();
+}, 15000);
+
+test("posts media tab uses the gallery picker flow", async () => {
+  installContentFetchMocks();
+
+  render(
+    <BlogContentView
+      activeModuleLabel="Content"
+      collectionsDomain={createCollectionsDomain()}
+      route={{
+        postId: "post-001",
+        postEditorSection: "media"
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByRole("tab", { name: "Media", selected: true })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Choose" })[0]);
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Choose Featured Image" })).toBeInTheDocument();
+  });
+}, 15000);
+
+test("posts drawer saves updates and restores revisions", async () => {
   installContentFetchMocks({
     revisions: [
       {
@@ -261,17 +275,6 @@ test("blog content editor saves posts and restores revisions through the module 
         taxonomySnapshot: {
           categoryIds: ["cat-001"],
           tagIds: ["tag-001"]
-        },
-        mediaSnapshot: {
-          featuredMediaId: "media-001",
-          galleryMediaIds: [],
-          ogImageMediaId: "media-001"
-        },
-        seoSnapshot: {
-          seoTitle: "Launch SEO",
-          seoDescription: "Launch description",
-          ogTitle: "Launch OG",
-          ogDescription: "Launch OG description"
         },
         statusSnapshot: "draft",
         changedByAuthorId: "author-001",
@@ -285,9 +288,10 @@ test("blog content editor saves posts and restores revisions through the module 
     item: {
       id: "post-001",
       title: "Launch Post Updated",
+      subtitle: "Launch subtitle",
       excerpt: "Launch excerpt",
       body: "<p>Updated body</p>",
-      status: "draft",
+      status: "published",
       format: "article",
       primaryAuthorId: "author-001",
       coAuthorIds: [],
@@ -297,10 +301,16 @@ test("blog content editor saves posts and restores revisions through the module 
       galleryMediaIds: [],
       allowComments: true,
       commentPolicy: "open",
+      seoTitle: "Launch SEO",
+      seoDescription: "Launch description",
+      ogTitle: "Launch OG",
+      ogDescription: "Launch OG description",
+      ogImageMediaId: "media-001",
       createdByAuthorId: "author-001",
       updatedByAuthorId: "author-001"
     }
   });
+
   const fetchMock = vi.fn(async () =>
     createJsonResponse(200, {
       ok: true,
@@ -309,10 +319,9 @@ test("blog content editor saves posts and restores revisions through the module 
         title: "Launch Post",
         excerpt: "Launch excerpt",
         body: "<p>Original body</p>",
-        status: "draft",
+        status: "published",
         format: "article",
         primaryAuthorId: "author-001",
-        coAuthorIds: [],
         categoryIds: ["cat-001"],
         tagIds: ["tag-001"],
         featuredMediaId: "media-001",
@@ -328,7 +337,16 @@ test("blog content editor saves posts and restores revisions through the module 
 
   const collectionsDomain = createCollectionsDomain();
 
-  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={collectionsDomain} />);
+  render(
+    <BlogContentView
+      activeModuleLabel="Content"
+      collectionsDomain={collectionsDomain}
+      route={{
+        postId: "post-001",
+        postEditorSection: "story"
+      }}
+    />
+  );
 
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "Save Post" })).toBeInTheDocument();
@@ -351,6 +369,11 @@ test("blog content editor saves posts and restores revisions through the module 
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Revision History" })).toBeInTheDocument();
+  });
+
   fireEvent.click(screen.getByRole("button", { name: "Restore Selected Revision" }));
 
   await waitFor(() => {
@@ -364,21 +387,8 @@ test("blog content editor saves posts and restores revisions through the module 
   });
 }, 20000);
 
-test("blog content editor keeps the newly created draft selected before collection reload catches up", async () => {
+test("posts view creates a new draft from the drawer without losing the draft state", async () => {
   installContentFetchMocks();
-  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
-    if (collectionId === "blog-post-revisions") {
-      return {
-        ok: true,
-        items: []
-      };
-    }
-
-    return {
-      ok: true,
-      items: []
-    };
-  });
   referenceApi.createReferenceCollectionItem.mockResolvedValue({
     ok: true,
     item: {
@@ -407,21 +417,24 @@ test("blog content editor keeps the newly created draft selected before collecti
     }
   });
 
-  const collectionsDomain = createCollectionsDomain();
-
-  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={collectionsDomain} />);
+  render(<BlogContentView activeModuleLabel="Content" collectionsDomain={createCollectionsDomain()} />);
 
   await waitFor(() => {
-    expect(screen.getAllByRole("button", { name: "New Draft" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "New Post" })).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getAllByRole("button", { name: "New Draft" })[1]);
+  fireEvent.click(screen.getByRole("button", { name: "New Post" }));
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "New Post" })).toBeInTheDocument();
+  });
+
   fireEvent.change(screen.getByLabelText("Title"), {
     target: {
       value: "Created Draft"
     }
   });
-  fireEvent.change(screen.getByLabelText("Body (Sanitized HTML)"), {
+  fireEvent.change(screen.getByLabelText("Body"), {
     target: {
       value: "<p>Fresh draft body</p>"
     }
@@ -437,4 +450,4 @@ test("blog content editor keeps the newly created draft selected before collecti
     expect(screen.getByLabelText("Title")).toHaveValue("Created Draft");
     expect(screen.getByText("Post created")).toBeInTheDocument();
   });
-}, 30000);
+}, 20000);

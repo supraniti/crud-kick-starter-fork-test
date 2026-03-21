@@ -17,7 +17,11 @@ export function BlogContentDeploymentImpactPanel({
   }
 
   if (impactedTemplates.length === 0) {
-    return <Alert severity="info">Standalone pages and deployed post templates are managed in the Pages module.</Alert>;
+    return (
+      <Alert severity="info">
+        No published page is currently using this story. Create or assign one in Pages before expecting a live URL.
+      </Alert>
+    );
   }
 
   const staleTemplates = impactedTemplates.filter((page) => page.deploymentStatus === "stale").length;
@@ -28,9 +32,9 @@ export function BlogContentDeploymentImpactPanel({
       <Stack spacing={1.5}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between">
           <Stack spacing={0.5}>
-            <Typography variant="subtitle1">Deployment Impact</Typography>
+            <Typography variant="subtitle1">Public Pages</Typography>
             <Typography variant="body2" color="text.secondary">
-              This post participates in {impactedTemplates.length} page template{impactedTemplates.length === 1 ? "" : "s"}.
+              These page templates can make this story visible to readers.
             </Typography>
           </Stack>
           {typeof onOpenPages === "function" ? (
@@ -40,12 +44,12 @@ export function BlogContentDeploymentImpactPanel({
           ) : null}
         </Stack>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Chip size="small" label={`${impactedTemplates.length} linked`} />
+          <Chip size="small" label={`${impactedTemplates.length} page${impactedTemplates.length === 1 ? "" : "s"}`} />
           <Chip
             size="small"
             color={staleTemplates > 0 || missingTemplates > 0 ? "warning" : "success"}
-            variant="outlined"
-            label={`${staleTemplates} stale · ${missingTemplates} missing`}
+            variant={staleTemplates > 0 || missingTemplates > 0 ? "outlined" : "filled"}
+            label={staleTemplates > 0 || missingTemplates > 0 ? `${staleTemplates} need refresh · ${missingTemplates} missing` : "Ready for readers"}
           />
         </Stack>
         <Stack spacing={1}>
@@ -70,25 +74,6 @@ export function BlogContentDeploymentImpactPanel({
                 </Stack>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   <Chip size="small" label={page.deploymentStatus ?? "missing"} variant="outlined" />
-                  <Chip
-                    size="small"
-                    label={`${page.deploymentSyncedCount ?? 0}/${page.deploymentTargetCount ?? 0} synced`}
-                    variant="outlined"
-                  />
-                  {page.publicationOutput?.deploymentTargetTitle ? (
-                    <Chip
-                      size="small"
-                      label={`HTML ${page.publicationOutput.deploymentTargetTitle}`}
-                      variant="outlined"
-                    />
-                  ) : null}
-                  {page.publicationOutput?.browserTargetTitle ? (
-                    <Chip
-                      size="small"
-                      label={`Delivery ${page.publicationOutput.browserTargetTitle}`}
-                      variant="outlined"
-                    />
-                  ) : null}
                   {page.publicationOutput?.publicUrl ? (
                     <Button
                       component="a"

@@ -60,9 +60,9 @@ export function BlogContentRemoteProjectionPanel({
       <Stack spacing={1.5}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between">
           <Stack spacing={0.5}>
-            <Typography variant="subtitle1">Remote Projection</Typography>
+            <Typography variant="subtitle1">Reader Data Sync</Typography>
             <Typography variant="body2" color="text.secondary">
-              Manage the Firestore projection that consumers read from. Published posts participate in this flow.
+              Keep the remote reader-facing data store aligned with the published stories in this CMS.
             </Typography>
           </Stack>
           <Button variant="outlined" onClick={onOpenRemoteOps}>
@@ -73,7 +73,7 @@ export function BlogContentRemoteProjectionPanel({
         {settingsState?.successMessage ? <Alert severity="success">{settingsState.successMessage}</Alert> : null}
         <TextField
           select
-          label="Remote Projection Target"
+          label="Reader Data Target"
           value={safeSelectedTargetId}
           onChange={(event) =>
             moduleSettingsDomain?.handleSettingsFieldChange(
@@ -100,7 +100,7 @@ export function BlogContentRemoteProjectionPanel({
         </Stack>
         {!selectedTarget ? (
           <Alert severity="info">
-            Select and save a Firestore target to compare or sync published content to the remote projection.
+            Select and save a reader-data target before checking or syncing the published story feed.
           </Alert>
         ) : (
           <>
@@ -108,20 +108,20 @@ export function BlogContentRemoteProjectionPanel({
             <RemoteProjectionSummary target={selectedTarget} latestRun={latestRun} />
             {post?.status !== "published" ? (
               <Alert severity="info">
-                The selected post is currently `{post?.status ?? "draft"}`. Only published posts are included in the remote projection.
+                This story is currently `{post?.status ?? "draft"}`. Only published stories are included in the remote reader-data sync.
               </Alert>
             ) : null}
             {procedureState.errorMessage ? <Alert severity="error">{procedureState.errorMessage}</Alert> : null}
             {procedureState.successMessage ? <Alert severity="success">{procedureState.successMessage}</Alert> : null}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <Button variant="outlined" onClick={onValidate} disabled={isBusy}>
-                {isBusy && procedureState.procedureType === "validate" ? "Validating..." : "Validate Target"}
+                {isBusy && procedureState.procedureType === "validate" ? "Validating..." : "Validate"}
               </Button>
               <Button variant="outlined" onClick={onCompare} disabled={isBusy}>
-                {isBusy && procedureState.procedureType === "compare" ? "Comparing..." : "Compare Projection"}
+                {isBusy && procedureState.procedureType === "compare" ? "Checking..." : "Check Sync"}
               </Button>
               <Button variant="contained" onClick={onExecute} disabled={isBusy}>
-                {isBusy && procedureState.procedureType === "execute" ? "Syncing..." : "Sync Projection"}
+                {isBusy && procedureState.procedureType === "execute" ? "Syncing..." : "Sync Now"}
               </Button>
             </Stack>
           </>

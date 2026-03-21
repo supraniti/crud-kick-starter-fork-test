@@ -63,23 +63,23 @@ export function BlogContentAuthoringReadinessPanel({
           alignItems={{ md: "center" }}
         >
           <Stack spacing={0.25}>
-            <Typography variant="h6">Authoring Readiness</Typography>
+            <Typography variant="h6">Before You Publish</Typography>
             <Typography variant="body2" color="text.secondary">
-              Keep author, taxonomy, media, SEO, and page-impact cues visible while editing.
+              These are the essentials this story still needs before publication feels complete.
             </Typography>
           </Stack>
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Button variant="text" onClick={onOpenAuthors}>
-              Open Authors
+              Authors
             </Button>
             <Button variant="text" onClick={onOpenTaxonomies}>
-              Open Taxonomies
+              Taxonomies
             </Button>
             <Button variant="text" onClick={onOpenMedia}>
-              Open Media
+              Media
             </Button>
             <Button variant="text" onClick={onOpenPages}>
-              Open Pages
+              Pages
             </Button>
           </Stack>
         </Stack>
@@ -95,8 +95,8 @@ export function BlogContentAuthoringReadinessPanel({
 
         <Alert severity={attentionCount > 0 ? "warning" : "success"}>
           {attentionCount > 0
-            ? `${attentionCount} readiness area${attentionCount > 1 ? "s are" : " is"} still blocking a clean authoring handoff.`
-            : "The current draft clears the baseline authoring checks for author, taxonomy, media, SEO, and body length."}
+            ? `${attentionCount} essential area${attentionCount > 1 ? "s still need" : " still needs"} attention before this story is truly ready.`
+            : "This story clears the baseline checks for author, taxonomy, media, SEO, and body length."}
         </Alert>
 
         <Stack spacing={0.75}>
@@ -113,10 +113,10 @@ export function BlogContentAuthoringReadinessPanel({
             Featured media: {hasFeaturedMedia ? resolveOptionLabel(mediaOptions, draft.featuredMediaId) : "None selected"}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            OpenGraph image: {draft.ogImageMediaId ? resolveOptionLabel(mediaOptions, draft.ogImageMediaId) : "Falls back to featured media or none"}
+            Social image: {draft.ogImageMediaId ? resolveOptionLabel(mediaOptions, draft.ogImageMediaId) : "Falls back to the featured image or none"}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Impacted pages: {impactedTemplates.length > 0 ? impactedTemplates.map((page) => page.title ?? page.id).join(", ") : "No published page template currently depends on this post"}
+            Pages that can show this story: {impactedTemplates.length > 0 ? impactedTemplates.map((page) => page.title ?? page.id).join(", ") : "No published page currently depends on this post"}
           </Typography>
         </Stack>
       </Stack>

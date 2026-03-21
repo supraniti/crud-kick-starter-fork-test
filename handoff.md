@@ -10,6 +10,120 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-21 Posts Drawer Tabs Now Behave As Different Workspaces
+- The active Posts slice remains uncommitted and ready for product review.
+- The key follow-up on this pass was eliminating the "same tab with different labels" problem.
+- `Story`, `Organize`, `Media`, and `SEO` now render materially different workspaces:
+  - `Story`: title, subtitle, excerpt, body, and writing-readiness support rail
+  - `Organize`: author/taxonomy assignment plus current classification summary
+  - `Media`: featured/social/gallery image picking plus visual outcome preview
+  - `SEO`: search/social fields plus preview
+- Verified live in browser after reload on:
+  - `http://localhost:3000/app/posts?postId=blogpost-014&postEditorSection=story`
+  - `http://localhost:3000/app/posts?postId=blogpost-014&postEditorSection=organize`
+  - `http://localhost:3000/app/posts?postId=blogpost-014&postEditorSection=media`
+  - `http://localhost:3000/app/posts?postId=blogpost-014&postEditorSection=seo`
+- Proof artifacts added:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\posts-desk-organize-tab.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\posts-desk-media-tab.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+
+## 2026-03-21 Posts Story Implemented And Ready For Review
+- The Posts story is now implemented in the worktree and intentionally not committed yet.
+- Current implementation plan / execution record:
+  - [posts-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-story-implementation-plan.md)
+- Research basis retained:
+  - [posts-product-experience-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-product-experience-review.md)
+  - [posts-story-realignment-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-story-realignment-plan.md)
+- Delivered product shape:
+  - page-level editorial backlog table
+  - right-side post drawer for:
+    - `Story`
+    - `Organize`
+    - `Media`
+    - `SEO`
+    - `Publish`
+    - `Revisions`
+  - direct row-level `Open Page` / `Open Live`
+  - URL-backed search, filters, sort, pagination, and open-post state
+  - publication context moved inside the drawer instead of competing with the backlog page
+- Main files:
+  - [BlogContentView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentView.jsx)
+  - [BlogContentPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentPanels.jsx)
+  - [BlogContentEditorPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentEditorPanel.jsx)
+  - [BlogContentAuthoringReadinessPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentAuthoringReadinessPanel.jsx)
+  - [BlogContentDeploymentImpactPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentDeploymentImpactPanel.jsx)
+  - [BlogContentRemoteProjectionPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentRemoteProjectionPanel.jsx)
+  - [blog-content-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/blog-content-desk-model.js)
+  - [blog-content.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-content.integration.test.jsx)
+- Proof artifacts:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\posts-desk-current.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\posts-desk-final.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\posts-desk-final.snapshot.txt`
+- Verification counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+  - live browser walkthrough on:
+    - `http://localhost:3000/app/posts`
+    - published post row -> `Story` tab
+    - published post row -> `Publish` tab
+    - `New Post` flow
+- Important boundary:
+  - focused Posts Vitest still hit the known environment timeout/hang boundary and was not counted as proof
+  - the active review env is up:
+    - app: `http://localhost:3000/`
+    - health: `http://127.0.0.1:3001/health`
+
+## 2026-03-21 Posts Story Slice Ready For Review
+- The Posts story is implemented in the worktree and intentionally not committed yet.
+- Planning artifact:
+  - [posts-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-story-implementation-plan.md)
+- Delivered in this slice:
+  - route-backed desk state for:
+    - filters
+    - selected post
+    - main desk tab
+    - editor tab
+  - expanded post filters:
+    - search
+    - status
+    - format
+    - primary author
+    - category
+    - tag
+    - readiness
+    - live state
+  - embedded gallery-based post media picking with upload for:
+    - featured image
+    - social image
+    - gallery media
+  - clearer editor state strip showing:
+    - saved state
+    - CMS publish state
+    - live state
+    - page/template jump
+- Main files:
+  - [BlogContentView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentView.jsx)
+  - [BlogContentPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentPanels.jsx)
+  - [BlogContentEditorPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentEditorPanel.jsx)
+  - [blog-content-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/blog-content-desk-model.js)
+  - [blog-content.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-content.integration.test.jsx)
+- Verification counted for this slice:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - live browser review on:
+    - `http://localhost:3000/app/posts`
+- Important boundary:
+  - the focused frontend Vitest path still fails in this environment with Windows `spawn EPERM`; it is not being counted as proof
+  - the route was live-reviewed after fixing one production-only hook-order bug in `BlogContentView.jsx`
+
 ## 2026-03-21 Taxonomies Follow-Up Ready For Review
 - The first taxonomy desk pass was not yet good enough on three user-visible points:
   - the category tree still read too flat
@@ -1008,3 +1122,43 @@
   - editing a category opens a drawer on `/app/taxonomies?taxonomyBranch=categories&categoryId=...`
   - category drawer shows path preview and featured-image controls
 - Worktree remains uncommitted for review.
+## 2026-03-21 Posts Story Reworked To Editorial Desk
+- The earlier incremental Posts slice was rejected and rewritten before review.
+- The current worktree state now matches the intended story much more closely:
+  - full-width editorial roster with internal scroll
+  - calmer writing desk with the body as the center of gravity
+  - contextual right rail for:
+    - publishing basics
+    - ownership and taxonomy
+    - media
+    - SEO
+  - release context kept separate from the main writing flow
+- Planning artifact:
+  - [posts-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-story-implementation-plan.md)
+- Main files:
+  - [BlogContentView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentView.jsx)
+  - [BlogContentPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentPanels.jsx)
+  - [BlogContentEditorPanel.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/BlogContentEditorPanel.jsx)
+  - [blog-content-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-content/frontend/blog-content-desk-model.js)
+  - [blog-content.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-content.integration.test.jsx)
+- Verification counted for this rewritten slice:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - live browser review on `http://localhost:3000/app/posts`
+- Important boundary:
+  - focused Vitest still cannot be counted in this Windows/sandbox environment because of the existing spawn boundary
+  - the desk was reviewed live instead of trusting the earlier rejected pass
+## 2026-03-21 Posts Story Reframed Before More Implementation
+- After live review, the current Posts desk was judged not close enough to the intended story.
+- Research artifacts added:
+  - [posts-product-experience-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-product-experience-review.md)
+  - [posts-story-realignment-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-story-realignment-plan.md)
+- Research basis included:
+  - live browser inspection of `http://localhost:3000/app/posts`
+  - a real create-post flow on `?postMode=create`
+  - comparison with the approved Authors story and desk patterns
+  - captured screenshot/snapshot under `.codex-runtime/`
+- Important conclusion:
+  - the current Posts implementation improved layout but still does not satisfy the product story
+  - next work on Posts must start from the realigned plan, not from the earlier implementation plan alone

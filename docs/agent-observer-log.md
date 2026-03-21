@@ -12,6 +12,47 @@
 
 ## Entries
 
+### 2026-03-21 - If Tabs Feel The Same, The Workspace Is Still Wrong
+- Tasks:
+  - revisited the Posts drawer after live product feedback that `Organize`, `Media`, and `SEO` still felt like the same edit screen
+  - rebuilt the drawer so each tab owns a different workspace instead of reusing the writing canvas
+- Easy:
+  - the structural fix was straightforward once the real standard was stated clearly:
+    - different tab = different job
+    - different job = different surface
+- Hard:
+  - the first browser check falsely looked unchanged because the already-open route had not reloaded after the code change
+  - only the refreshed live route proved the improvement:
+    - `Organize` no longer showed `Write The Post`
+    - `Media` no longer showed the body editor
+    - `SEO` no longer showed the body editor
+- Improve:
+  - do not accept "different labels on the same form" as a tab system
+  - when product feedback says two tabs feel the same, verify in browser before rationalizing from code
+  - for high-value desks like Posts, the live route is the real acceptance surface
+
+### 2026-03-21 - Posts Only Settled Once The Page Stopped Editing On The Page
+- Tasks:
+  - replaced the stacked Posts screen with a backlog page plus a dedicated right-side post drawer
+  - moved publication context into the drawer instead of letting it compete with the roster
+  - used the live screenshot and real browser create/edit flow as the product baseline, not only the earlier implementation plan
+- Easy:
+  - the story became implementable once the desk was treated like Authors structurally:
+    - roster anchored on the page
+    - one record opens in a side surface
+    - URL keeps the selection/filter state
+- Hard:
+  - the first Posts rewrite still looked like a dressed-up module because it kept too much authoring and release UI on the page itself
+  - one drawer action (`New Draft`) turned out to be a real usability bug during live review because the page-level `New Post` action already owns draft creation
+  - the focused Posts Vitest path still hit the environment hang boundary, so live browser proof had to carry the slice
+- Improve:
+  - when a desk is the main product surface, insist on the live route rhythm first:
+    - what stays on the page
+    - what opens in a drawer
+    - what belongs only in a later tab
+  - treat screenshots as proof material, not decoration; the old Posts screenshot made the over-stacked problem obvious immediately
+  - if one action already owns creation, do not duplicate it inside the edit surface
+
 ### 2026-03-21 - URL-Driven Desks Still Need Immediate Local UI State
 - Tasks:
   - finished the Media story slice and closed the last failing integration test
@@ -2263,3 +2304,54 @@
 - Improve:
   - when users say a surface feels noisy, remove simultaneous decisions before adding more explanation
   - a tree UI must visually teach the hierarchy state, including the case where no nested branches exist yet
+
+### 2026-03-21 - Posts Needed Route State And Native Media More Than More Forms
+- Tasks:
+  - turned the Posts desk state into a URL-backed contract:
+    - filters
+    - selected post
+    - main desk tab
+    - editor tab
+  - expanded the post filters to reflect actual editorial work:
+    - category
+    - tag
+    - readiness
+    - live state
+  - replaced raw media selects with gallery-based picking plus upload inside the post flow
+  - added a state strip in the editor so the user can see saved/CMS/live posture immediately
+- Easy:
+  - the existing content desk already had solid post editing, revision restore, and release-context internals, so the main work stayed in desk orchestration and editor UX
+- Hard:
+  - the first live browser reload produced a white screen because `BlogContentView` had hooks after an early return
+  - the focused Vitest path hit the same Windows `spawn EPERM` boundary again and could not be counted
+- Improve:
+  - when a desk already has good internals, move it toward the story by making state explicit and persistent before rewriting deeper infrastructure
+  - white-screen browser checks need to happen before any “ready for review” claim, especially after route-state changes
+
+### 2026-03-21 - Posts Story Needed A Structural Rewrite, Not More Widgets
+- Tasks:
+  - replaced the earlier incremental Posts pass with a roster-first editorial desk
+  - moved the authoring flow to a writing-first layout with a contextual right rail
+  - contained the roster height so the list and the writing desk can coexist in one working screen
+- Easy:
+  - the existing post save/revision/release infrastructure was already solid enough to preserve while replacing the surface
+- Hard:
+  - the first attempt still looked like generic module CRUD with more filters, which failed the story bar
+  - the browser review made it obvious that the roster needed its own internal scroll or it would recreate the same stacked-page problem
+- Improve:
+  - when a story says the body is the center of gravity, design around that sentence first and only then arrange the supporting controls
+  - roster-first desks still need viewport discipline; a good table can become bad if it steals the whole page height
+
+### 2026-03-21 - Posts Needed A Product Review, Not Another Blind UI Pass
+- Tasks:
+  - paused implementation to inspect the live Posts desk again in the browser
+  - ran a real create-post flow from the current UI
+  - compared the live desk against the Posts story, the Authors story, and the developer story
+  - wrote a narrative product review and a corrected realignment plan before any further implementation
+- Easy:
+  - the core mismatch became obvious once the create flow was exercised live: the desk still leads with system structure instead of editorial rhythm
+- Hard:
+  - it is easy to keep improving visible structure while still missing the deeper product question of what the user is actually trying to do in sequence
+- Improve:
+  - when the user says the desk is not usable, stop implementing and rewrite the product understanding first
+  - use live flow evidence, not only component reasoning, before deciding the next pass
