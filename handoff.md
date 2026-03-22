@@ -1521,3 +1521,32 @@
   - backend healthy on `http://127.0.0.1:3001/health`
 - Current worktree:
   - Deployments slice only, still uncommitted for review
+
+## 2026-03-22 System Settings Story Implementation Ready For Review
+- Reworked System Settings into a calmer fallback-default desk instead of a repeated setup dashboard.
+- Main changes:
+  - merged setup truth and remote readiness into one card
+  - replaced the long binding wall with three quiet fallback snapshots:
+    - public page defaults
+    - published data defaults
+    - media library default
+  - kept advanced editing hidden by default
+  - reduced advanced groups to three product-shaped sections with effect and override notes
+  - relabeled selectors into product language:
+    - Fallback Public HTML Target
+    - Fallback Public Delivery
+    - Fallback Posts Data Target
+    - Fallback Categories Data Target
+    - Fallback Tags Data Target
+    - Fallback Media Library Target
+- Plan doc:
+  - [system-settings-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/system-settings-story-implementation-plan.md)
+- Validation:
+  - pnpm --filter frontend build`r
+  - pnpm --filter frontend exec vitest run src/tests/app-integration/product-system-settings.integration.test.jsx`r
+  - pnpm quality:protocol`r
+  - pnpm review:env:verify`r
+- Live review route:
+  - http://localhost:3000/app/system-settings`r
+- Current state:
+  - uncommitted System Settings slice ready for review

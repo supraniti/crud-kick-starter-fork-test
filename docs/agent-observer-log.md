@@ -2568,3 +2568,22 @@
 - Improve:
   - when realigning a route, do not leave the sidebar or advanced editor speaking the old vocabulary; one stale surface can make the whole page still feel incoherent
   - focused integration tests are especially valuable on product-language refactors because they catch both structural DOM mistakes and accessibility-name drift before browser review
+
+### 2026-03-22 - System Settings Needed Fewer Groups And Clearer Inheritance
+- Tasks:
+  - rewrote System Settings away from repeated setup messaging and into a quieter fallback-default desk
+  - merged setup truth and remote readiness into one calmer card
+  - replaced long binding summaries with three product groups:
+    - public page defaults
+    - published data defaults
+    - media library default
+  - kept advanced selectors hidden by default and relabeled them in product language
+  - added effect and override notes so the operator can understand inheritance before saving
+- Easy:
+  - the backend settings model already supported the real fallback groups; the main issue was presentation and duplication, not missing persistence
+- Hard:
+  - the old desk repeated the same truth in multiple cards, so improving it required deleting and regrouping, not decorating
+  - the published-data defaults live across two modules, so one calmer product section still had to save both settings domains coherently
+- Improve:
+  - rare-use desks should shrink until they tell one truth clearly instead of explaining the same thing three times
+  - if a screen is about inheritance, every section should say both effect and override, otherwise users cannot trust what they are changing

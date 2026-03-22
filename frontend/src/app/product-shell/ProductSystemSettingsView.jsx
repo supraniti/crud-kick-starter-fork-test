@@ -4,8 +4,8 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   MenuItem,
+  Paper,
   Stack,
   TextField,
   Typography
@@ -50,37 +50,58 @@ function TargetSelect({ label, value, items, onChange, disabled = false, helperT
   );
 }
 
-function RemoteHealthCard({ remoteHealth, remoteLoading, remoteErrorMessage, onOpenRemotes, onReload }) {
+function SetupTruthCard({
+  remoteHealth,
+  remoteLoading,
+  remoteErrorMessage,
+  hasBrowserDeliveryDefault,
+  onOpenRemotes,
+  onOpenDomains,
+  onReload
+}) {
   return (
     <Card variant="outlined">
       <CardContent>
-        <Stack spacing={1.5}>
+        <Stack spacing={2}>
+          <Stack spacing={0.35}>
+            <Typography variant="h6">Why This Screen Exists</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Most setup happens in `Remotes` and `Domains`. This screen only keeps the quiet fallback defaults that the rest of the product can inherit.
+            </Typography>
+          </Stack>
+
           <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
             <Stack spacing={0.25}>
-              <Typography variant="subtitle1">Remote Readiness</Typography>
+              <Typography variant="subtitle1">Setup Lives Elsewhere</Typography>
               <Typography variant="body2" color="text.secondary">
-                Product-level remote bindings stay locked until at least one validated connection exists.
+                Finish provider and delivery setup there first. Come back here only if you want product-wide fallbacks.
               </Typography>
             </Stack>
             <Stack direction="row" spacing={1}>
               <Button variant="text" onClick={onReload}>
-                Reload Remote State
+                Recheck Setup
               </Button>
               <Button variant="outlined" onClick={onOpenRemotes}>
                 Open Remotes
+              </Button>
+              <Button variant="outlined" onClick={onOpenDomains}>
+                Open Domains
               </Button>
             </Stack>
           </Stack>
 
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip size="small" label={`Validated connections: ${remoteHealth.validatedConnectionCount}/${remoteHealth.totalConnectionCount}`} color={remoteHealth.hasValidatedConnection ? "success" : "warning"} />
-            <Chip size="small" label={`Ready targets: ${remoteHealth.usableTargetCount}/${remoteHealth.totalTargetCount}`} color={remoteHealth.usableTargetCount > 0 ? "success" : "warning"} />
-            <Chip size="small" label={`Pages delivery: ${remoteHealth.usableTargetsByKind["deployment-storage"] ?? 0}`} variant="outlined" />
-            <Chip size="small" label={`Posts projection: ${remoteHealth.usableProjectionScopes["published-blog-posts"] ?? 0}`} variant="outlined" />
-            <Chip size="small" label={`Categories projection: ${remoteHealth.usableProjectionScopes["public-blog-categories"] ?? 0}`} variant="outlined" />
-            <Chip size="small" label={`Tags projection: ${remoteHealth.usableProjectionScopes["public-blog-tags"] ?? 0}`} variant="outlined" />
-            <Chip size="small" label={`Media sync: ${remoteHealth.usableTargetsByKind["media-storage"] ?? 0}`} variant="outlined" />
-            <Chip size="small" label={`Domains: ${remoteHealth.usableTargetsByKind["browser-delivery"] ?? 0}`} variant="outlined" />
+            <Chip
+              size="small"
+              label={remoteHealth.hasValidatedConnection ? "Remote ready" : "Remote not ready"}
+              color={remoteHealth.hasValidatedConnection ? "success" : "warning"}
+            />
+            <Chip
+              size="small"
+              label={hasBrowserDeliveryDefault ? "Delivery fallback chosen" : "Delivery fallback missing"}
+              color={hasBrowserDeliveryDefault ? "success" : "warning"}
+            />
+            <Chip size="small" label={`Ready targets ${remoteHealth.usableTargetCount}/${remoteHealth.totalTargetCount}`} variant="outlined" />
           </Stack>
 
           {remoteErrorMessage ? <Alert severity="error">{remoteErrorMessage}</Alert> : null}
@@ -88,88 +109,30 @@ function RemoteHealthCard({ remoteHealth, remoteLoading, remoteErrorMessage, onO
           <Alert severity={remoteHealth.hasValidatedConnection ? "success" : "warning"}>
             {remoteHealth.message}
           </Alert>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
 
-function SetupFlowCard({ remoteHealth, pages, onOpenRemotes, onOpenDomains }) {
-  const hasBrowserDeliveryDefault = Boolean(
-    pages?.draftValues?.remoteBrowserDeliveryTargetProfileId
-  );
-
-  return (
-    <Card variant="outlined">
-      <CardContent>
-        <Stack spacing={2}>
-          <Stack spacing={0.35}>
-            <Typography variant="h6">Normal Setup Flow</Typography>
-            <Typography variant="body2" color="text.secondary">
-              A new operator should finish setup in `Remotes` first and `Domains` second. This route only holds fallback defaults for downstream desks.
-            </Typography>
-          </Stack>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <Card variant="outlined" sx={{ flex: 1 }}>
-              <CardContent>
-                <Stack spacing={1.25}>
-                  <Stack spacing={0.25}>
-                    <Typography variant="overline" color="text.secondary">
-                      Step 1
-                    </Typography>
-                    <Typography variant="subtitle1">Remotes</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Validate the provider, prepare the managed services, and confirm the project can serve posts, taxonomies, media, HTML, and browser delivery.
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    <Chip
-                      size="small"
-                      label={remoteHealth.hasValidatedConnection ? "Validated remote ready" : "Remote not ready"}
-                      color={remoteHealth.hasValidatedConnection ? "success" : "warning"}
-                    />
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      label={`Managed targets: ${remoteHealth.usableTargetCount}/${remoteHealth.totalTargetCount}`}
-                    />
-                  </Stack>
-                  <Button variant="contained" onClick={onOpenRemotes}>
-                    Open Remotes
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-            <Card variant="outlined" sx={{ flex: 1 }}>
-              <CardContent>
-                <Stack spacing={1.25}>
-                  <Stack spacing={0.25}>
-                    <Typography variant="overline" color="text.secondary">
-                      Step 2
-                    </Typography>
-                    <Typography variant="subtitle1">Domains</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Choose either a real hostname or temporary GCP URLs, inspect the public origin, and verify the delivery mode before expecting deployed pages to be browseable.
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    <Chip
-                      size="small"
-                      label={hasBrowserDeliveryDefault ? "Delivery default selected" : "Delivery default not set"}
-                      color={hasBrowserDeliveryDefault ? "success" : "warning"}
-                    />
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      label={`Browser-delivery targets: ${remoteHealth.usableTargetsByKind["browser-delivery"] ?? 0}`}
-                    />
-                  </Stack>
-                  <Button variant="outlined" onClick={onOpenDomains}>
-                    Open Domains
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
+            <Paper variant="outlined" sx={{ p: 1.5, flex: 1 }}>
+              <Stack spacing={0.75}>
+                <Typography variant="overline" color="text.secondary">
+                  First
+                </Typography>
+                <Typography variant="subtitle2">Remotes</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Validate the provider and make sure the project can serve published data, media, HTML, and delivery.
+                </Typography>
+              </Stack>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: 1.5, flex: 1 }}>
+              <Stack spacing={0.75}>
+                <Typography variant="overline" color="text.secondary">
+                  Then
+                </Typography>
+                <Typography variant="subtitle2">Domains</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Choose the public delivery path you actually want visitors to reach before relying on these fallback defaults.
+                </Typography>
+              </Stack>
+            </Paper>
           </Stack>
         </Stack>
       </CardContent>
@@ -205,72 +168,53 @@ function BindingSummaryRow({ label, value, state = "missing" }) {
   );
 }
 
-function DefaultsSummaryCard({ workspace, onOpenPages, onOpenPosts, onOpenTaxonomies, onOpenMedia }) {
-  const { pages, posts, taxonomies, media } = workspace.modules;
+function SnapshotRow({ title, detail, actionLabel, onAction }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5 }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
+        <Stack spacing={0.35}>
+          <Typography variant="subtitle2">{title}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {detail}
+          </Typography>
+        </Stack>
+        <Button variant="text" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      </Stack>
+    </Paper>
+  );
+}
 
+function DefaultsSummaryCard({ workspace, onOpenPages, onOpenPosts, onOpenTaxonomies, onOpenMedia }) {
   return (
     <Card variant="outlined">
       <CardContent>
         <Stack spacing={2}>
           <Stack spacing={0.35}>
-            <Typography variant="h6">Current Product Defaults</Typography>
+            <Typography variant="h6">Current Fallback Defaults</Typography>
             <Typography variant="body2" color="text.secondary">
-              These defaults are consumed by product desks. If the normal `Remotes` and `Domains` flow is healthy, most teams should not need to edit them often.
+              This is the quiet inheritance layer. Downstream desks can use these defaults when they do not choose something more specific.
             </Typography>
           </Stack>
-
-          <BindingSummaryRow
-            label="App mount tag"
-            value={pages?.draftValues?.appMountTagName || "app-root"}
-            state="ready"
+          <SnapshotRow
+            title="Public page defaults"
+            detail={`HTML target ${resolveTargetLabel(workspace.targetFields.deployment.selection)} • Delivery ${resolveTargetLabel(workspace.targetFields.browser.selection)} • Mount ${workspace.modules.pages?.draftValues?.appMountTagName || "app-root"}`}
+            actionLabel="Open Pages"
+            onAction={onOpenPages}
           />
-          <BindingSummaryRow
-            label="HTML deployment"
-            value={resolveTargetLabel(workspace.targetFields.deployment.selection)}
-            state={workspace.targetFields.deployment.selection?.state ?? "missing"}
+          <SnapshotRow
+            title="Published data defaults"
+            detail={`Posts target ${resolveTargetLabel(workspace.targetFields.postsProjection.selection)} • Categories ${resolveTargetLabel(workspace.targetFields.categoriesProjection.selection)} • Tags ${resolveTargetLabel(workspace.targetFields.tagsProjection.selection)}`}
+            actionLabel="Open Posts And Taxonomies"
+            onAction={onOpenPosts}
           />
-          <BindingSummaryRow
-            label="Browser delivery"
-            value={resolveTargetLabel(workspace.targetFields.browser.selection)}
-            state={workspace.targetFields.browser.selection?.state ?? "missing"}
+          <SnapshotRow
+            title="Media library default"
+            detail={`Media target ${resolveTargetLabel(workspace.targetFields.media.selection)} is used when Media needs a product fallback.`}
+            actionLabel="Open Media"
+            onAction={onOpenMedia}
           />
-          <BindingSummaryRow
-            label="Posts projection"
-            value={resolveTargetLabel(workspace.targetFields.postsProjection.selection)}
-            state={workspace.targetFields.postsProjection.selection?.state ?? "missing"}
-          />
-          <BindingSummaryRow
-            label="Categories projection"
-            value={resolveTargetLabel(workspace.targetFields.categoriesProjection.selection)}
-            state={workspace.targetFields.categoriesProjection.selection?.state ?? "missing"}
-          />
-          <BindingSummaryRow
-            label="Tags projection"
-            value={resolveTargetLabel(workspace.targetFields.tagsProjection.selection)}
-            state={workspace.targetFields.tagsProjection.selection?.state ?? "missing"}
-          />
-          <BindingSummaryRow
-            label="Media sync"
-            value={resolveTargetLabel(workspace.targetFields.media.selection)}
-            state={workspace.targetFields.media.selection?.state ?? "missing"}
-          />
-
-          <Divider />
-
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
-            <Button variant="text" onClick={onOpenPages}>
-              Open Pages
-            </Button>
-            <Button variant="text" onClick={onOpenPosts}>
-              Open Posts
-            </Button>
-            <Button variant="text" onClick={onOpenTaxonomies}>
-              Open Taxonomies
-            </Button>
-            <Button variant="text" onClick={onOpenMedia}>
-              Open Media
-            </Button>
-          </Stack>
         </Stack>
       </CardContent>
     </Card>
@@ -280,6 +224,8 @@ function DefaultsSummaryCard({ workspace, onOpenPages, onOpenPosts, onOpenTaxono
 function SectionCard({
   title,
   description,
+  effect,
+  overrideNote,
   onOpen,
   openLabel,
   onSave,
@@ -298,6 +244,16 @@ function SectionCard({
               <Typography variant="body2" color="text.secondary">
                 {description}
               </Typography>
+              {effect ? (
+                <Typography variant="body2" color="text.secondary">
+                  Effect: {effect}
+                </Typography>
+              ) : null}
+              {overrideNote ? (
+                <Typography variant="body2" color="text.secondary">
+                  Override: {overrideNote}
+                </Typography>
+              ) : null}
             </Stack>
             <Stack direction="row" spacing={1}>
               <Button variant="text" onClick={onOpen}>
@@ -330,6 +286,9 @@ export function ProductSystemSettingsView({ navigate = null }) {
   const pages = workspace.modules.pages;
   const media = workspace.modules.media;
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const hasBrowserDeliveryDefault = Boolean(
+    pages?.draftValues?.remoteBrowserDeliveryTargetProfileId
+  );
 
   function openRoute(moduleId) {
     if (typeof navigate !== "function") {
@@ -343,26 +302,21 @@ export function ProductSystemSettingsView({ navigate = null }) {
       <Hero />
       {workspace.errorMessage ? <Alert severity="error">{workspace.errorMessage}</Alert> : null}
       <Alert severity="info">
-        Normal setup lives in `Remotes` and `Domains`. Use `System Settings` only when you need to set or repair product-wide fallback bindings that downstream desks consume.
+        Normal setup lives in `Remotes` and `Domains`. Use `System Settings` only for product-wide fallbacks and repair work.
       </Alert>
-      <SetupFlowCard
-        remoteHealth={workspace.remoteHealth}
-        pages={pages}
-        onOpenRemotes={() => openRoute("remotes")}
-        onOpenDomains={() => openRoute("domains")}
-      />
-      <RemoteHealthCard
+      <SetupTruthCard
         remoteHealth={workspace.remoteHealth}
         remoteLoading={workspace.remoteLoading}
         remoteErrorMessage={workspace.remoteErrorMessage}
+        hasBrowserDeliveryDefault={hasBrowserDeliveryDefault}
         onOpenRemotes={() => openRoute("remotes")}
+        onOpenDomains={() => openRoute("domains")}
         onReload={workspace.reloadRemotes}
       />
       <DefaultsSummaryCard
         workspace={workspace}
         onOpenPages={() => openRoute("pages")}
         onOpenPosts={() => openRoute("posts")}
-        onOpenTaxonomies={() => openRoute("taxonomies")}
         onOpenMedia={() => openRoute("media")}
       />
 
@@ -373,7 +327,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
               <Stack spacing={0.35}>
                 <Typography variant="h6">Advanced Default Bindings</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Expand only when the normal setup flow is already healthy and you intentionally need to override product-wide defaults.
+                  These are the only groups most teams should ever need here: public page fallbacks, published data fallbacks, and the media library fallback.
                 </Typography>
               </Stack>
               <Button variant="outlined" onClick={() => setAdvancedOpen((value) => !value)}>
@@ -383,7 +337,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
 
             {!advancedOpen ? (
               <Alert severity="info">
-                The selectors and per-module save actions remain available, but they stay out of the normal setup path.
+                Keep this collapsed unless you intentionally want to change inherited defaults for the whole product.
               </Alert>
             ) : null}
           </Stack>
@@ -393,24 +347,27 @@ export function ProductSystemSettingsView({ navigate = null }) {
       {advancedOpen ? (
         <>
           <SectionCard
-            title="Pages Delivery Defaults"
-            description="Fallback mount tag, HTML deployment target, and browser-delivery target consumed by Pages and generated HTML."
+            title="Public Page Defaults"
+            description="Fallback public page settings used when Pages does not choose something more specific."
+            effect="Generated page HTML and public delivery inherit these defaults."
+            overrideNote="Pages and release bundles can still choose more specific delivery targets."
             onOpen={() => openRoute("pages")}
             openLabel="Open Pages"
             onSave={() => workspace.saveModule("test-modules-pages")}
-            saveLabel="Save Pages Defaults"
+            saveLabel="Save Public Page Defaults"
             saving={workspace.savingByModuleId["test-modules-pages"] === true}
             successMessage={workspace.successByModuleId["test-modules-pages"]}
           >
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
-                label="App Mount Tag Name"
+                label="HTML App Mount Tag"
                 value={pages?.draftValues?.appMountTagName ?? ""}
                 onChange={(event) => workspace.changeField("test-modules-pages", "appMountTagName", event.target.value)}
+                helperText="Technical fallback for the page runtime mount element. Most teams should leave this as app-root."
                 fullWidth
               />
               <TargetSelect
-                label="Remote Deployment Target"
+                label="Fallback Public HTML Target"
                 value={pages?.draftValues?.remoteDeploymentTargetProfileId ?? ""}
                 items={workspace.targetFields.deployment.options}
                 onChange={(value) =>
@@ -420,7 +377,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
                 helperText={workspace.targetFields.deployment.helperText}
               />
               <TargetSelect
-                label="Remote Browser Delivery Target"
+                label="Fallback Public Delivery"
                 value={pages?.draftValues?.remoteBrowserDeliveryTargetProfileId ?? ""}
                 items={workspace.targetFields.browser.options}
                 onChange={(value) =>
@@ -435,41 +392,39 @@ export function ProductSystemSettingsView({ navigate = null }) {
           </SectionCard>
 
           <SectionCard
-            title="Posts Projection Defaults"
-            description="Fallback Firestore projection target used by Posts when a product-wide default is needed."
+            title="Published Data Defaults"
+            description="Fallback published-data targets used when Posts or Taxonomies do not choose something more specific."
+            effect="Published posts, categories, and tags inherit these targets."
+            overrideNote="Posts and Taxonomies can override these defaults in their own desks."
             onOpen={() => openRoute("posts")}
             openLabel="Open Posts"
-            onSave={() => workspace.saveModule("test-modules-content")}
-            saveLabel="Save Posts Defaults"
-            saving={workspace.savingByModuleId["test-modules-content"] === true}
-            successMessage={workspace.successByModuleId["test-modules-content"]}
-          >
-            <TargetSelect
-              label="Remote Projection Target"
-              value={posts?.draftValues?.remoteProjectionTargetProfileId ?? ""}
-              items={workspace.targetFields.postsProjection.options}
-              onChange={(value) =>
-                workspace.changeField("test-modules-content", "remoteProjectionTargetProfileId", value)
-              }
-              disabled={workspace.targetFields.postsProjection.disabled}
-              helperText={workspace.targetFields.postsProjection.helperText}
-            />
-            <SectionWarning selection={workspace.targetFields.postsProjection.selection} />
-          </SectionCard>
-
-          <SectionCard
-            title="Taxonomy Projection Defaults"
-            description="Fallback Firestore projection targets for public categories and public tags."
-            onOpen={() => openRoute("taxonomies")}
-            openLabel="Open Taxonomies"
-            onSave={() => workspace.saveModule("test-modules-taxonomy")}
-            saveLabel="Save Taxonomy Defaults"
-            saving={workspace.savingByModuleId["test-modules-taxonomy"] === true}
-            successMessage={workspace.successByModuleId["test-modules-taxonomy"]}
+            onSave={async () => {
+              await workspace.saveModule("test-modules-content");
+              await workspace.saveModule("test-modules-taxonomy");
+            }}
+            saveLabel="Save Published Data Defaults"
+            saving={
+              workspace.savingByModuleId["test-modules-content"] === true ||
+              workspace.savingByModuleId["test-modules-taxonomy"] === true
+            }
+            successMessage={
+              workspace.successByModuleId["test-modules-content"] ||
+              workspace.successByModuleId["test-modules-taxonomy"]
+            }
           >
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TargetSelect
-                label="Remote Categories Projection Target"
+                label="Fallback Posts Data Target"
+                value={posts?.draftValues?.remoteProjectionTargetProfileId ?? ""}
+                items={workspace.targetFields.postsProjection.options}
+                onChange={(value) =>
+                  workspace.changeField("test-modules-content", "remoteProjectionTargetProfileId", value)
+                }
+                disabled={workspace.targetFields.postsProjection.disabled}
+                helperText={workspace.targetFields.postsProjection.helperText}
+              />
+              <TargetSelect
+                label="Fallback Categories Data Target"
                 value={taxonomies?.draftValues?.remoteCategoriesProjectionTargetProfileId ?? ""}
                 items={workspace.targetFields.categoriesProjection.options}
                 onChange={(value) =>
@@ -479,7 +434,7 @@ export function ProductSystemSettingsView({ navigate = null }) {
                 helperText={workspace.targetFields.categoriesProjection.helperText}
               />
               <TargetSelect
-                label="Remote Tags Projection Target"
+                label="Fallback Tags Data Target"
                 value={taxonomies?.draftValues?.remoteTagsProjectionTargetProfileId ?? ""}
                 items={workspace.targetFields.tagsProjection.options}
                 onChange={(value) =>
@@ -489,22 +444,25 @@ export function ProductSystemSettingsView({ navigate = null }) {
                 helperText={workspace.targetFields.tagsProjection.helperText}
               />
             </Stack>
+            <SectionWarning selection={workspace.targetFields.postsProjection.selection} />
             <SectionWarning selection={workspace.targetFields.categoriesProjection.selection} />
             <SectionWarning selection={workspace.targetFields.tagsProjection.selection} />
           </SectionCard>
 
           <SectionCard
-            title="Media Sync Defaults"
-            description="Fallback remote media target used by Media for compare, sync, and restore."
+            title="Media Library Default"
+            description="Fallback media-library target used when Media needs a product-wide default."
+            effect="Media compare, sync, and restore use this target unless Media chooses another one."
+            overrideNote="The Media desk can still point at a more specific target when needed."
             onOpen={() => openRoute("media")}
             openLabel="Open Media"
             onSave={() => workspace.saveModule("test-modules-media-manager")}
-            saveLabel="Save Media Defaults"
+            saveLabel="Save Media Library Default"
             saving={workspace.savingByModuleId["test-modules-media-manager"] === true}
             successMessage={workspace.successByModuleId["test-modules-media-manager"]}
           >
             <TargetSelect
-              label="Remote Media Target"
+              label="Fallback Media Library Target"
               value={media?.draftValues?.remoteMediaTargetProfileId ?? ""}
               items={workspace.targetFields.media.options}
               onChange={(value) =>

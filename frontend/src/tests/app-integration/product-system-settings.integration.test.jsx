@@ -148,19 +148,20 @@ test("product system settings locks remote selectors until a validated remote ex
 
   expect(
     screen.getByText(
-      "Normal setup lives in `Remotes` and `Domains`. Use `System Settings` only when you need to set or repair product-wide fallback bindings that downstream desks consume."
+      "Normal setup lives in `Remotes` and `Domains`. Use `System Settings` only for product-wide fallbacks and repair work."
     )
   ).toBeInTheDocument();
-  expect(screen.queryByRole("combobox", { name: "Remote Deployment Target" })).not.toBeInTheDocument();
+  expect(screen.getByText("Why This Screen Exists")).toBeInTheDocument();
+  expect(screen.queryByRole("combobox", { name: "Fallback Public HTML Target" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Show Advanced Defaults" }));
 
-  expect(screen.getByRole("combobox", { name: "Remote Deployment Target" })).toHaveAttribute("aria-disabled", "true");
-  expect(screen.getByRole("combobox", { name: "Remote Browser Delivery Target" })).toHaveAttribute("aria-disabled", "true");
-  expect(screen.getByRole("combobox", { name: "Remote Projection Target" })).toHaveAttribute("aria-disabled", "true");
-  expect(screen.getByRole("combobox", { name: "Remote Categories Projection Target" })).toHaveAttribute("aria-disabled", "true");
-  expect(screen.getByRole("combobox", { name: "Remote Tags Projection Target" })).toHaveAttribute("aria-disabled", "true");
-  expect(screen.getByRole("combobox", { name: "Remote Media Target" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("combobox", { name: "Fallback Public HTML Target" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("combobox", { name: "Fallback Public Delivery" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("combobox", { name: "Fallback Posts Data Target" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("combobox", { name: "Fallback Categories Data Target" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("combobox", { name: "Fallback Tags Data Target" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("combobox", { name: "Fallback Media Library Target" })).toHaveAttribute("aria-disabled", "true");
 });
 
 test("product system settings unlocks remote selectors when validated product targets exist", async () => {
@@ -200,14 +201,14 @@ test("product system settings unlocks remote selectors when validated product ta
     expect(screen.getByText("Validated remote connections and standard product services are ready.")).toBeInTheDocument();
   });
 
-  expect(screen.queryByRole("combobox", { name: "Remote Deployment Target" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("combobox", { name: "Fallback Public HTML Target" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Show Advanced Defaults" }));
 
-  expect(screen.getByRole("combobox", { name: "Remote Deployment Target" })).not.toHaveAttribute("aria-disabled");
-  expect(screen.getByRole("combobox", { name: "Remote Browser Delivery Target" })).not.toHaveAttribute("aria-disabled");
-  expect(screen.getByRole("combobox", { name: "Remote Projection Target" })).not.toHaveAttribute("aria-disabled");
-  expect(screen.getByRole("combobox", { name: "Remote Categories Projection Target" })).not.toHaveAttribute("aria-disabled");
-  expect(screen.getByRole("combobox", { name: "Remote Tags Projection Target" })).not.toHaveAttribute("aria-disabled");
-  expect(screen.getByRole("combobox", { name: "Remote Media Target" })).not.toHaveAttribute("aria-disabled");
+  expect(screen.getByRole("combobox", { name: "Fallback Public HTML Target" })).not.toHaveAttribute("aria-disabled");
+  expect(screen.getByRole("combobox", { name: "Fallback Public Delivery" })).not.toHaveAttribute("aria-disabled");
+  expect(screen.getByRole("combobox", { name: "Fallback Posts Data Target" })).not.toHaveAttribute("aria-disabled");
+  expect(screen.getByRole("combobox", { name: "Fallback Categories Data Target" })).not.toHaveAttribute("aria-disabled");
+  expect(screen.getByRole("combobox", { name: "Fallback Tags Data Target" })).not.toHaveAttribute("aria-disabled");
+  expect(screen.getByRole("combobox", { name: "Fallback Media Library Target" })).not.toHaveAttribute("aria-disabled");
 });
