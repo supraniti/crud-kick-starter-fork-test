@@ -12,6 +12,26 @@
 
 ## Entries
 
+### 2026-03-21 - Comments Only Became Coherent Once The Queue Took Over The Page
+- Tasks:
+  - replaced the old comments page that front-loaded readiness/compliance/intake cards
+  - rebuilt it as:
+    - queue-first page
+    - compact queue signals
+    - hotspot panel
+    - moderation table
+    - right-side comment workbench
+- Easy:
+  - the live route made the problem obvious immediately: the old screen talked too much before the moderator even reached the queue
+  - once the design was reduced to `queue on page, one comment in drawer`, the rest of the structure followed naturally
+- Hard:
+  - the product route was not the same as the module view, so tracing the actual owner mattered before editing
+  - the first live queue showed raw post ids in the table and hotspots; that had to be corrected with the awareness-loaded post titles before the desk felt acceptable
+- Improve:
+  - if the page is about moderation, the queue must visually dominate the route
+  - system/explainer panels belong in the drawer or in compact secondary support, not ahead of the main operator task
+  - live browser proof is the fastest way to catch when the desk is still speaking in ids instead of publication language
+
 ### 2026-03-21 - If Tabs Feel The Same, The Workspace Is Still Wrong
 - Tasks:
   - revisited the Posts drawer after live product feedback that `Organize`, `Media`, and `SEO` still felt like the same edit screen

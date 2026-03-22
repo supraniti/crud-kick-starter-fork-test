@@ -67,8 +67,10 @@ function sortByCreatedOn(left, right) {
   return String(right.createdOn ?? "").localeCompare(String(left.createdOn ?? ""));
 }
 
-function useCommentSelection(collectionsDomain) {
+function useCommentSelection(collectionsDomain, controlledSelectedCommentId, onSelectCommentId) {
   const [selectedCommentId, setSelectedCommentId] = useState(null);
+  const isControlled = controlledSelectedCommentId !== undefined;
+  const activeSelectedCommentId = isControlled ? controlledSelectedCommentId : selectedCommentId;
 
   useEffect(() => {
     if (collectionsDomain.activeCollectionId !== COMMENTS_COLLECTION_ID) {
@@ -83,24 +85,43 @@ function useCommentSelection(collectionsDomain) {
 
   useEffect(() => {
     if (comments.length === 0) {
-      setSelectedCommentId(null);
+      if (isControlled) {
+        onSelectCommentId?.("");
+      } else {
+        setSelectedCommentId(null);
+      }
       return;
     }
-    if (!selectedCommentId || !comments.some((comment) => comment.id === selectedCommentId)) {
-      setSelectedCommentId(comments[0].id);
+    if (activeSelectedCommentId && comments.some((comment) => comment.id === activeSelectedCommentId)) {
+      return;
     }
-  }, [comments, selectedCommentId]);
+    if (isControlled) {
+      return;
+    }
+    setSelectedCommentId(comments[0].id);
+  }, [activeSelectedCommentId, comments, isControlled, onSelectCommentId]);
 
   const selectedComment = useMemo(
-    () => comments.find((comment) => comment.id === selectedCommentId) ?? null,
-    [comments, selectedCommentId]
+    () => comments.find((comment) => comment.id === activeSelectedCommentId) ?? null,
+    [activeSelectedCommentId, comments]
+  );
+
+  const handleSelectCommentId = useCallback(
+    (commentId) => {
+      if (isControlled) {
+        onSelectCommentId?.(commentId);
+        return;
+      }
+      setSelectedCommentId(commentId);
+    },
+    [isControlled, onSelectCommentId]
   );
 
   return {
     comments,
-    selectedCommentId,
+    selectedCommentId: activeSelectedCommentId,
     selectedComment,
-    setSelectedCommentId
+    setSelectedCommentId: handleSelectCommentId
   };
 }
 
@@ -198,19 +219,80 @@ function useModerationActions({
     [collectionsDomain, moderationReason, moderatorId, selectedComment, selectedCommentId, setActionState]
   );
 
+  const runBulkModerationAction = useCallback(
+    async (commentIds, status) => {
+      const targetIds = Array.isArray(commentIds) ? commentIds.filter(Boolean) : [];
+      if (targetIds.length === 0) {
+        return;
+      }
+
+      const commentById = new Map(comments.map((comment) => [comment.id, comment]));
+      setActionState({
+        saving: true,
+        errorMessage: null,
+        successMessage: null
+      });
+
+      const results = await Promise.allSettled(
+        targetIds.map(async (commentId) => {
+          const currentComment = commentById.get(commentId) ?? null;
+          return updateReferenceCollectionItem({
+            collectionId: COMMENTS_COLLECTION_ID,
+            itemId: commentId,
+            item: {
+              status,
+              moderationReason: moderationReason || null,
+              approvedByAuthorId: moderatorId || currentComment?.approvedByAuthorId || null
+            }
+          });
+        })
+      );
+
+      const failed = results.filter(
+        (result) => result.status === "rejected" || result.value?.ok === false
+      );
+      if (failed.length > 0) {
+        setActionState({
+          saving: false,
+          errorMessage: `Updated ${targetIds.length - failed.length} of ${targetIds.length} comments. Resolve the failures and try again.`,
+          successMessage: null
+        });
+        collectionsDomain.reloadCollectionItems();
+        return;
+      }
+
+      collectionsDomain.reloadCollectionItems();
+      setActionState({
+        saving: false,
+        errorMessage: null,
+        successMessage: `${targetIds.length} comments marked ${status}`
+      });
+    },
+    [collectionsDomain, comments, moderationReason, moderatorId, setActionState]
+  );
+
   return {
     selectComment: (commentId) => selectComment(commentId) && commentId,
     runModerationAction,
+    runBulkModerationAction,
     threadItems: buildThreadItems(comments, selectedCommentId)
   };
 }
 
-export function useBlogEngagementWorkspace({ collectionsDomain }) {
+export function useBlogEngagementWorkspace({
+  collectionsDomain,
+  selectedCommentId: controlledSelectedCommentId = undefined,
+  onSelectCommentId = undefined
+}) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [moderationReason, setModerationReason] = useState("");
   const [selectedModeratorId, setSelectedModeratorId] = useState("");
   const [actionState, setActionState] = useState(createActionState);
-  const selection = useCommentSelection(collectionsDomain);
+  const selection = useCommentSelection(
+    collectionsDomain,
+    controlledSelectedCommentId,
+    onSelectCommentId
+  );
   const referenceOptions = collectionsDomain.referenceOptionsState ?? {};
   const authorOptions = optionItems(referenceOptions, "blog-authors");
   const postOptions = optionItems(referenceOptions, "blog-posts");
@@ -254,6 +336,7 @@ export function useBlogEngagementWorkspace({ collectionsDomain }) {
     postOptions,
     threadItems: actions.threadItems,
     selectComment: selection.setSelectedCommentId,
-    runModerationAction: actions.runModerationAction
+    runModerationAction: actions.runModerationAction,
+    runBulkModerationAction: actions.runBulkModerationAction
   };
 }

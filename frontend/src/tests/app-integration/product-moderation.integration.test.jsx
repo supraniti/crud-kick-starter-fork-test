@@ -97,7 +97,40 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test("product moderation view keeps comment moderation tied to the moderator roster", async () => {
+test("product moderation view renders a queue-first desk and contextual comment drawer", async () => {
+  referenceApi.fetchReferenceCollectionItems.mockResolvedValue({
+    ok: true,
+    items: [
+      {
+        id: "post-001",
+        title: "Launch Update",
+        status: "published",
+        allowComments: true,
+        commentPolicy: "open"
+      }
+    ]
+  });
+  const collectionsDomain = createCollectionsDomain();
+
+  render(<ProductModerationView collectionsDomain={collectionsDomain} route={{}} />);
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Moderation Queue" })).toBeInTheDocument();
+    expect(screen.getByText("Queue Health")).toBeInTheDocument();
+    expect(screen.getByText("Discussion Hotspots")).toBeInTheDocument();
+    expect(screen.getByText("Search And Filter")).toBeInTheDocument();
+    expect(screen.getByText("Reader Two")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByText("Reader Two"));
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Runtime Tester" })).toBeInTheDocument();
+    expect(screen.getByText("Comment Context")).toBeInTheDocument();
+  });
+});
+
+test("product moderation view moderates the selected comment from the drawer workbench", async () => {
   referenceApi.fetchReferenceCollectionItems.mockResolvedValue({
     ok: true,
     items: [
@@ -118,16 +151,23 @@ test("product moderation view keeps comment moderation tied to the moderator ros
     }
   });
   const collectionsDomain = createCollectionsDomain();
-  const navigate = vi.fn();
 
-  render(<ProductModerationView navigate={navigate} collectionsDomain={collectionsDomain} />);
+  render(<ProductModerationView collectionsDomain={collectionsDomain} route={{}} />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Moderation Control Desk" })).toBeInTheDocument();
-    expect(screen.getByText("Moderation Readiness")).toBeInTheDocument();
-    expect(screen.getByText("Remote Intake Contract")).toBeInTheDocument();
-    expect(screen.getByText("Compliance Signals")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.getByText("Reader Two")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByText("Reader Two"));
+
+  await waitFor(() => {
+    expect(screen.getByText("Comment Context")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Moderate" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("Moderation Decision")).toBeInTheDocument();
   });
 
   fireEvent.change(screen.getByLabelText("Moderation Reason"), {
@@ -151,9 +191,4 @@ test("product moderation view keeps comment moderation tied to the moderator ros
     );
     expect(collectionsDomain.reloadCollectionItems).toHaveBeenCalled();
   });
-
-  fireEvent.click(screen.getAllByRole("button", { name: "Open Authors" })[0]);
-  expect(navigate).toHaveBeenCalledWith({ moduleId: "test-modules-editorial" }, { replace: false });
-  fireEvent.click(screen.getByRole("button", { name: "Open Pages" }));
-  expect(navigate).toHaveBeenCalledWith({ moduleId: "test-modules-pages" }, { replace: false });
 });

@@ -1,245 +1,101 @@
 import {
   Alert,
+  Box,
   Button,
-  Card,
-  CardContent,
+  Checkbox,
   Chip,
+  Drawer,
   MenuItem,
   Paper,
   Stack,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  Tabs,
   TextField,
   Typography
 } from "@mui/material";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBlogEngagementWorkspace } from "../../../../modules/test-modules-engagement/frontend/useBlogEngagementWorkspace.js";
-import { RemoteCommentContractCard, ModerationComplianceCard, SelectedCommentLifecycleCard } from "./ProductModerationInsightsPanels.jsx";
 import { useCommentModerationAwareness } from "./useCommentModerationAwareness.js";
-
-function SummaryCard({ label, value, tone = "default" }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={0.5}>
-        <Typography variant="overline" color="text.secondary">
-          {label}
-        </Typography>
-        <Typography variant="h4">{value}</Typography>
-        <Chip
-          size="small"
-          label={tone}
-          color={tone === "attention" ? "warning" : tone === "ready" ? "success" : "default"}
-          sx={{ alignSelf: "flex-start" }}
-        />
-      </Stack>
-    </Paper>
-  );
-}
+import {
+  buildCommentDeskRows,
+  buildCommentDeskSummary,
+  buildDiscussionHotspots,
+  buildVisibleCommentRows,
+  paginateCommentRows,
+  resolveModerationRouteState
+} from "./product-moderation-desk-model.js";
 
 function resolveOptionLabel(options, id, fallback = "Unknown") {
   return options.find((option) => option.id === id)?.label ?? fallback;
 }
 
-function buildModerationDiagnostics(comments = []) {
-  const threadRoots = new Set();
-  let unresolvedThreads = 0;
-  for (const comment of comments) {
-    const threadRootId = comment.parentCommentId ?? comment.id;
-    if (!threadRoots.has(threadRootId)) {
-      threadRoots.add(threadRootId);
-    }
-    if (comment.status === "pending") {
-      unresolvedThreads += 1;
-    }
-  }
-  return {
-    unresolvedThreads,
-    withoutModerator: comments.filter(
-      (comment) =>
-        (comment.status === "approved" || comment.status === "rejected" || comment.status === "spam") &&
-        !comment.approvedByAuthorId
-    ).length
-  };
-}
-
-function QueueFilters({ filters, postOptions, authorOptions, onChangeFilter, onClear }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2}>
-        <TextField
-          label="Search"
-          size="small"
-          value={filters.search}
-          onChange={(event) => onChangeFilter("search", event.target.value)}
-        />
-        <TextField
-          select
-          label="Status"
-          size="small"
-          value={filters.status}
-          onChange={(event) => onChangeFilter("status", event.target.value)}
-        >
-          <MenuItem value="">All</MenuItem>
-          {["pending", "approved", "rejected", "spam"].map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          label="Post"
-          size="small"
-          value={filters.postId}
-          onChange={(event) => onChangeFilter("postId", event.target.value)}
-          sx={{ minWidth: 220 }}
-        >
-          <MenuItem value="">All</MenuItem>
-          {postOptions.map((option) => (
-            <MenuItem key={option.id} value={option.id}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          label="Moderator"
-          size="small"
-          value={filters.moderatorId}
-          onChange={(event) => onChangeFilter("moderatorId", event.target.value)}
-          sx={{ minWidth: 220 }}
-        >
-          <MenuItem value="">All</MenuItem>
-          {authorOptions.map((option) => (
-            <MenuItem key={option.id} value={option.id}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <Button variant="outlined" onClick={onClear}>
-          Clear Filters
-        </Button>
-      </Stack>
-    </Paper>
-  );
-}
-
-function ModerationReadinessCard({ diagnostics, moderatorCount, onOpenPosts, onOpenAuthors }) {
-  return (
-    <Card variant="outlined">
-      <CardContent>
-        <Stack spacing={1.5}>
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={1}
-            justifyContent="space-between"
-            alignItems={{ md: "center" }}
-          >
-            <Stack spacing={0.25}>
-              <Typography variant="subtitle1">Moderation Readiness</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Comments moderation now stays coupled to post context and moderator roster coverage.
-              </Typography>
-            </Stack>
-            <Stack direction="row" spacing={1}>
-              <Button variant="text" onClick={onOpenPosts}>
-                Open Posts
-              </Button>
-              <Button variant="text" onClick={onOpenAuthors}>
-                Open Authors
-              </Button>
-            </Stack>
-          </Stack>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip size="small" label={`Moderators available: ${moderatorCount}`} color={moderatorCount > 0 ? "success" : "warning"} />
-            <Chip size="small" label={`Pending items: ${diagnostics.unresolvedThreads}`} color={diagnostics.unresolvedThreads > 0 ? "warning" : "default"} />
-            <Chip size="small" label={`Missing moderator attribution: ${diagnostics.withoutModerator}`} variant="outlined" />
-          </Stack>
-          <Alert severity={diagnostics.unresolvedThreads > 0 ? "warning" : "success"}>
-            {diagnostics.unresolvedThreads > 0
-              ? "Pending comments still require moderation. Keep the moderator roster healthy before treating comments as release-ready."
-              : "No pending moderation backlog is currently visible."}
-          </Alert>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CommentQueue({ comments, selectedCommentId, postOptions, onSelectComment }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={2}>
-        <Typography variant="h6">Moderation Queue</Typography>
-        {comments.length === 0 ? <Alert severity="info">No comments match the current moderation filters.</Alert> : null}
-        <Stack spacing={1.5}>
-          {comments.map((comment) => (
-            <Paper
-              key={comment.id}
-              variant="outlined"
-              sx={{
-                p: 1.5,
-                cursor: "pointer",
-                borderColor: selectedCommentId === comment.id ? "primary.main" : "divider"
-              }}
-              onClick={() => onSelectComment(comment.id)}
-            >
-              <Stack spacing={1}>
-                <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
-                  <Typography variant="subtitle2">{comment.authorDisplayName}</Typography>
-                  <Chip size="small" label={comment.status} />
-                  <Chip
-                    size="small"
-                    label={resolveOptionLabel(postOptions, comment.postId, comment.postId)}
-                    variant="outlined"
-                  />
-                  {comment.parentCommentId ? <Chip size="small" label="reply" variant="outlined" /> : null}
-                  {!comment.authorEmail ? <Chip size="small" label="missing email" color="warning" /> : null}
-                  {(comment.status === "approved" || comment.status === "rejected" || comment.status === "spam") &&
-                  !comment.approvedByAuthorId ? (
-                    <Chip size="small" label="missing moderator" color="warning" />
-                  ) : null}
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {String(comment.body ?? "").slice(0, 140)}
-                </Typography>
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
-      </Stack>
-    </Paper>
-  );
-}
-
-function ThreadPanel({ threadItems, selectedCommentId }) {
+function QueueHealthPanel({ summary }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
-        <Typography variant="h6">Thread Inspector</Typography>
-        {threadItems.length === 0 ? (
+        <Stack spacing={0.35}>
+          <Typography variant="subtitle1">Queue Health</Typography>
           <Typography variant="body2" color="text.secondary">
-            Select a comment to inspect its thread context.
+            Stay aware of backlog pressure without turning the page into a dashboard.
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Chip size="small" label={`Pending ${summary.pending}`} color={summary.pending > 0 ? "warning" : "success"} />
+          <Chip size="small" label={`Approved ${summary.approved}`} variant="outlined" />
+          <Chip size="small" label={`Flagged ${summary.flagged}`} variant="outlined" />
+          <Chip size="small" label={`Replies ${summary.replies}`} variant="outlined" />
+          <Chip size="small" label={`Missing moderator ${summary.missingModerator}`} color={summary.missingModerator > 0 ? "warning" : "default"} />
+          <Chip size="small" label={`Oldest pending ${summary.oldestPendingLabel}`} variant="outlined" />
+        </Stack>
+        <Alert severity={summary.pending > 0 ? "warning" : "success"}>
+          {summary.pending > 0
+            ? "Pending comments are waiting for a decision. Clear the obvious cases quickly and inspect the borderline ones in context."
+            : "The visible queue is clear right now."}
+        </Alert>
+      </Stack>
+    </Paper>
+  );
+}
+
+function DiscussionHotspotsPanel({ hotspots, onFilterPost }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.5}>
+        <Stack spacing={0.35}>
+          <Typography variant="subtitle1">Discussion Hotspots</Typography>
+          <Typography variant="body2" color="text.secondary">
+            See which posts are drawing the most discussion so moderation stays contextual.
+          </Typography>
+        </Stack>
+        {hotspots.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No comments have landed yet.
           </Typography>
         ) : (
-          threadItems.map((comment) => (
-            <Paper
-              key={comment.id}
-              variant="outlined"
-              sx={{
-                p: 1.5,
-                borderColor: selectedCommentId === comment.id ? "primary.main" : "divider"
-              }}
-            >
-              <Stack spacing={0.5}>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  <Typography variant="subtitle2">{comment.authorDisplayName}</Typography>
-                  <Chip size="small" label={comment.status} />
+          hotspots.map((hotspot) => (
+            <Paper key={hotspot.postId} variant="outlined" sx={{ p: 1.25 }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                justifyContent="space-between"
+                alignItems={{ sm: "center" }}
+              >
+                <Stack spacing={0.35}>
+                  <Typography variant="subtitle2">{hotspot.postLabel}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {hotspot.total} comment{hotspot.total === 1 ? "" : "s"} · {hotspot.pending} pending
+                  </Typography>
                 </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {comment.createdOn}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {comment.body}
-                </Typography>
+                <Button variant="text" size="small" onClick={() => onFilterPost(hotspot.postId)}>
+                  Filter Queue
+                </Button>
               </Stack>
             </Paper>
           ))
@@ -249,113 +105,675 @@ function ThreadPanel({ threadItems, selectedCommentId }) {
   );
 }
 
-function CommentDetail({ workspace }) {
-  const comment = workspace.selectedComment;
-  const moderatorLabel = resolveOptionLabel(
-    workspace.authorOptions,
-    comment?.approvedByAuthorId,
-    "Not moderated"
-  );
-  const postLabel = resolveOptionLabel(workspace.postOptions, comment?.postId, "Unknown post");
-
+function QueueFilters({ routeState, postOptions, authorOptions, onChangeFilter, onClear }) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={2}>
-        <Typography variant="h6">Comment Detail</Typography>
-        {!comment ? (
-          <Alert severity="info">Select a comment from the moderation queue.</Alert>
-        ) : (
-          <>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Chip size="small" label={comment.status} />
-              <Chip size="small" label={postLabel} variant="outlined" />
-              <Chip size="small" label={moderatorLabel} />
-            </Stack>
-            <Typography variant="subtitle1">{comment.authorDisplayName}</Typography>
-            {comment.authorEmail ? (
-              <Typography variant="body2" color="text.secondary">
-                {comment.authorEmail}
-              </Typography>
-            ) : null}
-            <Typography variant="body2" color="text.secondary">
-              Created {comment.createdOn}
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "grey.50" }}>
-              <Typography variant="body2">{comment.body}</Typography>
-            </Paper>
-            <TextField
-              select
-              label="Moderator"
-              value={workspace.selectedModeratorId}
-              onChange={(event) => workspace.setSelectedModeratorId(event.target.value)}
-              sx={{ maxWidth: 320 }}
-            >
-              {workspace.authorOptions.map((option) => (
-                <MenuItem key={option.id} value={option.id}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Moderation Reason"
-              value={workspace.moderationReason}
-              onChange={(event) => workspace.setModerationReason(event.target.value)}
-              multiline
-              minRows={3}
-            />
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button
-                variant="contained"
-                onClick={() => workspace.runModerationAction("approved")}
-                disabled={workspace.actionState.saving}
-              >
-                Approve
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => workspace.runModerationAction("rejected")}
-                disabled={workspace.actionState.saving}
-              >
-                Reject
-              </Button>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={() => workspace.runModerationAction("spam")}
-                disabled={workspace.actionState.saving}
-              >
-                Mark Spam
-              </Button>
-            </Stack>
-          </>
-        )}
+      <Stack spacing={1.5}>
+        <Typography variant="subtitle1">Search And Filter</Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.5,
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "minmax(0, 1.5fr) repeat(4, minmax(160px, 1fr)) auto"
+            }
+          }}
+        >
+          <TextField
+            label="Search"
+            size="small"
+            value={routeState.search}
+            onChange={(event) => onChangeFilter("commentSearch", event.target.value)}
+          />
+          <TextField
+            select
+            label="Status"
+            size="small"
+            value={routeState.status}
+            onChange={(event) => onChangeFilter("commentStatus", event.target.value)}
+          >
+            <MenuItem value="">All</MenuItem>
+            {["pending", "approved", "rejected", "spam"].map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Post"
+            size="small"
+            value={routeState.postId}
+            onChange={(event) => onChangeFilter("commentPostId", event.target.value)}
+          >
+            <MenuItem value="">All</MenuItem>
+            {postOptions.map((option) => (
+              <MenuItem key={option.id} value={option.id}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Moderator"
+            size="small"
+            value={routeState.moderatorId}
+            onChange={(event) => onChangeFilter("commentModeratorId", event.target.value)}
+          >
+            <MenuItem value="">All</MenuItem>
+            {authorOptions.map((option) => (
+              <MenuItem key={option.id} value={option.id}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Sort"
+            size="small"
+            value={routeState.sort}
+            onChange={(event) => onChangeFilter("commentSort", event.target.value)}
+          >
+            <MenuItem value="pending-first">Pending first</MenuItem>
+            <MenuItem value="newest-desc">Newest first</MenuItem>
+            <MenuItem value="oldest-asc">Oldest first</MenuItem>
+            <MenuItem value="status-asc">Status</MenuItem>
+            <MenuItem value="post-asc">Post</MenuItem>
+          </TextField>
+          <Button variant="outlined" onClick={onClear}>
+            Clear
+          </Button>
+        </Box>
       </Stack>
     </Paper>
   );
 }
 
-export function ProductModerationView({ navigate = null, collectionsDomain }) {
-  const workspace = useBlogEngagementWorkspace({ collectionsDomain });
+function BulkModerationBar({
+  selectedCount,
+  moderatorLabel,
+  saving,
+  onApprove,
+  onReject,
+  onSpam,
+  onClear
+}) {
+  if (selectedCount === 0) {
+    return null;
+  }
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack
+        direction={{ xs: "column", lg: "row" }}
+        spacing={1.5}
+        justifyContent="space-between"
+        alignItems={{ lg: "center" }}
+      >
+        <Stack spacing={0.35}>
+          <Typography variant="subtitle2">Bulk moderation</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {selectedCount} selected comment{selectedCount === 1 ? "" : "s"} · moderation attribution will use {moderatorLabel}.
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Button variant="contained" onClick={onApprove} disabled={saving}>
+            Approve Selected
+          </Button>
+          <Button variant="outlined" onClick={onReject} disabled={saving}>
+            Reject Selected
+          </Button>
+          <Button variant="outlined" color="warning" onClick={onSpam} disabled={saving}>
+            Mark Selected Spam
+          </Button>
+          <Button variant="text" color="inherit" onClick={onClear} disabled={saving}>
+            Clear Selection
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
+function CommentQueueTable({
+  routeState,
+  pagedRows,
+  selectedCommentIds,
+  onToggleAllVisible,
+  onToggleComment,
+  onOpenComment,
+  onPageChange
+}) {
+  const allVisibleSelected =
+    pagedRows.rows.length > 0 &&
+    pagedRows.rows.every((row) => selectedCommentIds.includes(row.id));
+  const someVisibleSelected =
+    pagedRows.rows.some((row) => selectedCommentIds.includes(row.id)) && !allVisibleSelected;
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell padding="checkbox">
+              <Checkbox
+                checked={allVisibleSelected}
+                indeterminate={someVisibleSelected}
+                onChange={(event) => onToggleAllVisible(event.target.checked)}
+              />
+            </TableCell>
+            <TableCell>Commenter</TableCell>
+            <TableCell>Comment</TableCell>
+            <TableCell>Post</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Submitted</TableCell>
+            <TableCell>Flags</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {pagedRows.rows.map((row) => {
+            const isSelected = routeState.commentId === row.id;
+            const isChecked = selectedCommentIds.includes(row.id);
+            return (
+              <TableRow
+                key={row.id}
+                hover
+                selected={isSelected}
+                sx={{ cursor: "pointer" }}
+                onClick={() => onOpenComment(row.id)}
+              >
+                <TableCell padding="checkbox" onClick={(event) => event.stopPropagation()}>
+                  <Checkbox checked={isChecked} onChange={() => onToggleComment(row.id)} />
+                </TableCell>
+                <TableCell sx={{ minWidth: 180 }}>
+                  <Stack spacing={0.35}>
+                    <Typography variant="subtitle2">{row.authorDisplayName}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {row.authorEmail || "No email provided"}
+                    </Typography>
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ minWidth: 320 }}>
+                  <Stack spacing={0.5}>
+                    <Typography variant="body2">{row.bodyPreview || "No comment body"}</Typography>
+                    {row.threadSize > 1 ? (
+                      <Typography variant="caption" color="text.secondary">
+                        Thread size {row.threadSize}
+                      </Typography>
+                    ) : null}
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ minWidth: 180 }}>
+                  <Typography variant="body2">{row.postLabel}</Typography>
+                </TableCell>
+                <TableCell>
+                  <Chip size="small" label={row.status} color={row.status === "pending" ? "warning" : "default"} />
+                </TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>{row.submittedLabel}</TableCell>
+                <TableCell sx={{ minWidth: 180 }}>
+                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                    {row.flags.length > 0 ? (
+                      row.flags.map((flag) => <Chip key={flag} size="small" label={flag} variant="outlined" />)
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        Clean
+                      </Typography>
+                    )}
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+          {pagedRows.rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7}>
+                <Alert severity="info">No comments match the current queue filters.</Alert>
+              </TableCell>
+            </TableRow>
+          ) : null}
+        </TableBody>
+      </Table>
+      <TablePagination
+        component="div"
+        count={pagedRows.totalCount}
+        page={pagedRows.page - 1}
+        rowsPerPage={pagedRows.pageSize}
+        onPageChange={onPageChange}
+        rowsPerPageOptions={[pagedRows.pageSize]}
+      />
+    </TableContainer>
+  );
+}
+
+function ContextTab({ comment, selectedPost, threadItems, onOpenPost }) {
+  return (
+    <Stack spacing={2}>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.25}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            justifyContent="space-between"
+            alignItems={{ sm: "center" }}
+          >
+            <Typography variant="subtitle1">Comment Context</Typography>
+            {comment?.postId ? (
+              <Button variant="text" size="small" onClick={() => onOpenPost(comment.postId)}>
+                Open Post
+              </Button>
+            ) : null}
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="small" label={comment?.status ?? "Unknown"} color={comment?.status === "pending" ? "warning" : "default"} />
+            <Chip size="small" label={selectedPost?.title ?? comment?.postId ?? "Unknown post"} variant="outlined" />
+            <Chip
+              size="small"
+              label={
+                selectedPost
+                  ? selectedPost.allowComments === false || selectedPost.commentPolicy === "closed"
+                    ? "Comments closed on post"
+                    : "Comments open on post"
+                  : "Post policy unknown"
+              }
+              variant="outlined"
+            />
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {comment?.authorDisplayName}
+            {comment?.authorEmail ? ` · ${comment.authorEmail}` : " · no email provided"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Submitted {comment?.createdOn || "Unknown"}
+          </Typography>
+          <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "grey.50" }}>
+            <Typography variant="body2">{comment?.body || "No comment body"}</Typography>
+          </Paper>
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.25}>
+          <Typography variant="subtitle1">Nearby Thread</Typography>
+          {threadItems.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No nearby thread context is available.
+            </Typography>
+          ) : (
+            threadItems.map((threadComment) => (
+              <Paper
+                key={threadComment.id}
+                variant="outlined"
+                sx={{
+                  p: 1.25,
+                  borderColor: threadComment.id === comment?.id ? "primary.main" : "divider"
+                }}
+              >
+                <Stack spacing={0.5}>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    <Typography variant="subtitle2">{threadComment.authorDisplayName}</Typography>
+                    <Chip size="small" label={threadComment.status} />
+                    <Typography variant="caption" color="text.secondary">
+                      {threadComment.createdOn}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {threadComment.body}
+                  </Typography>
+                </Stack>
+              </Paper>
+            ))
+          )}
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
+function ModerateTab({ workspace }) {
+  const comment = workspace.selectedComment;
+  return (
+    <Stack spacing={2}>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <Typography variant="subtitle1">Moderation Decision</Typography>
+          <Typography variant="body2" color="text.secondary">
+            The moderation reason is internal. Use it to explain borderline decisions to other editors.
+          </Typography>
+          <TextField
+            select
+            label="Moderator"
+            size="small"
+            value={workspace.selectedModeratorId}
+            onChange={(event) => workspace.setSelectedModeratorId(event.target.value)}
+          >
+            {workspace.authorOptions.map((option) => (
+              <MenuItem key={option.id} value={option.id}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Moderation Reason"
+            value={workspace.moderationReason}
+            onChange={(event) => workspace.setModerationReason(event.target.value)}
+            multiline
+            minRows={4}
+          />
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Button
+              variant="contained"
+              onClick={() => workspace.runModerationAction("approved")}
+              disabled={workspace.actionState.saving || !comment}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => workspace.runModerationAction("rejected")}
+              disabled={workspace.actionState.saving || !comment}
+            >
+              Reject
+            </Button>
+            <Button
+              variant="outlined"
+              color="warning"
+              onClick={() => workspace.runModerationAction("spam")}
+              disabled={workspace.actionState.saving || !comment}
+            >
+              Mark Spam
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
+function HistoryTab({ comment, selectedPost, moderatorLabel, awareness }) {
+  const isModerated =
+    comment?.status === "approved" || comment?.status === "rejected" || comment?.status === "spam";
+
+  return (
+    <Stack spacing={2}>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <Typography variant="subtitle1">Lifecycle</Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="small" label="Submitted" color={comment ? "success" : "default"} variant={comment ? "filled" : "outlined"} />
+            <Chip size="small" label="Queued" color={comment?.status === "pending" ? "warning" : "default"} variant={comment?.status === "pending" ? "filled" : "outlined"} />
+            <Chip size="small" label="Moderated" color={isModerated ? "success" : "default"} variant={isModerated ? "filled" : "outlined"} />
+            {comment?.parentCommentId ? <Chip size="small" label="Reply Thread" variant="outlined" /> : null}
+          </Stack>
+          <Stack spacing={0.75}>
+            <Typography variant="body2" color="text.secondary">
+              Source post: {selectedPost?.title ?? comment?.postId ?? "Unknown post"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Moderator attribution: {moderatorLabel}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Moderation reason: {comment?.moderationReason || "Not recorded yet"}
+            </Typography>
+          </Stack>
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <Typography variant="subtitle1">Remote Intake</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Delivered pages use the injected runtime to fetch thread data and submit comments back into this queue.
+          </Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="small" label={awareness.remoteContract.dataset} variant="outlined" />
+            <Chip size="small" label={awareness.remoteContract.query} variant="outlined" />
+            <Chip size="small" label={awareness.remoteContract.action} variant="outlined" />
+          </Stack>
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
+function CommentWorkbenchDrawer({
+  open,
+  routeState,
+  selectedComment,
+  selectedPost,
+  moderatorLabel,
+  workspace,
+  awareness,
+  onClose,
+  onChangeTab,
+  onOpenPost
+}) {
+  return (
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: { xs: "100%", lg: 560 },
+          maxWidth: "100vw"
+        }
+      }}
+    >
+      <Stack spacing={2} sx={{ p: 2.5 }}>
+        <Stack spacing={0.5}>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+            <Stack spacing={0.35}>
+              <Typography variant="overline" color="text.secondary">
+                Comment Desk
+              </Typography>
+              <Typography variant="h5">{selectedComment?.authorDisplayName ?? "Comment"}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Keep the queue visible while you review one conversation in a dedicated moderation workbench.
+              </Typography>
+            </Stack>
+            <Button variant="text" color="inherit" onClick={onClose}>
+              Close
+            </Button>
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="small" label={selectedComment?.status ?? "Unknown"} color={selectedComment?.status === "pending" ? "warning" : "default"} />
+            <Chip size="small" label={selectedPost?.title ?? selectedComment?.postId ?? "Unknown post"} variant="outlined" />
+            {selectedComment?.approvedByAuthorId ? <Chip size="small" label={moderatorLabel} variant="outlined" /> : null}
+          </Stack>
+        </Stack>
+
+        <Paper variant="outlined" sx={{ px: 1.5 }}>
+          <Tabs
+            value={routeState.tab}
+            onChange={(_, nextValue) => onChangeTab(nextValue)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab value="context" label="Context" />
+            <Tab value="moderate" label="Moderate" />
+            <Tab value="history" label="History" />
+          </Tabs>
+        </Paper>
+
+        {workspace.actionState.errorMessage ? <Alert severity="error">{workspace.actionState.errorMessage}</Alert> : null}
+        {workspace.actionState.successMessage ? <Alert severity="success">{workspace.actionState.successMessage}</Alert> : null}
+
+        {routeState.tab === "context" ? (
+          <ContextTab
+            comment={selectedComment}
+            selectedPost={selectedPost}
+            threadItems={workspace.threadItems}
+            onOpenPost={onOpenPost}
+          />
+        ) : null}
+        {routeState.tab === "moderate" ? <ModerateTab workspace={workspace} /> : null}
+        {routeState.tab === "history" ? (
+          <HistoryTab
+            comment={selectedComment}
+            selectedPost={selectedPost}
+            moderatorLabel={moderatorLabel}
+            awareness={awareness}
+          />
+        ) : null}
+      </Stack>
+    </Drawer>
+  );
+}
+
+export function ProductModerationView({ navigate = null, route = {}, collectionsDomain }) {
+  const routeState = useMemo(() => resolveModerationRouteState(route), [route]);
+
+  const updateRouteState = useCallback(
+    (patch = {}, replace = true) => {
+      if (typeof navigate !== "function") {
+        return;
+      }
+      navigate(
+        {
+          ...route,
+          ...patch
+        },
+        { replace }
+      );
+    },
+    [navigate, route]
+  );
+
+  const workspace = useBlogEngagementWorkspace({
+    collectionsDomain,
+    selectedCommentId: routeState.commentId || "",
+    onSelectCommentId: (commentId) =>
+      updateRouteState(
+        {
+          commentId: commentId || "",
+          commentTab: routeState.tab || "context"
+        },
+        false
+      )
+  });
+
   const awareness = useCommentModerationAwareness({
     selectedComment: workspace.selectedComment
   });
-  const queueTitle = useMemo(
-    () => resolveOptionLabel(workspace.postOptions, workspace.selectedComment?.postId, "Comment Queue"),
-    [workspace.postOptions, workspace.selectedComment?.postId]
-  );
-  const diagnostics = useMemo(() => buildModerationDiagnostics(workspace.comments), [workspace.comments]);
-  const moderatorLabel = resolveOptionLabel(
-    workspace.authorOptions,
-    workspace.selectedComment?.approvedByAuthorId,
-    "Not moderated"
-  );
+  const [selectedCommentIds, setSelectedCommentIds] = useState([]);
+  const postOptions = useMemo(() => {
+    const fromReferenceOptions = Array.isArray(workspace.postOptions) ? workspace.postOptions : [];
+    const merged = new Map(fromReferenceOptions.map((option) => [option.id, option]));
+    for (const post of awareness.state.items ?? []) {
+      if (!post?.id) {
+        continue;
+      }
+      merged.set(post.id, {
+        id: post.id,
+        label: post.title || post.slug || post.id
+      });
+    }
+    return [...merged.values()];
+  }, [awareness.state.items, workspace.postOptions]);
 
-  function openRoute(moduleId) {
-    if (typeof navigate !== "function") {
+  const commentRows = useMemo(
+    () => buildCommentDeskRows(workspace.comments, postOptions, workspace.authorOptions),
+    [postOptions, workspace.authorOptions, workspace.comments]
+  );
+  const visibleRows = useMemo(
+    () => buildVisibleCommentRows(commentRows, routeState),
+    [commentRows, routeState]
+  );
+  const pagedRows = useMemo(
+    () => paginateCommentRows(visibleRows, routeState.page),
+    [routeState.page, visibleRows]
+  );
+  const summary = useMemo(() => buildCommentDeskSummary(commentRows), [commentRows]);
+  const hotspots = useMemo(() => buildDiscussionHotspots(commentRows), [commentRows]);
+
+  useEffect(() => {
+    if (pagedRows.page === routeState.page) {
       return;
     }
-    navigate({ moduleId }, { replace: false });
-  }
+    updateRouteState({ commentPage: pagedRows.page }, true);
+  }, [pagedRows.page, routeState.page, updateRouteState]);
+
+  useEffect(() => {
+    const visibleIds = new Set(visibleRows.map((row) => row.id));
+    setSelectedCommentIds((previous) => previous.filter((commentId) => visibleIds.has(commentId)));
+    if (routeState.commentId && !visibleIds.has(routeState.commentId)) {
+      updateRouteState({ commentId: "", commentTab: "context" }, true);
+    }
+  }, [routeState.commentId, updateRouteState, visibleRows]);
+
+  const moderatorLabel = resolveOptionLabel(
+    workspace.authorOptions,
+    workspace.selectedModeratorId,
+    workspace.authorOptions[0]?.label ?? "a moderator"
+  );
+
+  const handleFilterChange = useCallback(
+    (fieldId, value) => {
+      updateRouteState(
+        {
+          [fieldId]: value,
+          commentPage: 1,
+          commentId: ""
+        },
+        true
+      );
+    },
+    [updateRouteState]
+  );
+
+  const handleOpenComment = useCallback(
+    (commentId) => {
+      updateRouteState(
+        {
+          commentId,
+          commentTab: routeState.tab || "context"
+        },
+        false
+      );
+    },
+    [routeState.tab, updateRouteState]
+  );
+
+  const handleToggleCommentSelection = useCallback((commentId) => {
+    setSelectedCommentIds((previous) =>
+      previous.includes(commentId)
+        ? previous.filter((itemId) => itemId !== commentId)
+        : [...previous, commentId]
+    );
+  }, []);
+
+  const handleToggleAllVisible = useCallback(
+    (checked) => {
+      setSelectedCommentIds((previous) => {
+        if (!checked) {
+          const pageIds = new Set(pagedRows.rows.map((row) => row.id));
+          return previous.filter((commentId) => !pageIds.has(commentId));
+        }
+        return [...new Set([...previous, ...pagedRows.rows.map((row) => row.id)])];
+      });
+    },
+    [pagedRows.rows]
+  );
+
+  const handleOpenPost = useCallback(
+    (postId) => {
+      if (typeof navigate !== "function") {
+        return;
+      }
+      navigate(
+        {
+          moduleId: "test-modules-content",
+          postId,
+          postEditorSection: "publish"
+        },
+        { replace: false }
+      );
+    },
+    [navigate]
+  );
+
+  const selectedComment = workspace.selectedComment;
 
   if (
     !collectionsDomain.isActiveCollectionAvailable &&
@@ -366,7 +784,7 @@ export function ProductModerationView({ navigate = null, collectionsDomain }) {
 
   return (
     <Stack spacing={2}>
-      <Card
+      <Paper
         variant="outlined"
         sx={{
           p: 2,
@@ -378,95 +796,98 @@ export function ProductModerationView({ navigate = null, collectionsDomain }) {
           <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.75)" }}>
             Comments
           </Typography>
-          <Typography variant="h4">Moderation Control Desk</Typography>
+          <Typography variant="h4">Moderation Queue</Typography>
           <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
-            Review the queue, inspect thread context, and keep moderator attribution tied to the editorial roster.
+            Work through discussion with the queue on the page and one focused comment workbench at a time.
           </Typography>
         </Stack>
-      </Card>
+      </Paper>
 
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={2}
-        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(5, 1fr)" } }}
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: {
+            xs: "1fr",
+            xl: "minmax(0, 1.3fr) minmax(320px, 0.9fr)"
+          }
+        }}
       >
-        <SummaryCard label="Total Comments" value={workspace.summary.total} />
-        <SummaryCard label="Pending Review" value={workspace.summary.pending} tone="attention" />
-        <SummaryCard label="Approved" value={workspace.summary.approved} />
-        <SummaryCard label="Flagged" value={workspace.summary.flagged} />
-        <SummaryCard
-          label="Moderators"
-          value={workspace.authorOptions.length}
-          tone={workspace.authorOptions.length > 0 ? "ready" : "attention"}
+        <QueueHealthPanel summary={summary} />
+        <DiscussionHotspotsPanel
+          hotspots={hotspots}
+          onFilterPost={(postId) => handleFilterChange("commentPostId", postId)}
         />
-      </Stack>
-
-      <ModerationReadinessCard
-        diagnostics={diagnostics}
-        moderatorCount={workspace.authorOptions.length}
-        onOpenPosts={() => openRoute("test-modules-content")}
-        onOpenAuthors={() => openRoute("test-modules-editorial")}
-      />
-
-      <RemoteCommentContractCard
-        awareness={awareness}
-        onOpenPosts={() => openRoute("test-modules-content")}
-        onOpenPages={() => openRoute("test-modules-pages")}
-      />
-
-      <ModerationComplianceCard
-        comments={workspace.comments}
-        onOpenAuthors={() => openRoute("test-modules-editorial")}
-      />
+      </Box>
 
       <QueueFilters
-        filters={workspace.filters}
-        postOptions={workspace.postOptions}
+        routeState={routeState}
+        postOptions={postOptions}
         authorOptions={workspace.authorOptions}
-        onChangeFilter={(fieldId, value) =>
-          workspace.setFilters((previous) => ({
-            ...previous,
-            [fieldId]: value
-          }))
-        }
+        onChangeFilter={handleFilterChange}
         onClear={() =>
-          workspace.setFilters({
-            search: "",
-            status: "",
-            postId: "",
-            moderatorId: ""
-          })
+          updateRouteState(
+            {
+              commentSearch: "",
+              commentStatus: "",
+              commentPostId: "",
+              commentModeratorId: "",
+              commentSort: "pending-first",
+              commentPage: 1,
+              commentId: "",
+              commentTab: "context"
+            },
+            true
+          )
         }
+      />
+
+      <BulkModerationBar
+        selectedCount={selectedCommentIds.length}
+        moderatorLabel={moderatorLabel}
+        saving={workspace.actionState.saving}
+        onApprove={() => workspace.runBulkModerationAction(selectedCommentIds, "approved")}
+        onReject={() => workspace.runBulkModerationAction(selectedCommentIds, "rejected")}
+        onSpam={() => workspace.runBulkModerationAction(selectedCommentIds, "spam")}
+        onClear={() => setSelectedCommentIds([])}
       />
 
       {workspace.actionState.errorMessage ? <Alert severity="error">{workspace.actionState.errorMessage}</Alert> : null}
       {workspace.actionState.successMessage ? <Alert severity="success">{workspace.actionState.successMessage}</Alert> : null}
 
-      <Stack direction={{ xs: "column", xl: "row" }} spacing={2} alignItems="flex-start">
-        <Stack sx={{ width: { xs: "100%", xl: 360 }, flexShrink: 0 }}>
-          <CommentQueue
-            comments={workspace.filteredComments}
-            selectedCommentId={workspace.selectedCommentId}
-            postOptions={workspace.postOptions}
-            onSelectComment={workspace.selectComment}
-          />
-        </Stack>
-        <Stack sx={{ flex: 1, width: "100%" }} spacing={2}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="overline" color="text.secondary">
-              Active Thread
-            </Typography>
-            <Typography variant="h6">{queueTitle}</Typography>
-          </Paper>
-          <SelectedCommentLifecycleCard
-            comment={workspace.selectedComment}
-            selectedPost={awareness.selectedPost}
-            moderatorLabel={moderatorLabel}
-          />
-          <CommentDetail workspace={workspace} />
-          <ThreadPanel threadItems={workspace.threadItems} selectedCommentId={workspace.selectedCommentId} />
-        </Stack>
-      </Stack>
+      <CommentQueueTable
+        routeState={routeState}
+        pagedRows={pagedRows}
+        selectedCommentIds={selectedCommentIds}
+        onToggleAllVisible={handleToggleAllVisible}
+        onToggleComment={handleToggleCommentSelection}
+        onOpenComment={handleOpenComment}
+        onPageChange={(_event, nextPageIndex) =>
+          updateRouteState(
+            {
+              commentPage: nextPageIndex + 1
+            },
+            true
+          )
+        }
+      />
+
+      <CommentWorkbenchDrawer
+        open={Boolean(selectedComment)}
+        routeState={routeState}
+        selectedComment={selectedComment}
+        selectedPost={awareness.selectedPost}
+        moderatorLabel={resolveOptionLabel(
+          workspace.authorOptions,
+          selectedComment?.approvedByAuthorId,
+          "Not moderated"
+        )}
+        workspace={workspace}
+        awareness={awareness}
+        onClose={() => updateRouteState({ commentId: "", commentTab: "context" }, true)}
+        onChangeTab={(nextValue) => updateRouteState({ commentTab: nextValue }, true)}
+        onOpenPost={handleOpenPost}
+      />
     </Stack>
   );
 }

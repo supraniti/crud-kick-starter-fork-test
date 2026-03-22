@@ -10,6 +10,44 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-21 Comments Story Implemented And Ready For Review
+- The Comments story is implemented in the worktree and intentionally not committed yet.
+- Plan artifact:
+  - [comments-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/comments-story-implementation-plan.md)
+- Delivered product shape:
+  - queue-first comments page
+  - calmer `Queue Health` + `Discussion Hotspots` signals above the queue
+  - route-backed search, filters, sort, page, selected comment, and drawer tab
+  - moderation table instead of the old queue-card stack
+  - bulk moderation actions
+  - right-side comment workbench with distinct tabs:
+    - `Context`
+    - `Moderate`
+    - `History`
+- Main files:
+  - [ProductModerationView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductModerationView.jsx)
+  - [product-moderation-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-moderation-desk-model.js)
+  - [product-view-descriptors.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-view-descriptors.jsx)
+  - [useBlogEngagementWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-engagement/frontend/useBlogEngagementWorkspace.js)
+  - [product-moderation.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-moderation.integration.test.jsx)
+- Proof artifacts:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\comments-desk-current.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\comments-desk-final.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\comments-desk-drawer-context.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+  - live browser review on:
+    - `http://localhost:3000/app/comments`
+    - queue row -> drawer `Context`
+    - drawer `Moderate`
+    - drawer `History`
+    - bulk-selection bar
+- Important boundary:
+  - the focused frontend Vitest command still hits the known Windows `spawn EPERM` boundary and is not counted as proof
+
 ## 2026-03-21 Posts Drawer Tabs Now Behave As Different Workspaces
 - The active Posts slice remains uncommitted and ready for product review.
 - The key follow-up on this pass was eliminating the "same tab with different labels" problem.
