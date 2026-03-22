@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { BlogDistributionView } from "../../../../modules/test-modules-pages/frontend/BlogDistributionView.jsx";
 import * as referenceApi from "../../api/reference.js";
 import {
@@ -18,13 +18,19 @@ vi.mock("../../api/reference.js", async () => {
   };
 });
 
-test("pages overview renders standalone pages desk, previews delivery json, and publishes scheduled pages", async () => {
+test("pages backlog opens the workbench, previews output, and publishes the selected page", async () => {
   installReferenceMocks(referenceApi);
   const fetchMock = vi.fn(async (url) => {
     if (String(url).includes("/pages/page-001/preview-sources")) {
       return createJsonResponse(200, {
         ok: true,
-        items: []
+        items: [
+          {
+            id: "post-001",
+            label: "Launch Window Update",
+            path: "/stories/launch-window-update"
+          }
+        ]
       });
     }
 
@@ -47,84 +53,29 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
             publicOrigin: "https://content.example.com",
             publicUrl: "https://content.example.com/stories/launch-window-update"
           },
-          data: {
-            primary: {
-              collectionId: "blog-posts",
-              itemId: "post-001"
-            }
-          },
           runtime: {
             clientRuntime: {
               assetUrl: "../../assets/client-runtime.global.js",
-              bootstrapDatasets: ["page-payload", "page-media", "post-comments"],
+              bootstrapDatasets: ["page-payload"],
               remote: {
                 baseUrl: "https://content.example.com"
               },
-              slots: [
-                {
-                  bindAs: "primary",
-                  sourceType: "blog-post",
-                  recordMode: "single-item"
-                }
-              ],
+              slots: [],
               queries: [
                 {
                   resource: "page",
                   query: "current"
-                },
-                {
-                  resource: "comments",
-                  query: "byPost"
                 }
               ],
               actions: [
                 {
                   action: "page.refresh"
-                },
-                {
-                  action: "media.refresh"
-                },
-                {
-                  action: "comments.refresh"
-                },
-                {
-                  action: "comments.submit"
                 }
               ],
               datasets: [
                 {
                   dataset: "page-payload"
-                },
-                {
-                  dataset: "page-media"
-                },
-                {
-                  dataset: "post-comments"
                 }
-              ]
-            },
-            applicationTester: {
-              assetUrl: "../../assets/page-application-tester.global.js",
-              enabledQueryParams: ["appTester", "runtimeProbe"],
-              apiOriginQueryParams: ["appApiOrigin", "apiOrigin"],
-              documentUrl: "https://content.example.com/stories/launch-window-update/runtime-probe.document.json",
-              publicPublishedDocumentApiPath: "/api/reference/modules/test-modules-pages/public/published-document",
-              publicCommentsApiPath: "/api/reference/modules/test-modules-pages/public/comments",
-              firestore: {
-                documentUrl:
-                  "https://firestore.googleapis.com/v1/projects/content-example/databases/(default)/documents/publishedPosts/launch-window-update"
-              },
-              actions: {
-                install: "pageApplicationTester.installPublishedDocument",
-                sync: "pageApplicationTester.syncPublishedDocument",
-                submitComment: "pageApplicationTester.submitComment"
-              },
-              flows: [
-                "render-featured-image",
-                "published-document-snapshot-read",
-                "public-app-firestore-read",
-                "indexeddb-install-and-local-query",
-                "public-app-comment-submit"
               ]
             }
           }
@@ -161,12 +112,17 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
   );
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { level: 4, name: "Pages Desk" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 4, name: "Pages" })).toBeInTheDocument();
     expect(screen.getByText("Launch Story")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByText("Launch Story"));
-  fireEvent.click(screen.getByRole("tab", { name: "Output Preview" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+  await waitFor(() => {
+    expect(screen.getByDisplayValue("Launch Story")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
 
   await waitFor(() => {
     expect(fetchMock).toHaveBeenCalledWith(
@@ -181,33 +137,6 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
     expect(screen.getByLabelText("Resolved Page JSON").value).toContain("\"contractVersion\": 1");
   });
 
-  fireEvent.click(screen.getAllByRole("tab", { name: "Advanced" })[0]);
-  fireEvent.click(screen.getByRole("button", { name: "Show Client Runtime Contract" }));
-
-  await waitFor(() => {
-    expect(screen.getByText("page.refresh")).toBeInTheDocument();
-    expect(screen.getByText("comments.submit")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("../../assets/client-runtime.global.js")).toBeInTheDocument();
-    expect(screen.getByLabelText("Resolved Runtime Contract JSON")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("../../assets/page-application-tester.global.js")).toBeInTheDocument();
-    expect(screen.getByText("published-document-snapshot-read")).toBeInTheDocument();
-    expect(screen.getByText("public-app-firestore-read")).toBeInTheDocument();
-    expect(screen.getByText("public-app-comment-submit")).toBeInTheDocument();
-    expect(
-      screen.getByDisplayValue(
-        "https://firestore.googleapis.com/v1/projects/content-example/databases/(default)/documents/publishedPosts/launch-window-update"
-      )
-    ).toBeInTheDocument();
-    expect(
-      screen.getByDisplayValue("/api/reference/modules/test-modules-pages/public/published-document")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByDisplayValue("/api/reference/modules/test-modules-pages/public/comments")
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Resolved Application Tester JSON")).toBeInTheDocument();
-  });
-
-  fireEvent.click(screen.getByRole("tab", { name: "Authoring" }));
   fireEvent.click(screen.getByRole("button", { name: "Publish Page" }));
 
   await waitFor(() => {
@@ -221,7 +150,7 @@ test("pages overview renders standalone pages desk, previews delivery json, and 
   });
 }, 15000);
 
-test("pages editor creates standalone pages and redirect manager persists page-targeted redirects", async () => {
+test("pages quick-create flow creates a standalone page and redirect manager persists a redirect", async () => {
   installReferenceMocks(referenceApi);
   referenceApi.createReferenceCollectionItem.mockImplementation(async ({ collectionId, item }) => {
     if (collectionId === "blog-pages") {
@@ -244,26 +173,8 @@ test("pages editor creates standalone pages and redirect manager persists page-t
       }
     };
   });
+
   const fetchMock = vi.fn(async (url) => {
-    if (String(url).includes("/pages/page-001/preview-sources")) {
-      return createJsonResponse(200, {
-        ok: true,
-        items: []
-      });
-    }
-
-    if (String(url).includes("/pages/page-001/delivery")) {
-      return createJsonResponse(200, {
-        ok: true,
-        payload: {
-          contractVersion: 1,
-          page: {
-            id: "page-001"
-          }
-        }
-      });
-    }
-
     if (String(url).includes("/pages/page-002/delivery")) {
       return createJsonResponse(200, {
         ok: true,
@@ -285,12 +196,10 @@ test("pages editor creates standalone pages and redirect manager persists page-t
   });
   vi.stubGlobal("fetch", fetchMock);
 
-  const collectionsDomain = createCollectionsDomain();
-
   render(
     <BlogDistributionView
       activeModuleLabel="Pages"
-      collectionsDomain={collectionsDomain}
+      collectionsDomain={createCollectionsDomain()}
     />
   );
 
@@ -299,25 +208,28 @@ test("pages editor creates standalone pages and redirect manager persists page-t
   });
 
   fireEvent.click(screen.getByRole("button", { name: "New Page" }));
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Standalone Page" })).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getAllByRole("button", { name: /Choose This Type|Using This Type/i })[0]);
+
+  await waitFor(() => {
+    expect(screen.getByLabelText("Page Title")).toHaveValue("");
+  });
+
   fireEvent.change(screen.getByLabelText("Page Title"), {
     target: {
       value: "Platform Landing"
     }
   });
-  fireEvent.change(screen.getByLabelText("Path"), {
+  fireEvent.change(screen.getByLabelText(/Path/i), {
     target: {
       value: "/platform"
     }
   });
-  fireEvent.click(screen.getByRole("tab", { name: "Layout And SEO" }));
-  fireEvent.change(screen.getByLabelText("Runtime Script URLs"), {
-    target: {
-      value: "https://cdn.example.com/runtime.js\n/assets/runtime/platform.js"
-    }
-  });
-  await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Create Page" })).toBeInTheDocument();
-  });
+
   fireEvent.click(screen.getByRole("button", { name: "Create Page" }));
 
   await waitFor(() => {
@@ -327,21 +239,14 @@ test("pages editor creates standalone pages and redirect manager persists page-t
         item: expect.objectContaining({
           title: "Platform Landing",
           path: "/platform",
-          primarySourceType: "none",
-          runtimeScriptUrls: [
-            {
-              url: "https://cdn.example.com/runtime.js"
-            },
-            {
-              url: "/assets/runtime/platform.js"
-            }
-          ]
+          primarySourceType: "none"
         })
       })
     );
   });
 
-  fireEvent.click(screen.getByRole("tab", { name: "Redirect Manager" }));
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Redirects" }));
   fireEvent.click(screen.getByRole("button", { name: "New Redirect" }));
   fireEvent.change(screen.getByLabelText("Source Path"), {
     target: {
@@ -375,7 +280,7 @@ test("pages editor creates standalone pages and redirect manager persists page-t
   });
 }, 15000);
 
-test("pages desk exposes deployment settings and can open the selected layout builder with return context", async () => {
+test("pages workbench exposes structure tools, layout jump, and pages defaults", async () => {
   referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
     if (collectionId === "blog-pages") {
       return {
@@ -487,6 +392,9 @@ test("pages desk exposes deployment settings and can open the selected layout bu
           contractVersion: 1,
           page: {
             id: "page-001"
+          },
+          delivery: {
+            publicUrl: "https://content.example.com/stories/launch-window-update"
           }
         }
       });
@@ -547,11 +455,8 @@ test("pages desk exposes deployment settings and can open the selected layout bu
   );
 
   await waitFor(() => {
-    expect(screen.getByText("Launch Story")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Launch Story")).toBeInTheDocument();
   });
-
-  fireEvent.click(screen.getAllByText("Launch Story")[0]);
-  fireEvent.click(screen.getByRole("tab", { name: "Layout And SEO" }));
 
   const editSelectedLayoutButton = await screen.findByRole("button", {
     name: "Edit Selected Layout"
@@ -572,7 +477,7 @@ test("pages desk exposes deployment settings and can open the selected layout bu
     );
   });
 
-  fireEvent.click(screen.getAllByRole("tab", { name: "Advanced" })[0]);
+  fireEvent.click(screen.getByRole("tab", { name: "More" }));
   fireEvent.click(screen.getByRole("button", { name: "Show Pages Defaults" }));
 
   await waitFor(() => {

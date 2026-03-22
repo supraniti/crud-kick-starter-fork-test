@@ -296,7 +296,9 @@ export function normalizeRedirectDraft(rule = {}) {
 export function toOption(item) {
   return {
     id: item.id,
-    label: item.displayName ?? item.name ?? item.title ?? item.path ?? item.slug ?? item.id
+    label: item.displayName ?? item.name ?? item.title ?? item.path ?? item.slug ?? item.id,
+    slug: item.slug ?? "",
+    path: item.path ?? ""
   };
 }
 

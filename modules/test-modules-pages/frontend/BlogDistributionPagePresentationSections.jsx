@@ -46,48 +46,46 @@ function PagePresentationSection({ workspace }) {
           ) : null}
         </Stack>
       </Stack>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-        <TextField
-          label="Layout Key"
-          value={workspace.pageDraft.layoutKey}
-          onChange={(event) => workspace.changePageField("layoutKey", event.target.value)}
-          disabled={usingReusableLayout}
-        />
-        <TextField
-          select
-          label="Template"
-          value={workspace.pageDraft.templateKey}
-          onChange={(event) => workspace.changePageField("templateKey", event.target.value)}
-          sx={{ minWidth: 200 }}
-          disabled={usingReusableLayout}
-        >
-          {TEMPLATE_KEY_OPTIONS.map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          label="Hero Variant"
-          value={workspace.pageDraft.heroVariant}
-          onChange={(event) => workspace.changePageField("heroVariant", event.target.value)}
-          sx={{ minWidth: 180 }}
-          disabled={usingReusableLayout}
-        >
-          {HERO_VARIANT_OPTIONS.map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          label="Theme Key"
-          value={workspace.pageDraft.themeKey}
-          onChange={(event) => workspace.changePageField("themeKey", event.target.value)}
-          disabled={usingReusableLayout}
-        />
-      </Stack>
+      {!usingReusableLayout ? (
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+          <TextField
+            label="Layout Key"
+            value={workspace.pageDraft.layoutKey}
+            onChange={(event) => workspace.changePageField("layoutKey", event.target.value)}
+          />
+          <TextField
+            select
+            label="Template"
+            value={workspace.pageDraft.templateKey}
+            onChange={(event) => workspace.changePageField("templateKey", event.target.value)}
+            sx={{ minWidth: 200 }}
+          >
+            {TEMPLATE_KEY_OPTIONS.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Hero Variant"
+            value={workspace.pageDraft.heroVariant}
+            onChange={(event) => workspace.changePageField("heroVariant", event.target.value)}
+            sx={{ minWidth: 180 }}
+          >
+            {HERO_VARIANT_OPTIONS.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Theme Key"
+            value={workspace.pageDraft.themeKey}
+            onChange={(event) => workspace.changePageField("themeKey", event.target.value)}
+          />
+        </Stack>
+      ) : null}
     </Stack>
   );
 }

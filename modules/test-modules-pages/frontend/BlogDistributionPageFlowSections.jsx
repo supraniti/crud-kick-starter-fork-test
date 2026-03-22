@@ -150,4 +150,4 @@ function PageTypeSection({ workspace }) {
   );
 }
 
-export { PageTypeSection, SecondarySection };
+export { PageTypeSection, SecondarySection, applyPagePreset, resolvePagePresetId };

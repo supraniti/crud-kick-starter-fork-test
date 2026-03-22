@@ -73,7 +73,10 @@ function PageAlerts({ workspace }) {
   );
 }
 
-function PageIdentitySection({ workspace }) {
+function PageIdentitySection({
+  workspace,
+  includeDeploymentMode = true
+}) {
   const perRecordTemplatePathPlaceholder =
     workspace.pageDraft.primarySourceType === "blog-category" ? "/category" : "/posts";
   return (
@@ -83,19 +86,21 @@ function PageIdentitySection({ workspace }) {
         value={workspace.pageDraft.title}
         onChange={(event) => workspace.changePageField("title", event.target.value)}
       />
-      <TextField
-        select
-        label="Deployment Mode"
-        value={workspace.pageDraft.deploymentMode}
-        onChange={(event) => workspace.changePageField("deploymentMode", event.target.value)}
-        sx={{ minWidth: 200 }}
-      >
-        {DEPLOYMENT_MODE_OPTIONS.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </TextField>
+      {includeDeploymentMode ? (
+        <TextField
+          select
+          label="Deployment Mode"
+          value={workspace.pageDraft.deploymentMode}
+          onChange={(event) => workspace.changePageField("deploymentMode", event.target.value)}
+          sx={{ minWidth: 200 }}
+        >
+          {DEPLOYMENT_MODE_OPTIONS.map((option) => (
+            <MenuItem key={option} value={option}>
+              {option}
+            </MenuItem>
+          ))}
+        </TextField>
+      ) : null}
       <TextField
         label={workspace.pageDraft.deploymentMode === "per-record" ? "Template Path" : "Path"}
         value={workspace.pageDraft.path}
@@ -129,68 +134,100 @@ function PageIdentitySection({ workspace }) {
   );
 }
 
-function PageSourceSection({ workspace, sourceOptions }) {
+function PageSourceSection({
+  workspace,
+  sourceOptions,
+  showSourceControls = true
+}) {
   const isPerRecordMode = workspace.pageDraft.deploymentMode === "per-record";
   const sourceLabels = resolveSourceTypeLabels(workspace.pageDraft.primarySourceType);
   return (
     <Stack spacing={2}>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-      <TextField
-        select
-        label="Page Kind"
-        value={workspace.pageDraft.pageKind}
-        onChange={(event) => workspace.changePageField("pageKind", event.target.value)}
-        sx={{ minWidth: 200 }}
-      >
-        {PAGE_KIND_OPTIONS.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        select
-        label="Primary Source Type"
-        value={workspace.pageDraft.primarySourceType}
-        onChange={(event) => workspace.changePageField("primarySourceType", event.target.value)}
-        sx={{ minWidth: 220 }}
-      >
-        {PRIMARY_SOURCE_TYPE_OPTIONS.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        select
-        label="Source Selection"
-        value={workspace.pageDraft.sourceSelectionMode}
-        onChange={(event) => workspace.changePageField("sourceSelectionMode", event.target.value)}
-        sx={{ minWidth: 220 }}
-        disabled={workspace.pageDraft.primarySourceType === "none" || isPerRecordMode}
-      >
-        {SOURCE_SELECTION_MODE_OPTIONS.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        select
-        label="Primary Source"
-        value={workspace.pageDraft.primarySourceItemId}
-        onChange={(event) => workspace.changePageField("primarySourceItemId", event.target.value)}
-        sx={{ minWidth: 240 }}
-        disabled={workspace.pageDraft.primarySourceType === "none" || workspace.pageDraft.sourceSelectionMode !== "specific-record"}
-      >
-        <MenuItem value="">None</MenuItem>
-        {sourceOptions.map((option) => (
-          <MenuItem key={option.id} value={option.id}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </TextField>
-      </Stack>
+      {showSourceControls ? (
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+          <TextField
+            select
+            label="Page Kind"
+            value={workspace.pageDraft.pageKind}
+            onChange={(event) => workspace.changePageField("pageKind", event.target.value)}
+            sx={{ minWidth: 200 }}
+          >
+            {PAGE_KIND_OPTIONS.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Primary Source Type"
+            value={workspace.pageDraft.primarySourceType}
+            onChange={(event) => workspace.changePageField("primarySourceType", event.target.value)}
+            sx={{ minWidth: 220 }}
+          >
+            {PRIMARY_SOURCE_TYPE_OPTIONS.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Source Selection"
+            value={workspace.pageDraft.sourceSelectionMode}
+            onChange={(event) => workspace.changePageField("sourceSelectionMode", event.target.value)}
+            sx={{ minWidth: 220 }}
+            disabled={workspace.pageDraft.primarySourceType === "none" || isPerRecordMode}
+          >
+            {SOURCE_SELECTION_MODE_OPTIONS.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Primary Source"
+            value={workspace.pageDraft.primarySourceItemId}
+            onChange={(event) => workspace.changePageField("primarySourceItemId", event.target.value)}
+            sx={{ minWidth: 240 }}
+            disabled={workspace.pageDraft.primarySourceType === "none" || workspace.pageDraft.sourceSelectionMode !== "specific-record"}
+          >
+            <MenuItem value="">None</MenuItem>
+            {sourceOptions.map((option) => (
+              <MenuItem key={option.id} value={option.id}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      ) : (
+        <Alert severity="info">
+          {workspace.pageDraft.primarySourceType === "none"
+            ? "This is a standalone page with no primary record source."
+            : isPerRecordMode
+              ? `This page generates one output per ${sourceLabels.singular.toLowerCase()}.`
+              : `This page is bound to ${sourceLabels.plural.toLowerCase()} and publishes one selected record.`}
+        </Alert>
+      )}
+      {!showSourceControls
+      && workspace.pageDraft.primarySourceType !== "none"
+      && workspace.pageDraft.sourceSelectionMode === "specific-record" ? (
+        <TextField
+          select
+          label="Primary Source"
+          value={workspace.pageDraft.primarySourceItemId}
+          onChange={(event) => workspace.changePageField("primarySourceItemId", event.target.value)}
+          sx={{ minWidth: 240 }}
+        >
+          <MenuItem value="">None</MenuItem>
+          {sourceOptions.map((option) => (
+            <MenuItem key={option.id} value={option.id}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      ) : null}
       {isPerRecordMode ? (
         <TextField
           label="Path Pattern"
@@ -269,4 +306,6 @@ export function ReadinessPanel({ workspace }) {
     </Paper>
   );
 }
+
+export { PageIdentitySection, PageSourceSection };
 

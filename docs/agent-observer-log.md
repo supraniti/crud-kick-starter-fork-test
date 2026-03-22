@@ -2405,3 +2405,85 @@
   - CSS-only `display: none` was not enough because the hidden dock still existed for testing and accessibility queries, so the responsive split had to become a real runtime branch
 - Improve:
   - when replacing overlays with docked panels, test both the live browser and the focused DOM queries because hidden duplicates can quietly corrupt the desk contract
+
+### 2026-03-22 - Pages Needed A Publishing Backlog, Not A Stack Of Module Settings
+- Tasks:
+  - replaced the old stacked Pages surface with a backlog-first desk that starts from page type and publishing promise
+  - moved page editing into a right-side workbench with distinct jobs:
+    - `Promise`
+    - `Preview`
+    - `Output`
+    - `Structure`
+    - `Advanced`
+  - rewrote the roster rows to show the things a publisher actually needs:
+    - what kind of page this is
+    - what source it draws from
+    - how many outputs it will generate
+    - what public pattern it promises
+    - whether it is live or still needs work
+  - kept redirects as a separate top-level concern instead of mixing them into the page promise flow
+- Easy:
+  - the underlying page delivery and preview infrastructure was already strong, so the main work stayed in information architecture and route-backed desk behavior
+- Hard:
+  - the first browser review exposed that even a better roster can still feel bad if column sizing forces horizontal overflow, so the table had to be tightened and allowed to wrap instead of assuming a large desktop
+  - the focused Pages Vitest path is still not trustworthy in this Windows environment because direct frontend test execution continues to hit the known `spawn EPERM` boundary
+- Improve:
+  - for publishing desks, explain the operator contract before showing advanced bindings; the drawer tabs must each have a clearly different job
+  - when a route depends on navigation helpers, keep a safe local fallback path so isolated renders and non-router review flows can still exercise the desk truthfully
+
+### 2026-03-22 - Pages Needed Another Product Review Before More Code
+- Tasks:
+  - reviewed the live Pages route again after user feedback that the route still feels like too much table, form, and system material at once
+  - captured a fresh screenshot of the backlog state and reopened the current drawer flow
+  - compared the live route to the Pages story and wrote a new experience review plus a realignment plan
+- Easy:
+  - once the drawer was judged as a product surface instead of a technical container, the main mismatch became obvious quickly: it is still carrying too many jobs
+- Hard:
+  - a sidebar can still feel wrong if creation, editing, live posture, preview, and advanced delivery all compete in the same drawer contract
+- Improve:
+  - treat creation flow and edit flow as different experiences when the page-type decision only matters at creation time
+  - when a user says a drawer still feels unusable, stop adding tabs and rewrite the editing contract first
+
+### 2026-03-22 - Pages Needed A Real Page Studio, Not A Wider Workbench
+- Tasks:
+  - realigned the Pages drawer into two different experiences:
+    - create flow:
+      - `Page Type`
+      - `Basics`
+    - existing-page studio:
+      - `Basics`
+      - `Preview`
+      - `Live`
+      - `More`
+  - moved layout into the basics flow
+  - moved live posture and delivery mechanics into their own tab
+  - demoted page-type changes and advanced controls into `More`
+- Easy:
+  - the existing preview and delivery components were already good enough once they were placed under clearer jobs
+- Hard:
+  - two real live regressions appeared immediately in browser review:
+    - `PageTypeSection` missing import
+    - `PageIdentitySection` missing import
+  - the focused Pages Vitest path still timed out even with a hard two-minute limit, so the proof had to stay browser-first
+- Improve:
+  - when changing a drawer contract, do a live create-flow pass before claiming success; missing imports in secondary paths are easy to miss in build-only review
+  - a drawer can only feel calm when each tab answers one question cleanly instead of mixing creation, editing, and delivery in the same space
+
+### 2026-03-22 - Pages Needed Clean Route Teardown And Real Live Links
+- Tasks:
+  - fixed the lingering Pages route leak so closing the drawer returns the desk to `/app/pages` instead of leaving stale workbench/create query state behind
+  - surfaced `Open Live` actions directly in the backlog when a real public example URL can be resolved for the page promise
+  - re-validated the full browser flow:
+    - backlog
+    - open page
+    - close page
+    - create flow
+    - live tab
+- Easy:
+  - the live-link part was already supported by shared page-public-link utilities once the backlog started passing the right source and fallback target context
+- Hard:
+  - the route leak was not a simple URL bug; app route state and browser URL were drifting differently, so the fix had to explicitly realign both back to the backlog contract
+  - the focused Pages Vitest lane still timed out with a hard limit, so browser truth remained the only honest proof for this slice
+- Improve:
+  - backlog close behavior matters as much as create/edit behavior; if a studio drawer cannot leave the route clean, the desk still feels unfinished
+  - when a story calls for direct public links, surface them from the backlog itself instead of making the operator open the page first just to discover the live URL

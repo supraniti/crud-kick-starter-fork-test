@@ -1261,3 +1261,122 @@
   - live browser reload on `http://localhost:3000/app/layouts?layoutId=pagelayo-001`
 - Browser proof artifact:
   - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\layouts-desk-docked-sidebar.png`
+
+## 2026-03-22 Pages Story Slice Ready For Review
+- Layouts story was committed and pushed:
+  - `1d68f61` `feat: improve layouts builder studio flow`
+- The active story is now `Pages`, implemented in the worktree and intentionally not committed yet.
+- Planning artifacts:
+  - [pages-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/pages-story-implementation-plan.md)
+  - [posts-product-experience-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/posts-product-experience-review.md) was used as a product-shape lesson for this slice
+- Delivered Pages changes:
+  - replaced the stacked Pages surface with a backlog-first desk
+  - quick-create actions are now page-type-first:
+    - `New Standalone`
+    - `New Post Template`
+    - `New Category Template`
+  - the main roster now explains each page as a publishing promise:
+    - type
+    - source
+    - output count
+    - public pattern
+    - live/stale posture
+  - page editing moved into a right-side workbench with distinct tabs:
+    - `Promise`
+    - `Preview`
+    - `Output`
+    - `Structure`
+    - `Advanced`
+  - `Preview` now clearly surfaces sample output paths and sample public URLs
+  - `Output` now combines live posture, local artifact awareness, direct live URL opening, deployment instances, and remote delivery controls
+  - `Advanced` demotes data sources, remote overrides, Pages defaults, and runtime contract behind collapsible sections
+  - added local fallback route-state handling so the desk still opens pages/create flows when rendered without a router `navigate` function
+- Main files:
+  - [BlogDistributionView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionView.jsx)
+  - [pages-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/pages-desk-model.js)
+  - [BlogDistributionPageEditorSections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionPageEditorSections.jsx)
+  - [BlogDistributionPageFlowSections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionPageFlowSections.jsx)
+  - [blog-distribution.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.integration.test.jsx)
+- Verification counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+  - live browser review on:
+    - `http://localhost:3000/app/pages`
+    - backlog roster
+    - promise drawer
+    - preview drawer
+    - structure drawer
+- Browser proof artifacts:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\pages-desk-live.png`
+- Important test boundary:
+  - focused Pages Vitest remains blocked by the known Windows `spawn EPERM` boundary in this environment
+  - the test file was realigned to the new surface, but I am not counting it as proof until it can run cleanly
+- Current review env:
+  - app: `http://localhost:3000/`
+  - pages: `http://localhost:3000/app/pages`
+  - backend health: `http://127.0.0.1:3001/health`
+- Worktree remains uncommitted for product review.
+
+## 2026-03-22 Pages Realignment Planning Pass
+- User review called out a recurring product issue:
+  - even though editing is technically in a side window, the current Pages route still feels like too much table, form, and system material sharing the same surface
+- I paused further implementation and did another live review pass against:
+  - `http://localhost:3000/app/pages`
+  - the open page drawer
+  - the current screenshot:
+    - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\pages-desk-review-current.png`
+  - the product story:
+    - `docs/product-stories/07-pages.md`
+- New docs:
+  - [pages-product-experience-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/pages-product-experience-review.md)
+  - [pages-story-realignment-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/pages-story-realignment-plan.md)
+- Main conclusion:
+  - the next pass must narrow the current workbench into a calmer page studio drawer with a cleaner split between:
+    - backlog
+    - create flow
+    - edit flow
+    - live/output understanding
+
+## 2026-03-22 Pages Realignment Implementation
+- Implemented the Pages realignment from the new plan.
+- Main product changes:
+  - backlog was simplified:
+    - one `New Page` entry point
+    - fewer, stronger roster columns
+  - create flow is now staged inside the drawer:
+    - `Page Type`
+    - `Basics`
+  - existing pages now open in a calmer studio with:
+    - `Basics`
+    - `Preview`
+    - `Live`
+    - `More`
+  - page type selection was removed from the normal edit rhythm and demoted to `More`
+  - layout moved into `Basics`
+  - live delivery and operational posture moved into `Live`
+- Main files:
+  - [BlogDistributionView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionView.jsx)
+  - [BlogDistributionPageEditorSections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/BlogDistributionPageEditorSections.jsx)
+  - [pages-desk-model.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-pages/frontend/pages-desk-model.js)
+  - [blog-distribution.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/blog-distribution.integration.test.jsx)
+  - [pages-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/pages-story-implementation-plan.md)
+- Browser proof artifacts:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\pages-desk-realigned-final-backlog.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\pages-desk-live-tab.png`
+- Counted validation:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - live browser walkthrough on:
+    - backlog
+    - create type step
+    - create basics step
+    - existing-page basics
+    - existing-page live tab
+- Final follow-up fixes in this review state:
+  - backlog rows now surface real `Open Live` links when a public example URL can be resolved
+  - drawer close now tears the route back down to `/app/pages` instead of leaking stale create/edit query state
+- Important boundary:
+  - the focused Pages Vitest invocation was attempted with a hard timeout and still timed out in this environment, so it is not being counted as proof
