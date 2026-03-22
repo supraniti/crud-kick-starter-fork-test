@@ -25,7 +25,7 @@ function LayoutRecordSection({ draft, isExisting, onChangeField }) {
     <Accordion defaultExpanded disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
       <AccordionSummary expandIcon={<SummaryExpandIcon />}>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="subtitle1">Layout Details</Typography>
+          <Typography variant="subtitle1">Layout Basics</Typography>
           <Chip size="small" label={isExisting ? "saved" : "draft"} />
         </Stack>
       </AccordionSummary>
@@ -57,6 +57,49 @@ function LayoutRecordSection({ draft, isExisting, onChangeField }) {
             <MenuItem value="draft">draft</MenuItem>
             <MenuItem value="ready">ready</MenuItem>
           </TextField>
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
+  );
+}
+
+function LayoutUsageSection({ selectedLayout, deploymentImpact, onOpenPage }) {
+  const pages = deploymentImpact?.pages ?? [];
+
+  return (
+    <Accordion defaultExpanded disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+      <AccordionSummary expandIcon={<SummaryExpandIcon />}>
+        <Typography variant="subtitle1">Used In Pages</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Stack spacing={1.5}>
+          {selectedLayout ? (
+            <Alert severity={pages.length > 0 ? "warning" : "info"}>
+              {pages.length > 0
+                ? `This layout is already used by ${pages.length} page template${pages.length === 1 ? "" : "s"}.`
+                : "This layout is not currently assigned to any page templates."}
+            </Alert>
+          ) : (
+            <Typography color="text.secondary">
+              Save or select a layout to inspect where it is already in use.
+            </Typography>
+          )}
+          {pages.map((page) => (
+            <Stack
+              key={page.id}
+              spacing={0.75}
+              sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                <Typography variant="subtitle2">{page.title || page.id}</Typography>
+                <Chip size="small" label={page.status || "draft"} />
+                <Chip size="small" variant="outlined" label={page.deploymentStatus || "unknown"} />
+              </Stack>
+              <Button variant="text" size="small" sx={{ alignSelf: "flex-start" }} onClick={() => onOpenPage?.(page.id)}>
+                Open Page
+              </Button>
+            </Stack>
+          ))}
         </Stack>
       </AccordionDetails>
     </Accordion>
@@ -149,6 +192,7 @@ function SelectedNodeSection({
 
 export function LayoutBuilderInspector({
   draft,
+  selectedLayout,
   selectedNode,
   selectedPathIds,
   isExisting,
@@ -156,6 +200,7 @@ export function LayoutBuilderInspector({
   isSelectedNodeMovable,
   canMoveSelectedBackward,
   canMoveSelectedForward,
+  deploymentImpact,
   onChangeField,
   onOpenNodeDialog,
   onStartMoveMode,
@@ -163,7 +208,8 @@ export function LayoutBuilderInspector({
   onMoveSelectedBackward,
   onMoveSelectedForward,
   onMoveSelectedToStart,
-  onMoveSelectedToEnd
+  onMoveSelectedToEnd,
+  onOpenPage
 }) {
   return (
     <Stack spacing={2} sx={{ height: "100%", overflow: "auto" }}>
@@ -171,6 +217,11 @@ export function LayoutBuilderInspector({
         draft={draft}
         isExisting={isExisting}
         onChangeField={onChangeField}
+      />
+      <LayoutUsageSection
+        selectedLayout={selectedLayout}
+        deploymentImpact={deploymentImpact}
+        onOpenPage={onOpenPage}
       />
       <SelectedNodeSection
         draft={draft}
@@ -188,7 +239,7 @@ export function LayoutBuilderInspector({
         onMoveSelectedToStart={onMoveSelectedToStart}
         onMoveSelectedToEnd={onMoveSelectedToEnd}
       />
-      <Accordion defaultExpanded disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+      <Accordion disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
         <AccordionSummary expandIcon={<SummaryExpandIcon />}>
           <Typography variant="subtitle1">Rendered Base Preview</Typography>
         </AccordionSummary>
@@ -203,7 +254,7 @@ export function LayoutBuilderInspector({
       </Accordion>
       <Accordion disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
         <AccordionSummary expandIcon={<SummaryExpandIcon />}>
-          <Typography variant="subtitle1">Layout JSON</Typography>
+          <Typography variant="subtitle1">Advanced JSON</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <TextField multiline minRows={16} value={JSON.stringify(draft.layoutDocument, null, 2)} InputProps={{ readOnly: true }} />

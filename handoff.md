@@ -1200,3 +1200,64 @@
 - Important conclusion:
   - the current Posts implementation improved layout but still does not satisfy the product story
   - next work on Posts must start from the realigned plan, not from the earlier implementation plan alone
+
+## 2026-03-22 Layouts Story Slice Ready For Review
+- Comments story was committed and pushed:
+  - `8b09fc9` `feat: redesign comments moderation desk`
+- The active story is now `Layouts`, implemented in the worktree and intentionally not committed yet.
+- Planning artifact:
+  - [layouts-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/layouts-story-implementation-plan.md)
+- Delivered Layouts changes:
+  - preset-first start flow in the library rail with starter frames:
+    - `Article Story`
+    - `Category Landing`
+    - `Feature Launch`
+    - `Mobile Story`
+  - starter click now seeds the canvas immediately instead of falling back to an empty draft
+  - richer on-canvas sample content so blocks read like publishing components instead of abstract bars
+  - quieter support areas:
+    - `Library`
+    - `Layers`
+    - `Details`
+  - clearer usage awareness for selected layouts via direct `Open Page` actions
+  - calmer details dock with `Layout Basics`, `Used In Pages`, `Selected Node`, demoted preview, and demoted advanced JSON
+- Main files:
+  - [LayoutsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutsView.jsx)
+  - [useLayoutsWorkspace.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/useLayoutsWorkspace.js)
+  - [LayoutBuilderLeftRail.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderLeftRail.jsx)
+  - [LayoutBuilderInspector.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderInspector.jsx)
+  - [LayoutBuilderCanvasPrimitives.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasPrimitives.jsx)
+  - [layout-builder-palette.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/layout-builder-palette.js)
+  - [layouts.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/layouts.integration.test.jsx)
+- Verification counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+  - live browser review on:
+    - `http://localhost:3000/app/layouts?layoutId=pagelayo-001`
+    - starter preset click -> seeded canvas
+- Browser proof artifacts:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\layouts-desk-current.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\layouts-desk-final.png`
+- Current review env:
+  - app: `http://localhost:3000/`
+  - layouts: `http://localhost:3000/app/layouts?layoutId=pagelayo-001`
+  - backend health: `http://127.0.0.1:3001/health`
+- Worktree remains uncommitted for product review.
+
+## 2026-03-22 Layouts Docking Follow-Up
+- User review found that the support dock inside Layouts was hiding part of the canvas, which made the page shape impossible to inspect fully while the library/details area was open.
+- Fix delivered:
+  - on desktop, the support surface is now a true docked column instead of an overlay above the canvas
+  - on smaller screens, the overlay behavior is preserved to avoid collapsing the canvas completely
+- Main file:
+  - [LayoutsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutsView.jsx)
+- Verification counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx`
+  - live browser reload on `http://localhost:3000/app/layouts?layoutId=pagelayo-001`
+- Browser proof artifact:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\layouts-desk-docked-sidebar.png`

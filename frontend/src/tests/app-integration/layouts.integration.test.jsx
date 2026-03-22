@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { LayoutsView } from "../../../../modules/test-modules-layouts/frontend/LayoutsView.jsx";
 import * as referenceApi from "../../api/reference.js";
 
@@ -99,7 +99,7 @@ test("layout builder creates reusable layout records and supports multiple inser
     expect(screen.getByText("Landing Shell")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("button", { name: "New Layout" }));
+  fireEvent.click(screen.getByRole("button", { name: "Blank Layout" }));
   fireEvent.change(screen.getByLabelText("Layout Title"), {
     target: { value: "Story Grid" }
   });
@@ -206,7 +206,7 @@ test("layout builder can compose container and block structures through the live
   expect(screen.getByRole("button", { name: "Tablet 768" })).toBeInTheDocument();
   expect(screen.getByText("Zoom 100%")).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "New Layout" }));
+  fireEvent.click(screen.getByRole("button", { name: "Blank Layout" }));
   fireEvent.change(screen.getByLabelText("Layout Title"), {
     target: { value: "Campaign Page" }
   });
@@ -242,15 +242,16 @@ test("layout builder can compose container and block structures through the live
     expect(screen.getAllByText("CTA Block").length).toBeGreaterThan(1);
   });
 
-  const preview = screen.getByTestId("layout-render-preview");
-  expect(within(preview).getByText("Page")).toBeInTheDocument();
-  expect(within(preview).getAllByText("Sidebar Content Row").length).toBeGreaterThan(0);
-  expect(within(preview).getAllByText("Content Block").length).toBeGreaterThan(0);
-  expect(within(preview).getAllByText("CTA Block").length).toBeGreaterThan(0);
-  expect(screen.getByLabelText("Structure Markup").value).toContain('data-layout-role="flex-container"');
-
   expect(screen.getAllByText("Sidebar Content Row").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Content Block").length).toBeGreaterThan(0);
+
+  await waitFor(() => {
+    expect(screen.getByText("Layout Basics")).toBeInTheDocument();
+    expect(screen.getByText("Used In Pages")).toBeInTheDocument();
+    expect(screen.getByText("Selected Node")).toBeInTheDocument();
+    expect(screen.getByText("Rendered Base Preview")).toBeInTheDocument();
+    expect(screen.getByText("Advanced JSON")).toBeInTheDocument();
+  });
 }, 20000);
 
 test("layout builder surfaces deployment impact and can return to the calling page", async () => {

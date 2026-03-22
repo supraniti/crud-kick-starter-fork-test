@@ -3,7 +3,7 @@ const PLACEHOLDER_DEFINITIONS = {
     id: "hero",
     label: "Hero Block",
     shortLabel: "Hero",
-    description: "Hero placeholder",
+    description: "Feature headline, short deck, and media edge",
     minHeight: 260,
     emphasis: "strong"
   },
@@ -11,7 +11,7 @@ const PLACEHOLDER_DEFINITIONS = {
     id: "text",
     label: "Text Block",
     shortLabel: "Text",
-    description: "Text placeholder",
+    description: "Support copy, notes, or a secondary editorial section",
     minHeight: 180,
     emphasis: "default"
   },
@@ -19,7 +19,7 @@ const PLACEHOLDER_DEFINITIONS = {
     id: "image",
     label: "Image Block",
     shortLabel: "Image",
-    description: "Image placeholder",
+    description: "Editorial image slot with caption space",
     minHeight: 220,
     emphasis: "default"
   },
@@ -27,7 +27,7 @@ const PLACEHOLDER_DEFINITIONS = {
     id: "feature",
     label: "Feature Block",
     shortLabel: "Feature",
-    description: "Feature placeholder",
+    description: "Feature card with title, summary, and affordance",
     minHeight: 220,
     emphasis: "strong"
   },
@@ -35,7 +35,7 @@ const PLACEHOLDER_DEFINITIONS = {
     id: "cta",
     label: "CTA Block",
     shortLabel: "CTA",
-    description: "Call to action placeholder",
+    description: "Prompt readers toward the next action",
     minHeight: 180,
     emphasis: "strong"
   },
@@ -43,7 +43,7 @@ const PLACEHOLDER_DEFINITIONS = {
     id: "sidebar",
     label: "Sidebar Block",
     shortLabel: "Sidebar",
-    description: "Sidebar placeholder",
+    description: "Meta modules, lists, or supporting navigation",
     minHeight: 260,
     emphasis: "quiet"
   },
@@ -51,7 +51,7 @@ const PLACEHOLDER_DEFINITIONS = {
     id: "content",
     label: "Content Block",
     shortLabel: "Content",
-    description: "Content placeholder",
+    description: "Article body, metadata rhythm, and editorial text flow",
     minHeight: 260,
     emphasis: "default"
   }
@@ -275,8 +275,44 @@ const STRUCTURE_PRESETS = {
   }
 };
 
+const STARTER_LAYOUT_PRESETS = {
+  articleStory: {
+    id: "articleStory",
+    label: "Article Story",
+    layoutKey: "article-story",
+    summary: "Hero opening, main article body, and a supporting call to action.",
+    description: "A familiar article frame with a hero lead, long-form content, and a closing prompt.",
+    sections: ["oneColumn", "contentSidebar", "oneColumn"]
+  },
+  categoryLanding: {
+    id: "categoryLanding",
+    label: "Category Landing",
+    layoutKey: "category-landing",
+    summary: "Intro hero, featured cards, and a browsable content grid.",
+    description: "A landing page shape for categories, topics, or collections.",
+    sections: ["oneColumn", "threeColumns", "twoColumns"]
+  },
+  featureLaunch: {
+    id: "featureLaunch",
+    label: "Feature Launch",
+    layoutKey: "feature-launch",
+    summary: "Hero-led page with strong feature callouts and reader action.",
+    description: "A richer publication frame for launches, campaigns, or tentpole stories.",
+    sections: ["oneColumn", "twoColumns", "oneColumn"]
+  },
+  mobileStory: {
+    id: "mobileStory",
+    label: "Mobile Story",
+    layoutKey: "mobile-story",
+    summary: "Compact single-column reading flow tuned for narrow screens.",
+    description: "A restrained reading frame that still leaves room for supporting modules.",
+    sections: ["oneColumn", "oneColumn", "oneColumn"]
+  }
+};
+
 export const BLOCK_PLACEHOLDER_TYPES = Object.values(PLACEHOLDER_DEFINITIONS);
 export const STRUCTURAL_LAYOUT_PRESETS = Object.values(STRUCTURE_PRESETS);
+export const LAYOUT_STARTER_PRESETS = Object.values(STARTER_LAYOUT_PRESETS);
 
 export function getBlockPlaceholderDefinition(type) {
   return PLACEHOLDER_DEFINITIONS[type] ?? PLACEHOLDER_DEFINITIONS.content;
@@ -297,4 +333,9 @@ export function createBlockPlaceholderConfig(type) {
 export function createLayoutPresetBlueprint(presetId) {
   const preset = STRUCTURE_PRESETS[presetId] ?? STRUCTURE_PRESETS.oneColumn;
   return JSON.parse(JSON.stringify(preset.blueprint));
+}
+
+export function getLayoutStarterPreset(starterId) {
+  const preset = STARTER_LAYOUT_PRESETS[starterId] ?? STARTER_LAYOUT_PRESETS.articleStory;
+  return JSON.parse(JSON.stringify(preset));
 }

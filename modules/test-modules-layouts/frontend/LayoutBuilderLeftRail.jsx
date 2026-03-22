@@ -1,4 +1,7 @@
 import {
+  Button,
+  Card,
+  CardContent,
   Chip,
   List,
   ListItemButton,
@@ -10,14 +13,99 @@ import {
   Typography
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import { LAYOUT_STARTER_PRESETS } from "./layout-builder-palette.js";
+
+const STARTER_SECTION_LABELS = Object.freeze({
+  oneColumn: "Story band",
+  twoColumns: "Two-up section",
+  threeColumns: "Card row",
+  sidebarContent: "Sidebar + story",
+  contentSidebar: "Story + sidebar"
+});
+
+function StarterPresetGallery({ workspace }) {
+  return (
+    <Stack spacing={1.25}>
+      <Stack spacing={0.5}>
+        <Typography variant="subtitle1">Start With A Frame</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Choose a sensible page shape first, then refine it on the canvas.
+        </Typography>
+      </Stack>
+      {LAYOUT_STARTER_PRESETS.map((preset) => (
+        <Card key={preset.id} variant="outlined">
+          <CardContent>
+            <Stack spacing={1.25}>
+              <Stack spacing={0.35}>
+                <Typography variant="subtitle2">{preset.label}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {preset.description}
+                </Typography>
+              </Stack>
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                {preset.sections.map((section, index) => (
+                  <Chip
+                    key={`${preset.id}-${section}-${index}`}
+                    size="small"
+                    variant="outlined"
+                    label={STARTER_SECTION_LABELS[section] ?? section}
+                  />
+                ))}
+              </Stack>
+              <Button variant="outlined" size="small" onClick={() => workspace.startNewLayoutFromStarter(preset.id)}>
+                Use This Frame
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      ))}
+    </Stack>
+  );
+}
+
+function ActiveLayoutUsagePanel({ workspace }) {
+  const pages = workspace.selectedLayoutDeploymentImpact.pages ?? [];
+  if (pages.length === 0) {
+    return null;
+  }
+
+  return (
+    <Stack spacing={1.25}>
+      <Stack spacing={0.5}>
+        <Typography variant="subtitle1">Used In Pages</Typography>
+        <Typography variant="body2" color="text.secondary">
+          These page templates already depend on the selected layout.
+        </Typography>
+      </Stack>
+      {pages.map((page) => (
+        <Paper key={page.id} variant="outlined" sx={{ p: 1.25 }}>
+          <Stack spacing={0.75}>
+            <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {page.title || page.id}
+              </Typography>
+              <Chip size="small" label={page.status || "draft"} />
+              <Chip size="small" variant="outlined" label={page.deploymentStatus || "unknown"} />
+            </Stack>
+            <Button variant="text" size="small" sx={{ alignSelf: "flex-start" }} onClick={() => workspace.openPageTemplate(page.id)}>
+              Open Page
+            </Button>
+          </Stack>
+        </Paper>
+      ))}
+    </Stack>
+  );
+}
 
 function LayoutsPanel({ workspace }) {
   return (
     <Stack spacing={2}>
+      <StarterPresetGallery workspace={workspace} />
+      <ActiveLayoutUsagePanel workspace={workspace} />
       <Stack spacing={0.5}>
-        <Typography variant="subtitle1">Layouts</Typography>
+        <Typography variant="subtitle1">Saved Layouts</Typography>
         <Typography variant="body2" color="text.secondary">
-          Select an existing layout or create a fresh one from the top bar.
+          Continue refining an existing layout when you do not need a fresh frame.
         </Typography>
       </Stack>
       <List dense disablePadding sx={{ maxHeight: 320, overflow: "auto" }}>
@@ -109,7 +197,7 @@ function LayersPanel({ workspace }) {
       <Stack spacing={0.5}>
         <Typography variant="subtitle1">Layers</Typography>
         <Typography variant="body2" color="text.secondary">
-          Use hierarchy view when the on-canvas selection is ambiguous.
+          Use hierarchy view when the on-canvas selection needs extra structure.
         </Typography>
       </Stack>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>

@@ -27,7 +27,8 @@ import {
 } from "./layout-builder-advanced-model.js";
 import {
   createBlockPlaceholderConfig,
-  createLayoutPresetBlueprint
+  createLayoutPresetBlueprint,
+  getLayoutStarterPreset
 } from "./layout-builder-palette.js";
 import {
   useLayoutDeploymentImpact,
@@ -127,9 +128,6 @@ function useLayoutSelection(layouts) {
 
   useEffect(() => {
     if (isCreatingNewLayout) {
-      setDraft(createEmptyLayoutDraft());
-      setSelectedNodeId("root");
-      setIsMoveMode(false);
       return;
     }
     const selectedLayout = layouts.find((item) => item.id === selectedLayoutId) ?? null;
@@ -521,6 +519,30 @@ function useLayoutDocumentActions(selection) {
   };
 }
 
+function buildStarterDraft(starterId) {
+  const preset = getLayoutStarterPreset(starterId);
+  let draft = {
+    ...createEmptyLayoutDraft(),
+    title: preset.label,
+    layoutKey: preset.layoutKey,
+    summary: preset.summary
+  };
+
+  for (const sectionId of preset.sections ?? []) {
+    const insertion = insertBlueprintIntoLayout(
+      draft.layoutDocument,
+      createContainerInsertionTarget(draft.layoutDocument, draft.layoutDocument.rootId, null),
+      createLayoutPresetBlueprint(sectionId)
+    );
+    draft = {
+      ...draft,
+      layoutDocument: insertion.document
+    };
+  }
+
+  return draft;
+}
+
 function useSelectedNodeState(selection) {
   const selectedNode = selection.draft.layoutDocument?.nodes?.[selection.selectedNodeId] ?? null;
   const selectedParentNode = useMemo(() => {
@@ -596,6 +618,31 @@ function useLayoutsWorkspaceInternal({ navigate = null, route = {} } = {}) {
     createActionState
   });
 
+  const startNewLayoutFromStarter = useCallback((starterId) => {
+    selection.setIsCreatingNewLayout(true);
+    selection.setSelectedLayoutId(null);
+    selection.setDraft(buildStarterDraft(starterId));
+    selection.setSelectedNodeId("root");
+    selection.setIsNodeDialogOpen(false);
+    selection.setIsMoveMode(false);
+    selection.setActionState(createActionState());
+  }, [
+    selection
+  ]);
+
+  const openPageTemplate = useCallback((pageId) => {
+    if (typeof navigate !== "function" || !pageId) {
+      return;
+    }
+    navigate(
+      {
+        moduleId: "test-modules-pages",
+        pageId
+      },
+      { replace: false }
+    );
+  }, [navigate]);
+
   return {
     supportState,
     layouts,
@@ -611,6 +658,8 @@ function useLayoutsWorkspaceInternal({ navigate = null, route = {} } = {}) {
     ...documentActions,
     ...selectionActions,
     selectedParentNode,
+    startNewLayoutFromStarter,
+    openPageTemplate
   };
 }
 

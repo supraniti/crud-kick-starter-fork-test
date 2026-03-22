@@ -5,7 +5,9 @@ import {
   Chip,
   Paper,
   Stack,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { LayoutBuilderCanvas } from "./LayoutBuilderCanvas.jsx";
@@ -51,6 +53,7 @@ function BuilderHeader({ activeModuleLabel, workspace, activeSupportTab, onToggl
               <Typography variant="h5">{title}</Typography>
               <Chip size="small" label={workspace.isCreatingNewLayout ? "new" : workspace.draft.status} />
               <Chip size="small" variant="outlined" label={`Selected: ${modeLabel}`} />
+              {workspace.returnRoute ? <Chip size="small" color="info" variant="outlined" label="Opened from page" /> : null}
               {workspace.selectedLayoutDeploymentImpact.totalTemplates > 0 ? (
                 <Chip
                   size="small"
@@ -68,8 +71,13 @@ function BuilderHeader({ activeModuleLabel, workspace, activeSupportTab, onToggl
               ) : null}
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Shape reusable page structure on the canvas. Open library, layers, or details only when you need them.
+              Shape reusable page structure on the canvas. Start from a page frame, then open library, layers, or details only when you need them.
             </Typography>
+            {workspace.returnRoute ? (
+              <Alert severity="info">
+                You opened Layouts from a page. Save here, then return to continue shaping that page with the updated structure.
+              </Alert>
+            ) : null}
             {workspace.selectedLayoutDeploymentImpact.totalTemplates > 0 ? (
               <Alert
                 severity={
@@ -91,7 +99,7 @@ function BuilderHeader({ activeModuleLabel, workspace, activeSupportTab, onToggl
           <Stack spacing={1.25} alignItems={{ xs: "stretch", lg: "flex-end" }}>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <SupportToggleButton
-                label="Layouts"
+                label="Library"
                 active={activeSupportTab === "layouts"}
                 onClick={() => onToggleSupportTab("layouts")}
               />
@@ -113,7 +121,7 @@ function BuilderHeader({ activeModuleLabel, workspace, activeSupportTab, onToggl
                 </Button>
               ) : null}
               <Button variant="outlined" onClick={workspace.startNewLayout}>
-                New Layout
+                Blank Layout
               </Button>
               <Button variant="contained" onClick={workspace.persistLayout} disabled={workspace.actionState.saving}>
                 {workspace.actionState.saving ? "Saving..." : workspace.selectedLayoutId && !workspace.isCreatingNewLayout ? "Save Layout" : "Create Layout"}
@@ -148,56 +156,93 @@ function SupportToggleButton({ label, active, onClick }) {
   );
 }
 
-function SupportDock({ activeSupportTab, workspace }) {
+function SupportDock({ activeSupportTab, workspace, mode = "overlay" }) {
   if (!activeSupportTab) {
     return null;
+  }
+
+  if (activeSupportTab !== "details") {
+    return mode === "overlay" ? (
+      <Paper
+        variant="outlined"
+        sx={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          bottom: 16,
+          width: { xs: "calc(100% - 32px)", lg: 360 },
+          maxWidth: "100%",
+          zIndex: 10,
+          overflow: "hidden",
+          borderRadius: 4,
+          boxShadow: "0 24px 48px rgba(15,23,42,0.18)"
+        }}
+      >
+        <LayoutBuilderLeftRail workspace={workspace} tabValue={activeSupportTab} />
+      </Paper>
+    ) : (
+      <Box sx={{ minWidth: 0, minHeight: 0, height: "100%" }}>
+        <LayoutBuilderLeftRail workspace={workspace} tabValue={activeSupportTab} />
+      </Box>
+    );
   }
 
   return (
     <Paper
       variant="outlined"
-      sx={{
-        position: "absolute",
-        top: 16,
-        right: 16,
-        bottom: 16,
-        width: { xs: "calc(100% - 32px)", lg: 360 },
-        maxWidth: "100%",
-        zIndex: 10,
-        overflow: "hidden",
-        borderRadius: 4,
-        boxShadow: "0 24px 48px rgba(15,23,42,0.18)"
-      }}
+      sx={
+        mode === "overlay"
+          ? {
+              position: "absolute",
+              top: 16,
+              right: 16,
+              bottom: 16,
+              width: { xs: "calc(100% - 32px)", lg: 360 },
+              maxWidth: "100%",
+              zIndex: 10,
+              overflow: "hidden",
+              borderRadius: 4,
+              boxShadow: "0 24px 48px rgba(15,23,42,0.18)"
+            }
+          : {
+              height: "100%",
+              minHeight: 0,
+              minWidth: 0,
+              overflow: "hidden",
+              borderRadius: 4
+            }
+      }
     >
-      {activeSupportTab === "details" ? (
-        <Box sx={{ height: "100%", p: 2, overflow: "auto" }}>
-          <LayoutBuilderInspector
-            draft={workspace.draft}
-            selectedNode={workspace.selectedNode}
-            selectedPathIds={workspace.selectedPathIds}
-            isExisting={Boolean(workspace.selectedLayoutId) && !workspace.isCreatingNewLayout}
-            isMoveMode={workspace.isMoveMode}
-            isSelectedNodeMovable={workspace.isSelectedNodeMovable}
-            canMoveSelectedBackward={workspace.canMoveSelectedBackward}
-            canMoveSelectedForward={workspace.canMoveSelectedForward}
-            onChangeField={workspace.changeLayoutField}
-            onOpenNodeDialog={() => workspace.openNodeDialog(workspace.selectedNodeId)}
-            onStartMoveMode={() => workspace.setMoveMode(true)}
-            onCancelMoveMode={() => workspace.setMoveMode(false)}
-            onMoveSelectedBackward={workspace.moveSelectedBackward}
-            onMoveSelectedForward={workspace.moveSelectedForward}
-            onMoveSelectedToStart={workspace.moveSelectedToStart}
-            onMoveSelectedToEnd={workspace.moveSelectedToEnd}
-          />
-        </Box>
-      ) : (
-        <LayoutBuilderLeftRail workspace={workspace} tabValue={activeSupportTab} />
-      )}
+      <Box sx={{ height: "100%", p: 2, overflow: "auto" }}>
+        <LayoutBuilderInspector
+          draft={workspace.draft}
+          selectedLayout={workspace.selectedLayout}
+          selectedNode={workspace.selectedNode}
+          selectedPathIds={workspace.selectedPathIds}
+          isExisting={Boolean(workspace.selectedLayoutId) && !workspace.isCreatingNewLayout}
+          isMoveMode={workspace.isMoveMode}
+          isSelectedNodeMovable={workspace.isSelectedNodeMovable}
+          canMoveSelectedBackward={workspace.canMoveSelectedBackward}
+          canMoveSelectedForward={workspace.canMoveSelectedForward}
+          deploymentImpact={workspace.selectedLayoutDeploymentImpact}
+          onChangeField={workspace.changeLayoutField}
+          onOpenNodeDialog={() => workspace.openNodeDialog(workspace.selectedNodeId)}
+          onStartMoveMode={() => workspace.setMoveMode(true)}
+          onCancelMoveMode={() => workspace.setMoveMode(false)}
+          onMoveSelectedBackward={workspace.moveSelectedBackward}
+          onMoveSelectedForward={workspace.moveSelectedForward}
+          onMoveSelectedToStart={workspace.moveSelectedToStart}
+          onMoveSelectedToEnd={workspace.moveSelectedToEnd}
+          onOpenPage={workspace.openPageTemplate}
+        />
+      </Box>
     </Paper>
   );
 }
 
 export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) {
+  const theme = useTheme();
+  const isDesktopDock = useMediaQuery(theme.breakpoints.up("lg"));
   const baseWorkspace = useLayoutsWorkspace({
     navigate,
     route
@@ -254,50 +299,76 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
           minWidth: 0,
           width: "100%",
           maxWidth: "100%",
-          position: "relative",
           p: 2,
-          overflow: "hidden"
+          overflow: "hidden",
+          display: { xs: "block", lg: "grid" },
+          gridTemplateColumns: {
+            lg: activeSupportTab ? "minmax(0, 1fr) 360px" : "minmax(0, 1fr)"
+          },
+          gap: 2
         }}
       >
-        <LayoutBuilderCanvas
-          document={workspace.draft.layoutDocument}
-          selectedNodeId={workspace.selectedNodeId}
-          selectedPathIds={workspace.selectedPathIds}
-          onSelectNode={workspace.selectNode}
-          onDragEnd={workspace.handleDragEnd}
-          onMoveSelectedNodeToTarget={workspace.moveSelectedNodeTo}
-          onAddBlockPreset={workspace.addBlockPreset}
-          onAddLayoutPreset={workspace.addLayoutPreset}
-          onAppendBlockPresetToContainer={workspace.appendBlockPresetToContainer}
-          onAppendLayoutPresetToContainer={workspace.appendLayoutPresetToContainer}
-          onOpenNodeDialog={workspace.openNodeDialog}
-          onDuplicateNode={workspace.duplicateSelectedNode}
-          onRemoveNode={workspace.removeSelectedNode}
-          onResizeFlexPair={workspace.resizeFlexPair}
-          isMoveMode={workspace.isMoveMode}
-          moveModeLabel={workspace.selectedNode?.label}
-          onToggleMoveMode={(nodeId) => {
-            if (nodeId) {
-              workspace.selectNode(nodeId);
-            }
-            if (nodeId && (!workspace.isMoveMode || workspace.selectedNodeId !== nodeId)) {
-              workspace.setMoveMode(true);
-              return;
-            }
-            workspace.setMoveMode(!workspace.isMoveMode);
+        <Box
+          sx={{
+            minWidth: 0,
+            minHeight: 0,
+            position: "relative",
+            overflow: "hidden"
           }}
-        />
-        <SupportDock activeSupportTab={activeSupportTab} workspace={workspace} />
-        <LayoutBuilderNodeDialog
-          open={workspace.isNodeDialogOpen}
-          draft={workspace.draft}
-          selectedNode={workspace.selectedNode}
-          selectedPathIds={workspace.selectedPathIds}
-          parentNode={parentNode}
-          onClose={workspace.closeNodeDialog}
-          onUpdateNode={(patch) => workspace.updateNode(workspace.selectedNodeId, patch)}
-          onRemoveNode={workspace.removeSelectedNode}
-        />
+        >
+          <LayoutBuilderCanvas
+            document={workspace.draft.layoutDocument}
+            selectedNodeId={workspace.selectedNodeId}
+            selectedPathIds={workspace.selectedPathIds}
+            onSelectNode={workspace.selectNode}
+            onDragEnd={workspace.handleDragEnd}
+            onMoveSelectedNodeToTarget={workspace.moveSelectedNodeTo}
+            onAddBlockPreset={workspace.addBlockPreset}
+            onAddLayoutPreset={workspace.addLayoutPreset}
+            onAppendBlockPresetToContainer={workspace.appendBlockPresetToContainer}
+            onAppendLayoutPresetToContainer={workspace.appendLayoutPresetToContainer}
+            onOpenNodeDialog={workspace.openNodeDialog}
+            onDuplicateNode={workspace.duplicateSelectedNode}
+            onRemoveNode={workspace.removeSelectedNode}
+            onResizeFlexPair={workspace.resizeFlexPair}
+            isMoveMode={workspace.isMoveMode}
+            moveModeLabel={workspace.selectedNode?.label}
+            onToggleMoveMode={(nodeId) => {
+              if (nodeId) {
+                workspace.selectNode(nodeId);
+              }
+              if (nodeId && (!workspace.isMoveMode || workspace.selectedNodeId !== nodeId)) {
+                workspace.setMoveMode(true);
+                return;
+              }
+              workspace.setMoveMode(!workspace.isMoveMode);
+            }}
+          />
+          {!isDesktopDock ? (
+            <SupportDock activeSupportTab={activeSupportTab} workspace={workspace} mode="overlay" />
+          ) : null}
+          <LayoutBuilderNodeDialog
+            open={workspace.isNodeDialogOpen}
+            draft={workspace.draft}
+            selectedNode={workspace.selectedNode}
+            selectedPathIds={workspace.selectedPathIds}
+            parentNode={parentNode}
+            onClose={workspace.closeNodeDialog}
+            onUpdateNode={(patch) => workspace.updateNode(workspace.selectedNodeId, patch)}
+            onRemoveNode={workspace.removeSelectedNode}
+          />
+        </Box>
+        {activeSupportTab && isDesktopDock ? (
+          <Box
+            sx={{
+              minWidth: 0,
+              minHeight: 0,
+              overflow: "hidden"
+            }}
+          >
+            <SupportDock activeSupportTab={activeSupportTab} workspace={workspace} mode="docked" />
+          </Box>
+        ) : null}
       </Box>
     </Box>
   );

@@ -1,4 +1,4 @@
-import { Box, ButtonBase, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, ButtonBase, Chip, Stack, Tooltip, Typography } from "@mui/material";
 import { useDroppable } from "@dnd-kit/core";
 import { LayoutBuilderAddMenu } from "./LayoutBuilderAddMenu.jsx";
 import {
@@ -413,6 +413,7 @@ function resolvePlaceholderVisual(node) {
 export function BlockVisual({ node, parentMode, isSelected }) {
   const useMeasuredMinHeight = parentMode !== "grid";
   const { definition, palette } = resolvePlaceholderVisual(node);
+  const sampleContent = renderPlaceholderSample(definition.id, isSelected);
 
   return (
     <Box
@@ -436,7 +437,7 @@ export function BlockVisual({ node, parentMode, isSelected }) {
       }}
     >
       <Stack
-        spacing={1.25}
+        spacing={1.5}
         sx={{
           position: "relative",
           zIndex: 1,
@@ -452,36 +453,155 @@ export function BlockVisual({ node, parentMode, isSelected }) {
             {definition.description}
           </Typography>
         </Stack>
-        <Stack spacing={0.75} sx={{ opacity: isSelected ? 0.78 : 0.62 }}>
+        {sampleContent}
+      </Stack>
+    </Box>
+  );
+}
+
+function SampleLine({ width, height = 8, strong = false }) {
+  return (
+    <Box
+      sx={{
+        width,
+        height,
+        borderRadius: 999,
+        backgroundColor: strong ? "rgba(15,23,42,0.18)" : "rgba(15,23,42,0.1)"
+      }}
+    />
+  );
+}
+
+function SampleCard({ title, body }) {
+  return (
+    <Stack
+      spacing={0.75}
+      sx={{
+        p: 1.25,
+        borderRadius: 2,
+        bgcolor: "rgba(255,255,255,0.62)",
+        border: "1px solid rgba(15,23,42,0.08)"
+      }}
+    >
+      <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
+        {title}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {body}
+      </Typography>
+    </Stack>
+  );
+}
+
+function renderPlaceholderSample(type, isSelected) {
+  const opacity = isSelected ? 0.9 : 0.74;
+  if (type === "hero") {
+    return (
+      <Stack spacing={1.1} sx={{ opacity }}>
+        <Chip size="small" label="Feature Story" sx={{ alignSelf: "flex-start", bgcolor: "rgba(255,255,255,0.72)" }} />
+        <SampleLine width="72%" height={16} strong />
+        <SampleLine width="58%" height={16} strong />
+        <SampleLine width="96%" />
+        <SampleLine width="82%" />
+        <Stack direction="row" spacing={1.25} alignItems="stretch">
+          <Box sx={{ flex: 1 }}>
+            <SampleLine width="42%" />
+          </Box>
           <Box
             sx={{
-              width: "38%",
-              maxWidth: 180,
-              minWidth: 72,
-              height: 12,
-              borderRadius: 999,
-              backgroundColor: "rgba(15,23,42,0.12)"
-            }}
-          />
-          <Box
-            sx={{
-              width: "100%",
-              height: 8,
-              borderRadius: 999,
-              backgroundColor: "rgba(15,23,42,0.1)"
-            }}
-          />
-          <Box
-            sx={{
-              width: "78%",
-              minWidth: 84,
-              height: 8,
-              borderRadius: 999,
-              backgroundColor: "rgba(15,23,42,0.08)"
+              width: 110,
+              minWidth: 110,
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.56)",
+              border: "1px solid rgba(15,23,42,0.1)"
             }}
           />
         </Stack>
       </Stack>
-    </Box>
+    );
+  }
+  if (type === "image") {
+    return (
+      <Stack spacing={1} sx={{ opacity }}>
+        <Box
+          sx={{
+            width: "100%",
+            minHeight: 150,
+            borderRadius: 2,
+            bgcolor: "rgba(255,255,255,0.52)",
+            border: "1px solid rgba(15,23,42,0.08)"
+          }}
+        />
+        <SampleLine width="52%" />
+      </Stack>
+    );
+  }
+  if (type === "feature") {
+    return (
+      <Stack spacing={1.1} sx={{ opacity }}>
+        <Stack direction="row" spacing={1}>
+          <SampleCard title="Top Story" body="A short feature summary with one clear invitation." />
+          <SampleCard title="Secondary" body="Another highlight living beside the lead." />
+        </Stack>
+      </Stack>
+    );
+  }
+  if (type === "cta") {
+    return (
+      <Stack spacing={1.1} sx={{ opacity }}>
+        <SampleLine width="46%" height={14} strong />
+        <SampleLine width="82%" />
+        <SampleLine width="68%" />
+        <Box
+          sx={{
+            width: 112,
+            height: 32,
+            borderRadius: 999,
+            bgcolor: "rgba(255,255,255,0.72)",
+            border: "1px solid rgba(15,23,42,0.12)"
+          }}
+        />
+      </Stack>
+    );
+  }
+  if (type === "sidebar") {
+    return (
+      <Stack spacing={1.1} sx={{ opacity }}>
+        <SampleLine width="58%" height={12} strong />
+        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+          <Chip size="small" label="Topic" variant="outlined" />
+          <Chip size="small" label="Archive" variant="outlined" />
+          <Chip size="small" label="Guide" variant="outlined" />
+        </Stack>
+        <SampleLine width="92%" />
+        <SampleLine width="76%" />
+        <SampleLine width="88%" />
+      </Stack>
+    );
+  }
+  if (type === "text") {
+    return (
+      <Stack spacing={0.85} sx={{ opacity }}>
+        <SampleLine width="60%" height={12} strong />
+        <SampleLine width="100%" />
+        <SampleLine width="94%" />
+        <SampleLine width="98%" />
+        <SampleLine width="74%" />
+      </Stack>
+    );
+  }
+  return (
+    <Stack spacing={1} sx={{ opacity }}>
+      <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+        <Chip size="small" label="Category" variant="outlined" />
+        <SampleLine width={88} />
+        <SampleLine width={72} />
+      </Stack>
+      <SampleLine width="78%" height={14} strong />
+      <SampleLine width="92%" />
+      <SampleLine width="94%" />
+      <SampleLine width="86%" />
+      <SampleLine width="64%" />
+    </Stack>
   );
 }

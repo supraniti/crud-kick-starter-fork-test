@@ -2375,3 +2375,33 @@
 - Improve:
   - when the user says the desk is not usable, stop implementing and rewrite the product understanding first
   - use live flow evidence, not only component reasoning, before deciding the next pass
+
+### 2026-03-22 - Layouts Needed Starter Frames To Be Real, Not Decorative
+- Tasks:
+  - fixed the new-layout initialization path so starter frames actually seed the canvas instead of collapsing back to an empty draft
+  - added publishing-oriented starter presets and richer on-canvas placeholder language
+  - reworked the left rail into a real library with starter frames first, then saved layouts and page-usage awareness
+  - kept the details dock restrained with basics, page impact, selected-node controls, and demoted advanced material
+  - updated the focused Layouts integration test to the new product language and quieter dock model
+- Easy:
+  - the existing builder model was already strong; most of the work stayed in workspace initialization and the product surface around it
+- Hard:
+  - the starter-frame bug came from the creation-mode effect resetting every new draft on render, which erased the seeded frame immediately after click
+  - the first focused test run surfaced real regressions instead of environment noise:
+    - duplicate React keys in starter chips
+    - stale test expectations for `New Layout`
+    - assumptions that the old always-visible preview/markup still existed
+- Improve:
+  - when a story says “start from something sensible,” the one-click frame action must be tested live before the slice is considered real
+  - a calmer dock means tests should be updated to the calmer information architecture, not force the product back toward the old always-open surface
+
+### 2026-03-22 - Layouts Needed A Real Dock, Not A Canvas-Covering Overlay
+- Tasks:
+  - changed the Layouts support surface so desktop uses a true docked column while smaller screens still use an overlay
+  - fixed a follow-up regression where both mobile and desktop dock variants existed in the DOM at once, duplicating controls and breaking focused tests
+- Easy:
+  - the underlying canvas logic did not need to change; the issue was entirely in route shell composition
+- Hard:
+  - CSS-only `display: none` was not enough because the hidden dock still existed for testing and accessibility queries, so the responsive split had to become a real runtime branch
+- Improve:
+  - when replacing overlays with docked panels, test both the live browser and the focused DOM queries because hidden duplicates can quietly corrupt the desk contract
