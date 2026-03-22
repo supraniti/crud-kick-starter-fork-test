@@ -28,7 +28,7 @@ function createManagedTargets(connectionId) {
     createTargetItem({
       id: "target-posts-001",
       connectionProfileId: connectionId,
-      productBindingKey: null,
+      productBindingKey: "posts-projection",
       title: "Posts Projection"
     }),
     createTargetItem({
@@ -157,31 +157,31 @@ test("product remotes desk stays on the managed connection workflow instead of t
   render(<ProductRemotesView route={{ connectionId: "conn-002" }} />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Control Desk" })).toBeInTheDocument();
-    expect(screen.getByText("Selected Remote")).toBeInTheDocument();
-    expect(screen.getByText("Managed Service Setup")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remote Readiness Desk" })).toBeInTheDocument();
+    expect(screen.getByText("Active Remote")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Readiness Board", selected: true })).toBeInTheDocument();
     expect(screen.getByText("1. Connection")).toBeInTheDocument();
-    expect(screen.getByText("2. Project Access")).toBeInTheDocument();
-    expect(screen.getByText("3. Firestore Projections")).toBeInTheDocument();
-    expect(screen.getByText("4. Media Storage")).toBeInTheDocument();
-    expect(screen.getByText("5. HTML Deployment")).toBeInTheDocument();
-    expect(screen.getByText("6. Browser Delivery")).toBeInTheDocument();
+    expect(screen.getByText("2. Remote Access")).toBeInTheDocument();
+    expect(screen.getByText("3. Published Data")).toBeInTheDocument();
+    expect(screen.getByText("4. Media Library")).toBeInTheDocument();
+    expect(screen.getByText("5. Public HTML")).toBeInTheDocument();
+    expect(screen.getByText("6. Public Delivery")).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Recent Activity" }));
 
   await waitFor(() => {
-    expect(screen.getByText("Recent Remote Runs")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Recent Activity", selected: true })).toBeInTheDocument();
     expect(screen.getByText("Validate Posts Projection")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("tab", { name: "Setup Stages" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Readiness Board" }));
 
   expect(screen.queryByRole("tab", { name: "Targets" })).not.toBeInTheDocument();
   expect(screen.getAllByText("Service account: merchant-guild@appspot.gserviceaccount.com").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Project: Merchant Guild").length).toBeGreaterThan(0);
-  expect(screen.getByText("Managed services: 6/6")).toBeInTheDocument();
-  expect(screen.getAllByRole("button", { name: "Analyze Compatibility" }).length).toBeGreaterThan(0);
+  expect(screen.getByText("Prepared pieces: 6/6")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Analyze Readiness" })).toBeInTheDocument();
   expect(screen.queryByLabelText("Operator Email")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Region")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Credential Label")).not.toBeInTheDocument();
@@ -232,8 +232,8 @@ test("product remotes desk opens directly in connection details for key re-impor
   );
 
   await waitFor(() => {
-    expect(screen.getByText(/This remote needs its service-account key re-imported/i)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Connection Details", selected: true })).toBeInTheDocument();
+    expect(screen.getByText(/This remote needs the service-account key re-imported here/i)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Connection", selected: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose JSON Key File" })).toBeInTheDocument();
   });
 }, 15000);
@@ -351,9 +351,9 @@ test("product remotes desk loads GCP billing linkage and visible budgets on the 
   render(<ProductRemotesView route={{ connectionId: "conn-002" }} />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Remote Control Desk" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Remote Readiness Desk" })).toBeInTheDocument();
     expect(screen.getAllByText("Service account: merchant-guild@appspot.gserviceaccount.com").length).toBeGreaterThan(0);
-    expect(screen.getByText("Managed services: 6/6")).toBeInTheDocument();
+    expect(screen.getByText("Prepared pieces: 6/6")).toBeInTheDocument();
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Billing & Usage" }));

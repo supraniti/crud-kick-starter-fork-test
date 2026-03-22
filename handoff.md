@@ -1550,3 +1550,31 @@
   - http://localhost:3000/app/system-settings`r
 - Current state:
   - uncommitted System Settings slice ready for review
+
+## 2026-03-22 Remotes Story Implementation Ready For Review
+- Reworked `Remotes` into a calmer connection and readiness desk instead of a control-panel surface.
+- Main changes:
+  - replaced the raw connection list/editor pairing with a product-owned connections sidebar and connection panel
+  - removed the noisy summary strip and replaced it with one `Active Remote` summary card
+  - rewrote setup into a `Readiness Board` with product-language stages:
+    - Connection
+    - Remote Access
+    - Published Data
+    - Media Library
+    - Public HTML
+    - Public Delivery
+  - centralized `Analyze Readiness` and `Prepare Missing Pieces`
+  - fixed prepared-piece counting to use distinct product bindings, so the selected remote now shows `Prepared pieces: 6/6`
+- Plan doc:
+  - [remotes-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/remotes-story-implementation-plan.md)
+- Validation:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-remotes.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Live review route:
+  - `http://localhost:3000/app/remotes?connectionId=remoteco-012&tab=setup`
+- Proof artifact:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\remotes-desk-final.png`
+- Current state:
+  - uncommitted Remotes slice ready for review

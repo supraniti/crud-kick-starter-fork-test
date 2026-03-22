@@ -2587,3 +2587,19 @@
 - Improve:
   - rare-use desks should shrink until they tell one truth clearly instead of explaining the same thing three times
   - if a screen is about inheritance, every section should say both effect and override, otherwise users cannot trust what they are changing
+
+### 2026-03-22 - Remotes Needed One Board And One Repair Surface
+- Tasks:
+  - rewrote `Remotes` away from control-panel summaries and into a connection-plus-readiness desk
+  - added a product-owned connections sidebar and connection repair panel
+  - rewrote setup into a six-part readiness board with product language instead of target jargon
+  - centralized `Analyze Readiness` and `Prepare Missing Pieces`
+  - fixed prepared-piece counting to use distinct managed bindings instead of raw target rows
+- Easy:
+  - the repo already had the core compatibility and provisioning signals; the real job was translating and regrouping them into one readable product surface
+- Hard:
+  - the route was carrying a stale internal tab even on a clean URL, so deterministic browser review needed an explicit `?tab=setup` entry point
+  - the focused proof had to be updated for multiple text collisions caused by using the same product labels in both tabs and section headings
+- Improve:
+  - when a route owns both setup and repair, connection repair must stay on the same desk; sending the user elsewhere destroys the point of the product surface
+  - count user-visible publishing pieces, not raw target rows, or the whole readiness story immediately loses trust

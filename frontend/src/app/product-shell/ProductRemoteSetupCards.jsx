@@ -8,7 +8,6 @@ import {
   Chip,
   FormControlLabel,
   FormGroup,
-  Paper,
   Stack,
   Typography
 } from "@mui/material";
@@ -18,54 +17,54 @@ const PRODUCT_STAGE_SPECS = Object.freeze([
   {
     id: "connection",
     title: "1. Connection",
-    description: "Load one service-account key and validate that the CMS can operate against the chosen GCP project."
+    description: "Bring in the credential, confirm the environment, and validate that the product can talk to the chosen project."
   },
   {
     id: "project",
-    title: "2. Project Access",
-    description: "Inspect the selected project, confirm managed services, and surface permission or provisioning pressure."
+    title: "2. Remote Access",
+    description: "Confirm the project is reachable and inspect what the product still needs before publishing can begin."
   },
   {
     id: "projections",
-    title: "3. Firestore Projections",
-    description: "Prepare and inspect the remote collections used for published posts, categories, and tags.",
+    title: "3. Published Data",
+    description: "Posts, categories, and tags need a healthy remote home before the site can publish data-backed pages.",
     bundleId: "firestore-projection",
     bindingKeys: ["posts-projection", "categories-projection", "tags-projection"]
   },
   {
     id: "media",
-    title: "4. Media Storage",
-    description: "Prepare and inspect the remote bucket used for published media objects.",
+    title: "4. Media Library",
+    description: "Images and uploaded files need a remote library that the published site can reach.",
     bundleId: "media-storage",
     bindingKeys: ["media-storage"]
   },
   {
     id: "deployment",
-    title: "5. HTML Deployment",
-    description: "Prepare and inspect the remote bucket used for generated page HTML.",
+    title: "5. Public HTML",
+    description: "Generated HTML needs a remote home so releases can publish real pages.",
     bundleId: "deployment-storage",
     bindingKeys: ["deployment-storage"]
   },
   {
     id: "browser",
-    title: "6. Browser Delivery",
-    description: "Prepare and inspect the browser-facing delivery layer for temporary URLs or owned custom domains.",
+    title: "6. Public Delivery",
+    description: "People need a public route to the published site, whether that is a temporary URL or a real domain.",
     bundleId: "browser-delivery",
     bindingKeys: ["browser-delivery"]
   }
 ]);
 
-function getStageColor(state) {
+function getStageTone(state) {
   if (state === "ready") {
-    return "success";
+    return { chipColor: "success", label: "Ready", alertSeverity: "success" };
   }
   if (state === "blocked") {
-    return "error";
+    return { chipColor: "error", label: "Blocked", alertSeverity: "error" };
   }
   if (state === "action-required" || state === "missing") {
-    return "warning";
+    return { chipColor: "warning", label: "Needs Attention", alertSeverity: "warning" };
   }
-  return "default";
+  return { chipColor: "default", label: "Waiting", alertSeverity: "info" };
 }
 
 function getManagedTargetsForStage(targets, connectionId, bindingKeys = []) {
@@ -75,9 +74,7 @@ function getManagedTargetsForStage(targets, connectionId, bindingKeys = []) {
       .map((target) => [resolveManagedProductBindingKey(target), target])
       .filter(([bindingKey]) => bindingKey)
   );
-  return bindingKeys
-    .map((bindingKey) => targetMap.get(bindingKey) ?? null)
-    .filter(Boolean);
+  return bindingKeys.map((bindingKey) => targetMap.get(bindingKey) ?? null).filter(Boolean);
 }
 
 function getBundleReport(report, bundleId) {
@@ -104,7 +101,7 @@ function summarizeTargetDetails(targets = []) {
   return targets.flatMap((target) => {
     const lines = [target.title];
     if (target?.targetKind === "firestore-projection" && target?.config?.firestoreCollectionPath) {
-      lines.push(`Collection path: ${target.config.firestoreCollectionPath}`);
+      lines.push(`Collection: ${target.config.firestoreCollectionPath}`);
     }
     if (
       (target?.targetKind === "deployment-storage" || target?.targetKind === "media-storage") &&
@@ -116,16 +113,13 @@ function summarizeTargetDetails(targets = []) {
       (target?.targetKind === "deployment-storage" || target?.targetKind === "media-storage") &&
       target?.config?.prefix
     ) {
-      lines.push(`Prefix: ${target.config.prefix}`);
+      lines.push(`Folder: ${target.config.prefix}`);
     }
     if (target?.targetKind === "browser-delivery" && target?.config?.hostname) {
       lines.push(`Hostname: ${target.config.hostname}`);
     }
     if (target?.targetKind === "browser-delivery" && target?.config?.accessMode) {
       lines.push(`Access mode: ${target.config.accessMode}`);
-    }
-    if (target?.targetKind === "browser-delivery" && target?.config?.dnsMode) {
-      lines.push(`DNS mode: ${target.config.dnsMode}`);
     }
     return lines;
   });
@@ -139,13 +133,10 @@ function summarizeDeliveryDetails(bundleReport) {
           lines.push(`Public origin: ${deliveryReport.publicOrigin}`);
         }
         if (deliveryReport.publicUrl) {
-          lines.push(`Example page URL: ${deliveryReport.publicUrl}`);
+          lines.push(`Example page: ${deliveryReport.publicUrl}`);
         }
         if (deliveryReport.publicMediaBaseUrl) {
-          lines.push(`Public media base: ${deliveryReport.publicMediaBaseUrl}`);
-        }
-        if (deliveryReport.temporaryMediaBaseUrl) {
-          lines.push(`Temporary media base: ${deliveryReport.temporaryMediaBaseUrl}`);
+          lines.push(`Media base: ${deliveryReport.publicMediaBaseUrl}`);
         }
         return lines;
       })
@@ -156,21 +147,21 @@ function createConnectionStage(connection, compatibilityReport) {
   if (!connection) {
     return {
       state: "missing",
-      summary: "Create or select a remote profile.",
-      details: ["The product flow starts with one named GCP remote."]
+      summary: "No remote is selected yet.",
+      nextStep: "Create a remote connection and choose the service-account JSON key file.",
+      details: ["The product uses one named remote per environment."]
     };
   }
 
   if (connection.connectionStatus === "validated") {
     return {
       state: "ready",
-      summary: "Service-account key and project access are validated.",
+      summary: "The credential and project access are validated.",
+      nextStep: compatibilityReport ? "You can review or prepare the remote publishing pieces below." : "Run Analyze Readiness to inspect the remote publishing pieces.",
       details: [
-        connection.profileName,
+        connection.projectDisplayName ? `Project: ${connection.projectDisplayName}` : null,
         connection.serviceAccountEmail ? `Service account: ${connection.serviceAccountEmail}` : null,
-        connection.projectId ? `Project ID: ${connection.projectId}` : null,
-        connection.lastValidatedOn ? `Last validated: ${connection.lastValidatedOn}` : null,
-        compatibilityReport ? "Compatibility analysis can now drive the managed service setup." : null
+        connection.lastValidatedOn ? `Last validated: ${connection.lastValidatedOn}` : null
       ].filter(Boolean)
     };
   }
@@ -178,22 +169,20 @@ function createConnectionStage(connection, compatibilityReport) {
   if (connection.serviceAccountEmail || connection.credentialPathHint) {
     return {
       state: "action-required",
-      summary: "Credential is loaded but the connection is not yet validated.",
+      summary: "The credential is loaded, but the connection is not validated yet.",
+      nextStep: "Validate the connection so the product can inspect and prepare the remote publishing pieces.",
       details: [
-        connection.serviceAccountEmail ? `Service account: ${connection.serviceAccountEmail}` : null,
-        connection.projectId ? `Project ID: ${connection.projectId}` : "Choose the target project id before validation.",
-        "Run Validate Connection before expecting managed services to unlock."
+        connection.projectId ? `Project ID: ${connection.projectId}` : "Choose the project ID before validation.",
+        connection.serviceAccountEmail ? `Service account: ${connection.serviceAccountEmail}` : null
       ].filter(Boolean)
     };
   }
 
   return {
     state: "action-required",
-    summary: "Choose and import the service-account JSON key file.",
-    details: [
-      "The app stores the imported key in a local untracked runtime area.",
-      "Only the reference path and extracted metadata are persisted."
-    ]
+    summary: "The connection still needs its service-account key.",
+    nextStep: "Choose the JSON key file from this desk.",
+    details: ["The app stores a local untracked copy so it can be re-used later."]
   };
 }
 
@@ -201,31 +190,34 @@ function createProjectStage(connection, compatibilityReport) {
   if (!connection) {
     return {
       state: "blocked",
-      summary: "No remote is selected yet.",
-      details: ["Pick or create a connection profile first."]
+      summary: "The product cannot inspect remote readiness without a connection.",
+      nextStep: "Create or select a remote first.",
+      details: []
     };
   }
   if (!connection.projectId) {
     return {
       state: "missing",
-      summary: "Project id is not set.",
-      details: ["Load the key, then confirm or override the suggested project id."]
+      summary: "The project is not confirmed yet.",
+      nextStep: "Confirm the project ID, then validate the connection.",
+      details: []
     };
   }
   if (connection.connectionStatus !== "validated") {
     return {
       state: "action-required",
-      summary: "Project is chosen but live access is not validated yet.",
-      details: [`Project ID: ${connection.projectId}`, "Run Validate Connection before analyzing compatibility."]
+      summary: "Project access is chosen but not confirmed.",
+      nextStep: "Validate the connection before analyzing readiness.",
+      details: [`Project ID: ${connection.projectId}`]
     };
   }
   if (!compatibilityReport) {
     return {
       state: "action-required",
-      summary: "Project access is validated. Compatibility analysis is still pending.",
+      summary: "The connection works, but readiness has not been analyzed yet.",
+      nextStep: "Run Analyze Readiness to inspect services, permissions, and missing pieces.",
       details: [
-        connection.projectDisplayName ? `Project: ${connection.projectDisplayName}` : `Project ID: ${connection.projectId}`,
-        "Run Analyze Compatibility to inspect managed services, permissions, and missing resources."
+        connection.projectDisplayName ? `Project: ${connection.projectDisplayName}` : `Project ID: ${connection.projectId}`
       ]
     };
   }
@@ -238,17 +230,18 @@ function createProjectStage(connection, compatibilityReport) {
           : "ready",
     summary:
       compatibilityReport.overallState === "blocked"
-        ? "Project access is blocked by permission or service issues."
+        ? "Remote access is blocked by permission or service issues."
         : compatibilityReport.overallState === "action-required"
-          ? "Project access is live, but the managed service bundle still needs work."
-          : "Project access and managed service inspection are ready.",
+          ? "Remote access works, but some publishing pieces still need work."
+          : "Remote access is healthy for the current publishing model.",
+    nextStep:
+      compatibilityReport.overallState === "ready"
+        ? "Review the publishing pieces below or move on to Domains and Deployments."
+        : "Use the stage cards below to prepare missing pieces or fix blocked ones.",
     details: [
-      compatibilityReport.project?.displayName
-        ? `Project: ${compatibilityReport.project.displayName}`
-        : `Project ID: ${connection.projectId}`,
-      `Blocked bundles: ${compatibilityReport.counts?.blockedBundles ?? 0}`,
-      `Action required bundles: ${compatibilityReport.counts?.actionRequiredBundles ?? 0}`,
-      `Provisionable actions: ${compatibilityReport.provisionableActions?.length ?? 0}`
+      `Needs attention: ${compatibilityReport.counts?.actionRequiredBundles ?? 0}`,
+      `Blocked: ${compatibilityReport.counts?.blockedBundles ?? 0}`,
+      `Prepare actions available: ${compatibilityReport.provisionableActions?.length ?? 0}`
     ]
   };
 }
@@ -257,8 +250,11 @@ function createBundleStage(stageSpec, connection, targets, compatibilityReport) 
   if (!connection) {
     return {
       state: "blocked",
-      summary: "No remote is selected yet.",
-      details: ["Pick or create a connection profile first."]
+      summary: "This part cannot be prepared until a remote is selected.",
+      nextStep: "Create or select a remote first.",
+      details: [],
+      stageTargets: [],
+      bundleReport: null
     };
   }
 
@@ -268,11 +264,10 @@ function createBundleStage(stageSpec, connection, targets, compatibilityReport) 
 
   if (stageTargets.length === 0) {
     return {
-      state: "missing",
-      summary: "Managed targets are not prepared yet.",
-      details: [
-        "Validate the connection so the CMS can prepare the standard managed target bundle."
-      ],
+      state: "action-required",
+      summary: "This publishing piece has not been prepared yet.",
+      nextStep: "Analyze readiness, then prepare the missing piece from this desk.",
+      details: [],
       stageTargets,
       bundleReport
     };
@@ -281,8 +276,9 @@ function createBundleStage(stageSpec, connection, targets, compatibilityReport) 
   if (!bundleReport) {
     return {
       state: "action-required",
-      summary: "Managed targets are prepared. Compatibility analysis is still pending.",
-      details: [...targetDetails, "Run Analyze Compatibility to inspect the remote service state."],
+      summary: "This publishing piece exists, but its readiness has not been inspected yet.",
+      nextStep: "Run Analyze Readiness to inspect this part.",
+      details: targetDetails,
       stageTargets,
       bundleReport
     };
@@ -291,8 +287,8 @@ function createBundleStage(stageSpec, connection, targets, compatibilityReport) 
   const permissionDetails = summarizePermissionDiagnostics(bundleReport);
   const missingResourceDetails = summarizeMissingResources(bundleReport);
   const deliveryDetails = stageSpec.id === "browser" ? summarizeDeliveryDetails(bundleReport) : [];
-  const noteDetails = Array.isArray(bundleReport.notes) ? bundleReport.notes : [];
   const warningDetails = Array.isArray(bundleReport.configurationWarnings) ? bundleReport.configurationWarnings : [];
+  const noteDetails = Array.isArray(bundleReport.notes) ? bundleReport.notes : [];
 
   return {
     state:
@@ -303,10 +299,14 @@ function createBundleStage(stageSpec, connection, targets, compatibilityReport) 
           : "ready",
     summary:
       bundleReport.state === "blocked"
-        ? "Permission gaps block this managed service."
+        ? "A permission or service issue is blocking this publishing piece."
         : bundleReport.state === "action-required"
-          ? "This managed service still needs provisioning or configuration."
-          : "This managed service is ready for the current release model.",
+          ? "This publishing piece still needs preparation or repair."
+          : "This publishing piece is ready.",
+    nextStep:
+      bundleReport.state === "ready"
+        ? "No action is needed here right now."
+        : "Use the action below if preparation is available, otherwise fix the blocking issue first.",
     details: [...targetDetails, ...deliveryDetails, ...missingResourceDetails, ...warningDetails, ...noteDetails, ...permissionDetails],
     stageTargets,
     bundleReport
@@ -348,27 +348,132 @@ function resolveStageProvisioning(stage) {
   };
 }
 
-function StageCard({
-  stage,
+function ReadinessBoardSummary({
+  connection,
+  stages,
   workspace,
-  safeguardsConfirmed,
-  onProvisionStage,
-  onOpenDomains,
-  onOpenDeployments
+  compatibilityReport,
+  safeguardsConfirmed
 }) {
+  const counts = stages.reduce(
+    (summary, stage) => {
+      if (stage.state === "ready") {
+        summary.ready += 1;
+      } else if (stage.state === "blocked") {
+        summary.blocked += 1;
+      } else if (stage.state === "action-required" || stage.state === "missing") {
+        summary.attention += 1;
+      } else {
+        summary.waiting += 1;
+      }
+      return summary;
+    },
+    { ready: 0, blocked: 0, attention: 0, waiting: 0 }
+  );
+
+  const readyActionCount = Array.isArray(compatibilityReport?.provisionableActions)
+    ? compatibilityReport.provisionableActions.filter(
+        (action) => action.createSupported === true && action.availableNow === true && action.phaseStatus === "execution-started"
+      ).length
+    : 0;
+
+  const canAnalyze =
+    Boolean(connection?.id) &&
+    connection?.connectionStatus === "validated" &&
+    Boolean(connection?.projectId) &&
+    !workspace.compatibilityActionState.processing;
+  const canPrepare = readyActionCount > 0 && safeguardsConfirmed && !workspace.provisioningActionState.processing;
+
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.35}>
+            <Typography variant="subtitle1">Readiness Board</Typography>
+            <Typography variant="body2" color="text.secondary">
+              This board answers one question: is this remote ready to power published data, media, HTML, and public delivery?
+            </Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="small" color="success" label={`Ready ${counts.ready}`} />
+            <Chip size="small" color="warning" label={`Needs attention ${counts.attention}`} />
+            <Chip size="small" color="error" label={`Blocked ${counts.blocked}`} />
+            {counts.waiting > 0 ? <Chip size="small" variant="outlined" label={`Waiting ${counts.waiting}`} /> : null}
+          </Stack>
+
+          {connection ? (
+            <Alert severity={connection.connectionStatus === "validated" ? "success" : "info"}>
+              {connection.connectionStatus === "validated"
+                ? `${connection.profileName} is connected to ${connection.projectDisplayName ?? connection.projectId}.`
+                : `${connection.profileName} still needs validation before the board can inspect the remote world.`}
+            </Alert>
+          ) : (
+            <Alert severity="info">Create a remote connection first, then return here to inspect readiness.</Alert>
+          )}
+
+          {workspace.compatibilityActionState.errorMessage ? (
+            <Alert severity="error">{workspace.compatibilityActionState.errorMessage}</Alert>
+          ) : null}
+          {workspace.compatibilityActionState.successMessage ? (
+            <Alert severity="success">{workspace.compatibilityActionState.successMessage}</Alert>
+          ) : null}
+          {workspace.provisioningActionState.errorMessage ? (
+            <Alert severity="error">{workspace.provisioningActionState.errorMessage}</Alert>
+          ) : null}
+          {workspace.provisioningActionState.successMessage ? (
+            <Alert severity="success">{workspace.provisioningActionState.successMessage}</Alert>
+          ) : null}
+
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Button variant="outlined" color="secondary" onClick={workspace.analyzeSelectedConnectionCompatibility} disabled={!canAnalyze}>
+              {workspace.compatibilityActionState.processing ? "Analyzing..." : "Analyze Readiness"}
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => workspace.provisionSelectedConnectionCompatibility()}
+              disabled={!canPrepare}
+            >
+              {workspace.provisioningActionState.processing ? "Preparing..." : "Prepare Missing Pieces"}
+            </Button>
+          </Stack>
+
+          {!connection ? (
+            <Typography variant="body2" color="text.secondary">
+              This board stays quiet until a remote connection exists.
+            </Typography>
+          ) : null}
+          {connection && connection.connectionStatus !== "validated" ? (
+            <Typography variant="body2" color="text.secondary">
+              Validate the connection first. The board only becomes reliable after that.
+            </Typography>
+          ) : null}
+          {connection && connection.connectionStatus === "validated" && !compatibilityReport ? (
+            <Typography variant="body2" color="text.secondary">
+              The connection is healthy. Analyze readiness to see what is already prepared and what still needs work.
+            </Typography>
+          ) : null}
+          {readyActionCount > 0 && !safeguardsConfirmed ? (
+            <Typography variant="body2" color="text.secondary">
+              Confirm the preparation safeguards below before using the global prepare action.
+            </Typography>
+          ) : null}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StageCard({ stage, workspace, safeguardsConfirmed, onProvisionStage, onOpenDomains, onOpenDeployments }) {
   const { readyActionIds, blockedCount } = resolveStageProvisioning(stage);
+  const tone = getStageTone(stage.state);
   const canValidateConnection =
     stage.id === "connection" &&
     workspace.selectedConnectionId &&
     workspace.connectionDraft.connectionStatus !== "validated" &&
     Boolean(workspace.connectionDraft.projectId) &&
     (Boolean(workspace.connectionDraft.lastConnectedOn) || workspace.connectionDraft.connectionStatus === "connected");
-  const canAnalyzeCompatibility =
-    (stage.id === "project" || stage.state === "action-required") &&
-    workspace.selectedConnectionId &&
-    workspace.connectionDraft.connectionStatus === "validated" &&
-    Boolean(workspace.connectionDraft.projectId) &&
-    !workspace.compatibilityActionState.processing;
   const canProvisionStage =
     readyActionIds.length > 0 &&
     safeguardsConfirmed &&
@@ -381,12 +486,12 @@ function StageCard({
           <Stack spacing={0.5}>
             <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
               <Typography variant="subtitle1">{stage.title}</Typography>
-              <Chip size="small" color={getStageColor(stage.state)} label={stage.state} />
+              <Chip size="small" color={tone.chipColor} label={tone.label} />
               {stage.stageTargets?.length ? (
-                <Chip size="small" variant="outlined" label={`Targets ${stage.stageTargets.length}`} />
+                <Chip size="small" variant="outlined" label={`Prepared ${stage.stageTargets.length}`} />
               ) : null}
               {readyActionIds.length > 0 ? (
-                <Chip size="small" variant="outlined" label={`Ready actions ${readyActionIds.length}`} />
+                <Chip size="small" variant="outlined" label={`Can prepare ${readyActionIds.length}`} />
               ) : null}
               {blockedCount > 0 ? (
                 <Chip size="small" variant="outlined" label={`Blocked actions ${blockedCount}`} />
@@ -397,38 +502,33 @@ function StageCard({
             </Typography>
           </Stack>
 
-          <Alert severity={stage.state === "blocked" ? "error" : stage.state === "ready" ? "success" : "info"}>
-            {stage.summary}
-          </Alert>
+          <Alert severity={tone.alertSeverity}>{stage.summary}</Alert>
+
+          {stage.nextStep ? (
+            <Typography variant="body2" color="text.secondary">
+              Next step: {stage.nextStep}
+            </Typography>
+          ) : null}
 
           {stage.details?.length > 0 ? (
-            <Stack spacing={0.5}>
+            <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
               {stage.details.map((line, index) => (
-                <Typography key={`${stage.id}-${index}`} variant="body2" color="text.secondary">
+                <Typography key={`${stage.id}-${index}`} component="li" variant="body2" color="text.secondary" sx={{ mb: 0.35 }}>
                   {line}
                 </Typography>
               ))}
-            </Stack>
+            </Box>
           ) : null}
 
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             {canValidateConnection ? (
-              <Button
-                variant="outlined"
-                onClick={workspace.validateSelectedConnection}
-                disabled={workspace.connectionActionState.processing}
-              >
-                Validate Connection
-              </Button>
-            ) : null}
-            {canAnalyzeCompatibility ? (
-              <Button variant="outlined" color="secondary" onClick={workspace.analyzeSelectedConnectionCompatibility}>
-                {workspace.compatibilityActionState.processing ? "Analyzing..." : "Analyze Compatibility"}
+              <Button variant="outlined" onClick={workspace.validateSelectedConnection} disabled={workspace.connectionActionState.processing}>
+                {workspace.connectionActionState.processing ? "Validating..." : "Validate Connection"}
               </Button>
             ) : null}
             {canProvisionStage ? (
               <Button variant="contained" color="secondary" onClick={() => onProvisionStage(readyActionIds)}>
-                {workspace.provisioningActionState.processing ? "Provisioning..." : "Provision This Stage"}
+                {workspace.provisioningActionState.processing ? "Preparing..." : "Prepare This Part"}
               </Button>
             ) : null}
             {stage.id === "browser" ? (
@@ -442,19 +542,13 @@ function StageCard({
               </Button>
             ) : null}
           </Stack>
-
-          {readyActionIds.length > 0 && !safeguardsConfirmed ? (
-            <Typography variant="caption" color="text.secondary">
-              Confirm the provisioning safeguards below before provisioning this stage.
-            </Typography>
-          ) : null}
         </Stack>
       </CardContent>
     </Card>
   );
 }
 
-function SafeguardsCard({ workspace, compatibilityReport }) {
+function PrepareMissingPiecesCard({ workspace, compatibilityReport }) {
   if (!compatibilityReport) {
     return null;
   }
@@ -466,23 +560,25 @@ function SafeguardsCard({ workspace, compatibilityReport }) {
       ).length
     : 0;
 
+  if (safeguardRules.length === 0 && readyActionCount === 0) {
+    return null;
+  }
+
   return (
     <Card variant="outlined">
       <CardContent>
         <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-            <Typography variant="subtitle1">Provisioning Safeguards</Typography>
+          <Stack spacing={0.35}>
+            <Typography variant="subtitle1">Prepare Missing Pieces</Typography>
+            <Typography variant="body2" color="text.secondary">
+              These confirmations protect the remote before the product creates missing services or buckets.
+            </Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Chip size="small" variant="outlined" label={`Ready actions ${readyActionCount}`} />
           </Stack>
-          <Typography variant="body2" color="text.secondary">
-            Stage-level provisioning buttons only run after these operator confirmations are checked.
-          </Typography>
-          {workspace.provisioningActionState.errorMessage ? (
-            <Alert severity="error">{workspace.provisioningActionState.errorMessage}</Alert>
-          ) : null}
-          {workspace.provisioningActionState.successMessage ? (
-            <Alert severity="success">{workspace.provisioningActionState.successMessage}</Alert>
-          ) : null}
+
           {safeguardRules.length > 0 ? (
             <FormGroup>
               {safeguardRules.map((rule) => (
@@ -494,60 +590,20 @@ function SafeguardsCard({ workspace, compatibilityReport }) {
                       onChange={() => workspace.toggleProvisioningSafeguard(rule.id)}
                     />
                   }
-                  label={
+                  label={(
                     <Box>
                       <Typography variant="body2">{rule.label}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         {rule.description}
                       </Typography>
                     </Box>
-                  }
+                  )}
                 />
               ))}
             </FormGroup>
           ) : (
-            <Alert severity="info">No provisioning safeguards are required for the current report.</Alert>
+            <Alert severity="info">No extra confirmations are needed for the current prepare actions.</Alert>
           )}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SetupSummary({ stages }) {
-  const counts = stages.reduce(
-    (summary, stage) => {
-      if (stage.state === "ready") {
-        summary.ready += 1;
-      } else if (stage.state === "blocked") {
-        summary.blocked += 1;
-      } else if (stage.state === "action-required" || stage.state === "missing") {
-        summary.actionRequired += 1;
-      } else {
-        summary.pending += 1;
-      }
-      return summary;
-    },
-    { ready: 0, blocked: 0, actionRequired: 0, pending: 0 }
-  );
-
-  return (
-    <Card variant="outlined">
-      <CardContent>
-        <Stack spacing={1.25}>
-          <Stack spacing={0.35}>
-            <Typography variant="subtitle1">Managed Service Setup</Typography>
-            <Typography variant="body2" color="text.secondary">
-              This product surface owns the CMS remote setup flow. Work through the stages below instead of treating
-              remote targets as independent low-level objects.
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip size="small" color="success" label={`Ready ${counts.ready}`} />
-            <Chip size="small" color="warning" label={`Action required ${counts.actionRequired}`} />
-            <Chip size="small" color="error" label={`Blocked ${counts.blocked}`} />
-            {counts.pending > 0 ? <Chip size="small" variant="outlined" label={`Pending ${counts.pending}`} /> : null}
-          </Stack>
         </Stack>
       </CardContent>
     </Card>
@@ -573,11 +629,14 @@ export function ProductRemoteSetupCards({
 
   return (
     <Stack spacing={2}>
-      <SetupSummary stages={stages} />
-      <Stack
-        spacing={2}
-        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "repeat(2, minmax(0, 1fr))" } }}
-      >
+      <ReadinessBoardSummary
+        connection={selectedConnection}
+        stages={stages}
+        workspace={workspace}
+        compatibilityReport={compatibilityReport}
+        safeguardsConfirmed={safeguardsConfirmed}
+      />
+      <Stack spacing={2} sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "repeat(2, minmax(0, 1fr))" } }}>
         {stages.map((stage) => (
           <StageCard
             key={stage.id}
@@ -590,7 +649,7 @@ export function ProductRemoteSetupCards({
           />
         ))}
       </Stack>
-      <SafeguardsCard workspace={workspace} compatibilityReport={compatibilityReport} />
+      <PrepareMissingPiecesCard workspace={workspace} compatibilityReport={compatibilityReport} />
     </Stack>
   );
 }
