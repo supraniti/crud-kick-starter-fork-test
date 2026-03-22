@@ -2603,3 +2603,20 @@
 - Improve:
   - when a route owns both setup and repair, connection repair must stay on the same desk; sending the user elsewhere destroys the point of the product surface
   - count user-visible publishing pieces, not raw target rows, or the whole readiness story immediately loses trust
+
+### 2026-03-22 - Domains Needed To Start With Reader Truth, Not Delivery Jargon
+- Tasks:
+  - replaced the old `Domain Delivery Desk` shape with a `Public Address Desk`
+  - moved overview/setup/detail into a cleaner split:
+    - `What Readers See`
+    - `Go Live`
+  - removed inline target editing from the main surface and moved creation/editing into a right-side drawer
+  - rewrote the sidebar to list public addresses as testing vs live, not as raw target rows
+- Easy:
+  - the underlying browser-delivery descriptor already knew enough to build a good reader-facing truth surface once the desk stopped leading with provider vocabulary
+- Hard:
+  - the first partial pass improved wording without fixing the real structural issue: the old page was still a target editor wearing product labels
+  - the drawer flow needed explicit draft defaults for browser-delivery targets or new-address creation would fall back to the generic remote-target contract
+- Improve:
+  - for public-facing desks, lead with what a reader can open today and only then explain how to bring it live
+  - if the product standard says create/edit belongs in a drawer, do not leave a raw inline editor behind just because the backend model already exists

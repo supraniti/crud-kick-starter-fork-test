@@ -22,7 +22,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("product domains desk shows access modes and linked service surfaces", async () => {
+test("domains desk shows a public-address summary and drawer-based editing", async () => {
   const connectionItems = [
     createConnectionItem({
       projectId: "demo-project",
@@ -35,30 +35,6 @@ test("product domains desk shows access modes and linked service surfaces", asyn
   ];
   const targetItems = [
     createTargetItem({
-      id: "target-posts-001",
-      title: "Posts Projection",
-      productBindingKey: "posts-projection",
-      targetKind: "firestore-projection",
-      adapterMode: "live-gcp",
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "published-blog-posts",
-        firestoreCollectionPath: "content/posts"
-      }
-    }),
-    createTargetItem({
-      id: "target-categories-001",
-      title: "Categories Projection",
-      productBindingKey: "categories-projection",
-      targetKind: "firestore-projection",
-      adapterMode: "live-gcp",
-      config: {
-        ...createTargetItem().config,
-        projectionScope: "public-blog-categories",
-        firestoreCollectionPath: "content/categories"
-      }
-    }),
-    createTargetItem({
       id: "target-deployment-001",
       title: "HTML Deployment",
       productBindingKey: "deployment-storage",
@@ -66,7 +42,6 @@ test("product domains desk shows access modes and linked service surfaces", asyn
       adapterMode: "live-gcp",
       config: {
         ...createTargetItem().config,
-        firestoreCollectionPath: null,
         bucketName: "content.example.com",
         prefix: "",
         localRootHint: "deployment"
@@ -80,7 +55,6 @@ test("product domains desk shows access modes and linked service surfaces", asyn
       adapterMode: "live-gcp",
       config: {
         ...createTargetItem().config,
-        firestoreCollectionPath: null,
         bucketName: "demo-project-dev-media-1234567890",
         prefix: "library",
         localRootHint: "media"
@@ -94,7 +68,6 @@ test("product domains desk shows access modes and linked service surfaces", asyn
       adapterMode: "live-gcp",
       config: {
         ...createTargetItem().config,
-        firestoreCollectionPath: null,
         bucketName: null,
         accessMode: "custom-domain",
         stackMode: "https-load-balancer",
@@ -122,23 +95,28 @@ test("product domains desk shows access modes and linked service surfaces", asyn
   render(<ProductDomainsView />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Domain Delivery Desk" })).toBeInTheDocument();
-    expect(screen.getByText("Current Delivery View")).toBeInTheDocument();
-    expect(screen.getByText("Owned custom domain")).toBeInTheDocument();
-    expect(screen.getByText("Temporary GCP access")).toBeInTheDocument();
-    expect(screen.getAllByText("Public origin: https://content.example.com").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Example page URL: https://content.example.com/posts/example-post").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Public media base: https://content.example.com/library").length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText("Temporary media base: https://storage.googleapis.com/demo-project-dev-media-1234567890/library").length
-    ).toBeGreaterThan(0);
-    expect(screen.getByText("Remote Data Surfaces")).toBeInTheDocument();
-    expect(screen.getByText("Posts Projection: content/posts (published-blog-posts)")).toBeInTheDocument();
-    expect(screen.getByText("Categories Projection: content/categories (public-blog-categories)")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Public Address Desk" })).toBeInTheDocument();
+    expect(screen.getByText("Public Addresses")).toBeInTheDocument();
+    expect(screen.getByText("What Readers Can Open Today")).toBeInTheDocument();
+    expect(screen.getAllByText("Live domain").length).toBeGreaterThan(0);
+    expect(screen.getByText("Post page")).toBeInTheDocument();
+    expect(screen.getByText("Category page")).toBeInTheDocument();
+    expect(screen.getByText("Media file")).toBeInTheDocument();
+    expect(screen.getByText("Current public root: https://content.example.com")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Edit Address" }));
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Primary Domain" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Address Name")).toBeInTheDocument();
+    expect(screen.getByLabelText("How Readers Reach The Site")).toBeInTheDocument();
+    expect(screen.getByLabelText("Public HTML Target")).toBeInTheDocument();
+    expect(screen.getByLabelText("Media Library Target")).toBeInTheDocument();
   });
 }, 15000);
 
-test("product domains desk renders DNS provider instructions and stack readiness after analysis", async () => {
+test("domains desk guides the operator through go-live readiness", async () => {
   const connectionItems = [
     createConnectionItem({
       projectId: "demo-project",
@@ -159,7 +137,6 @@ test("product domains desk renders DNS provider instructions and stack readiness
       adapterMode: "live-gcp",
       config: {
         ...createTargetItem().config,
-        firestoreCollectionPath: null,
         bucketName: "site-origin-bucket",
         prefix: "",
         localRootHint: "deployment"
@@ -173,7 +150,6 @@ test("product domains desk renders DNS provider instructions and stack readiness
       adapterMode: "live-gcp",
       config: {
         ...createTargetItem().config,
-        firestoreCollectionPath: null,
         bucketName: "site-media-bucket",
         prefix: "library",
         localRootHint: "media"
@@ -187,7 +163,6 @@ test("product domains desk renders DNS provider instructions and stack readiness
       adapterMode: "live-gcp",
       config: {
         ...createTargetItem().config,
-        firestoreCollectionPath: null,
         accessMode: "custom-domain",
         stackMode: "https-load-balancer",
         dnsMode: "gcp-managed",
@@ -224,10 +199,6 @@ test("product domains desk renders DNS provider instructions and stack readiness
           provider: "gcp",
           analyzedOn: "2026-03-15T12:00:00.000Z",
           connectionId: "conn-001",
-          project: {
-            projectId: "demo-project",
-            displayName: "Demo Project"
-          },
           overallState: "action-required",
           counts: {
             blockedBundles: 0,
@@ -257,12 +228,7 @@ test("product domains desk renders DNS provider instructions and stack readiness
               label: "Browser Delivery",
               state: "action-required",
               targetCount: 1,
-              requiredApis: [
-                {
-                  serviceName: "compute.googleapis.com",
-                  state: "enabled"
-                }
-              ],
+              requiredApis: [{ serviceName: "compute.googleapis.com", state: "enabled" }],
               resourceChecks: [],
               permissionDiagnostics: [],
               provisionableActions: [
@@ -292,7 +258,7 @@ test("product domains desk renders DNS provider instructions and stack readiness
                   accessMode: "custom-domain",
                   stackMode: "https-load-balancer",
                   publicOrigin: "https://content.example.com",
-                  publicUrl: "https://content.example.com/posts/example-post",
+                  publicUrl: "https://content.example.com/post/example-post",
                   publicMediaBaseUrl: "https://content.example.com/library",
                   temporaryDeploymentBaseUrl: "https://storage.googleapis.com/site-origin-bucket",
                   temporaryMediaBaseUrl: "https://storage.googleapis.com/site-media-bucket/library",
@@ -310,13 +276,6 @@ test("product domains desk renders DNS provider instructions and stack readiness
                       recordName: "_acme-challenge.content.example.com.",
                       recordValue: "auth.example.gcp.",
                       notes: ["The managed zone should contain this certificate authorization record once provisioning completes."]
-                    },
-                    {
-                      label: "Zone delegation",
-                      recordType: "NS",
-                      recordName: "content.example.com",
-                      recordValue: "ns-cloud-a1.googledomains.com., ns-cloud-a2.googledomains.com.",
-                      notes: ["Delegate the hostname or matching parent zone to these Cloud DNS name servers."]
                     }
                   ],
                   nameServers: ["ns-cloud-a1.googledomains.com.", "ns-cloud-a2.googledomains.com."]
@@ -334,24 +293,21 @@ test("product domains desk renders DNS provider instructions and stack readiness
   render(<ProductDomainsView />);
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Domain Delivery Desk" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Public Address Desk" })).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByRole("tab", { name: "DNS And Setup" }));
-  fireEvent.click(screen.getByRole("button", { name: "Analyze Domain Setup" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Go Live" }));
+  fireEvent.click(screen.getByRole("button", { name: "Analyze This Address" }));
 
   await waitFor(() => {
-    expect(screen.getByText("DNS And Provider Steps")).toBeInTheDocument();
-    expect(screen.getByText("GCP-managed DNS mode keeps the zone and traffic records inside Cloud DNS when provisioning is allowed.")).toBeInTheDocument();
+    expect(screen.getByText("Go Live Checklist")).toBeInTheDocument();
+    expect(screen.getByText("Records To Create")).toBeInTheDocument();
+    expect(screen.getByText("Bring This Live")).toBeInTheDocument();
     expect(screen.getByText("Traffic record")).toBeInTheDocument();
     expect(screen.getByText("A content.example.com -> 203.0.113.10")).toBeInTheDocument();
     expect(screen.getByText("Certificate DNS authorization")).toBeInTheDocument();
     expect(screen.getByText("CNAME _acme-challenge.content.example.com. -> auth.example.gcp.")).toBeInTheDocument();
-    expect(screen.getByText("Managed zone delegation")).toBeInTheDocument();
-    expect(
-      screen.getAllByText("Name servers: ns-cloud-a1.googledomains.com., ns-cloud-a2.googledomains.com.").length
-    ).toBeGreaterThan(0);
-    expect(screen.getByText("HTTPS Stack Readiness")).toBeInTheDocument();
+    expect(screen.getByText("Name servers: ns-cloud-a1.googledomains.com., ns-cloud-a2.googledomains.com.")).toBeInTheDocument();
     expect(screen.getByText("Missing: Primary Domain traffic A record")).toBeInTheDocument();
     expect(screen.getByText("Primary Domain: managed certificate state is 'PROVISIONING'. HTTPS may not be ready yet.")).toBeInTheDocument();
   });

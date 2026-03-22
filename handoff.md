@@ -1578,3 +1578,46 @@
   - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\remotes-desk-final.png`
 - Current state:
   - uncommitted Remotes slice ready for review
+
+## 2026-03-22 Domains Story Implementation Ready For Review
+- Remotes story was committed and pushed:
+  - `5b33c2d` `feat: realign remotes readiness desk`
+- The active story is now `Domains`, implemented in the worktree and intentionally not committed yet.
+- Plan doc:
+  - [domains-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/domains-story-implementation-plan.md)
+- Main product changes:
+  - replaced the old target-first desk with a `Public Address Desk`
+  - left side now reads as `Public Addresses` instead of raw browser-delivery targets
+  - main tabs are now:
+    - `What Readers See`
+    - `Go Live`
+  - the first tab starts from reader-facing truth:
+    - testing mode vs live domain
+    - current public root
+    - example post/category/media links
+  - the second tab now groups go-live work into:
+    - public mode
+    - pages/media/certificate posture
+    - exact DNS records when known
+    - analyze / prepare actions
+  - creation and editing now happen in a right-side drawer instead of inline in the page body
+  - advanced browser/runtime fields remain available, but are hidden by default in the drawer
+- Main files:
+  - [ProductDomainsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainsView.jsx)
+  - [ProductDomainSetupPanels.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDomainSetupPanels.jsx)
+  - [product-domains.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-domains.integration.test.jsx)
+- Browser proof artifact:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\domains-desk-final.png`
+- Counted validation:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-domains.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - live browser review on:
+    - `http://localhost:3000/app/domains`
+- Current review env:
+  - app: `http://localhost:3000/`
+  - domains: `http://localhost:3000/app/domains`
+  - backend health: `http://127.0.0.1:3001/health`
+- Current worktree:
+  - Domains slice only, still uncommitted for review

@@ -1,31 +1,26 @@
 import { Alert, Card, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import {
-  TargetEditor,
-  TargetList
-} from "../../../../modules/test-modules-remote-ops/frontend/RemoteOpsTargetPanels.jsx";
 import { useRemoteOpsWorkspace } from "../../../../modules/test-modules-remote-ops/frontend/useRemoteOpsWorkspace.js";
 import { buildBrowserDeliveryDescriptor } from "../../../../modules/test-modules-remote-ops/shared/browser-delivery-support.mjs";
 import {
-  AccessModePanel,
-  DnsInstructionsPanel,
-  DomainProvisioningCard,
-  DomainSummaryPanel,
-  ServicePathsPanel
+  GoLiveChecklistPanel,
+  PublicAddressEditorDrawer,
+  PublicAddressSidebar,
+  PublicAddressSummaryPanel
 } from "./ProductDomainSetupPanels.jsx";
 import { DeskSplitLayout } from "../../ui/DeskSplitLayout.jsx";
 import { DeskTabsCard } from "../../ui/DeskTabsCard.jsx";
 
 function Hero() {
   return (
-    <Card variant="outlined" sx={{ p: 2, background: "linear-gradient(135deg, #3f6212 0%, #0f766e 100%)", color: "common.white" }}>
+    <Card variant="outlined" sx={{ p: 2, background: "linear-gradient(135deg, #115e59 0%, #1d4ed8 100%)", color: "common.white" }}>
       <Stack spacing={0.5}>
         <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.72)" }}>
           Domains
         </Typography>
-        <Typography variant="h4">Domain Delivery Desk</Typography>
+        <Typography variant="h4">Public Address Desk</Typography>
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
-          Bind public hostnames or temporary GCP access URLs to the product&apos;s HTML deployment and media services.
+          Decide where readers actually reach the site, inspect the public examples, and bring a testing address or a real domain live without dropping into raw infrastructure language.
         </Typography>
       </Stack>
     </Card>
@@ -44,40 +39,52 @@ function getDeliveryReport(bundleReport, targetId) {
     : null;
 }
 
-function summarizeProjectionTargets(targets = [], connectionId = "") {
-  return targets
-    .filter(
-      (target) =>
-        target?.connectionProfileId === connectionId &&
-        target?.targetKind === "firestore-projection" &&
-        target?.targetStatus === "validated"
-    )
-    .map((target) => ({
-      id: target.id,
-      title: target.title,
-      projectionScope: target?.config?.projectionScope ?? "",
-      firestoreCollectionPath: target?.config?.firestoreCollectionPath ?? ""
-    }));
+function ensureBrowserDeliveryDraft(workspace, selectedConnectionId, browserTargets) {
+  if (workspace.targetDraft.targetKind !== "browser-delivery") {
+    workspace.changeTargetField("targetKind", "browser-delivery");
+    return;
+  }
+  if (workspace.targetDraft.productBindingKey !== "browser-delivery") {
+    workspace.changeTargetField("productBindingKey", "browser-delivery");
+    return;
+  }
+  if (workspace.targetDraft.adapterMode !== "live-gcp") {
+    workspace.changeTargetField("adapterMode", "live-gcp");
+    return;
+  }
+  if (!workspace.targetDraft.connectionProfileId) {
+    const fallbackConnectionId = selectedConnectionId ?? browserTargets[0]?.connectionProfileId ?? workspace.connections[0]?.id ?? "";
+    if (fallbackConnectionId) {
+      workspace.changeTargetField("connectionProfileId", fallbackConnectionId);
+      return;
+    }
+  }
 }
 
 export function ProductDomainsView({ navigate = null, route = {} }) {
-  const [section, setSection] = useState("overview");
+  const initialSection = route?.tab === "go-live" ? "go-live" : "public";
+  const [section, setSection] = useState(initialSection);
+  const [editorOpen, setEditorOpen] = useState(false);
   const workspace = useRemoteOpsWorkspace();
-  const browserTargets = workspace.targets.filter((item) => item.targetKind === "browser-delivery");
+  const browserTargets = useMemo(
+    () => workspace.targets.filter((item) => item.targetKind === "browser-delivery"),
+    [workspace.targets]
+  );
   const selectedBrowserTarget =
     browserTargets.find((target) => target.id === workspace.selectedTargetId) ??
     browserTargets.find((target) => target.productBindingKey === "browser-delivery") ??
     browserTargets[0] ??
     null;
   const selectedConnection =
-    workspace.connections.find((connection) => connection.id === selectedBrowserTarget?.connectionProfileId) ?? null;
+    workspace.connections.find((connection) => connection.id === selectedBrowserTarget?.connectionProfileId) ??
+    workspace.selectedConnection ??
+    null;
   const compatibilityReport =
     selectedConnection && selectedConnection.id === workspace.selectedConnectionId
       ? workspace.compatibilityReport
       : null;
   const bundleReport = getBundleReport(compatibilityReport);
   const deliveryReport = getDeliveryReport(bundleReport, selectedBrowserTarget?.id ?? null);
-
   const deploymentTarget =
     workspace.targets.find((target) => target.id === selectedBrowserTarget?.config?.deploymentTargetProfileId) ?? null;
   const mediaTarget =
@@ -86,12 +93,16 @@ export function ProductDomainsView({ navigate = null, route = {} }) {
     browserTarget: selectedBrowserTarget,
     deploymentTarget,
     mediaTarget,
-    pagePath: "/posts/example-post",
-    artifactRelativePath: "posts/example-post/index.html"
+    pagePath: "/post/example-post",
+    artifactRelativePath: "post/example-post/index.html"
   });
-  const projectionTargets = useMemo(
-    () => summarizeProjectionTargets(workspace.targets, selectedConnection?.id ?? ""),
-    [selectedConnection?.id, workspace.targets]
+  const deploymentTargets = useMemo(
+    () => workspace.targets.filter((target) => target.targetKind === "deployment-storage"),
+    [workspace.targets]
+  );
+  const mediaTargets = useMemo(
+    () => workspace.targets.filter((target) => target.targetKind === "media-storage"),
+    [workspace.targets]
   );
 
   useEffect(() => {
@@ -108,21 +119,23 @@ export function ProductDomainsView({ navigate = null, route = {} }) {
   }, [selectedBrowserTarget?.connectionProfileId, workspace]);
 
   useEffect(() => {
-    if (!workspace.isCreatingTarget) {
-      if (workspace.selectedTargetId && browserTargets.some((target) => target.id === workspace.selectedTargetId)) {
-        return;
-      }
-      if (selectedBrowserTarget) {
-        workspace.selectTarget(selectedBrowserTarget.id);
-      } else {
-        workspace.startNewTarget();
-      }
+    if (workspace.isCreatingTarget) {
+      ensureBrowserDeliveryDraft(workspace, selectedBrowserTarget?.connectionProfileId ?? workspace.selectedConnectionId, browserTargets);
       return;
     }
-    if (workspace.targetDraft.targetKind !== "browser-delivery") {
-      workspace.changeTargetField("targetKind", "browser-delivery");
+    if (workspace.selectedTargetId && browserTargets.some((target) => target.id === workspace.selectedTargetId)) {
+      return;
+    }
+    if (selectedBrowserTarget) {
+      workspace.selectTarget(selectedBrowserTarget.id);
     }
   }, [browserTargets, selectedBrowserTarget, workspace]);
+
+  useEffect(() => {
+    if (workspace.targetActionState.successMessage && editorOpen) {
+      setEditorOpen(false);
+    }
+  }, [editorOpen, workspace.targetActionState.successMessage]);
 
   function openRoute(moduleId) {
     if (typeof navigate === "function") {
@@ -130,82 +143,84 @@ export function ProductDomainsView({ navigate = null, route = {} }) {
     }
   }
 
-  const domainsWorkspace = {
-    ...workspace,
-    targets: browserTargets,
-    startNewTarget() {
-      workspace.startNewTarget();
-    },
-    changeTargetField(fieldId, value) {
-      workspace.changeTargetField(fieldId, fieldId === "targetKind" ? "browser-delivery" : value);
+  function handleCreateAddress() {
+    workspace.startNewTarget();
+    setEditorOpen(true);
+  }
+
+  function handleSelectTarget(targetId) {
+    workspace.selectTarget(targetId);
+    setEditorOpen(false);
+  }
+
+  function handleEditAddress() {
+    if (!selectedBrowserTarget) {
+      return;
     }
-  };
+    workspace.selectTarget(selectedBrowserTarget.id);
+    setEditorOpen(true);
+  }
 
   return (
     <Stack spacing={2}>
       <Hero />
       <Alert severity="info">
-        This product desk owns domain setup. Use it to decide whether the release uses an owned hostname or temporary
-        GCP URLs, inspect the linked HTML/media services, and drive DNS or HTTPS delivery-stack work without dropping
-        to the raw target mental model first.
+        This desk answers one question first: where can readers open the site today? It keeps testing addresses and real public domains in one place, then tells the operator what still needs to happen before a hostname is truly live.
       </Alert>
       {workspace.errorMessage ? <Alert severity="error">{workspace.errorMessage}</Alert> : null}
       <DeskSplitLayout
-        sidebar={<TargetList workspace={domainsWorkspace} />}
-        sidebarWidth={320}
+        sidebar={
+          <PublicAddressSidebar
+            targets={browserTargets}
+            selectedTargetId={selectedBrowserTarget?.id ?? ""}
+            descriptor={descriptor}
+            bundleReport={bundleReport}
+            onSelectTarget={handleSelectTarget}
+            onCreateAddress={handleCreateAddress}
+          />
+        }
+        sidebarWidth={340}
         main={
-          <>
+          <Stack spacing={2}>
             <DeskTabsCard
               value={section}
               onChange={setSection}
               tabs={[
-                { value: "overview", label: "Delivery Overview" },
-                { value: "setup", label: "DNS And Setup" },
-                { value: "details", label: "Domain Details" }
+                { value: "public", label: "What Readers See" },
+                { value: "go-live", label: "Go Live" }
               ]}
             />
-            {section === "overview" ? (
-              <Stack spacing={2}>
-                <DomainSummaryPanel
-                  selectedTarget={selectedBrowserTarget}
-                  selectedConnection={selectedConnection}
-                  descriptor={descriptor}
-                  bundleReport={bundleReport}
-                  deliveryReport={deliveryReport}
-                />
-                {selectedBrowserTarget ? (
-                  <>
-                    <AccessModePanel descriptor={descriptor} selectedTarget={selectedBrowserTarget} />
-                    <ServicePathsPanel
-                      descriptor={descriptor}
-                      deploymentTarget={deploymentTarget}
-                      mediaTarget={mediaTarget}
-                      projectionTargets={projectionTargets}
-                    />
-                  </>
-                ) : null}
-              </Stack>
+            {section === "public" ? (
+              <PublicAddressSummaryPanel
+                selectedTarget={selectedBrowserTarget}
+                descriptor={descriptor}
+                deploymentTarget={deploymentTarget}
+                bundleReport={bundleReport}
+                onEditAddress={handleEditAddress}
+              />
             ) : null}
-            {section === "setup" && selectedBrowserTarget ? (
-              <Stack spacing={2}>
-                <DnsInstructionsPanel
-                  selectedTarget={selectedBrowserTarget}
-                  descriptor={descriptor}
-                  deliveryReport={deliveryReport}
-                  bundleReport={bundleReport}
-                />
-                <DomainProvisioningCard
-                  workspace={workspace}
-                  bundleReport={bundleReport}
-                  selectedTarget={selectedBrowserTarget}
-                  onOpenRemotes={() => openRoute("remotes")}
-                  onOpenDeployments={() => openRoute("deployments")}
-                />
-              </Stack>
+            {section === "go-live" ? (
+              <GoLiveChecklistPanel
+                workspace={workspace}
+                selectedTarget={selectedBrowserTarget}
+                descriptor={descriptor}
+                bundleReport={bundleReport}
+                deliveryReport={deliveryReport}
+                onOpenRemotes={() => openRoute("remotes")}
+                onOpenDeployments={() => openRoute("deployments")}
+                onEditAddress={handleEditAddress}
+              />
             ) : null}
-            {section === "details" ? <TargetEditor workspace={domainsWorkspace} /> : null}
-          </>
+          </Stack>
         }
+      />
+      <PublicAddressEditorDrawer
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        workspace={workspace}
+        connections={workspace.connections}
+        deploymentTargets={deploymentTargets}
+        mediaTargets={mediaTargets}
       />
     </Stack>
   );
