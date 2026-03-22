@@ -8,7 +8,7 @@ function normalizeSection(value, allowed, fallback) {
 }
 
 function normalizePositiveInteger(value, fallback = 1) {
-  const candidate = Number.parseInt(toTrimmedString(value), 10);
+  const candidate = Number.parseInt(`${value ?? ""}`.trim(), 10);
   return Number.isFinite(candidate) && candidate > 0 ? candidate : fallback;
 }
 

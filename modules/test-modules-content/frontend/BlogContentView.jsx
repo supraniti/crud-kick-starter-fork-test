@@ -913,6 +913,7 @@ export function BlogContentView({
 
         {["story", "organize", "media", "seo"].includes(routeState.editorSection) ? (
           <BlogContentEditorPanel
+            key={`post-editor:${drawerOpen ? "open" : "closed"}:${routeState.postMode || "edit"}:${routeState.postId || "new"}`}
             workspace={editorWorkspace}
             activeSection={routeState.editorSection}
             onChangeSection={handleChangeDrawerSection}

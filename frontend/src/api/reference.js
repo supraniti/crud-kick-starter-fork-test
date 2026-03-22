@@ -259,6 +259,15 @@ export async function listReferenceMissionJobs() {
   return requestJson("/api/reference/missions/jobs");
 }
 
+export async function importReferencePublicCommentsToLocal(options = {}) {
+  const moduleId = options.moduleId ?? "test-modules-pages";
+  return requestJson(`/api/reference/modules/${moduleId}/public/comments/import-local`, {
+    method: "POST",
+    body: {},
+    acceptStatuses: [400, 404, 409, 500]
+  });
+}
+
 export async function readReferenceMissionJob(options = {}) {
   const jobId = options.jobId;
   return requestJson(`/api/reference/missions/jobs/${jobId}`, {

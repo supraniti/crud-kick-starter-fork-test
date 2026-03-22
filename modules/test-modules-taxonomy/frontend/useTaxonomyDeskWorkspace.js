@@ -42,6 +42,14 @@ function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeSlug(value) {
+  return normalizeString(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
 function createSnackbarState() {
   return {
     open: false,
@@ -385,6 +393,37 @@ export function useTaxonomyDeskWorkspace({
   ]);
 
   useEffect(() => {
+    if (
+      activeBranch !== CATEGORY_BRANCH ||
+      routeState.categoryMode === "create" ||
+      !routeState.categoryId ||
+      collectionsDomain.collectionItemsState.loading
+    ) {
+      return;
+    }
+    if (categories.some((category) => category.id === routeState.categoryId)) {
+      return;
+    }
+    collectionsDomain.handleResetCollectionForm();
+    setHasAttemptedSubmit(false);
+    updateRouteState(
+      {
+        categoryId: "",
+        categoryMode: ""
+      },
+      true
+    );
+  }, [
+    activeBranch,
+    categories,
+    collectionsDomain,
+    collectionsDomain.collectionItemsState.loading,
+    routeState.categoryId,
+    routeState.categoryMode,
+    updateRouteState
+  ]);
+
+  useEffect(() => {
     const routeTagId = routeState.tagId;
     const routeIsCreate = routeState.tagMode === "create";
     if (activeBranch !== TAG_BRANCH || routeIsCreate || !routeTagId) {
@@ -520,6 +559,7 @@ export function useTaxonomyDeskWorkspace({
 
   const handleCloseCategoryDrawer = useCallback(() => {
     collectionsDomain.handleResetCollectionForm();
+    featuredMediaGallery.closeGallery();
     setHasAttemptedSubmit(false);
     updateRouteState(
       {
@@ -528,7 +568,7 @@ export function useTaxonomyDeskWorkspace({
       },
       true
     );
-  }, [collectionsDomain, updateRouteState]);
+  }, [collectionsDomain, featuredMediaGallery, updateRouteState]);
 
   const handleOpenCreateTag = useCallback(() => {
     collectionsDomain.handleResetCollectionForm();
@@ -783,6 +823,7 @@ export function useTaxonomyDeskWorkspace({
     }
 
     const failures = [];
+    const requestedSlugs = batch.candidates.map((name) => normalizeSlug(name));
     for (const name of batch.candidates) {
       const payload = await createReferenceCollectionItem({
         collectionId: TAGS_COLLECTION_ID,
@@ -796,16 +837,39 @@ export function useTaxonomyDeskWorkspace({
       }
     }
 
+    const verifyPayload = await fetchReferenceCollectionItems({
+      collectionId: TAGS_COLLECTION_ID,
+      offset: 0,
+      limit: 500,
+      search: ""
+    });
     await reloadAll();
 
-    if (failures.length > 0) {
-      showSnackbar(failures[0], "error");
+    const verifiedItems = Array.isArray(verifyPayload?.items) ? verifyPayload.items : [];
+    const verifiedSlugs = new Set(
+      verifiedItems.map((tag) => normalizeSlug(tag.slug ?? tag.name))
+    );
+    const verifiedCreatedCount = requestedSlugs.filter((slug) => verifiedSlugs.has(slug)).length;
+    const failedCount = failures.length + Math.max(0, batch.candidates.length - verifiedCreatedCount);
+
+    if (verifiedCreatedCount === 0) {
+      showSnackbar(
+        failures[0] ??
+          "Batch creation did not create any new tags. Review the names and try again.",
+        "error"
+      );
       return;
     }
 
     setTagBatchInput("");
-    const skipped = batch.duplicateNames.length > 0 ? `, skipped ${batch.duplicateNames.length}` : "";
-    showSnackbar(`Created ${batch.candidates.length} tags${skipped}`, "success");
+    const parts = [`Created ${verifiedCreatedCount} tag${verifiedCreatedCount === 1 ? "" : "s"}`];
+    if (batch.duplicateNames.length > 0) {
+      parts.push(`skipped ${batch.duplicateNames.length}`);
+    }
+    if (failedCount > 0) {
+      parts.push(`failed ${failedCount}`);
+    }
+    showSnackbar(parts.join(", "), failedCount > 0 ? "warning" : "success");
   }, [reloadAll, showSnackbar, tagBatchInput, tags]);
 
   const categoryPathPreview = useMemo(

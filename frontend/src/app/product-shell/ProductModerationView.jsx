@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBlogEngagementWorkspace } from "../../../../modules/test-modules-engagement/frontend/useBlogEngagementWorkspace.js";
+import { importReferencePublicCommentsToLocal } from "../../api/reference.js";
 import { useCommentModerationAwareness } from "./useCommentModerationAwareness.js";
 import {
   buildCommentDeskRows,
@@ -34,6 +35,16 @@ import {
 
 function resolveOptionLabel(options, id, fallback = "Unknown") {
   return options.find((option) => option.id === id)?.label ?? fallback;
+}
+
+function createPublicIntakeState() {
+  return {
+    loading: false,
+    errorMessage: null,
+    successMessage: null,
+    result: null,
+    completedAt: null
+  };
 }
 
 function QueueHealthPanel({ summary }) {
@@ -59,6 +70,70 @@ function QueueHealthPanel({ summary }) {
             ? "Pending comments are waiting for a decision. Clear the obvious cases quickly and inspect the borderline ones in context."
             : "The visible queue is clear right now."}
         </Alert>
+      </Stack>
+    </Paper>
+  );
+}
+
+function PublicIntakePanel({ intakeState, onRefresh }) {
+  const result = intakeState.result;
+  const hasResult = result && typeof result === "object";
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack spacing={1.5}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          justifyContent="space-between"
+          alignItems={{ sm: "center" }}
+        >
+          <Stack spacing={0.35}>
+            <Typography variant="subtitle1">Public Intake</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Pull comments submitted from deployed pages into the local moderation queue.
+            </Typography>
+          </Stack>
+          <Button variant="outlined" onClick={onRefresh} disabled={intakeState.loading}>
+            {intakeState.loading ? "Refreshing..." : "Refresh Public Intake"}
+          </Button>
+        </Stack>
+        {intakeState.errorMessage ? <Alert severity="error">{intakeState.errorMessage}</Alert> : null}
+        {intakeState.successMessage ? <Alert severity="success">{intakeState.successMessage}</Alert> : null}
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Chip
+            size="small"
+            label={`Imported ${hasResult ? result.importedCount ?? 0 : 0}`}
+            color={hasResult && (result.importedCount ?? 0) > 0 ? "success" : "default"}
+          />
+          <Chip size="small" label={`Skipped ${hasResult ? result.skippedCount ?? 0 : 0}`} variant="outlined" />
+          <Chip
+            size="small"
+            label={`Failed ${hasResult ? result.failedCount ?? 0 : 0}`}
+            color={hasResult && (result.failedCount ?? 0) > 0 ? "warning" : "default"}
+            variant={hasResult && (result.failedCount ?? 0) > 0 ? "filled" : "outlined"}
+          />
+          {hasResult ? <Chip size="small" label={`Remote ${result.remoteCount ?? 0}`} variant="outlined" /> : null}
+        </Stack>
+        {hasResult ? (
+          <Stack spacing={0.5}>
+            <Typography variant="body2" color="text.secondary">
+              Source: {result.projectId}/{result.collectionPath}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Last refresh: {intakeState.completedAt ?? "Just now"}
+            </Typography>
+            {Array.isArray(result.failures) && result.failures.length > 0 ? (
+              <Typography variant="caption" color="text.secondary">
+                First issue: {result.failures[0]?.message}
+              </Typography>
+            ) : null}
+          </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No public intake refresh has completed yet on this screen.
+          </Typography>
+        )}
       </Stack>
     </Paper>
   );
@@ -522,7 +597,7 @@ function HistoryTab({ comment, selectedPost, moderatorLabel, awareness }) {
         <Stack spacing={1.5}>
           <Typography variant="subtitle1">Remote Intake</Typography>
           <Typography variant="body2" color="text.secondary">
-            Delivered pages use the injected runtime to fetch thread data and submit comments back into this queue.
+            Deployed pages submit public comments first. This desk refreshes that public intake into the local moderation queue you are reviewing here.
           </Typography>
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Chip size="small" label={awareness.remoteContract.dataset} variant="outlined" />
@@ -623,6 +698,8 @@ function CommentWorkbenchDrawer({
 
 export function ProductModerationView({ navigate = null, route = {}, collectionsDomain }) {
   const routeState = useMemo(() => resolveModerationRouteState(route), [route]);
+  const [publicIntakeState, setPublicIntakeState] = useState(createPublicIntakeState);
+  const reloadCommentItems = collectionsDomain.reloadCollectionItems;
 
   const updateRouteState = useCallback(
     (patch = {}, replace = true) => {
@@ -657,6 +734,69 @@ export function ProductModerationView({ navigate = null, route = {}, collections
     selectedComment: workspace.selectedComment
   });
   const [selectedCommentIds, setSelectedCommentIds] = useState([]);
+
+  const runPublicIntakeSync = useCallback(
+    async ({ announceEmpty = true } = {}) => {
+      setPublicIntakeState((previous) => ({
+        ...previous,
+        loading: true,
+        errorMessage: null,
+        successMessage: null
+      }));
+
+      try {
+        const payload = await importReferencePublicCommentsToLocal();
+        if (payload?.ok !== true) {
+          setPublicIntakeState({
+            loading: false,
+            errorMessage: payload?.error?.message ?? "Failed to refresh public comments.",
+            successMessage: null,
+            result: null,
+            completedAt: null
+          });
+          return;
+        }
+
+        await reloadCommentItems();
+        const importedCount = payload.importedCount ?? 0;
+        const skippedCount = payload.skippedCount ?? 0;
+        const failedCount = payload.failedCount ?? 0;
+        const successMessage =
+          importedCount > 0
+            ? `Imported ${importedCount} public comment${importedCount === 1 ? "" : "s"} into the moderation queue.`
+            : announceEmpty
+              ? `Public intake is up to date. ${skippedCount} existing comment${skippedCount === 1 ? "" : "s"} matched the current queue.`
+              : null;
+
+        setPublicIntakeState({
+          loading: false,
+          errorMessage: null,
+          successMessage:
+            failedCount > 0 && !successMessage
+              ? `Public intake completed with ${failedCount} issue${failedCount === 1 ? "" : "s"}.`
+              : successMessage,
+          result: payload,
+          completedAt: new Date().toISOString()
+        });
+      } catch (error) {
+        setPublicIntakeState({
+          loading: false,
+          errorMessage: error?.message ?? "Failed to refresh public comments.",
+          successMessage: null,
+          result: null,
+          completedAt: null
+        });
+      }
+    },
+    [reloadCommentItems]
+  );
+
+  useEffect(() => {
+    runPublicIntakeSync({
+      announceEmpty: false
+    });
+  }, [runPublicIntakeSync]);
+
   const postOptions = useMemo(() => {
     const fromReferenceOptions = Array.isArray(workspace.postOptions) ? workspace.postOptions : [];
     const merged = new Map(fromReferenceOptions.map((option) => [option.id, option]));
@@ -809,7 +949,7 @@ export function ProductModerationView({ navigate = null, route = {}, collections
           gap: 2,
           gridTemplateColumns: {
             xs: "1fr",
-            xl: "minmax(0, 1.3fr) minmax(320px, 0.9fr)"
+            xl: "repeat(3, minmax(0, 1fr))"
           }
         }}
       >
@@ -817,6 +957,14 @@ export function ProductModerationView({ navigate = null, route = {}, collections
         <DiscussionHotspotsPanel
           hotspots={hotspots}
           onFilterPost={(postId) => handleFilterChange("commentPostId", postId)}
+        />
+        <PublicIntakePanel
+          intakeState={publicIntakeState}
+          onRefresh={() =>
+            runPublicIntakeSync({
+              announceEmpty: true
+            })
+          }
         />
       </Box>
 

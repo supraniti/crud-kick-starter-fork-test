@@ -2620,3 +2620,59 @@
 - Improve:
   - for public-facing desks, lead with what a reader can open today and only then explain how to bring it live
   - if the product standard says create/edit belongs in a drawer, do not leave a raw inline editor behind just because the backend model already exists
+
+### 2026-03-22 - UI-Only Journey Surfaced Real Product Gaps, Not Just Data Entry Steps
+- Tasks:
+  - executed a full first-run content journey through the browser UI only:
+    - media upload
+    - author creation
+    - nested categories
+    - tags
+    - post normalization/publishing
+    - layout creation
+    - page creation
+    - release bundle creation
+    - remote release
+    - remote verification
+    - remote comment submission
+  - documented the full journey in:
+    - `docs/research/ui-first-journey-nuli-2026-03-22.md`
+- Easy:
+  - the improved desks made the main route order usable enough that the full journey could actually be completed without falling back to scripts for the authoring and release work
+  - remote publishing and the temporary application tester both worked well enough to prove real remote reads and writes from the deployed page
+- Hard:
+  - seeded state meant the journey was never truly “empty system” and had to be documented honestly as normalization plus creation, not pure creation from zero
+  - post pagination still lies through the URL, which forced search-driven workarounds and weakened trust in the backlog
+  - the remote published page is still mostly blank visually, so proof required direct browser inspection of `#page-data`, meta tags, and media references
+  - the remote comment flow succeeded, but the local moderation desk did not show those comments because the public deployed flow writes to `publicComments` while the desk reads `blog-comments`
+- Improve:
+  - full-journey operator tests are exposing the real product truth faster than isolated module polish
+  - if the deployed page publishes correctly but does not render visibly for a reader, the system is still short of the real product bar
+  - public comment intake and local moderation must converge on one source of truth or the workflow will continue to feel broken even when both halves work independently
+
+### 2026-03-22 - Journey Follow-Up Closed The First Real Product Seams
+- Tasks:
+  - wrote the first-run operator guide in:
+    - `docs/guides/ui-first-nuli-journey-how-to.md`
+  - wrote the hard execution plan for the journey issues in:
+    - `docs/research/ui-first-journey-fix-plan-2026-03-22.md`
+  - wrote the deployed-page application-layer plan in:
+    - `docs/research/deployed-page-application-script-plan-2026-03-22.md`
+  - implemented the comment-product convergence path:
+    - remote `publicComments` can now be imported into local `blog-comments`
+    - the `Comments` desk exposes that intake visibly
+  - fixed the user-facing hardshifts found during the journey:
+    - posts pagination lying through the URL
+    - post drawer stale state on reopen
+    - taxonomy batch create silently no-oping
+    - taxonomy category drawer instability from stale route state
+- Easy:
+  - the right seam to fix was not Firestore itself but the product boundary between remote public intake and the local moderation queue
+  - once the moderation desk owned the intake visibly, the mismatch stopped feeling mysterious
+- Hard:
+  - stale listeners on `3000` and `3001` initially masked the new code with old behavior
+  - the review env had to be verified against actual port ownership before trusting browser results
+  - direct frontend Vitest remains unreliable on this Windows setup, so browser proof and server conformance were the honest primary evidence
+- Improve:
+  - for future full-journey passes, always treat remote-to-local convergence as a first-class acceptance point
+  - never trust `review:env:start` alone when the observed browser behavior contradicts the expected code path; verify the ports and refresh from live state

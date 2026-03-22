@@ -13,7 +13,38 @@ vi.mock("../../api/reference.js", async () => {
   };
 });
 
-function createCollectionsDomain() {
+function createPostItem(index) {
+  return {
+    id: `post-${String(index).padStart(3, "0")}`,
+    title: `Launch Post ${index}`,
+    subtitle: `Launch subtitle ${index}`,
+    excerpt: `Launch excerpt ${index}`,
+    body: "<p>Body content</p>".repeat(30),
+    status: index % 2 === 0 ? "published" : "draft",
+    format: "article",
+    primaryAuthorId: "author-001",
+    coAuthorIds: [],
+    categoryIds: ["cat-001"],
+    tagIds: ["tag-001"],
+    featuredMediaId: "media-001",
+    galleryMediaIds: [],
+    allowComments: true,
+    commentPolicy: "open",
+    seoTitle: `Launch SEO ${index}`,
+    seoDescription: `Launch description ${index}`,
+    ogTitle: `Launch OG ${index}`,
+    ogDescription: `Launch OG description ${index}`,
+    ogImageMediaId: "media-001",
+    createdByAuthorId: "author-001",
+    updatedByAuthorId: "author-001",
+    createdOn: `2026-03-${String(index).padStart(2, "0")}T10:00:00.000Z`,
+    updatedOn: `2026-03-${String(index).padStart(2, "0")}T10:05:00.000Z`,
+    wordCount: 400,
+    readTimeMinutes: 2
+  };
+}
+
+function createCollectionsDomain(items = [createPostItem(1)]) {
   return {
     collectionsState: {
       loading: false,
@@ -43,38 +74,9 @@ function createCollectionsDomain() {
     collectionItemsState: {
       loading: false,
       errorMessage: null,
-      items: [
-        {
-          id: "post-001",
-          title: "Launch Post",
-          subtitle: "Launch subtitle",
-          excerpt: "Launch excerpt",
-          body: "<p>Body content</p>".repeat(30),
-          status: "published",
-          format: "article",
-          primaryAuthorId: "author-001",
-          coAuthorIds: [],
-          categoryIds: ["cat-001"],
-          tagIds: ["tag-001"],
-          featuredMediaId: "media-001",
-          galleryMediaIds: [],
-          allowComments: true,
-          commentPolicy: "open",
-          seoTitle: "Launch SEO",
-          seoDescription: "Launch description",
-          ogTitle: "Launch OG",
-          ogDescription: "Launch OG description",
-          ogImageMediaId: "media-001",
-          createdByAuthorId: "author-001",
-          updatedByAuthorId: "author-001",
-          createdOn: "2026-03-08T10:00:00.000Z",
-          updatedOn: "2026-03-08T10:05:00.000Z",
-          wordCount: 400,
-          readTimeMinutes: 2
-        }
-      ],
+      items,
       meta: {
-        total: 1,
+        total: items.length,
         offset: 0,
         limit: 200
       }
@@ -183,13 +185,13 @@ test("posts view keeps the editorial backlog on the page and opens one story in 
 
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "Editorial Backlog" })).toBeInTheDocument();
-    expect(screen.getByText("Launch Post")).toBeInTheDocument();
+    expect(screen.getByText("Launch Post 1")).toBeInTheDocument();
   });
 
-  fireEvent.click(screen.getByText("Launch Post"));
+  fireEvent.click(screen.getByText("Launch Post 1"));
 
   await waitFor(() => {
-    expect(screen.getByRole("heading", { name: "Launch Post" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Launch Post 1" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Write The Post" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Publish" })).toBeInTheDocument();
   });
@@ -239,6 +241,28 @@ test("posts view restores filter and publish state from the URL", async () => {
   expect(screen.getByText("The page template exists, but the public HTML needs a fresh release before this story is live.")).toBeInTheDocument();
 }, 15000);
 
+test("posts view keeps route-backed pagination aligned with the visible backlog", async () => {
+  installContentFetchMocks();
+
+  render(
+    <BlogContentView
+      activeModuleLabel="Content"
+      collectionsDomain={createCollectionsDomain(Array.from({ length: 20 }, (_entry, index) => createPostItem(index + 1)))}
+      route={{
+        postPage: "2"
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Editorial Backlog" })).toBeInTheDocument();
+    expect(screen.getByText("Launch Post 12")).toBeInTheDocument();
+  });
+
+  expect(screen.queryByText("Launch Post 20")).not.toBeInTheDocument();
+  expect(screen.queryByText("Launch Post 1")).not.toBeInTheDocument();
+}, 15000);
+
 test("posts media tab uses the gallery picker flow", async () => {
   installContentFetchMocks();
 
@@ -270,7 +294,7 @@ test("posts drawer saves updates and restores revisions", async () => {
       {
         id: "rev-001",
         revisionNumber: 1,
-        titleSnapshot: "Launch Post",
+        titleSnapshot: "Launch Post 1",
         bodySnapshot: "<p>Original body</p>",
         taxonomySnapshot: {
           categoryIds: ["cat-001"],
@@ -288,8 +312,8 @@ test("posts drawer saves updates and restores revisions", async () => {
     item: {
       id: "post-001",
       title: "Launch Post Updated",
-      subtitle: "Launch subtitle",
-      excerpt: "Launch excerpt",
+      subtitle: "Launch subtitle 1",
+      excerpt: "Launch excerpt 1",
       body: "<p>Updated body</p>",
       status: "published",
       format: "article",
@@ -301,10 +325,10 @@ test("posts drawer saves updates and restores revisions", async () => {
       galleryMediaIds: [],
       allowComments: true,
       commentPolicy: "open",
-      seoTitle: "Launch SEO",
-      seoDescription: "Launch description",
-      ogTitle: "Launch OG",
-      ogDescription: "Launch OG description",
+      seoTitle: "Launch SEO 1",
+      seoDescription: "Launch description 1",
+      ogTitle: "Launch OG 1",
+      ogDescription: "Launch OG description 1",
       ogImageMediaId: "media-001",
       createdByAuthorId: "author-001",
       updatedByAuthorId: "author-001"
@@ -316,8 +340,8 @@ test("posts drawer saves updates and restores revisions", async () => {
       ok: true,
       item: {
         id: "post-001",
-        title: "Launch Post",
-        excerpt: "Launch excerpt",
+        title: "Launch Post 1",
+        excerpt: "Launch excerpt 1",
         body: "<p>Original body</p>",
         status: "published",
         format: "article",

@@ -1621,3 +1621,65 @@
   - backend health: `http://127.0.0.1:3001/health`
 - Current worktree:
   - Domains slice only, still uncommitted for review
+
+## 2026-03-22 UI-Only Nuli Journey Execution
+- Mission executed through the browser UI only:
+  - uploaded 10 media items from `C:\Users\cmsin\OneDrive\שולחן העבודה\Nuli2024`
+  - created 5 Nuli authors
+  - created a 10-category Nuli branch with 3 levels
+  - created 10 Nuli tags
+  - brought the post backlog to `20` published posts with the required author/category/tag/media relationships
+  - created layout `Nuli Editorial Grid`:
+    - `pagelayo-002`
+    - 3 columns
+    - 2 rows
+    - 5 blocks
+  - created and published:
+    - `blogpage-015` `Nuli Post Page`
+    - `blogpage-016` `Nuli Category Page`
+  - created and released:
+    - `Nuli Posts Release Bundle`
+    - `Nuli Categories Release Bundle`
+- Remote verification completed on 10 live post URLs:
+  - SEO title and description present
+  - post content JSON present in `#page-data`
+  - page contract points to:
+    - page `blogpage-015`
+    - layout `pagelayo-002`
+  - attached media references present in deployed payload
+- Remote comments:
+  - submitted successfully from the deployed tester page:
+    - `n9L6Bf50IYYUumEijU8f`
+    - `7cDOEk6UautaZ42HrRG3`
+- Important product gap discovered:
+  - remote public comments do not appear in the local `Comments` desk
+  - code inspection was required to confirm why:
+    - public deployed comment path writes to Firestore `publicComments`
+    - local moderation desk reads `blog-comments`
+- Documentary saved at:
+  - [ui-first-journey-nuli-2026-03-22.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/ui-first-journey-nuli-2026-03-22.md)
+
+## 2026-03-22 UI-First Journey Follow-Up
+- Follow-up deliverables saved:
+  - detailed operator guide:
+    - [ui-first-nuli-journey-how-to.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/guides/ui-first-nuli-journey-how-to.md)
+  - execution plan for the journey gaps:
+    - [ui-first-journey-fix-plan-2026-03-22.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/ui-first-journey-fix-plan-2026-03-22.md)
+  - deployed-page application-layer plan:
+    - [deployed-page-application-script-plan-2026-03-22.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/deployed-page-application-script-plan-2026-03-22.md)
+- Implemented journey fixes:
+  - remote public comments are now importable into the local moderation queue through:
+    - `POST /api/reference/modules/test-modules-pages/public/comments/import-local`
+  - local `Comments` desk now has a `Public Intake` panel that:
+    - imports remote public comments on load
+    - allows manual refresh
+    - reports imported/skipped/failed counts
+  - posts pagination now honors numeric route state correctly
+  - posts drawer state resets cleanly on close/reopen
+  - taxonomy tag batch creation now verifies the created set instead of silently no-oping
+  - taxonomy category drawer flow now clears stale route state more safely
+- Live verification completed:
+  - `review:env:verify` passed
+  - local `Comments` desk shows imported remote comments from `publicComments`
+  - `Posts` pagination at `/app/posts?postPage=2` now renders the second page correctly
+  - taxonomy `New Category` drawer open/close no longer white-screened during live verification

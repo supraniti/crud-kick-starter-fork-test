@@ -74,6 +74,10 @@ function buildPublicCommentsRoute() {
   return `/api/reference/modules/${MODULE_ID}/public/comments`;
 }
 
+function buildPublicCommentsImportRoute() {
+  return `/api/reference/modules/${MODULE_ID}/public/comments/import-local`;
+}
+
 async function createDeploymentSandbox(moduleSettings = null) {
   const deploymentRootDir = await fs.mkdtemp(path.join(os.tmpdir(), "pages-deployment-"));
   const previousRootDir = process.env.REFERENCE_PAGE_DEPLOYMENT_ROOT_DIR;
@@ -3220,6 +3224,166 @@ test("public comments route creates pending comments with CORS headers", async (
     );
   } finally {
     await server.close();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("public comments import route ingests remote public comments into the local moderation queue", async () => {
+  const credentialFixture = await createServiceAccountCredentialFixture();
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const author = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, author.id, category.id, tag.id, {
+      title: "Imported Public Comment Story",
+      status: "published",
+      allowComments: true,
+      commentPolicy: "open"
+    });
+
+    const connection = await seedRemoteConnectionProfile(server, {
+      id: "conn-public-comments-001",
+      credentialPathHint: credentialFixture.credentialPath,
+      serviceAccountEmail: "merchant-guild@appspot.gserviceaccount.com",
+      serviceAccountKeyId: "test-private-key-id"
+    });
+    await seedRemoteTargetProfile(server, {
+      id: "target-browser-comments-001",
+      title: "Browser Delivery",
+      connectionProfileId: connection.id,
+      productBindingKey: "browser-delivery",
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      targetStatus: "validated",
+      validationSummary: {
+        state: "validated",
+        canProceed: true
+      },
+      config: {
+        accessMode: "gcp-temporary",
+        publicCommentsCollectionPath: "publicComments",
+        firebaseProjectId: "merchant-guild"
+      }
+    });
+    const settingsResponse = await injectJson(
+      server,
+      "PUT",
+      buildReferenceModuleSettingsPath(MODULE_ID),
+      {
+        remoteBrowserDeliveryTargetProfileId: "target-browser-comments-001"
+      }
+    );
+    expect(settingsResponse.statusCode).toBe(200);
+
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url) === "https://oauth2.googleapis.com/token") {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              access_token: "public-comments-access-token",
+              token_type: "Bearer",
+              expires_in: 3600
+            })
+        };
+      }
+
+      expect(String(url)).toBe(
+        "https://firestore.googleapis.com/v1/projects/merchant-guild/databases/(default)/documents/publicComments?pageSize=200"
+      );
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            documents: [
+              {
+                name: "projects/merchant-guild/databases/(default)/documents/publicComments/comment-remote-001",
+                fields: {
+                  postId: { stringValue: post.id },
+                  authorDisplayName: { stringValue: "Remote Reader One" },
+                  authorEmail: { stringValue: "reader.one@example.com" },
+                  body: {
+                    stringValue:
+                      "This remote comment should be imported into the local moderation queue."
+                  },
+                  status: { stringValue: "pending" },
+                  createdAt: { timestampValue: "2026-03-22T09:00:00.000Z" }
+                }
+              },
+              {
+                name: "projects/merchant-guild/databases/(default)/documents/publicComments/comment-remote-002",
+                fields: {
+                  postId: { stringValue: post.id },
+                  authorDisplayName: { stringValue: "Remote Reader Two" },
+                  authorEmail: { stringValue: "reader.two@example.com" },
+                  body: {
+                    stringValue:
+                      "This second remote comment should also land in the same moderation queue."
+                  },
+                  status: { stringValue: "pending" },
+                  createdAt: { timestampValue: "2026-03-22T09:05:00.000Z" }
+                }
+              }
+            ]
+          })
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstImportResponse = await server.inject({
+      method: "POST",
+      url: buildPublicCommentsImportRoute()
+    });
+    expect(firstImportResponse.statusCode).toBe(200);
+    expect(firstImportResponse.json()).toEqual(
+      expect.objectContaining({
+        ok: true,
+        projectId: "merchant-guild",
+        collectionPath: "publicComments",
+        importedCount: 2,
+        skippedCount: 0,
+        failedCount: 0
+      })
+    );
+
+    const localCommentsPayload = await injectJson(server, "GET", buildItemsRoute("blog-comments"));
+    expect(localCommentsPayload.statusCode).toBe(200);
+    expect(localCommentsPayload.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          authorDisplayName: "Remote Reader One",
+          postId: post.id,
+          status: "pending"
+        }),
+        expect.objectContaining({
+          authorDisplayName: "Remote Reader Two",
+          postId: post.id,
+          status: "pending"
+        })
+      ])
+    );
+
+    const secondImportResponse = await server.inject({
+      method: "POST",
+      url: buildPublicCommentsImportRoute()
+    });
+    expect(secondImportResponse.statusCode).toBe(200);
+    expect(secondImportResponse.json()).toEqual(
+      expect.objectContaining({
+        ok: true,
+        importedCount: 0,
+        skippedCount: 2,
+        failedCount: 0
+      })
+    );
+  } finally {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    await server.close();
+    await credentialFixture.cleanup();
   }
 }, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
 

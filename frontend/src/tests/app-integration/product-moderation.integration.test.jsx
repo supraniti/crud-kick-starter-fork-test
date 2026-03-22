@@ -8,7 +8,8 @@ vi.mock("../../api/reference.js", async () => {
   return {
     ...actual,
     fetchReferenceCollectionItems: vi.fn(),
-    updateReferenceCollectionItem: vi.fn()
+    updateReferenceCollectionItem: vi.fn(),
+    importReferencePublicCommentsToLocal: vi.fn()
   };
 });
 
@@ -110,6 +111,15 @@ test("product moderation view renders a queue-first desk and contextual comment 
       }
     ]
   });
+  referenceApi.importReferencePublicCommentsToLocal.mockResolvedValue({
+    ok: true,
+    importedCount: 2,
+    skippedCount: 0,
+    failedCount: 0,
+    remoteCount: 2,
+    projectId: "merchant-guild",
+    collectionPath: "publicComments"
+  });
   const collectionsDomain = createCollectionsDomain();
 
   render(<ProductModerationView collectionsDomain={collectionsDomain} route={{}} />);
@@ -118,8 +128,14 @@ test("product moderation view renders a queue-first desk and contextual comment 
     expect(screen.getByRole("heading", { name: "Moderation Queue" })).toBeInTheDocument();
     expect(screen.getByText("Queue Health")).toBeInTheDocument();
     expect(screen.getByText("Discussion Hotspots")).toBeInTheDocument();
+    expect(screen.getByText("Public Intake")).toBeInTheDocument();
     expect(screen.getByText("Search And Filter")).toBeInTheDocument();
     expect(screen.getByText("Reader Two")).toBeInTheDocument();
+  });
+
+  await waitFor(() => {
+    expect(referenceApi.importReferencePublicCommentsToLocal).toHaveBeenCalled();
+    expect(collectionsDomain.reloadCollectionItems).toHaveBeenCalled();
   });
 
   fireEvent.click(screen.getByText("Reader Two"));
@@ -142,6 +158,15 @@ test("product moderation view moderates the selected comment from the drawer wor
         commentPolicy: "open"
       }
     ]
+  });
+  referenceApi.importReferencePublicCommentsToLocal.mockResolvedValue({
+    ok: true,
+    importedCount: 0,
+    skippedCount: 2,
+    failedCount: 0,
+    remoteCount: 2,
+    projectId: "merchant-guild",
+    collectionPath: "publicComments"
   });
   referenceApi.updateReferenceCollectionItem.mockResolvedValue({
     ok: true,

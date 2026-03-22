@@ -260,6 +260,7 @@ export function BlogTaxonomyView({
       ) : null}
 
       <CategoryFormDrawer
+        key={`category-drawer:${workspace.routeState.categoryMode || "edit"}:${workspace.routeState.categoryId || "new"}`}
         open={workspace.isCategoryDrawerOpen}
         formState={workspace.formState}
         validationErrors={workspace.categoryValidationErrors}
@@ -275,6 +276,7 @@ export function BlogTaxonomyView({
       />
 
       <TagFormDrawer
+        key={`tag-drawer:${workspace.routeState.tagMode || "edit"}:${workspace.routeState.tagId || "new"}`}
         open={workspace.isTagDrawerOpen}
         formState={workspace.formState}
         validationErrors={workspace.tagValidationErrors}
