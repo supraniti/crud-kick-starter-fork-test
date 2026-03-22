@@ -139,7 +139,7 @@ function useBundleEditor(bundles, reload, publishedPages, targets, connectionByI
     if (!bundleValidation.canSave) {
       setBundleActionState({
         saving: false,
-        errorMessage: bundleValidation.errorMessages[0] ?? "Deployment bundle is not valid yet.",
+        errorMessage: bundleValidation.errorMessages[0] ?? "Release recipe is not valid yet.",
         successMessage: null
       });
       return;
@@ -163,7 +163,7 @@ function useBundleEditor(bundles, reload, publishedPages, targets, connectionByI
             item: payload
           });
       if (!response?.ok) {
-        throw new Error(response?.error?.message ?? "Failed to save deployment bundle");
+        throw new Error(response?.error?.message ?? "Failed to save release recipe");
       }
       await reload();
       setIsCreatingNewBundle(false);
@@ -171,12 +171,12 @@ function useBundleEditor(bundles, reload, publishedPages, targets, connectionByI
       setBundleActionState({
         saving: false,
         errorMessage: null,
-        successMessage: selectedBundleId ? "Deployment bundle saved" : "Deployment bundle created"
+        successMessage: selectedBundleId ? "Release recipe saved" : "Release recipe created"
       });
     } catch (error) {
       setBundleActionState({
         saving: false,
-        errorMessage: error?.message ?? "Failed to save deployment bundle",
+        errorMessage: error?.message ?? "Failed to save release recipe",
         successMessage: null
       });
     }

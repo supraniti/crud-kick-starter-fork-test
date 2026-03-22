@@ -1380,3 +1380,144 @@
   - drawer close now tears the route back down to `/app/pages` instead of leaking stale create/edit query state
 - Important boundary:
   - the focused Pages Vitest invocation was attempted with a hard timeout and still timed out in this environment, so it is not being counted as proof
+
+## 2026-03-22 Deployments Story Implementation
+- Implemented the Deployments story as a release-room pass instead of another target-controls pass.
+- New plan:
+  - [deployments-story-implementation-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/deployments-story-implementation-plan.md)
+- Main product changes:
+  - hero and route purpose now frame the desk as a release room
+  - release tab now answers the main operator questions in order:
+    - `Release Shape`
+    - `What Will Refresh`
+    - `Release This Bundle`
+  - history was simplified into `Recent Releases`
+  - remote cost/provisioning stayed available, but was demoted into `Inspect Output`
+- Main files:
+  - [ProductDeploymentsView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/ProductDeploymentsView.jsx)
+  - [product-deployments-view-sections.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-deployments-view-sections.jsx)
+  - [DeploymentReleaseObservabilityCard.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/DeploymentReleaseObservabilityCard.jsx)
+  - [product-shell-catalog.js](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/product-shell/product-shell-catalog.js)
+  - [product-deployments.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/product-deployments.integration.test.jsx)
+- Browser proof artifact:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-desk-final.png`
+- Counted validation:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Current review env:
+  - app: `http://localhost:3000/`
+  - deployments: `http://localhost:3000/app/deployments`
+  - backend health: `http://127.0.0.1:3001/health`
+- Worktree remains uncommitted for Deployments review.
+
+## 2026-03-22 Deployments Research And Realignment Planning Pass
+- User feedback:
+  - the current Deployments page is still hard to reason about from a user perspective:
+    - what am I supposed to know?
+    - what am I supposed to do?
+    - what are the effects of doing it?
+- I stopped further implementation and did a full live review of all tabs:
+  - `Release`
+  - `Inspect Output`
+  - `History`
+  - `Advanced`
+- Review docs:
+  - [deployments-product-experience-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/deployments-product-experience-review.md)
+  - [deployments-user-stories.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/deployments-user-stories.md)
+  - [deployments-story-realignment-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/deployments-story-realignment-plan.md)
+- Main review conclusion:
+  - the route is no longer chaotic, but it still expects too much prior system knowledge
+  - the biggest gap is not missing data; it is missing interpretation
+  - the four jobs still need clearer separation:
+    - release decision
+    - release inspection
+    - release history
+    - setup / recovery
+- Captured artifacts:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-review-release.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-review-inspect.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-review-history.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-review-advanced.png`
+- Implementation is paused pending approval of the new plan.
+
+## 2026-03-22 Deployments Review And Realignment Planning Pass
+- User feedback:
+  - `Deployments` is still hard to reason about from a user perspective:
+    - what should the user know
+    - what should the user do
+    - what effect do their actions have
+- I stopped further implementation and did a full live review of:
+  - `Release`
+  - `Inspect Output`
+  - `History`
+  - `Advanced`
+- Review artifacts:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-review-release.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-review-inspect.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-review-advanced.png`
+- New docs:
+  - [deployments-user-experience-review.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/deployments-user-experience-review.md)
+  - [deployments-story-realignment-plan.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/deployments-story-realignment-plan.md)
+- Main conclusion:
+  - the route is not missing information
+  - it is mis-grouping four different jobs:
+    - release decision
+    - release action
+    - release inspection
+    - release recovery
+- Proposed next execution order:
+  - Pass 1: clarify the main release story
+  - Pass 2: rebuild inspect around outcome
+  - Pass 3: rework history into decision support
+  - Pass 4: restructure setup and recovery
+  - Pass 5: final integration pass
+- Waiting for plan approval before more implementation on Deployments.
+
+## 2026-03-22 Deployments Realignment Implementation Ready For Review
+- Executed the approved Deployments realignment plan and kept the slice uncommitted for review.
+- Main product changes:
+  - bundle roster is now mission-first:
+    - release posture
+    - output count
+    - page family
+    - path pattern
+  - `Release` remains the first tab, but now reads more clearly as:
+    - release shape
+    - what will refresh
+    - one release action
+  - `Inspect Output` now starts from visible result and keeps runtime detail lower as a technical layer
+  - `History` now behaves more like release memory:
+    - last successful release
+    - last failed attempt
+    - earlier activity
+  - `Advanced` is split cleanly into:
+    - `Release Recipe`
+    - `Recovery Tools`
+  - advanced labels were rewritten into product language:
+    - `Release Name`
+    - `Page This Release Owns`
+    - `Posts Data Refresh`
+    - `Categories Data Refresh`
+    - `Tags Data Refresh`
+    - `Media Library Refresh`
+    - `Public HTML Target`
+    - `Public Delivery`
+  - recovery tools now explain what each repair action is for and where to go next
+- Validation:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-deployments.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Live review route:
+  - `http://localhost:3000/app/deployments`
+- Fresh proof artifact:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\deployments-desk-realigned-final.png`
+- Current app state:
+  - frontend healthy on `http://localhost:3000/`
+  - backend healthy on `http://127.0.0.1:3001/health`
+- Current worktree:
+  - Deployments slice only, still uncommitted for review

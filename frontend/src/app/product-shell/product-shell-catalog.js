@@ -129,7 +129,7 @@ const PRODUCT_NAVIGATION_SPECS = Object.freeze([
     icon: "rocket_launch",
     stageId: "release",
     stageLabel: "Release",
-    purpose: "Run the release pipeline, watch progress, and inspect the final local and remote browseable outputs.",
+    purpose: "Choose the bundle, understand what will change, run one release, and open what went live.",
     order: 200
   }
 ]);

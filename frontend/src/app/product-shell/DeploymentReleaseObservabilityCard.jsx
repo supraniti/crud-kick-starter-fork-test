@@ -37,9 +37,9 @@ export function DeploymentReleaseObservabilityCard({ observability, onAnalyzeCom
         <Stack spacing={1.5}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
             <Stack spacing={0.25}>
-              <Typography variant="subtitle1">Release Footprint</Typography>
+              <Typography variant="subtitle1">Remote Cost And Provisioning</Typography>
               <Typography variant="body2" color="text.secondary">
-                Inspect local output size, drift counts, and remote provisioning/cost warnings before running the full release pipeline.
+                Use this when you need the remote-side details: recurring-cost cautions, missing services, and provisioning actions.
               </Typography>
             </Stack>
             <Button

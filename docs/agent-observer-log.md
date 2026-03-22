@@ -2487,3 +2487,84 @@
 - Improve:
   - backlog close behavior matters as much as create/edit behavior; if a studio drawer cannot leave the route clean, the desk still feels unfinished
   - when a story calls for direct public links, surface them from the backlog itself instead of making the operator open the page first just to discover the live URL
+
+### 2026-03-22 - Deployments Needed To Become A Release Room
+- Tasks:
+  - rewrote the Deployments story into an implementation plan focused on the operator questions that matter before release
+  - changed the main release tab to follow one sequence:
+    - `Release Shape`
+    - `What Will Refresh`
+    - `Release This Bundle`
+  - simplified release history into a `Recent Releases` surface
+  - demoted remote cost and provisioning details into `Inspect Output`
+- Easy:
+  - the underlying release engine and browse-link resolution were already strong, so the improvement came mostly from reframing and composition instead of backend work
+- Hard:
+  - the first focused Deployments proof still failed because the test was asserting against one long text sentence instead of the real browse-link contract; the correct fix was updating the assertion to the link `href`, not weakening the UI
+  - the browser route initially kept showing stale copy because the review app was serving old frontend output; a bounded rebuild plus restart was needed before the live review matched the code
+- Improve:
+  - release desks should be judged by the operator questions they answer before the main button, not by how much runtime detail they can expose
+  - when proof depends on a live built frontend, rebuild and restart before trusting browser review; otherwise code truth and screen truth diverge
+
+### 2026-03-22 - Deployments Needed A User-Centered Review Before More Code
+- Tasks:
+  - stopped implementation after user feedback that the route is still hard to reason about
+  - inspected every Deployments tab live:
+    - `Release`
+    - `Inspect Output`
+    - `History`
+    - `Advanced`
+  - captured fresh screenshots of each tab state
+  - wrote a product-experience review, user stories, and a realignment plan
+- Easy:
+  - the strongest finding was obvious once the whole route was inspected end to end: the problem is not missing data, it is that the page still assumes bundle literacy and release-model literacy
+- Hard:
+  - the route now has enough structure that the remaining issues are more subtle; the desk looks calmer, but still forces the user to translate system facts into product meaning
+- Improve:
+  - when a user says “I don’t know what I’m supposed to know or do here,” stop measuring progress by reduced clutter alone and rewrite the decision model itself
+  - for release surfaces, inspect all tabs before planning changes; otherwise the page can improve locally while still failing as a whole experience
+
+### 2026-03-22 - Deployments Needs A Full User-Reasoning Review Before More Code
+- Tasks:
+  - performed a full live inspection of the Deployments desk across:
+    - `Release`
+    - `Inspect Output`
+    - `History`
+    - `Advanced`
+  - captured fresh route screenshots for the review pass
+  - wrote a user-perspective experience review and a new story realignment plan instead of continuing to patch the UI blindly
+- Easy:
+  - once every tab was reviewed in order, the main problem was clear quickly: the route is not underpowered, it is mixing four jobs too tightly
+- Hard:
+  - the route now has better structure than before, which makes the remaining flaws subtler; the real problem is not one broken card, but that the desk still does not teach the user which decision each tab is for
+- Improve:
+  - when a user says `I cannot tell what I am supposed to know or do`, stop optimizing widgets and rewrite the route around decisions, not sections
+  - release routes should separate:
+    - decision
+    - action
+    - inspection
+    - recovery
+    before they try to expose every valid technical surface
+
+### 2026-03-22 - Deployments Realignment Needed The Last Old Surfaces Rewritten Too
+- Tasks:
+  - finished the approved Deployments realignment instead of stopping at the first calmer release tab
+  - rewrote the bundle sidebar into mission cards with:
+    - posture
+    - output count
+    - page family
+    - path pattern
+  - rewrote advanced setup/recovery into:
+    - `Release Recipe`
+    - `Recovery Tools`
+  - changed advanced field labels from target wiring language into release language
+  - tightened the recovery cards so each one says what it repairs and which desk it relates to
+  - reran focused Deployments proofs and rechecked the live route
+- Easy:
+  - the release/history/inspect structure was already close enough that the real gain came from rewriting the remaining old sidebar and advanced surfaces
+- Hard:
+  - one new sidebar composition introduced invalid nested typography structure inside `ListItemText`; the focused test exposed it immediately and the fix was to make the secondary container render as `div`
+  - the focused test also failed because it still matched the old overly-specific bundle button name; that had to be updated to the new mission-card accessible label instead of forcing the UI back to the old structure
+- Improve:
+  - when realigning a route, do not leave the sidebar or advanced editor speaking the old vocabulary; one stale surface can make the whole page still feel incoherent
+  - focused integration tests are especially valuable on product-language refactors because they catch both structural DOM mistakes and accessibility-name drift before browser review

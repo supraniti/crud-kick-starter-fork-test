@@ -58,20 +58,20 @@ export function createPipelineReadiness({
     bundleValidation.state === "ready" ? "ready" : bundleValidation.state === "warning" ? "ready" : "blocked";
   const bundleContractMessage =
     bundleValidation.state === "ready"
-      ? "Bundle bindings are coherent."
-      : bundleValidation.errorMessages[0] ?? bundleValidation.warnings[0] ?? "Bundle needs attention.";
+      ? "This release recipe is coherent."
+      : bundleValidation.errorMessages[0] ?? bundleValidation.warnings[0] ?? "This release recipe needs attention.";
 
   const items = [
     createReadinessItem(
       "bundle",
-      "Deployment bundle",
+      "Release bundle",
       selectedBundle ? "ready" : "missing",
       true,
-      selectedBundle ? "Deployment bundle selected." : "Select or create a deployment bundle."
+      selectedBundle ? "Release bundle selected." : "Select or create a release bundle."
     ),
     createReadinessItem(
       "bundle-contract",
-      "Bundle contract",
+      "Release recipe",
       bundleContractState,
       true,
       bundleContractMessage

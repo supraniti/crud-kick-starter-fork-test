@@ -9,7 +9,7 @@ function resolveModeLabel(page) {
 }
 
 function resolveBundleTitle(selectedBundle) {
-  return selectedBundle?.title ?? "No deployment bundle selected";
+  return selectedBundle?.title ?? "No release bundle selected";
 }
 
 function resolvePageTitle(page) {

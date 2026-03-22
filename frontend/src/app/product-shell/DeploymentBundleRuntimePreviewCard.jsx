@@ -1,4 +1,5 @@
-import { Alert, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
+import { useState } from "react";
 import { createDeploymentRuntimePreview } from "./product-deployment-runtime-preview.js";
 
 function ValueList({ title, values = [], emptyLabel }) {
@@ -21,6 +22,7 @@ function ValueList({ title, values = [], emptyLabel }) {
 }
 
 export function DeploymentBundleRuntimePreviewCard({ runtimePreviewState }) {
+  const [showRawJson, setShowRawJson] = useState(false);
   const preview = createDeploymentRuntimePreview({
     payload: runtimePreviewState.payload,
     previewSource: runtimePreviewState.previewSource
@@ -31,9 +33,9 @@ export function DeploymentBundleRuntimePreviewCard({ runtimePreviewState }) {
       <CardContent>
         <Stack spacing={1.5}>
           <Stack spacing={0.25}>
-            <Typography variant="subtitle1">Client Runtime Release Preview</Typography>
+            <Typography variant="subtitle1">Runtime Details</Typography>
             <Typography variant="body2" color="text.secondary">
-              Inspect the generated runtime contract from the selected bundle before release: datasets, queries, actions, slots, and resolved media links.
+              This is the technical layer behind the visible result. Use it when you need to inspect datasets, queries, actions, slots, and media links.
             </Typography>
           </Stack>
 
@@ -82,14 +84,20 @@ export function DeploymentBundleRuntimePreviewCard({ runtimePreviewState }) {
               <ValueList title="Datasets" values={preview.datasets} emptyLabel="No runtime datasets declared." />
               <ValueList title="Slots" values={preview.slots} emptyLabel="No runtime slots declared." />
               <ValueList title="Resolved Media Links" values={preview.mediaUrls.slice(0, 4)} emptyLabel="No media links resolved." />
-
-              <TextField
-                label="Resolved Runtime Contract JSON"
-                multiline
-                minRows={12}
-                value={preview.rawRuntimeJson}
-                InputProps={{ readOnly: true }}
-              />
+              <Stack spacing={1}>
+                <Button variant="outlined" size="small" onClick={() => setShowRawJson((current) => !current)}>
+                  {showRawJson ? "Hide Raw Runtime JSON" : "Show Raw Runtime JSON"}
+                </Button>
+                {showRawJson ? (
+                  <TextField
+                    label="Resolved Runtime Contract JSON"
+                    multiline
+                    minRows={12}
+                    value={preview.rawRuntimeJson}
+                    InputProps={{ readOnly: true }}
+                  />
+                ) : null}
+              </Stack>
             </>
           ) : null}
         </Stack>
