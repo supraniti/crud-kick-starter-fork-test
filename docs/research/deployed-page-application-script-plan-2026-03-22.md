@@ -301,3 +301,27 @@ The deployment should be considered complete when a remote reader can open a pos
 7. optional review overlay for operators
 
 At that point, the injected application script has turned the deployment from a proof shell into a usable site surface.
+
+## Execution Note - 2026-03-22
+
+This plan has now been executed to a first delivered baseline.
+
+Delivered:
+
+- local published post page renders as a reader-facing page
+- local published category page renders as a reader-facing page
+- remote deployed post page renders as a reader-facing page
+- comments load and submit through the public path
+- local moderation can ingest remote public comments
+- review/debug overlays remain optional via query params instead of owning the whole page
+
+Important implementation note:
+
+- the server-side application payload is now built in:
+  - `modules/test-modules-pages/server/page-application-view-runtime.mjs`
+- the browser shell also has a fallback model derived from raw `page-data`
+  - this was needed because the long-running review server and generated deployment artifacts were not always receiving the richer application envelope in lockstep during execution
+
+Remaining gap from the original ideal:
+
+- next/previous, author-page, and richer related-content navigation still need stronger upstream page-relationship inputs if they are to be consistently rendered as real links rather than best-effort fallbacks

@@ -1683,3 +1683,41 @@
   - local `Comments` desk shows imported remote comments from `publicComments`
   - `Posts` pagination at `/app/posts?postPage=2` now renders the second page correctly
   - taxonomy `New Category` drawer open/close no longer white-screened during live verification
+
+## 2026-03-22 Deployed Page Application Execution
+- Implemented the first real reader-facing deployed page shell on top of the existing client runtime:
+  - post pages now render visible reader content instead of a blank proof shell
+  - category pages now render visible category content instead of a blank proof shell
+  - comments load and submit through the public path from both local published pages and remote deployed pages
+- Main repo changes:
+  - new application view-model builder:
+    - `modules/test-modules-pages/server/page-application-view-runtime.mjs`
+  - public comments `GET` path added locally and in the public app service:
+    - `modules/test-modules-pages/server/page-public-application-routes-runtime.mjs`
+    - `modules/test-modules-pages/public-app-api/src/index.mjs`
+  - browser shell rewritten:
+    - `modules/test-modules-pages/browser/page-application-tester.global.js`
+    - `modules/test-modules-pages/browser/page-application-tester-support.global.js`
+    - `modules/test-modules-pages/browser/page-application-tester-firestore.global.js`
+  - deployment render path now preserves the application layer during artifact generation:
+    - `modules/test-modules-pages/server/page-deployment-render-runtime.mjs`
+  - runtime asset URLs now version against asset content, not only page payload timestamps:
+    - `modules/test-modules-pages/server/page-runtime-asset-version-runtime.mjs`
+- Important root causes fixed during execution:
+  - circular import around `buildResolvedPagePath` in the new application builder
+  - broken browser script boot wrapper and mismatched helper argument ordering
+  - missing application payload on deployment render path
+  - stale remote browser assets caused by payload-only cache tokens
+- Verified locally:
+  - `http://localhost:3000/published/post/remote-flow-review-post-01/index.html`
+  - `http://localhost:3000/published/category/blogcate-004/index.html`
+  - local published post comment submission appears immediately as pending on-page
+- Verified remotely:
+  - `https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/remote-flow-review-post-01/index.html`
+  - remote deployed post now renders content, media, and comment submission UI
+  - local `Comments` desk shows the imported remote comment after public intake refresh
+- Verification completed:
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`

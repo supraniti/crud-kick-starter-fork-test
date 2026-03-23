@@ -39,6 +39,14 @@ function normalizeEmail(value) {
   return normalized ? normalized.toLowerCase() : null;
 }
 
+function parseStatusFilter(value) {
+  const statuses = String(value ?? "approved")
+    .split(",")
+    .map((entry) => normalizeText(entry))
+    .filter(Boolean);
+  return statuses.length > 0 ? statuses : ["approved"];
+}
+
 function isValidEmail(value) {
   return typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(value);
 }
@@ -333,6 +341,64 @@ async function readPublishedDocument(query) {
   };
 }
 
+function buildCommentsListUrl(projectId, pageToken = null) {
+  const baseUrl =
+    `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}` +
+    `/databases/(default)/documents/${COMMENTS_COLLECTION_PATH}?pageSize=200`;
+  return pageToken ? `${baseUrl}&pageToken=${encodeURIComponent(pageToken)}` : baseUrl;
+}
+
+async function listFirestoreComments(projectId) {
+  const accessToken = await getServiceAccountAccessToken();
+  const documents = [];
+  let nextPageToken = null;
+
+  do {
+    const payload = await requestJson(buildCommentsListUrl(projectId, nextPageToken), {
+      headers: {
+        authorization: `Bearer ${accessToken}`
+      }
+    });
+    documents.push(...(Array.isArray(payload?.documents) ? payload.documents : []));
+    nextPageToken = normalizeText(payload?.nextPageToken);
+  } while (nextPageToken);
+
+  return documents.map((document) => {
+    const nameSegments = String(document?.name ?? "").split("/");
+    return {
+      id: nameSegments[nameSegments.length - 1] ?? null,
+      ...decodeFirestoreDocument(document)
+    };
+  });
+}
+
+async function listPublicComments(query) {
+  const projectId = normalizeText(query.get("projectId")) ?? ALLOWED_PROJECT_ID;
+  const postId = normalizeText(query.get("postId"));
+  const statuses = parseStatusFilter(query.get("status"));
+
+  ensureProjectAllowed(projectId);
+  if (!postId) {
+    throw buildError("COMMENT_POST_ID_REQUIRED", "postId is required.", 400);
+  }
+
+  const items = (await listFirestoreComments(projectId))
+    .filter((item) => item?.postId === postId)
+    .filter((item) => statuses.includes(normalizeText(item?.status)))
+    .sort((left, right) =>
+      String(left?.createdOn ?? left?.createdAt ?? "").localeCompare(
+        String(right?.createdOn ?? right?.createdAt ?? "")
+      )
+    );
+
+  return {
+    ok: true,
+    postId,
+    statuses,
+    items
+  };
+}
+
 async function createPublicComment(body = {}) {
   if (!ALLOW_COMMENTS) {
     throw buildError("COMMENTS_NOT_ENABLED", "Comments are not enabled for this public API service.", 404);
@@ -423,6 +489,11 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/published-document") {
       sendJson(response, 200, buildPayload(await readPublishedDocument(url.searchParams)));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/comments") {
+      sendJson(response, 200, buildPayload(await listPublicComments(url.searchParams)));
       return;
     }
 

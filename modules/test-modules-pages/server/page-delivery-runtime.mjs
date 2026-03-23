@@ -24,6 +24,7 @@ import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference
 import { attachClientRuntimeContract } from "./page-client-runtime-runtime.mjs";
 import { attachApplicationTesterContract } from "./page-application-tester-runtime.mjs";
 import { attachResolvedMediaReferences } from "./page-media-reference-runtime.mjs";
+import { attachPageApplicationPayload } from "./page-application-view-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function toArray(value) {
@@ -464,7 +465,10 @@ function applyCanonicalUrlToPayload(payload, canonicalUrl) {
 }
 async function finalizeDeliveryPayload(payload, collectionHandlerRegistry, browserDeliveryState = null) {
   const mediaAwarePayload = await attachResolvedMediaReferences(payload, collectionHandlerRegistry, browserDeliveryState);
-  return attachApplicationTesterContract(attachClientRuntimeContract(mediaAwarePayload), {
+  const applicationAwarePayload = await attachPageApplicationPayload(mediaAwarePayload, {
+    collectionHandlerRegistry
+  });
+  return attachApplicationTesterContract(attachClientRuntimeContract(applicationAwarePayload), {
     collectionHandlerRegistry
   });
 }

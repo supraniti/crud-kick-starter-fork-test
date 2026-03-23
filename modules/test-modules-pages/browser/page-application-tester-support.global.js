@@ -1,15 +1,6 @@
+(function (window) {
   function normalizeArray(value) {
     return Array.isArray(value) ? value : [];
-  }
-
-  function dedupeStrings(values) {
-    return Array.from(
-      new Set(
-        normalizeArray(values)
-          .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-          .filter(Boolean)
-      )
-    );
   }
 
   function dedupeBy(values, readKey) {
@@ -54,10 +45,12 @@
         ...(base.remote && typeof base.remote === "object" ? base.remote : {}),
         ...(augment.remote && typeof augment.remote === "object" ? augment.remote : {})
       },
-      bootstrapDatasets: dedupeStrings([
-        ...normalizeArray(base.bootstrapDatasets),
-        ...normalizeArray(augment.bootstrapDatasets)
-      ]),
+      bootstrapDatasets: Array.from(
+        new Set([
+          ...normalizeArray(base.bootstrapDatasets),
+          ...normalizeArray(augment.bootstrapDatasets)
+        ])
+      ),
       queries: dedupeBy(
         [...normalizeArray(base.queries), ...normalizeArray(augment.queries)],
         function (entry) {
@@ -134,26 +127,11 @@
     return source;
   }
 
-  function stripApplicationTesterApiDefinitions(config, contract) {
-    var source = config && typeof config === "object" ? cloneJsonValue(config) : {};
-    var firestoreQuery = contract && contract.firestoreQuery ? contract.firestoreQuery : null;
-    var submitCommentAction =
-      contract && contract.actions && typeof contract.actions.submitComment === "string"
-        ? contract.actions.submitComment
-        : "";
-
-    source.queries = normalizeArray(source.queries).filter(function (entry) {
-      if (!firestoreQuery) {
-        return true;
-      }
-      return !(entry && entry.resource === firestoreQuery.resource && entry.query === firestoreQuery.query);
-    });
-
-    source.actions = normalizeArray(source.actions).filter(function (entry) {
-      return !(submitCommentAction && entry && entry.action === submitCommentAction);
-    });
-
-    return source;
+  function normalizeApiOrigin(value) {
+    if (typeof value !== "string") {
+      return "";
+    }
+    return value.trim().replace(/\/+$/g, "");
   }
 
   function isTruthyQueryParamValue(rawValue) {
@@ -164,21 +142,19 @@
     return normalized === "1" || normalized === "true" || normalized === "yes";
   }
 
-  function isTesterEnabled(contract, targetGlobal) {
-    if (!contract || !Array.isArray(contract.enabledQueryParams) || contract.enabledQueryParams.length === 0) {
-      return false;
-    }
+  function readFlagFromQuery(targetGlobal, names) {
     var params = new URLSearchParams(targetGlobal.location.search);
-    return contract.enabledQueryParams.some(function (paramName) {
-      return isTruthyQueryParamValue(params.get(paramName));
+    return normalizeArray(names).some(function (name) {
+      return isTruthyQueryParamValue(params.get(name));
     });
   }
 
-  function normalizeApiOrigin(value) {
-    if (typeof value !== "string") {
-      return "";
-    }
-    return value.trim().replace(/\/+$/g, "");
+  function isReviewEnabled(contract, targetGlobal) {
+    return readFlagFromQuery(targetGlobal, contract && contract.reviewQueryParams);
+  }
+
+  function isDebugEnabled(contract, targetGlobal) {
+    return readFlagFromQuery(targetGlobal, contract && contract.debugQueryParams);
   }
 
   function resolveFirestoreSupport(targetGlobal) {
@@ -239,74 +215,89 @@
     return false;
   }
 
-  function buildPublicApiRuntimeAugment(contract, apiOrigin) {
-    if (!apiOrigin) {
+  function stripApplicationDefinitions(config) {
+    var source = config && typeof config === "object" ? cloneJsonValue(config) : {};
+    source.queries = normalizeArray(source.queries).filter(function (entry) {
+      if (!entry) {
+        return false;
+      }
+      return !(entry.resource === "comments" && entry.query === "byPost");
+    });
+    source.actions = normalizeArray(source.actions).filter(function (entry) {
+      if (!entry) {
+        return false;
+      }
+      return entry.action !== "comments.submit";
+    });
+    source.datasets = normalizeArray(source.datasets).filter(function (entry) {
+      return entry && entry.dataset !== "post-comments";
+    });
+    return source;
+  }
+
+  function buildCommentsCollectionRemote(path) {
+    return {
+      method: "GET",
+      path: path,
+      queryParams: {
+        postId: "context.primaryRecordId",
+        status: "approved"
+      }
+    };
+  }
+
+  function buildPublicCommentsRuntimeAugment(contract, apiOrigin) {
+    var normalizedOrigin = normalizeApiOrigin(apiOrigin);
+    if (!normalizedOrigin || !contract || !contract.publicCommentsApiPath) {
       return {};
     }
 
-    var usingDeployedPublicService = contract && contract.publicApiMode === "deployed-public-service";
-    var queries = [];
-    if (contract.firestoreQuery && contract.publicPublishedDocumentApiPath) {
-      queries.push({
-        resource: contract.firestoreQuery.resource,
-        query: contract.firestoreQuery.query,
-        policy: "remote-only",
-        remote: {
-          method: "GET",
-          path: apiOrigin + contract.publicPublishedDocumentApiPath,
-          queryParams: usingDeployedPublicService
-            ? {
-                projectId: contract.firestore && contract.firestore.projectId,
-                collectionPath: contract.firestore && contract.firestore.collectionPath,
-                documentId: contract.firestore && contract.firestore.documentId
-              }
-            : {
-                path: "context.pagePath"
-              },
-          responsePath: "document"
-        }
-      });
-    }
-
-    var actions = [];
-    if (
-      contract.actions &&
-      contract.actions.submitComment &&
-      contract.publicCommentsApiPath &&
-      contract.primaryRecord &&
-      contract.primaryRecord.id
-    ) {
-      actions.push({
-        action: contract.actions.submitComment,
-        policy: "remote-required",
-        remote: {
-          method: "POST",
-          path: apiOrigin + contract.publicCommentsApiPath,
-          body: usingDeployedPublicService
-            ? {
-                projectId: contract.firestore && contract.firestore.projectId,
-                postId: contract.primaryRecord.id,
-                pagePath: contract.pagePath || null,
-                parentCommentId: "payload.parentCommentId",
-                authorDisplayName: "payload.authorDisplayName",
-                authorEmail: "payload.authorEmail",
-                body: "payload.body"
-              }
-            : {
-                postId: contract.primaryRecord.id,
-                parentCommentId: "payload.parentCommentId",
-                authorDisplayName: "payload.authorDisplayName",
-                authorEmail: "payload.authorEmail",
-                body: "payload.body"
-              },
-          responsePath: "item"
-        }
-      });
-    }
-
+    var commentsPath = normalizedOrigin + contract.publicCommentsApiPath;
     return {
-      queries: queries,
-      actions: actions
+      queries: [
+        {
+          resource: "comments",
+          query: "byPost",
+          policy: "network-first",
+          dataset: "post-comments",
+          remote: buildCommentsCollectionRemote(commentsPath),
+          remoteResult: {
+            type: "collection",
+            itemsPath: "items",
+            totalPath: "items.length"
+          }
+        }
+      ],
+      actions: [
+        {
+          action: "comments.submit",
+          policy: "remote-with-local-update",
+          markDatasetsDirty: ["post-comments"],
+          remote: {
+            method: "POST",
+            path: commentsPath,
+            body: {
+              postId: "context.primaryRecordId",
+              pagePath: "context.pagePath",
+              parentCommentId: "payload.parentCommentId",
+              authorDisplayName: "payload.authorDisplayName",
+              authorEmail: "payload.authorEmail",
+              body: "payload.body"
+            }
+          }
+        }
+      ],
+      datasets: [
+        {
+          dataset: "post-comments",
+          recordMode: "array",
+          remoteInstall: buildCommentsCollectionRemote(commentsPath),
+          remoteSync: buildCommentsCollectionRemote(commentsPath),
+          remoteValuePath: "items",
+          remoteVersionPath: "timestamp",
+          remoteSyncTokenPath: "postId"
+        }
+      ]
     };
   }
 
@@ -316,10 +307,7 @@
       throw new Error("client-runtime is not available on this page");
     }
 
-    var cleanedBaseConfig = stripApplicationTesterApiDefinitions(
-      targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ || {},
-      contract
-    );
+    var baseConfig = stripApplicationDefinitions(targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ || {});
     var firestoreSupport = resolveFirestoreSupport(targetGlobal);
     var transportAugment =
       contract && contract.publicApiMode === "browser-firestore"
@@ -327,10 +315,10 @@
           typeof firestoreSupport.buildBrowserFirestoreRuntimeAugment === "function"
           ? firestoreSupport.buildBrowserFirestoreRuntimeAugment(contract, targetGlobal)
           : {}
-        : buildPublicApiRuntimeAugment(contract, apiOrigin);
+        : buildPublicCommentsRuntimeAugment(contract, apiOrigin);
     var mergedConfig = mergeRuntimeConfig(
-      cleanedBaseConfig,
-      mergeRuntimeConfig(contract.runtimeAugment || {}, transportAugment)
+      mergeRuntimeConfig(baseConfig, contract && contract.runtimeAugment ? contract.runtimeAugment : {}),
+      transportAugment
     );
 
     targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ = mergedConfig;
@@ -338,280 +326,55 @@
     if (targetGlobal.crudClientRuntime.ready && typeof targetGlobal.crudClientRuntime.ready.then === "function") {
       await targetGlobal.crudClientRuntime.ready;
     }
+    return mergedConfig;
   }
 
-  function setOutput(node, value) {
+  function normalizeCommentCollectionResult(value) {
+    if (Array.isArray(value)) {
+      return {
+        items: value,
+        total: value.length
+      };
+    }
+    if (value && typeof value === "object" && Array.isArray(value.items)) {
+      return {
+        items: value.items,
+        total: Number.isFinite(Number(value.total)) ? Number(value.total) : value.items.length
+      };
+    }
+    return {
+      items: [],
+      total: 0
+    };
+  }
+
+  function formatDateTime(value) {
+    if (!value) {
+      return "";
+    }
+    try {
+      return new Date(value).toLocaleString();
+    } catch {
+      return String(value);
+    }
+  }
+
+  function setJsonOutput(node, value) {
+    if (!node) {
+      return;
+    }
     node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
   }
 
-  function createTesterStyles() {
-    return [
-      "#page-application-tester{position:fixed;right:16px;bottom:16px;z-index:2147483000;width:min(420px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;border:1px solid rgba(15,23,42,0.16);border-radius:16px;background:rgba(255,255,255,0.98);box-shadow:0 20px 40px rgba(15,23,42,0.22);font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#0f172a;}",
-      "#page-application-tester .app-tester-stack{display:grid;gap:12px;padding:16px;}",
-      "#page-application-tester h2,#page-application-tester p,#page-application-tester pre,#page-application-tester label{margin:0;}",
-      "#page-application-tester .app-tester-badges{display:flex;gap:8px;flex-wrap:wrap;}",
-      "#page-application-tester .app-tester-badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:12px;}",
-      "#page-application-tester .app-tester-actions,#page-application-tester .app-tester-fields{display:grid;gap:8px;}",
-      "#page-application-tester .app-tester-grid{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr));}",
-      "#page-application-tester button{border:0;border-radius:10px;padding:10px 12px;background:#0f766e;color:#fff;font:inherit;cursor:pointer;text-align:left;}",
-      "#page-application-tester button.alt{background:#334155;}",
-      "#page-application-tester button.warn{background:#b45309;}",
-      "#page-application-tester button:disabled{opacity:0.65;cursor:default;}",
-      "#page-application-tester img{display:block;width:100%;height:auto;border-radius:12px;background:#e2e8f0;}",
-      "#page-application-tester .app-tester-empty{padding:12px;border:1px dashed rgba(148,163,184,0.65);border-radius:12px;color:#475569;}",
-      "#page-application-tester pre{padding:12px;border-radius:12px;background:#0f172a;color:#e2e8f0;overflow:auto;font:12px/1.45 Consolas,monospace;white-space:pre-wrap;word-break:break-word;}",
-      "#page-application-tester .app-tester-kv{display:grid;gap:4px;}",
-      "#page-application-tester .app-tester-kv strong{font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:#475569;}",
-      "#page-application-tester input,#page-application-tester textarea{width:100%;border:1px solid rgba(148,163,184,0.65);border-radius:10px;padding:9px 10px;font:inherit;background:#fff;color:#0f172a;box-sizing:border-box;}",
-      "#page-application-tester textarea{min-height:92px;resize:vertical;}",
-      "#page-application-tester label{display:grid;gap:6px;font-size:12px;color:#475569;}"
-    ].join("");
-  }
-
-  function ensureStyles(documentObject) {
-    if (documentObject.getElementById("page-application-tester-style")) {
-      return;
-    }
-    var style = documentObject.createElement("style");
-    style.id = "page-application-tester-style";
-    style.textContent = createTesterStyles();
-    documentObject.head.appendChild(style);
-  }
-
-  function appendBadgeRow(documentObject, stack, contract) {
-    var row = documentObject.createElement("div");
-    row.className = "app-tester-badges";
-    normalizeArray(contract.flows).forEach(function (entry) {
-      var badge = documentObject.createElement("span");
-      badge.className = "app-tester-badge";
-      badge.textContent = entry;
-      row.appendChild(badge);
-    });
-    stack.appendChild(row);
-  }
-
-  function appendFeaturedMedia(documentObject, stack, contract) {
-    var featuredMedia = contract.featuredMedia;
-    if (!featuredMedia || !featuredMedia.preferredUrl) {
-      var empty = documentObject.createElement("div");
-      empty.className = "app-tester-empty";
-      empty.textContent = "No referenced image was resolved for this page.";
-      stack.appendChild(empty);
-      return;
-    }
-    var image = documentObject.createElement("img");
-    image.src = featuredMedia.preferredUrl;
-    image.alt = featuredMedia.altText || featuredMedia.displayName || "Referenced image";
-    stack.appendChild(image);
-  }
-
-  function appendMetaRow(documentObject, meta, labelText, valueText) {
-    var label = documentObject.createElement("strong");
-    label.textContent = labelText;
-    var value = documentObject.createElement("span");
-    value.textContent = valueText;
-    meta.appendChild(label);
-    meta.appendChild(value);
-  }
-
-  function createDocumentMeta(documentObject, contract) {
-    var meta = documentObject.createElement("div");
-    meta.className = "app-tester-kv";
-    appendMetaRow(documentObject, meta, "Published snapshot URL", contract.documentUrl || "Not available");
-    appendMetaRow(
-      documentObject,
-      meta,
-      "Direct Firestore URL",
-      contract.firestore && contract.firestore.documentUrl ? contract.firestore.documentUrl : "Not configured"
-    );
-    appendMetaRow(
-      documentObject,
-      meta,
-      "Tester mode",
-      contract.publicApiMode || "unknown"
-    );
-    appendMetaRow(
-      documentObject,
-      meta,
-      "Application API origin",
-      contract.publicApiMode === "browser-firestore"
-        ? "Not required in browser Firestore mode"
-        : contract.defaultApiOrigin || "Set by query parameter or local review fallback"
-    );
-    appendMetaRow(
-      documentObject,
-      meta,
-      "Direct Firestore project",
-      contract.firebase && contract.firebase.projectId ? contract.firebase.projectId : "Not configured"
-    );
-    return meta;
-  }
-
-  function createLabeledInput(documentObject, labelText, value, multiline) {
-    var label = documentObject.createElement("label");
-    label.textContent = labelText;
-    var input = multiline ? documentObject.createElement("textarea") : documentObject.createElement("input");
-    if (!multiline) {
-      input.type = "text";
-    }
-    input.value = value || "";
-    label.appendChild(input);
-    return {
-      label: label,
-      input: input
-    };
-  }
-
-  function createActionButtons(documentObject, contract) {
-    var actions = documentObject.createElement("div");
-    actions.className = "app-tester-actions";
-
-    var loadButton = documentObject.createElement("button");
-    loadButton.textContent = "Load Published Snapshot";
-
-    var firestoreButton = documentObject.createElement("button");
-    firestoreButton.textContent =
-      contract.publicApiMode === "browser-firestore"
-        ? "Load Firestore Document Directly"
-        : "Load Firestore Document Via App API";
-
-    var installButton = documentObject.createElement("button");
-    installButton.className = "alt";
-    installButton.textContent = "Install Snapshot To IndexedDB";
-
-    actions.appendChild(loadButton);
-    actions.appendChild(firestoreButton);
-    actions.appendChild(installButton);
-
-    var apiOriginField = createLabeledInput(documentObject, "Application API Origin", "", false);
-    apiOriginField.input.placeholder = "https://api.example.com";
-
-    var commentFields = null;
-    if (contract.actions && contract.actions.submitComment) {
-      var commentGrid = documentObject.createElement("div");
-      commentGrid.className = "app-tester-grid";
-
-      var authorField = createLabeledInput(documentObject, "Comment Author", "Runtime Tester", false);
-      var emailField = createLabeledInput(documentObject, "Comment Email", "tester@example.com", false);
-      commentGrid.appendChild(authorField.label);
-      commentGrid.appendChild(emailField.label);
-
-      var bodyField = createLabeledInput(
-        documentObject,
-        "Comment Body",
-        "Runtime tester submission from the temporary application layer.",
-        true
-      );
-
-      var submitButton = documentObject.createElement("button");
-      submitButton.className = "warn";
-      submitButton.textContent =
-        contract.publicApiMode === "browser-firestore"
-          ? "Submit Comment Directly To Firestore"
-          : "Submit Comment Through App API";
-
-      if (contract.publicApiMode !== "browser-firestore") {
-        actions.appendChild(apiOriginField.label);
-      }
-      actions.appendChild(commentGrid);
-      actions.appendChild(bodyField.label);
-      actions.appendChild(submitButton);
-
-      commentFields = {
-        authorInput: authorField.input,
-        emailInput: emailField.input,
-        bodyInput: bodyField.input,
-        submitButton: submitButton
-      };
-    } else {
-      if (contract.publicApiMode !== "browser-firestore") {
-        actions.appendChild(apiOriginField.label);
-      }
-    }
-
-    return {
-      actions: actions,
-      apiOriginInput: apiOriginField.input,
-      loadButton: loadButton,
-      firestoreButton: firestoreButton,
-      installButton: installButton,
-      commentFields: commentFields
-    };
-  }
-
-  function readApiOrigin(controls) {
-    return normalizeApiOrigin(controls.apiOriginInput.value);
-  }
-
-  function readCommentPayload(controls) {
-    if (!controls.commentFields) {
-      return null;
-    }
-    return {
-      parentCommentId: null,
-      authorDisplayName: controls.commentFields.authorInput.value.trim(),
-      authorEmail: controls.commentFields.emailInput.value.trim(),
-      body: controls.commentFields.bodyInput.value.trim()
-    };
-  }
-
-  function refreshActionAvailability(contract, controls) {
-    var apiOrigin = readApiOrigin(controls);
-    var hasPublicApi = Boolean(apiOrigin);
-    var usesBrowserFirestore = contract && contract.publicApiMode === "browser-firestore";
-    var hasBrowserFirestore = hasFirebaseBrowserConfig(window, contract);
-
-    if (!contract.firestoreQuery) {
-      controls.firestoreButton.disabled = true;
-      controls.firestoreButton.title = "No Firestore contract is configured for this page.";
-    } else if (usesBrowserFirestore && !hasBrowserFirestore) {
-      controls.firestoreButton.disabled = true;
-      controls.firestoreButton.title = "Firebase web app config is required for direct browser Firestore mode.";
-    } else if (!usesBrowserFirestore && !contract.publicPublishedDocumentApiPath) {
-      controls.firestoreButton.disabled = true;
-      controls.firestoreButton.title = "No Firestore application API contract is configured for this page.";
-    } else if (!usesBrowserFirestore && !hasPublicApi) {
-      controls.firestoreButton.disabled = true;
-      controls.firestoreButton.title = "Set Application API Origin to enable Firestore reads through the public app API.";
-    } else {
-      controls.firestoreButton.disabled = false;
-      controls.firestoreButton.title = "";
-    }
-
-    if (controls.commentFields && controls.commentFields.submitButton) {
-      if (!contract.actions || !contract.actions.submitComment) {
-        controls.commentFields.submitButton.disabled = true;
-        controls.commentFields.submitButton.title = "Comment submission is not available for this page.";
-      } else if (usesBrowserFirestore && !hasBrowserFirestore) {
-        controls.commentFields.submitButton.disabled = true;
-        controls.commentFields.submitButton.title = "Firebase web app config is required for direct browser Firestore mode.";
-      } else if (!usesBrowserFirestore && !contract.publicCommentsApiPath) {
-        controls.commentFields.submitButton.disabled = true;
-        controls.commentFields.submitButton.title = "Comment submission is not available for this page.";
-      } else if (!hasPublicApi) {
-        controls.commentFields.submitButton.disabled = !usesBrowserFirestore;
-        controls.commentFields.submitButton.title = usesBrowserFirestore
-          ? ""
-          : "Set Application API Origin to enable comment submission.";
-      } else {
-        controls.commentFields.submitButton.disabled = false;
-        controls.commentFields.submitButton.title = "";
-      }
-    }
-  }
-
   window.__CRUD_PAGE_APPLICATION_TESTER_SUPPORT__ = {
-    normalizeApplicationTesterContract,
-    isTesterEnabled,
-    readApiOriginFromQuery,
-    ensureRuntimeAugment,
-    setOutput,
-    ensureStyles,
-    appendBadgeRow,
-    appendFeaturedMedia,
-    createDocumentMeta,
-    createActionButtons,
-    readApiOrigin,
-    readCommentPayload,
-    refreshActionAvailability
+    normalizeApplicationTesterContract: normalizeApplicationTesterContract,
+    isReviewEnabled: isReviewEnabled,
+    isDebugEnabled: isDebugEnabled,
+    readApiOriginFromQuery: readApiOriginFromQuery,
+    ensureRuntimeAugment: ensureRuntimeAugment,
+    hasFirebaseBrowserConfig: hasFirebaseBrowserConfig,
+    normalizeCommentCollectionResult: normalizeCommentCollectionResult,
+    formatDateTime: formatDateTime,
+    setJsonOutput: setJsonOutput
   };
+})(window);

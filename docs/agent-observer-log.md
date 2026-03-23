@@ -2676,3 +2676,36 @@
 - Improve:
   - for future full-journey passes, always treat remote-to-local convergence as a first-class acceptance point
   - never trust `review:env:start` alone when the observed browser behavior contradicts the expected code path; verify the ports and refresh from live state
+
+### 2026-03-22 - Deployed Pages Stopped Being Blank Shells
+- Tasks:
+  - executed the deployed-page application-layer plan from:
+    - `docs/research/deployed-page-application-script-plan-2026-03-22.md`
+  - added a server-side application view-model layer for page payloads
+  - added public comments listing to both the local public routes and the Cloud Run public page API
+  - rewrote the injected page application script into a reader-facing shell with:
+    - post rendering
+    - category rendering
+    - gallery rendering
+    - comment loading/submission
+    - optional review/debug overlay behavior
+  - fixed deployment render so generated artifacts preserve the application payload layer
+  - fixed runtime asset versioning so remote deployed assets invalidate when the browser scripts change
+  - reran local artifact generation and live remote release bundles
+- Easy:
+  - once the browser script had a client-side fallback model, the rendered page became resilient even when the richer application envelope was absent
+  - local and remote comment submission both proved the public interaction path cleanly after the runtime augment was rewired
+- Hard:
+  - the first implementation had a circular import from `page-application-view-runtime` back into `page-delivery-runtime`
+  - the first browser boot path had multiple contract mismatches:
+    - wrong IIFE close
+    - wrong helper argument order
+    - wrong runtime global assumption
+  - remote pages stayed stale even after release because the asset version token only changed when the page payload changed, not when the browser asset changed
+  - the long-running review backend briefly contradicted the passing server proof until the env was restarted and the artifacts were regenerated
+- Improve:
+  - any deployed-page feature must be proven twice:
+    - against the local published page
+    - against the real remote deployed page
+  - browser asset URLs must always version against asset content, not only page state
+  - deployment render and delivery resolve paths must be kept structurally aligned or one side will silently lag behind the other

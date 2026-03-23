@@ -16,7 +16,8 @@ const DEFAULT_LOCAL_QUERY = "installedPublishedDocument";
 const DEFAULT_INSTALL_ACTION = "pageApplicationTester.installPublishedDocument";
 const DEFAULT_SYNC_ACTION = "pageApplicationTester.syncPublishedDocument";
 const DEFAULT_COMMENT_SUBMIT_ACTION = "pageApplicationTester.submitComment";
-const DEFAULT_QUERY_PARAMS = ["appTester", "runtimeProbe"];
+const DEFAULT_REVIEW_QUERY_PARAMS = ["appReview", "appTester"];
+const DEFAULT_DEBUG_QUERY_PARAMS = ["appDebug", "runtimeProbe"];
 const DEFAULT_API_ORIGIN_QUERY_PARAMS = ["appApiOrigin", "apiOrigin"];
 const DEFAULT_REVIEW_APPLICATION_API_ORIGINS = ["http://127.0.0.1:3001", "http://localhost:3001"];
 const DEFAULT_PUBLIC_PUBLISHED_DOCUMENT_API_PATH =
@@ -199,7 +200,8 @@ function buildApplicationTesterAssetUrl(payload = {}, publicOrigin = null) {
   }
   return appendRuntimeAssetVersion(
     `${publicOrigin.replace(/\/+$/, "")}/${DEFAULT_APPLICATION_TESTER_ASSET_PATH}`,
-    payload
+    payload,
+    resolveApplicationTesterSourcePath()
   );
 }
 
@@ -210,11 +212,18 @@ function buildApplicationTesterPreferredOrigins(applicationApiOrigin) {
 }
 
 function buildOptionalTesterAssetUrl(payload = {}, assetPath) {
+  const sourcePath =
+    assetPath === DEFAULT_APPLICATION_TESTER_FIRESTORE_ASSET_PATH
+      ? resolveApplicationTesterFirestoreSourcePath()
+      : assetPath === DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH
+        ? resolveApplicationTesterSupportSourcePath()
+        : resolveApplicationTesterSourcePath();
   const publicOrigin = normalizeAbsoluteUrl(payload?.delivery?.publicOrigin);
   if (publicOrigin) {
     return appendRuntimeAssetVersion(
       `${publicOrigin.replace(/\/+$/, "")}/${assetPath}`,
-      payload
+      payload,
+      sourcePath
     );
   }
   return buildRelativeAssetUrl(payload?.page?.path ?? "/", assetPath);
@@ -296,7 +305,9 @@ export async function buildApplicationTesterContract(payload = {}, options = {})
   return {
     contractVersion: 1,
     assetUrl: buildApplicationTesterAssetUrl(payload, publicOrigin),
-    enabledQueryParams: DEFAULT_QUERY_PARAMS,
+    reviewQueryParams: DEFAULT_REVIEW_QUERY_PARAMS,
+    debugQueryParams: DEFAULT_DEBUG_QUERY_PARAMS,
+    enabledQueryParams: [...DEFAULT_REVIEW_QUERY_PARAMS, ...DEFAULT_DEBUG_QUERY_PARAMS],
     apiOriginQueryParams: DEFAULT_API_ORIGIN_QUERY_PARAMS,
     defaultApiOrigin: applicationApiOrigin,
     preferredApplicationApiOrigins: buildApplicationTesterPreferredOrigins(applicationApiOrigin),

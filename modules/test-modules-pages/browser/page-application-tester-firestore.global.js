@@ -60,6 +60,39 @@ async function resolveBrowserFirestoreContext(targetGlobal, contract) {
   };
 }
 
+async function listBrowserFirestoreComments(targetGlobal, contract) {
+  var context = await resolveBrowserFirestoreContext(targetGlobal, contract);
+  var collectionReference = context.firestore.collection(
+    context.db,
+    contract.commentsCollectionPath || "publicComments"
+  );
+  var commentsQuery = context.firestore.query(
+    collectionReference,
+    context.firestore.where("postId", "==", contract.primaryRecord && contract.primaryRecord.id ? contract.primaryRecord.id : null)
+  );
+  var snapshot = await context.firestore.getDocs(commentsQuery);
+  var allowedStatuses = ["approved"];
+  var items = snapshot.docs
+    .map(function (entry) {
+      return {
+        id: entry.id,
+        ...entry.data()
+      };
+    })
+    .filter(function (entry) {
+      return allowedStatuses.includes(String(entry.status || "").trim().toLowerCase());
+    })
+    .sort(function (left, right) {
+      return String(left.createdOn || left.createdAt || "").localeCompare(
+        String(right.createdOn || right.createdAt || "")
+      );
+    });
+  return {
+    items: items,
+    total: items.length
+  };
+}
+
 function buildBrowserFirestoreRuntimeAugment(contract, targetGlobal) {
   var queries = [];
   if (contract.firestoreQuery && contract.firestore) {
@@ -86,11 +119,24 @@ function buildBrowserFirestoreRuntimeAugment(contract, targetGlobal) {
     });
   }
 
+  if (contract.actions && contract.actions.submitComment) {
+    queries.push({
+      resource: "comments",
+      query: "byPost",
+      policy: "network-first",
+      dataset: "post-comments",
+      executeRemote: async function () {
+        return listBrowserFirestoreComments(targetGlobal, contract);
+      }
+    });
+  }
+
   var actions = [];
   if (contract.actions && contract.actions.submitComment) {
     actions.push({
-      action: contract.actions.submitComment,
-      policy: "remote-required",
+      action: "comments.submit",
+      policy: "remote-with-local-update",
+      markDatasetsDirty: ["post-comments"],
       executeRemote: async function (input) {
         var payload = input && input.request && input.request.payload ? input.request.payload : {};
         var context = await resolveBrowserFirestoreContext(targetGlobal, contract);
@@ -120,7 +166,29 @@ function buildBrowserFirestoreRuntimeAugment(contract, targetGlobal) {
 
   return {
     queries: queries,
-    actions: actions
+    actions: actions,
+    datasets: [
+      {
+        dataset: "post-comments",
+        recordMode: "array",
+        fetchInstall: async function () {
+          var result = await listBrowserFirestoreComments(targetGlobal, contract);
+          return {
+            items: result.items,
+            version: new Date().toISOString(),
+            syncToken: contract.primaryRecord && contract.primaryRecord.id ? contract.primaryRecord.id : null
+          };
+        },
+        fetchSync: async function () {
+          var result = await listBrowserFirestoreComments(targetGlobal, contract);
+          return {
+            items: result.items,
+            version: new Date().toISOString(),
+            syncToken: contract.primaryRecord && contract.primaryRecord.id ? contract.primaryRecord.id : null
+          };
+        }
+      }
+    ]
   };
 }
 

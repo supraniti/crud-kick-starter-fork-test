@@ -8,6 +8,7 @@ import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference
 import { attachClientRuntimeContract, resolvePageRuntimeScriptUrls, syncClientRuntimeAsset } from "./page-client-runtime-runtime.mjs";
 import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.mjs";
 import { attachApplicationTesterContract, resolvePageApplicationTesterScriptUrls, syncPageApplicationTesterAsset } from "./page-application-tester-runtime.mjs";
+import { attachPageApplicationPayload } from "./page-application-view-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function escapeHtmlText(value) {
@@ -597,8 +598,11 @@ async function writeArtifactDocument({
     page,
     artifactRelativePath
   );
+  const applicationAwarePayload = await attachPageApplicationPayload(browserAwarePayload, {
+    collectionHandlerRegistry
+  });
   const payload = await attachApplicationTesterContract(
-    attachClientRuntimeContract(browserAwarePayload),
+    attachClientRuntimeContract(applicationAwarePayload),
     {
       collectionHandlerRegistry,
       resolveSettingsRepository

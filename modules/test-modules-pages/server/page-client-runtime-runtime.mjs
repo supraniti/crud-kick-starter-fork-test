@@ -421,7 +421,8 @@ export function buildClientRuntimeContract(payload = {}) {
   const publicAssetUrl = publicOrigin
     ? appendRuntimeAssetVersion(
         `${String(publicOrigin).replace(/\/+$/, "")}/${DEFAULT_CLIENT_RUNTIME_ASSET_PATH}`,
-        payload
+        payload,
+        resolveClientRuntimeSourcePath()
       )
     : null;
 

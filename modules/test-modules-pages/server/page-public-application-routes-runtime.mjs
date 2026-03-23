@@ -217,6 +217,78 @@ async function listLocalComments(commentsHandler) {
   return Array.isArray(payload?.items) ? payload.items : [];
 }
 
+function parseCommentStatusFilter(rawValue = null) {
+  const statuses = String(rawValue ?? "approved")
+    .split(",")
+    .map((entry) => normalizeOptionalText(entry))
+    .filter(Boolean);
+  return statuses.length > 0 ? statuses : ["approved"];
+}
+
+async function resolveCommentsPostId(routeContext, query = {}) {
+  const explicitPostId = normalizeOptionalText(query.postId);
+  if (explicitPostId) {
+    return explicitPostId;
+  }
+  const pagePath = normalizeOptionalText(query.path);
+  if (!pagePath) {
+    throw buildPublicApiError(
+      "PUBLIC_COMMENT_POST_REQUIRED",
+      "postId or path query parameter is required.",
+      400
+    );
+  }
+  const payload = await resolvePublishedPagePayload(routeContext, pagePath);
+  const primaryRecord = readPrimaryRecord(payload);
+  const primarySourceType = normalizeOptionalText(payload?.page?.primarySourceType);
+  if (primarySourceType !== "blog-post" || !primaryRecord?.id) {
+    throw buildPublicApiError(
+      "PUBLIC_COMMENT_POST_NOT_RESOLVED",
+      "The requested page does not resolve to a published post.",
+      409
+    );
+  }
+  return primaryRecord.id;
+}
+
+async function listPublicComments(routeContext, query = {}) {
+  const commentsHandler = routeContext.collectionHandlerRegistry.get(COMMENTS_COLLECTION_ID);
+  if (!commentsHandler) {
+    throw buildPublicApiError(
+      "PUBLIC_COMMENT_HANDLER_UNAVAILABLE",
+      "The comments handler is not registered.",
+      500
+    );
+  }
+
+  const [postId, localComments] = await Promise.all([
+    resolveCommentsPostId(routeContext, query),
+    listLocalComments(commentsHandler)
+  ]);
+  const allowedStatuses = parseCommentStatusFilter(query.status);
+  const matchingComments = localComments
+    .filter((comment) => comment?.postId === postId)
+    .filter((comment) => allowedStatuses.includes(normalizeOptionalText(comment?.status) ?? ""))
+    .sort((left, right) =>
+      normalizeImportedCommentTimestamp(left?.createdOn ?? left?.createdAt).localeCompare(
+        normalizeImportedCommentTimestamp(right?.createdOn ?? right?.createdAt)
+      )
+    );
+
+  const items = await Promise.all(
+    matchingComments.map(async (comment) =>
+      typeof commentsHandler.resolveRow === "function" ? commentsHandler.resolveRow(comment) : comment
+    )
+  );
+
+  return {
+    ok: true,
+    postId,
+    statuses: allowedStatuses,
+    items
+  };
+}
+
 async function importPublicCommentsIntoLocal(routeContext, reply) {
   const commentsHandler = routeContext.collectionHandlerRegistry.get(COMMENTS_COLLECTION_ID);
   if (!commentsHandler) {
@@ -557,6 +629,26 @@ export function registerPagePublicApplicationRoutes(fastify, routeContext) {
         error: {
           code: error?.code ?? "PUBLIC_PUBLISHED_DOCUMENT_FAILED",
           message: error?.message ?? "Failed to resolve the published document."
+        }
+      });
+    }
+  });
+
+  fastify.get(commentsPath, async function publicCommentsListRoute(request, reply) {
+    setPublicApiCorsHeaders(reply);
+    const moduleAvailability = ensureModuleEnabled(routeContext, reply);
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+    try {
+      return buildPublicApiPayload(await listPublicComments(routeContext, request.query ?? {}));
+    } catch (error) {
+      reply.code(error?.statusCode ?? 500);
+      return buildPublicApiPayload({
+        ok: false,
+        error: {
+          code: error?.code ?? "PUBLIC_COMMENT_LIST_FAILED",
+          message: error?.message ?? "Failed to list public comments."
         }
       });
     }
