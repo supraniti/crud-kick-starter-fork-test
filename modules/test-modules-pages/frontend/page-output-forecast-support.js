@@ -11,6 +11,39 @@ function joinOriginPath(origin, path) {
   return safePath.startsWith("/") ? `${safeOrigin}${safePath}` : `${safeOrigin}/${safePath}`;
 }
 
+function shouldUseIndexArtifact(delivery = {}) {
+  const accessMode = normalizeText(delivery?.accessMode);
+  if (accessMode !== "custom-domain") {
+    return true;
+  }
+  const publicOrigin = normalizeText(delivery?.publicOrigin);
+  if (!publicOrigin) {
+    return false;
+  }
+  try {
+    const originUrl = new URL(publicOrigin);
+    return (
+      originUrl.hostname === "storage.googleapis.com" ||
+      originUrl.hostname.endsWith(".storage.googleapis.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function buildSamplePublicUrl(delivery, path) {
+  const publicOrigin = normalizeText(delivery?.publicOrigin);
+  const normalizedPath = normalizeText(path);
+  if (!publicOrigin || !normalizedPath) {
+    return null;
+  }
+  if (!shouldUseIndexArtifact(delivery)) {
+    return joinOriginPath(publicOrigin, normalizedPath);
+  }
+  const cleanPath = normalizedPath === "/" ? "" : normalizedPath.replace(/\/+$/g, "");
+  return cleanPath ? joinOriginPath(publicOrigin, `${cleanPath}/index.html`) : `${publicOrigin}/index.html`;
+}
+
 function sampleDeploymentPaths({ page, previewSourceItems, deploymentInstances }) {
   const previewPaths = (Array.isArray(previewSourceItems) ? previewSourceItems : [])
     .map((item) => normalizeText(item?.path))
@@ -44,7 +77,7 @@ function resolveExpectedOutputCount({ isPerRecord, page, samplePaths, previewSou
 function resolveSamplePublicUrls(delivery, samplePaths) {
   const publicOrigin = normalizeText(delivery?.publicOrigin);
   if (publicOrigin && samplePaths.length > 0) {
-    return samplePaths.map((path) => joinOriginPath(publicOrigin, path)).filter(Boolean);
+    return samplePaths.map((path) => buildSamplePublicUrl(delivery, path)).filter(Boolean);
   }
   const publicUrl = normalizeText(delivery?.publicUrl);
   return publicUrl ? [publicUrl] : [];

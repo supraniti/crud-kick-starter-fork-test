@@ -76,7 +76,7 @@ function buildMediaRouteRule(mediaTarget, backendBucketLink, priority = 10) {
   };
 }
 
-function buildDeploymentAssetsRouteRule(deploymentPrefix, deploymentBackendBucketLink, priority = 20) {
+function buildDeploymentAssetsExactRouteRule(deploymentPrefix, deploymentBackendBucketLink, priority = 20) {
   if (!deploymentPrefix) {
     return null;
   }
@@ -85,15 +85,32 @@ function buildDeploymentAssetsRouteRule(deploymentPrefix, deploymentBackendBucke
     matchRules: [
       {
         fullPathMatch: "/assets"
-      },
-      {
-        prefixMatch: "/assets/"
       }
     ],
     service: deploymentBackendBucketLink,
     routeAction: {
       urlRewrite: {
         pathPrefixRewrite: `/${deploymentPrefix}/assets`
+      }
+    }
+  };
+}
+
+function buildDeploymentAssetsPrefixRouteRule(deploymentPrefix, deploymentBackendBucketLink, priority = 21) {
+  if (!deploymentPrefix) {
+    return null;
+  }
+  return {
+    priority,
+    matchRules: [
+      {
+        pathTemplateMatch: "/assets/{assetPath=**}"
+      }
+    ],
+    service: deploymentBackendBucketLink,
+    routeAction: {
+      urlRewrite: {
+        pathTemplateRewrite: `/${deploymentPrefix}/assets/{assetPath}`
       }
     }
   };
@@ -143,7 +160,8 @@ function buildBackendBucketPathMatcher(hostname, deploymentBackendBucketLink, de
   const deploymentPrefix = trimPathPrefix(deploymentTarget?.config?.prefix);
   const routeRules = [
     buildMediaRouteRule(mediaTarget, mediaBackendBucketLink, 10),
-    buildDeploymentAssetsRouteRule(deploymentPrefix, deploymentBackendBucketLink, 20),
+    buildDeploymentAssetsExactRouteRule(deploymentPrefix, deploymentBackendBucketLink, 20),
+    buildDeploymentAssetsPrefixRouteRule(deploymentPrefix, deploymentBackendBucketLink, 21),
     buildDeploymentRootRouteRule(deploymentPrefix, deploymentBackendBucketLink, 30),
     buildDeploymentPageRouteRule(deploymentPrefix, deploymentBackendBucketLink, 40)
   ].filter(Boolean);
@@ -163,6 +181,32 @@ function buildBackendBucketPathMatcher(hostname, deploymentBackendBucketLink, de
         ...(routeRules.length > 0 ? { routeRules } : {})
       }
     ]
+  };
+}
+
+export function buildExpectedUrlMapDefinition(
+  projectId,
+  urlMapName,
+  hostname,
+  deploymentTarget,
+  deploymentBackendBucketName,
+  mediaTarget,
+  mediaBackendBucketName
+) {
+  const deploymentBackendBucketLink = buildComputeGlobalUrl(projectId, "backendBuckets", deploymentBackendBucketName);
+  const mediaBackendBucketLink =
+    mediaTarget && mediaBackendBucketName
+      ? buildComputeGlobalUrl(projectId, "backendBuckets", mediaBackendBucketName)
+      : null;
+  return {
+    name: urlMapName,
+    ...buildBackendBucketPathMatcher(
+      hostname,
+      deploymentBackendBucketLink,
+      deploymentTarget,
+      mediaTarget,
+      mediaBackendBucketLink
+    )
   };
 }
 

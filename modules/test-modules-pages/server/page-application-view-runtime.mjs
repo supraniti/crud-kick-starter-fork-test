@@ -116,13 +116,31 @@ function buildMediaSummary(media = null, delivery = {}) {
   };
 }
 
-function buildPublicUrl(publicOrigin, pagePath) {
+function buildPublicUrl(publicOrigin, pagePath, delivery = {}) {
   const normalizedOrigin = normalizeOptionalText(publicOrigin);
   const normalizedPath = normalizePagePath(pagePath);
   if (!normalizedOrigin || !normalizedPath) {
     return null;
   }
-  const relativePath = normalizedPath === "/" ? "" : normalizedPath.replace(/^\/+/, "");
+  const isCustomDomain = normalizeText(delivery?.accessMode) === "custom-domain";
+  let usesProviderObjectOrigin = false;
+  try {
+    const originUrl = new URL(normalizedOrigin);
+    usesProviderObjectOrigin =
+      originUrl.hostname === "storage.googleapis.com" ||
+      originUrl.hostname.endsWith(".storage.googleapis.com");
+  } catch {
+    usesProviderObjectOrigin = false;
+  }
+  const useIndexArtifact = !isCustomDomain || usesProviderObjectOrigin;
+  const relativePath =
+    normalizedPath === "/"
+      ? useIndexArtifact
+        ? "index.html"
+        : ""
+      : useIndexArtifact
+        ? `${normalizedPath.replace(/^\/+/, "")}/index.html`
+        : normalizedPath.replace(/^\/+/, "");
   const baseUrl = normalizedOrigin.endsWith("/") ? normalizedOrigin : `${normalizedOrigin}/`;
   return new URL(relativePath, baseUrl).toString();
 }
@@ -139,7 +157,8 @@ function resolveRecordPageLink({
   pages = [],
   sourceType,
   record,
-  publicOrigin
+  publicOrigin,
+  delivery = {}
 }) {
   if (!record) {
     return null;
@@ -154,7 +173,7 @@ function resolveRecordPageLink({
       return {
         pageId: page.id ?? null,
         path,
-        publicUrl: buildPublicUrl(publicOrigin, path)
+        publicUrl: buildPublicUrl(publicOrigin, path, delivery)
       };
     }
 
@@ -164,19 +183,20 @@ function resolveRecordPageLink({
       return {
         pageId: page.id ?? null,
         path,
-        publicUrl: buildPublicUrl(publicOrigin, path)
+        publicUrl: buildPublicUrl(publicOrigin, path, delivery)
       };
     }
   }
   return null;
 }
 
-function buildTagSummary(tag = {}, pages = [], publicOrigin = null) {
+function buildTagSummary(tag = {}, pages = [], publicOrigin = null, delivery = {}) {
   const pageLink = resolveRecordPageLink({
     pages,
     sourceType: "blog-tag",
     record: tag,
-    publicOrigin
+    publicOrigin,
+    delivery
   });
   return {
     id: tag.id ?? null,
@@ -193,7 +213,8 @@ function buildCategorySummary(category = {}, pages = [], publicOrigin = null, de
     pages,
     sourceType: "blog-category",
     record: category,
-    publicOrigin
+    publicOrigin,
+    delivery
   });
   return {
     id: category.id ?? null,
@@ -213,7 +234,8 @@ function buildAuthorSummary(author = {}, pages = [], publicOrigin = null, delive
     pages,
     sourceType: "blog-author",
     record: author,
-    publicOrigin
+    publicOrigin,
+    delivery
   });
   return {
     id: author.id ?? null,
@@ -233,7 +255,8 @@ function buildPostCard(post = {}, pages = [], publicOrigin = null, delivery = {}
     pages,
     sourceType: "blog-post",
     record: post,
-    publicOrigin
+    publicOrigin,
+    delivery
   });
   return {
     id: post.id ?? null,
@@ -251,13 +274,13 @@ function buildPostCard(post = {}, pages = [], publicOrigin = null, delivery = {}
   };
 }
 
-function buildBreadcrumbChain(categoriesById, category = null, pages = [], publicOrigin = null) {
+function buildBreadcrumbChain(categoriesById, category = null, pages = [], publicOrigin = null, delivery = {}) {
   const chain = [];
   let cursor = category;
   const visited = new Set();
   while (cursor && cursor.id && !visited.has(cursor.id)) {
     visited.add(cursor.id);
-    chain.unshift(buildCategorySummary(cursor, pages, publicOrigin));
+    chain.unshift(buildCategorySummary(cursor, pages, publicOrigin, delivery));
     const parentId = normalizeOptionalText(cursor.parentCategoryId);
     cursor = parentId ? categoriesById.get(parentId) ?? null : null;
   }
@@ -354,7 +377,7 @@ async function buildPostApplicationModel(payload, collectionHandlerRegistry) {
       author: primaryAuthor ? buildAuthorSummary(primaryAuthor, publishedPages, publicOrigin, delivery) : null,
       coAuthors: coAuthors.map((item) => buildAuthorSummary(item, publishedPages, publicOrigin, delivery)),
       categories: categories.map((item) => buildCategorySummary(item, publishedPages, publicOrigin, delivery)),
-      tags: tags.map((item) => buildTagSummary(item, publishedPages, publicOrigin))
+      tags: tags.map((item) => buildTagSummary(item, publishedPages, publicOrigin, delivery))
     },
     navigation: {
       ...buildPostNavigation(allPosts, primaryRecord, publishedPages, publicOrigin, delivery),
@@ -363,12 +386,13 @@ async function buildPostApplicationModel(payload, collectionHandlerRegistry) {
             pages: publishedPages,
             sourceType: "blog-author",
             record: primaryAuthor,
-            publicOrigin
+            publicOrigin,
+            delivery
           })
         : null,
       primaryCategory: primaryCategory ? buildCategorySummary(primaryCategory, publishedPages, publicOrigin, delivery) : null,
       breadcrumbs: primaryCategory
-        ? buildBreadcrumbChain(categoriesById, primaryCategory, publishedPages, publicOrigin)
+        ? buildBreadcrumbChain(categoriesById, primaryCategory, publishedPages, publicOrigin, delivery)
         : []
     },
     related: {
@@ -427,7 +451,7 @@ async function buildCategoryApplicationModel(payload, collectionHandlerRegistry)
     },
     navigation: {
       parentCategory: parentCategory ? buildCategorySummary(parentCategory, publishedPages, publicOrigin, delivery) : null,
-      breadcrumbs: buildBreadcrumbChain(categoriesById, primaryRecord, publishedPages, publicOrigin)
+      breadcrumbs: buildBreadcrumbChain(categoriesById, primaryRecord, publishedPages, publicOrigin, delivery)
     },
     children: childCategories.map((item) => buildCategorySummary(item, publishedPages, publicOrigin, delivery)),
     posts: categoryPosts.map((item) => buildPostCard(item, publishedPages, publicOrigin, delivery))

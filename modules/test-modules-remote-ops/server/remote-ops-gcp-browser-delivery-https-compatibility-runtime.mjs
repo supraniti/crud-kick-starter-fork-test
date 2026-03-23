@@ -1,6 +1,7 @@
 import { normalizeOptionalText, normalizeTargetConfig } from "./remote-ops-shared-runtime.mjs";
 import { buildTemporaryStorageBaseUrl } from "../shared/browser-delivery-support.mjs";
 import {
+  buildExpectedUrlMapDefinition,
   buildBrowserDeliveryDnsInstructions,
   buildBrowserDeliveryPublicMediaBaseUrl,
   loadBackendBucket,
@@ -17,6 +18,67 @@ import {
   resolveBrowserDeliveryManagedNames,
   validateBrowserDeliveryStackCompatibility
 } from "./remote-ops-gcp-browser-delivery-stack-runtime.mjs";
+
+function normalizeUrlMapMatchRule(rule = {}) {
+  return {
+    fullPathMatch: normalizeOptionalText(rule?.fullPathMatch),
+    prefixMatch: normalizeOptionalText(rule?.prefixMatch),
+    pathTemplateMatch: normalizeOptionalText(rule?.pathTemplateMatch)
+  };
+}
+
+function normalizeUrlMapRouteRule(rule = {}) {
+  return {
+    priority: Number(rule?.priority ?? 0),
+    service: normalizeOptionalText(rule?.service),
+    matchRules: Array.isArray(rule?.matchRules)
+      ? rule.matchRules.map(normalizeUrlMapMatchRule).sort((left, right) =>
+          JSON.stringify(left).localeCompare(JSON.stringify(right))
+        )
+      : [],
+    routeAction: {
+      urlRewrite: {
+        pathPrefixRewrite: normalizeOptionalText(rule?.routeAction?.urlRewrite?.pathPrefixRewrite),
+        pathTemplateRewrite: normalizeOptionalText(rule?.routeAction?.urlRewrite?.pathTemplateRewrite)
+      }
+    }
+  };
+}
+
+function normalizeUrlMapPathMatcher(pathMatcher = {}) {
+  return {
+    name: normalizeOptionalText(pathMatcher?.name),
+    defaultService: normalizeOptionalText(pathMatcher?.defaultService),
+    routeRules: Array.isArray(pathMatcher?.routeRules)
+      ? pathMatcher.routeRules
+          .map(normalizeUrlMapRouteRule)
+          .sort((left, right) => left.priority - right.priority || JSON.stringify(left).localeCompare(JSON.stringify(right)))
+      : []
+  };
+}
+
+function normalizeUrlMapForComparison(urlMap = {}) {
+  return {
+    defaultService: normalizeOptionalText(urlMap?.defaultService),
+    hostRules: Array.isArray(urlMap?.hostRules)
+      ? urlMap.hostRules
+          .map((entry) => ({
+            hosts: Array.isArray(entry?.hosts) ? [...entry.hosts].sort() : [],
+            pathMatcher: normalizeOptionalText(entry?.pathMatcher)
+          }))
+          .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+      : [],
+    pathMatchers: Array.isArray(urlMap?.pathMatchers)
+      ? urlMap.pathMatchers
+          .map(normalizeUrlMapPathMatcher)
+          .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+      : []
+  };
+}
+
+function isUrlMapShapeCompatible(actualUrlMap, expectedUrlMap) {
+  return JSON.stringify(normalizeUrlMapForComparison(actualUrlMap)) === JSON.stringify(normalizeUrlMapForComparison(expectedUrlMap));
+}
 
 function isInspectablePermissionFailure(error) {
   const statusCode = Number(error?.statusCode ?? 0);
@@ -310,6 +372,7 @@ async function inspectHttpsOriginsAndRouting({
   report,
   buildProvisioningAction,
   targetProfile,
+  config,
   project,
   accessToken,
   names,
@@ -376,21 +439,108 @@ async function inspectHttpsOriginsAndRouting({
     });
   }
 
-  await inspectHttpsManagedResource({
-    report,
-    buildProvisioningAction,
-    targetProfile,
-    suffix: "url-map",
-    label: `${targetProfile.title} URL map`,
-    actionLabel: `Create or update URL map '${names.urlMapName}'`,
-    resourceKind: "url-map",
-    resourceName: names.urlMapName,
-    loader: () => loadUrlMap(project.projectId, names.urlMapName, accessToken),
-    notes: ["Routes the hostname to deployment and optional media backend buckets."],
-    projectPermissions,
-    provisionGroup,
-    requiredPermissions: ["compute.urlMaps.create", "compute.urlMaps.update"]
-  });
+  const expectedUrlMap = buildExpectedUrlMapDefinition(
+    project.projectId,
+    names.urlMapName,
+    config.hostname,
+    deploymentTarget,
+    names.deploymentBackendBucketName,
+    mediaTarget,
+    names.mediaBackendBucketName
+  );
+  const urlMapNotes = ["Routes the hostname to deployment and optional media backend buckets."];
+  try {
+    const urlMap = await loadUrlMap(project.projectId, names.urlMapName, accessToken);
+    if (!isUrlMapShapeCompatible(urlMap, expectedUrlMap)) {
+      report.resourceChecks.push({
+        kind: "url-map",
+        state: "drifted",
+        label: `${targetProfile.title} URL map`,
+        resourceName: names.urlMapName,
+        details: "Existing URL map does not match the required route rules for the current browser-delivery contract."
+      });
+      report.missingResources.push({
+        kind: "url-map",
+        label: `${targetProfile.title} URL map`,
+        resourceName: names.urlMapName
+      });
+      report.provisionableActions.push(
+        buildHttpsAction({
+          buildProvisioningAction,
+          targetProfile,
+          suffix: "url-map",
+          label: `Create or update URL map '${names.urlMapName}'`,
+          resourceKind: "url-map",
+          notes: urlMapNotes,
+          projectPermissions,
+          provisionGroup,
+          requiredPermissions: ["compute.urlMaps.create", "compute.urlMaps.update"]
+        })
+      );
+    } else {
+      report.resourceChecks.push({
+        kind: "url-map",
+        state: "present",
+        label: `${targetProfile.title} URL map`,
+        resourceName: urlMap?.name ?? names.urlMapName
+      });
+    }
+  } catch (error) {
+    if (error?.statusCode === 404) {
+      report.missingResources.push({
+        kind: "url-map",
+        label: `${targetProfile.title} URL map`,
+        resourceName: names.urlMapName
+      });
+      report.provisionableActions.push(
+        buildHttpsAction({
+          buildProvisioningAction,
+          targetProfile,
+          suffix: "url-map",
+          label: `Create or update URL map '${names.urlMapName}'`,
+          resourceKind: "url-map",
+          notes: urlMapNotes,
+          projectPermissions,
+          provisionGroup,
+          requiredPermissions: ["compute.urlMaps.create", "compute.urlMaps.update"]
+        })
+      );
+    } else if (isInspectablePermissionFailure(error)) {
+      report.resourceChecks.push({
+        kind: "url-map",
+        state: "unknown",
+        label: `${targetProfile.title} URL map`,
+        resourceName: names.urlMapName,
+        details: error?.message ?? "Unable to inspect url-map before provisioning"
+      });
+      report.missingResources.push({
+        kind: "url-map",
+        label: `${targetProfile.title} URL map`,
+        resourceName: names.urlMapName
+      });
+      report.provisionableActions.push(
+        buildHttpsAction({
+          buildProvisioningAction,
+          targetProfile,
+          suffix: "url-map",
+          label: `Create or update URL map '${names.urlMapName}'`,
+          resourceKind: "url-map",
+          notes: urlMapNotes,
+          projectPermissions,
+          provisionGroup,
+          requiredPermissions: ["compute.urlMaps.create", "compute.urlMaps.update"]
+        })
+      );
+    } else {
+      report.resourceChecks.push({
+        kind: "url-map",
+        state: "error",
+        label: `${targetProfile.title} URL map`,
+        resourceName: names.urlMapName,
+        details: error?.message ?? "Failed to inspect url-map"
+      });
+    }
+  }
 
   await inspectHttpsManagedResource({
     report,
@@ -608,6 +758,7 @@ export async function inspectHttpsBrowserTarget({
     report,
     buildProvisioningAction,
     targetProfile,
+    config,
     project,
     accessToken,
     names,

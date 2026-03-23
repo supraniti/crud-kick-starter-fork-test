@@ -20,7 +20,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlogEngagementWorkspace } from "../../../../modules/test-modules-engagement/frontend/useBlogEngagementWorkspace.js";
 import { importReferencePublicCommentsToLocal } from "../../api/reference.js";
 import { useCommentModerationAwareness } from "./useCommentModerationAwareness.js";
@@ -699,6 +699,7 @@ function CommentWorkbenchDrawer({
 export function ProductModerationView({ navigate = null, route = {}, collectionsDomain }) {
   const routeState = useMemo(() => resolveModerationRouteState(route), [route]);
   const [publicIntakeState, setPublicIntakeState] = useState(createPublicIntakeState);
+  const publicIntakeLoadingRef = useRef(false);
   const reloadCommentItems = collectionsDomain.reloadCollectionItems;
 
   const updateRouteState = useCallback(
@@ -737,6 +738,10 @@ export function ProductModerationView({ navigate = null, route = {}, collections
 
   const runPublicIntakeSync = useCallback(
     async ({ announceEmpty = true } = {}) => {
+      if (publicIntakeLoadingRef.current) {
+        return;
+      }
+      publicIntakeLoadingRef.current = true;
       setPublicIntakeState((previous) => ({
         ...previous,
         loading: true,
@@ -786,6 +791,8 @@ export function ProductModerationView({ navigate = null, route = {}, collections
           result: null,
           completedAt: null
         });
+      } finally {
+        publicIntakeLoadingRef.current = false;
       }
     },
     [reloadCommentItems]
@@ -795,6 +802,30 @@ export function ProductModerationView({ navigate = null, route = {}, collections
     runPublicIntakeSync({
       announceEmpty: false
     });
+  }, [runPublicIntakeSync]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return undefined;
+    }
+
+    const triggerBackgroundRefresh = () => {
+      if (document.visibilityState === "visible") {
+        runPublicIntakeSync({
+          announceEmpty: false
+        });
+      }
+    };
+
+    const intervalId = window.setInterval(triggerBackgroundRefresh, 20_000);
+    window.addEventListener("focus", triggerBackgroundRefresh);
+    document.addEventListener("visibilitychange", triggerBackgroundRefresh);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", triggerBackgroundRefresh);
+      document.removeEventListener("visibilitychange", triggerBackgroundRefresh);
+    };
   }, [runPublicIntakeSync]);
 
   const postOptions = useMemo(() => {

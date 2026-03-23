@@ -43,11 +43,61 @@
     return value ? support.formatDateTime(value) : "";
   }
 
-  function normalizeLinkHref(link) {
+  function shouldUseIndexArtifact(delivery, href) {
+    var accessMode = toText(delivery && delivery.accessMode, "");
+    if (accessMode !== "custom-domain") {
+      return true;
+    }
+    var candidate = toText(href, toText(delivery && delivery.publicOrigin, ""));
+    if (!candidate) {
+      return false;
+    }
+    try {
+      var parsed = new URL(candidate);
+      return parsed.hostname === "storage.googleapis.com" || /\\.storage\\.googleapis\\.com$/i.test(parsed.hostname);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function appendIndexArtifact(href) {
+    var candidate = toText(href, "");
+    if (!candidate) {
+      return "";
+    }
+    try {
+      var parsed = new URL(candidate);
+      if (parsed.pathname === "/" || parsed.pathname === "") {
+        parsed.pathname = "/index.html";
+        return parsed.toString();
+      }
+      if (/\/index\.html$/i.test(parsed.pathname)) {
+        return parsed.toString();
+      }
+      parsed.pathname = parsed.pathname.replace(/\/+$/g, "") + "/index.html";
+      return parsed.toString();
+    } catch (_error) {
+      if (/\/index\.html$/i.test(candidate)) {
+        return candidate;
+      }
+      return candidate.replace(/\/+$/g, "") + "/index.html";
+    }
+  }
+
+  function normalizeLinkHref(link, delivery) {
     if (!link || typeof link !== "object") {
       return "";
     }
-    return toText(link.publicUrl) || toText(link.path) || "";
+    var publicUrl = toText(link.publicUrl, "");
+    if (publicUrl) {
+      return shouldUseIndexArtifact(delivery, publicUrl) ? appendIndexArtifact(publicUrl) : publicUrl;
+    }
+    var path = toText(link.path, "");
+    var deliveryOrigin = toText(delivery && delivery.publicOrigin, "");
+    if (path && deliveryOrigin) {
+      return buildFallbackPublicUrl(deliveryOrigin, path, delivery);
+    }
+    return path;
   }
 
   function buildFallbackMediaSummary(media) {
@@ -62,11 +112,29 @@
     };
   }
 
-  function buildFallbackPostCard(record, publicOrigin) {
+  function buildFallbackPublicUrl(publicOrigin, pathValue, delivery) {
+    var origin = toText(publicOrigin, "");
+    var path = toText(pathValue, "");
+    if (!origin || !path) {
+      return null;
+    }
+    var normalizedOrigin = origin.replace(/\/+$/g, "");
+    var normalizedPath = path.replace(/^\/+/, "");
+    var isCustomDomain = toText(delivery && delivery.accessMode, "") === "custom-domain";
+    if (!normalizedPath) {
+      return isCustomDomain ? normalizedOrigin + "/" : normalizedOrigin + "/index.html";
+    }
+    return isCustomDomain
+      ? normalizedOrigin + "/" + normalizedPath
+      : normalizedOrigin + "/" + normalizedPath + "/index.html";
+  }
+
+  function buildFallbackPostCard(record, publicOrigin, delivery) {
     if (!record || typeof record !== "object") {
       return null;
     }
     var slug = toText(record.slug, "");
+    var path = slug ? "/post/" + slug : null;
     return {
       id: record.id || null,
       title: toText(record.title, "Untitled post"),
@@ -74,8 +142,8 @@
       excerpt: toText(record.excerpt, ""),
       publishedOn: record.publishedOn || null,
       updatedOn: record.updatedOn || null,
-      path: slug ? "/post/" + slug : null,
-      publicUrl: slug && publicOrigin ? publicOrigin.replace(/\/+$/g, "") + "/post/" + slug : null,
+      path: path,
+      publicUrl: buildFallbackPublicUrl(publicOrigin, path, delivery),
       featuredMedia: buildFallbackMediaSummary(record.featuredMedia)
     };
   }
@@ -85,7 +153,8 @@
     if (!record || typeof record !== "object") {
       return null;
     }
-    var publicOrigin = payload && payload.delivery ? toText(payload.delivery.publicOrigin, "") : "";
+    var delivery = payload && payload.delivery ? payload.delivery : null;
+    var publicOrigin = delivery ? toText(delivery.publicOrigin, "") : "";
     return {
       kind: "post-detail",
       post: {
@@ -147,7 +216,8 @@
     if (!record || typeof record !== "object") {
       return null;
     }
-    var publicOrigin = payload && payload.delivery ? toText(payload.delivery.publicOrigin, "") : "";
+    var delivery = payload && payload.delivery ? payload.delivery : null;
+    var publicOrigin = delivery ? toText(delivery.publicOrigin, "") : "";
     return {
       kind: "category-detail",
       category: {
@@ -165,7 +235,7 @@
       },
       children: [],
       posts: normalizeArray(payload && payload.data ? payload.data.categoryPosts : []).map(function (item) {
-        return buildFallbackPostCard(item && item.record ? item.record : item, publicOrigin);
+        return buildFallbackPostCard(item && item.record ? item.record : item, publicOrigin, delivery);
       }).filter(Boolean)
     };
   }
@@ -196,13 +266,13 @@
     documentObject.head.appendChild(style);
   }
 
-  function renderBreadcrumbs(documentObject, items) {
+  function renderBreadcrumbs(documentObject, items, delivery) {
     if (!normalizeArray(items).length) {
       return null;
     }
     var nav = createNode(documentObject, "nav", { className: "page-app-link-row", attributes: { "aria-label": "Breadcrumb" } });
     normalizeArray(items).forEach(function (item, index) {
-      var href = normalizeLinkHref(item);
+      var href = normalizeLinkHref(item, delivery);
       var node = href ? createNode(documentObject, "a", { className: "page-app-link-chip", attributes: { href: href } }) : createNode(documentObject, "span", { className: "page-app-chip" });
       node.textContent = toText(item.name || item.title || item.displayName, "Item");
       nav.appendChild(node);
@@ -213,12 +283,12 @@
     return nav;
   }
 
-  function renderHero(documentObject, model, support) {
+  function renderHero(documentObject, model, support, delivery) {
     var hero = createNode(documentObject, "header", { className: "page-app-hero" });
     var copy = createNode(documentObject, "div", { className: "page-app-hero-copy" });
     var breadcrumbs = null;
     if (model.kind === "post-detail") {
-      breadcrumbs = renderBreadcrumbs(documentObject, model.navigation && model.navigation.breadcrumbs);
+      breadcrumbs = renderBreadcrumbs(documentObject, model.navigation && model.navigation.breadcrumbs, delivery);
       if (breadcrumbs) { copy.appendChild(breadcrumbs); }
       copy.appendChild(createNode(documentObject, "p", { className: "page-app-eyebrow", text: "Blog Post" }));
       copy.appendChild(createNode(documentObject, "h1", { className: "page-app-title", text: model.post.title }));
@@ -229,7 +299,7 @@
       [model.post.publishedOn ? "Published " + toDisplayDate(model.post.publishedOn, support) : "", model.post.updatedOn ? "Updated " + toDisplayDate(model.post.updatedOn, support) : "", model.post.readTimeMinutes ? model.post.readTimeMinutes + " min read" : "", model.post.wordCount ? model.post.wordCount + " words" : ""].filter(Boolean).forEach(function (entry) { postMeta.appendChild(createNode(documentObject, "span", { text: entry })); });
       copy.appendChild(postMeta);
     } else if (model.kind === "category-detail") {
-      breadcrumbs = renderBreadcrumbs(documentObject, model.navigation && model.navigation.breadcrumbs);
+      breadcrumbs = renderBreadcrumbs(documentObject, model.navigation && model.navigation.breadcrumbs, delivery);
       if (breadcrumbs) { copy.appendChild(breadcrumbs); }
       copy.appendChild(createNode(documentObject, "p", { className: "page-app-eyebrow", text: "Category" }));
       copy.appendChild(createNode(documentObject, "h1", { className: "page-app-title", text: model.category.name }));
@@ -252,13 +322,13 @@
     return hero;
   }
 
-  function renderChipSection(documentObject, items, title) {
+  function renderChipSection(documentObject, items, title, delivery) {
     if (!normalizeArray(items).length) { return null; }
     var card = createNode(documentObject, "section", { className: "page-app-card" });
     card.appendChild(createNode(documentObject, "h2", { text: title }));
     var row = createNode(documentObject, "div", { className: "page-app-chip-row" });
     normalizeArray(items).forEach(function (item) {
-      var href = normalizeLinkHref(item);
+      var href = normalizeLinkHref(item, delivery);
       var node = href ? createNode(documentObject, "a", { className: "page-app-link-chip", attributes: { href: href } }) : createNode(documentObject, "span", { className: "page-app-chip" });
       node.textContent = toText(item.name || item.title || item.displayName, title);
       row.appendChild(node);
@@ -267,7 +337,7 @@
     return card;
   }
 
-  function renderAuthorCard(documentObject, author) {
+  function renderAuthorCard(documentObject, author, delivery) {
     if (!author) { return createNode(documentObject, "div", { className: "page-app-empty", text: "No author is attached to this story yet." }); }
     var card = createNode(documentObject, "section", { className: "page-app-card" });
     card.appendChild(createNode(documentObject, "h2", { text: "Author" }));
@@ -276,7 +346,7 @@
     if (author.avatarMedia && author.avatarMedia.preferredUrl) { avatar.appendChild(createNode(documentObject, "img", { attributes: { src: author.avatarMedia.preferredUrl, alt: toText(author.avatarMedia.altText, author.displayName) } })); }
     layout.appendChild(avatar);
     var copy = createNode(documentObject, "div", {});
-    var href = normalizeLinkHref(author);
+    var href = normalizeLinkHref(author, delivery);
     var heading = href ? createNode(documentObject, "a", { className: "page-app-link-chip", attributes: { href: href } }) : createNode(documentObject, "strong", {});
     heading.textContent = author.displayName;
     copy.appendChild(heading);
@@ -303,8 +373,8 @@
     return card;
   }
 
-  function renderNavigationCard(documentObject, label, item) {
-    var href = normalizeLinkHref(item);
+  function renderNavigationCard(documentObject, label, item, delivery) {
+    var href = normalizeLinkHref(item, delivery);
     if (!item || !href) { return null; }
     var anchor = createNode(documentObject, "a", { attributes: { href: href } });
     var card = createNode(documentObject, "div", { className: "page-app-nav-card" });
@@ -315,8 +385,8 @@
     return anchor;
   }
 
-  function renderPostCard(documentObject, item) {
-    var href = normalizeLinkHref(item);
+  function renderPostCard(documentObject, item, delivery) {
+    var href = normalizeLinkHref(item, delivery);
     var wrapper = href ? createNode(documentObject, "a", { attributes: { href: href } }) : createNode(documentObject, "div", {});
     var card = createNode(documentObject, "article", { className: "page-app-post-card" });
     card.appendChild(createNode(documentObject, "h3", { text: toText(item.title, "Untitled post") }));
@@ -482,28 +552,29 @@
 
   function renderPostPage(documentObject, state, main, side) {
     var model = state.model;
-    state.mount.appendChild(renderHero(documentObject, model, state.support));
+    var delivery = state && state.payload ? state.payload.delivery : null;
+    state.mount.appendChild(renderHero(documentObject, model, state.support, delivery));
     var storyCard = createNode(documentObject, "article", { className: "page-app-card" });
     storyCard.appendChild(createNode(documentObject, "h2", { text: "Story" }));
     storyCard.appendChild(createNode(documentObject, "div", { className: "page-app-body", html: model.post.body || "<p>No story body was delivered for this page.</p>" }));
     main.appendChild(storyCard);
-    var categoriesSection = renderChipSection(documentObject, model.post.categories, "Categories"); if (categoriesSection) { main.appendChild(categoriesSection); }
-    var tagsSection = renderChipSection(documentObject, model.post.tags, "Tags"); if (tagsSection) { main.appendChild(tagsSection); }
+    var categoriesSection = renderChipSection(documentObject, model.post.categories, "Categories", delivery); if (categoriesSection) { main.appendChild(categoriesSection); }
+    var tagsSection = renderChipSection(documentObject, model.post.tags, "Tags", delivery); if (tagsSection) { main.appendChild(tagsSection); }
     var gallery = renderGallery(documentObject, model.post.galleryMedia); if (gallery) { main.appendChild(gallery); }
     var navigationCard = createNode(documentObject, "section", { className: "page-app-card" });
     navigationCard.appendChild(createNode(documentObject, "h2", { text: "Keep Reading" }));
     var navGrid = createNode(documentObject, "div", { className: "page-app-nav" });
-    [renderNavigationCard(documentObject, "Previous Story", model.navigation.previousPost), renderNavigationCard(documentObject, "Next Story", model.navigation.nextPost), renderNavigationCard(documentObject, "Primary Category", model.navigation.primaryCategory), renderNavigationCard(documentObject, "Author Page", model.navigation.authorPage)].filter(Boolean).forEach(function (entry) { navGrid.appendChild(entry); });
+    [renderNavigationCard(documentObject, "Previous Story", model.navigation.previousPost, delivery), renderNavigationCard(documentObject, "Next Story", model.navigation.nextPost, delivery), renderNavigationCard(documentObject, "Primary Category", model.navigation.primaryCategory, delivery), renderNavigationCard(documentObject, "Author Page", model.navigation.authorPage, delivery)].filter(Boolean).forEach(function (entry) { navGrid.appendChild(entry); });
     navigationCard.appendChild(navGrid.childNodes.length ? navGrid : createNode(documentObject, "div", { className: "page-app-empty", text: "No adjacent routes are available for this story yet." }));
     main.appendChild(navigationCard);
     [{ title: "More From This Author", items: model.related.moreFromAuthor }, { title: "Related By Category", items: model.related.byCategory }, { title: "Related By Tag", items: model.related.byTag }].forEach(function (section) {
       var card = createNode(documentObject, "section", { className: "page-app-card" });
       card.appendChild(createNode(documentObject, "h2", { text: section.title }));
       if (!normalizeArray(section.items).length) { card.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: "No related stories are available yet." })); }
-      else { var list = createNode(documentObject, "div", { className: "page-app-post-list" }); normalizeArray(section.items).forEach(function (item) { list.appendChild(renderPostCard(documentObject, item)); }); card.appendChild(list); }
+      else { var list = createNode(documentObject, "div", { className: "page-app-post-list" }); normalizeArray(section.items).forEach(function (item) { list.appendChild(renderPostCard(documentObject, item, delivery)); }); card.appendChild(list); }
       side.appendChild(card);
     });
-    side.appendChild(renderAuthorCard(documentObject, model.post.author));
+    side.appendChild(renderAuthorCard(documentObject, model.post.author, delivery));
     if (model.comments && model.comments.enabled) {
       state.commentsSection = createCommentsSection(documentObject);
       main.appendChild(state.commentsSection.card);
@@ -513,27 +584,28 @@
 
   function renderCategoryPage(documentObject, state, main, side) {
     var model = state.model;
-    state.mount.appendChild(renderHero(documentObject, model, state.support));
+    var delivery = state && state.payload ? state.payload.delivery : null;
+    state.mount.appendChild(renderHero(documentObject, model, state.support, delivery));
     var postsCard = createNode(documentObject, "section", { className: "page-app-card" });
     postsCard.appendChild(createNode(documentObject, "h2", { text: "Stories In This Category" }));
     if (!normalizeArray(model.posts).length) { postsCard.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: "No stories are currently attached to this category." })); }
-    else { var postsList = createNode(documentObject, "div", { className: "page-app-post-list" }); normalizeArray(model.posts).forEach(function (item) { postsList.appendChild(renderPostCard(documentObject, item)); }); postsCard.appendChild(postsList); }
+    else { var postsList = createNode(documentObject, "div", { className: "page-app-post-list" }); normalizeArray(model.posts).forEach(function (item) { postsList.appendChild(renderPostCard(documentObject, item, delivery)); }); postsCard.appendChild(postsList); }
     main.appendChild(postsCard);
     var childCard = createNode(documentObject, "section", { className: "page-app-card" });
     childCard.appendChild(createNode(documentObject, "h2", { text: "Child Categories" }));
     if (!normalizeArray(model.children).length) { childCard.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: "This category has no child branches yet." })); }
-    else { var childGrid = createNode(documentObject, "div", { className: "page-app-grid" }); normalizeArray(model.children).forEach(function (item) { var node = renderNavigationCard(documentObject, "Category", item); if (node) { childGrid.appendChild(node); } }); childCard.appendChild(childGrid); }
+    else { var childGrid = createNode(documentObject, "div", { className: "page-app-grid" }); normalizeArray(model.children).forEach(function (item) { var node = renderNavigationCard(documentObject, "Category", item, delivery); if (node) { childGrid.appendChild(node); } }); childCard.appendChild(childGrid); }
     side.appendChild(childCard);
     if (model.navigation.parentCategory) {
       var parentCard = createNode(documentObject, "section", { className: "page-app-card" });
       parentCard.appendChild(createNode(documentObject, "h2", { text: "Parent Category" }));
-      var parentLink = renderNavigationCard(documentObject, "Up One Level", model.navigation.parentCategory); if (parentLink) { parentCard.appendChild(parentLink); }
+      var parentLink = renderNavigationCard(documentObject, "Up One Level", model.navigation.parentCategory, delivery); if (parentLink) { parentCard.appendChild(parentLink); }
       side.appendChild(parentCard);
     }
   }
 
   function renderGenericPage(documentObject, state, main) {
-    state.mount.appendChild(renderHero(documentObject, state.model, state.support));
+    state.mount.appendChild(renderHero(documentObject, state.model, state.support, state && state.payload ? state.payload.delivery : null));
     var card = createNode(documentObject, "section", { className: "page-app-card" });
     card.appendChild(createNode(documentObject, "h2", { text: "Page" }));
     card.appendChild(createNode(documentObject, "div", { className: "page-app-body", html: state.model.body || "<p>No renderable body was delivered for this page.</p>" }));

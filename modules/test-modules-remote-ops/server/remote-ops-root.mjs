@@ -5,6 +5,13 @@ import { resolveMediaLibraryRootDir } from "../../test-modules-media-manager/ser
 
 const MODULE_SERVER_DIR = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = path.resolve(MODULE_SERVER_DIR, "../../..");
+const REMOTE_OPS_SIM_ROOT_ENV = "CRUD_CONTROL_REMOTE_OPS_SIM_ROOT";
+const REMOTE_OPS_LIVE_ROOT_ENV = "CRUD_CONTROL_REMOTE_OPS_LIVE_ROOT";
+
+function resolveOverriddenRoot(envKey, fallbackPath) {
+  const overridden = process.env[envKey];
+  return overridden ? path.resolve(REPO_ROOT, overridden) : fallbackPath;
+}
 
 export function resolveRepoRoot() {
   return REPO_ROOT;
@@ -19,11 +26,17 @@ export function resolveMediaRoot() {
 }
 
 export function resolveRemoteOpsSimulationRoot() {
-  return path.join(REPO_ROOT, "remote-runtime", "remote-ops-sim");
+  return resolveOverriddenRoot(
+    REMOTE_OPS_SIM_ROOT_ENV,
+    path.join(REPO_ROOT, "remote-runtime", "remote-ops-sim")
+  );
 }
 
 export function resolveRemoteOpsLiveRoot() {
-  return path.join(REPO_ROOT, "remote-runtime", "remote-ops-live");
+  return resolveOverriddenRoot(
+    REMOTE_OPS_LIVE_ROOT_ENV,
+    path.join(REPO_ROOT, "remote-runtime", "remote-ops-live")
+  );
 }
 
 export function resolveRemoteOpsLiveSessionsRoot() {

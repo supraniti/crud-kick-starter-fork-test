@@ -69,7 +69,7 @@ export function buildDnsAuthorizationResourceName(projectId, dnsAuthorizationNam
   return `projects/${projectId}/locations/global/dnsAuthorizations/${dnsAuthorizationName}`;
 }
 
-export { waitForCertificateManagerOperation, waitForComputeGlobalOperation, loadDnsZone, loadDnsAuthorization, loadCertificate, loadCertificateMap, loadCertificateMapEntry, loadGlobalAddress, loadBackendBucket, loadUrlMap, loadTargetHttpsProxy, loadGlobalForwardingRule, listDnsRecordSets, createManagedZone, createDnsAuthorization, createManagedCertificate, createCertificateMap, createCertificateMapEntry, createGlobalAddress, createBackendBucket, createOrUpdateUrlMap, createOrUpdateTargetHttpsProxy, createGlobalForwardingRule, upsertDnsRecord } from "./remote-ops-gcp-browser-delivery-gcp-runtime.mjs";
+export { waitForCertificateManagerOperation, waitForComputeGlobalOperation, loadDnsZone, loadDnsAuthorization, loadCertificate, loadCertificateMap, loadCertificateMapEntry, loadGlobalAddress, loadBackendBucket, loadUrlMap, loadTargetHttpsProxy, loadGlobalForwardingRule, listDnsRecordSets, createManagedZone, createDnsAuthorization, createManagedCertificate, createCertificateMap, createCertificateMapEntry, createGlobalAddress, createBackendBucket, createOrUpdateUrlMap, createOrUpdateTargetHttpsProxy, createGlobalForwardingRule, upsertDnsRecord, buildExpectedUrlMapDefinition } from "./remote-ops-gcp-browser-delivery-gcp-runtime.mjs";
 
 export function buildBrowserDeliveryPublicMediaBaseUrl(config, mediaTarget) {
   const hostname = normalizeOptionalText(config.hostname);

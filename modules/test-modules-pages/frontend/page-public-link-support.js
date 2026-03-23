@@ -19,6 +19,40 @@ function normalizePath(path) {
   return compact.startsWith("/") ? compact : `/${compact}`;
 }
 
+function shouldUseIndexArtifact(publicOrigin, accessMode) {
+  if (normalizeText(accessMode) !== "custom-domain") {
+    return true;
+  }
+  const normalizedOrigin = normalizeText(publicOrigin);
+  if (!normalizedOrigin) {
+    return false;
+  }
+  try {
+    const originUrl = new URL(normalizedOrigin);
+    return (
+      originUrl.hostname === "storage.googleapis.com" ||
+      originUrl.hostname.endsWith(".storage.googleapis.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function buildPublicPageUrl(publicOrigin, pathValue, accessMode) {
+  const normalizedOrigin = normalizeText(publicOrigin).replace(/\/+$/g, "");
+  const normalizedPath = normalizePath(pathValue);
+  if (!normalizedOrigin || !normalizedPath) {
+    return "";
+  }
+  if (!shouldUseIndexArtifact(normalizedOrigin, accessMode)) {
+    return normalizedPath === "/" ? `${normalizedOrigin}/` : `${normalizedOrigin}${normalizedPath}`;
+  }
+  if (normalizedPath === "/") {
+    return `${normalizedOrigin}/index.html`;
+  }
+  return `${normalizedOrigin}${normalizedPath}/index.html`;
+}
+
 function escapePathTokenSegment(value) {
   return String(value ?? "")
     .trim()
@@ -147,7 +181,11 @@ export function resolvePagePublicOutput({
     artifactRelativePath,
     localArtifactPath: artifactRelativePath ? `deployment/${artifactRelativePath}` : "",
     publicOrigin: normalizeText(deliveryDescriptor.publicOrigin),
-    publicUrl: normalizeText(deliveryDescriptor.publicUrl),
+    publicUrl: buildPublicPageUrl(
+      deliveryDescriptor.publicOrigin,
+      resolvedPath,
+      deliveryDescriptor.accessMode
+    ) || normalizeText(deliveryDescriptor.publicUrl),
     publicMediaBaseUrl: normalizeText(deliveryDescriptor.publicMediaBaseUrl),
     deploymentTargetTitle: normalizeText(deploymentTarget?.title),
     browserTargetTitle: normalizeText(browserTarget?.title)

@@ -9,6 +9,7 @@ import {
 import { validateFirestoreCollectionPath } from "./remote-ops-live-firestore-runtime.mjs";
 import { normalizeOptionalText } from "./remote-ops-shared-runtime.mjs";
 import { normalizeBrowserDeliveryConfig } from "../shared/browser-delivery-support.mjs";
+import { resolveBrowserDeliveryManagedNames } from "./remote-ops-gcp-browser-delivery-stack-runtime.mjs";
 
 const REMOTE_TARGETS_COLLECTION_ID = "remote-target-profiles";
 
@@ -203,8 +204,12 @@ async function validateBrowserDeliveryTarget(
 
   const config = normalizeBrowserDeliveryConfig(targetProfile.config);
   const hostname = config.hostname;
-  const dnsZone = config.dnsZone;
-  const certificateName = config.certificateName;
+  const managedNames =
+    config.accessMode === "custom-domain" && config.stackMode === "https-load-balancer"
+      ? resolveBrowserDeliveryManagedNames(targetProfile, targetProfile.config)
+      : null;
+  const dnsZone = config.dnsZone ?? managedNames?.dnsZoneName ?? null;
+  const certificateName = config.certificateName ?? managedNames?.certificateName ?? null;
   const warnings = [];
 
   checkedItems.push(`access mode: ${config.accessMode}`);

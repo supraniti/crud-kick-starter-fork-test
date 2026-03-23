@@ -15,6 +15,14 @@ import {
 
 const REMOTE_OPS_TEST_TIMEOUT_MS = 20_000;
 const TEST_RUNTIME_ROOT = path.resolve(process.cwd(), ".codex-runtime", "remote-ops-tests");
+process.env.CRUD_CONTROL_REMOTE_OPS_SIM_ROOT = path.relative(
+  process.cwd(),
+  path.join(TEST_RUNTIME_ROOT, "remote-ops-sim")
+);
+process.env.CRUD_CONTROL_REMOTE_OPS_LIVE_ROOT = path.relative(
+  process.cwd(),
+  path.join(TEST_RUNTIME_ROOT, "remote-ops-live")
+);
 
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -1680,6 +1688,14 @@ test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a l
                 }
               }),
               expect.objectContaining({
+                priority: 21,
+                routeAction: {
+                  urlRewrite: {
+                    pathTemplateRewrite: "/site/assets/{assetPath}"
+                  }
+                }
+              }),
+              expect.objectContaining({
                 priority: 30,
                 routeAction: {
                   urlRewrite: {
@@ -1708,6 +1724,615 @@ test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a l
           nameServers: expect.arrayContaining(["ns-cloud-a1.googledomains.com."])
         })
       ])
+    );
+  } finally {
+    await server.close();
+  }
+}, REMOTE_OPS_TEST_TIMEOUT_MS);
+
+test("remote ops detects and repairs HTTPS browser-delivery URL map drift", async () => {
+  const server = await createRemoteOpsTestServer();
+
+  try {
+    const payload = createServiceAccountCredentialPayload();
+    const enabledServices = new Set([
+      "storage.googleapis.com",
+      "dns.googleapis.com",
+      "certificatemanager.googleapis.com",
+      "compute.googleapis.com"
+    ]);
+    const dnsZones = new Map([
+      [
+        "content-example-com-zone",
+        {
+          name: "content-example-com-zone",
+          dnsName: "content.example.com.",
+          nameServers: ["ns-cloud-a1.googledomains.com.", "ns-cloud-a2.googledomains.com."]
+        }
+      ]
+    ]);
+    const dnsAuthorizations = new Map([
+      [
+        "content-example-com-dns-auth",
+        {
+          name: "projects/demo-project/locations/global/dnsAuthorizations/content-example-com-dns-auth",
+          domain: "content.example.com",
+          dnsResourceRecord: {
+            name: "_acme-challenge.content.example.com.",
+            type: "CNAME",
+            data: "auth.example.gcp."
+          }
+        }
+      ]
+    ]);
+    const certificates = new Map([
+      [
+        "content-example-com-cert",
+        {
+          name: "projects/demo-project/locations/global/certificates/content-example-com-cert",
+          managed: {
+            state: "ACTIVE",
+            domains: ["content.example.com"]
+          }
+        }
+      ]
+    ]);
+    const certificateMaps = new Map([
+      [
+        "content-example-com-cert-map",
+        {
+          name: "projects/demo-project/locations/global/certificateMaps/content-example-com-cert-map"
+        }
+      ]
+    ]);
+    const certificateMapEntries = new Map([
+      [
+        "content-example-com-cert-map-entry",
+        {
+          name: "projects/demo-project/locations/global/certificateMaps/content-example-com-cert-map/certificateMapEntries/content-example-com-cert-map-entry"
+        }
+      ]
+    ]);
+    const globalAddresses = new Map([
+      [
+        "content-example-com-ip",
+        {
+          name: "content-example-com-ip",
+          address: "34.111.205.190"
+        }
+      ]
+    ]);
+    const backendBuckets = new Map([
+      [
+        "content-example-com-deploy-bb",
+        {
+          name: "content-example-com-deploy-bb",
+          bucketName: "deployment-bucket"
+        }
+      ],
+      [
+        "content-example-com-media-bb",
+        {
+          name: "content-example-com-media-bb",
+          bucketName: "media-bucket"
+        }
+      ]
+    ]);
+    const deploymentBackendBucketLink =
+      "https://compute.googleapis.com/compute/v1/projects/demo-project/global/backendBuckets/content-example-com-deploy-bb";
+    const mediaBackendBucketLink =
+      "https://compute.googleapis.com/compute/v1/projects/demo-project/global/backendBuckets/content-example-com-media-bb";
+    const urlMaps = new Map([
+      [
+        "content-example-com-url-map",
+        {
+          name: "content-example-com-url-map",
+          defaultService: deploymentBackendBucketLink,
+          hostRules: [
+            {
+              hosts: ["content.example.com"],
+              pathMatcher: "primary-matcher"
+            }
+          ],
+          pathMatchers: [
+            {
+              name: "primary-matcher",
+              defaultService: deploymentBackendBucketLink,
+              routeRules: [
+                {
+                  priority: 10,
+                  matchRules: [
+                    {
+                      fullPathMatch: "/library"
+                    },
+                    {
+                      prefixMatch: "/library/"
+                    }
+                  ],
+                  service: mediaBackendBucketLink
+                },
+                {
+                  priority: 40,
+                  matchRules: [
+                    {
+                      pathTemplateMatch: "/{pagePath=**}"
+                    }
+                  ],
+                  service: deploymentBackendBucketLink,
+                  routeAction: {
+                    urlRewrite: {
+                      pathTemplateRewrite: "/site/{pagePath}"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]);
+    const httpsProxies = new Map([
+      [
+        "content-example-com-https-proxy",
+        {
+          name: "content-example-com-https-proxy",
+          urlMap: "https://compute.googleapis.com/compute/v1/projects/demo-project/global/urlMaps/content-example-com-url-map",
+          certificateMap:
+            "//certificatemanager.googleapis.com/projects/demo-project/locations/global/certificateMaps/content-example-com-cert-map"
+        }
+      ]
+    ]);
+    const forwardingRules = new Map([
+      [
+        "content-example-com-https-fr",
+        {
+          name: "content-example-com-https-fr",
+          IPAddress: "https://compute.googleapis.com/compute/v1/projects/demo-project/global/addresses/content-example-com-ip",
+          target:
+            "https://compute.googleapis.com/compute/v1/projects/demo-project/global/targetHttpsProxies/content-example-com-https-proxy"
+        }
+      ]
+    ]);
+    const dnsRecordsByZone = new Map([
+      [
+        "content-example-com-zone",
+        new Map([
+          [
+            "content.example.com.:A",
+            {
+              name: "content.example.com.",
+              type: "A",
+              ttl: 300,
+              rrdatas: ["34.111.205.190"]
+            }
+          ],
+          [
+            "_acme-challenge.content.example.com.:CNAME",
+            {
+              name: "_acme-challenge.content.example.com.",
+              type: "CNAME",
+              ttl: 300,
+              rrdatas: ["auth.example.gcp."]
+            }
+          ]
+        ])
+      ]
+    ]);
+
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      const normalized = String(url);
+      const method = options?.method ?? "GET";
+
+      if (normalized === "https://oauth2.googleapis.com/token") {
+        return createGoogleJsonResponse(200, {
+          access_token: "access-token-browser-delivery-drift",
+          expires_in: 3600,
+          token_type: "Bearer"
+        });
+      }
+
+      if (normalized === "https://cloudresourcemanager.googleapis.com/v3/projects/demo-project") {
+        return createGoogleJsonResponse(200, {
+          name: "projects/1234567890",
+          projectId: "demo-project",
+          projectNumber: "1234567890",
+          displayName: "Demo Project",
+          state: "ACTIVE"
+        });
+      }
+
+      if (
+        normalized === "https://cloudresourcemanager.googleapis.com/v1/projects/demo-project:testIamPermissions" &&
+        method === "POST"
+      ) {
+        const requestPayload = JSON.parse(options.body);
+        return createGoogleJsonResponse(200, {
+          permissions: requestPayload.permissions
+        });
+      }
+
+      if (
+        normalized === "https://serviceusage.googleapis.com/v1/projects/1234567890/services:batchEnable" &&
+        method === "POST"
+      ) {
+        const requestPayload = JSON.parse(options.body);
+        requestPayload.serviceIds.forEach((serviceName) => enabledServices.add(serviceName));
+        return createGoogleJsonResponse(200, {
+          name: "operations/serviceusage-batch-enable-browser-delivery-drift"
+        });
+      }
+
+      if (
+        normalized ===
+        "https://serviceusage.googleapis.com/v1/operations/serviceusage-batch-enable-browser-delivery-drift"
+      ) {
+        return createGoogleJsonResponse(200, {
+          done: true,
+          response: {}
+        });
+      }
+
+      if (normalized.startsWith("https://serviceusage.googleapis.com/v1/projects/1234567890/services/")) {
+        const serviceName = normalized.split("/services/")[1];
+        return createGoogleJsonResponse(200, {
+          name: `projects/1234567890/services/${serviceName}`,
+          state: enabledServices.has(serviceName) ? "ENABLED" : "DISABLED"
+        });
+      }
+
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/deployment-bucket") {
+        return createGoogleJsonResponse(200, {
+          name: "deployment-bucket",
+          location: "ME-WEST1"
+        });
+      }
+
+      if (normalized === "https://storage.googleapis.com/storage/v1/b/media-bucket") {
+        return createGoogleJsonResponse(200, {
+          name: "media-bucket",
+          location: "ME-WEST1"
+        });
+      }
+
+      if (
+        normalized.startsWith("https://storage.googleapis.com/storage/v1/b/deployment-bucket/iam/testPermissions?") ||
+        normalized.startsWith("https://storage.googleapis.com/storage/v1/b/media-bucket/iam/testPermissions?")
+      ) {
+        const requestUrl = new URL(normalized);
+        return createGoogleJsonResponse(200, {
+          permissions: requestUrl.searchParams.getAll("permissions")
+        });
+      }
+
+      if (normalized.startsWith("https://dns.googleapis.com/dns/v1/projects/demo-project/managedZones/")) {
+        const requestUrl = new URL(normalized);
+        const relativePath = requestUrl.pathname.split("/managedZones/")[1];
+        const [zoneName, remainder] = relativePath.split("/");
+        const zone = dnsZones.get(decodeURIComponent(zoneName));
+        if (!zone) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Zone not found"
+            }
+          });
+        }
+        if (!remainder) {
+          return createGoogleJsonResponse(200, zone);
+        }
+        if (remainder === "rrsets") {
+          const key = `${requestUrl.searchParams.get("name") ?? ""}:${requestUrl.searchParams.get("type") ?? ""}`;
+          const records = dnsRecordsByZone.get(zone.name) ?? new Map();
+          const record = records.get(key);
+          return createGoogleJsonResponse(200, {
+            rrsets: record ? [record] : []
+          });
+        }
+        if (remainder === "changes" && method === "POST") {
+          const requestPayload = JSON.parse(options.body);
+          const records = dnsRecordsByZone.get(zone.name) ?? new Map();
+          (requestPayload.deletions ?? []).forEach((record) => {
+            records.delete(`${record.name}:${record.type}`);
+          });
+          (requestPayload.additions ?? []).forEach((record) => {
+            records.set(`${record.name}:${record.type}`, record);
+          });
+          dnsRecordsByZone.set(zone.name, records);
+          return createGoogleJsonResponse(200, {
+            id: "dns-change-drift-001"
+          });
+        }
+      }
+
+      if (normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/dnsAuthorizations/")) {
+        const dnsAuthorizationName = decodeURIComponent(normalized.split("/dnsAuthorizations/")[1]);
+        const entry = dnsAuthorizations.get(dnsAuthorizationName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "DNS authorization not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/certificates/")) {
+        const certificateName = decodeURIComponent(normalized.split("/certificates/")[1]);
+        const entry = certificates.get(certificateName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Certificate not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized.startsWith("https://certificatemanager.googleapis.com/v1/projects/demo-project/locations/global/certificateMaps/")) {
+        const suffix = normalized.split("/certificateMaps/")[1];
+        const [certificateMapName, maybeEntrySegment, entryName] = suffix.split("/");
+        if (!maybeEntrySegment) {
+          const entry = certificateMaps.get(decodeURIComponent(certificateMapName));
+          if (!entry) {
+            return createGoogleJsonResponse(404, {
+              error: {
+                message: "Certificate map not found"
+              }
+            });
+          }
+          return createGoogleJsonResponse(200, entry);
+        }
+        if (maybeEntrySegment === "certificateMapEntries") {
+          const entry = certificateMapEntries.get(decodeURIComponent(entryName));
+          if (!entry) {
+            return createGoogleJsonResponse(404, {
+              error: {
+                message: "Certificate map entry not found"
+              }
+            });
+          }
+          return createGoogleJsonResponse(200, entry);
+        }
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/addresses/")) {
+        const addressName = decodeURIComponent(normalized.split("/addresses/")[1]);
+        const entry = globalAddresses.get(addressName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Address not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/backendBuckets/")) {
+        const backendBucketName = decodeURIComponent(normalized.split("/backendBuckets/")[1]);
+        const entry = backendBuckets.get(backendBucketName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Backend bucket not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/urlMaps/")) {
+        const urlMapName = decodeURIComponent(normalized.split("/urlMaps/")[1]);
+        const entry = urlMaps.get(urlMapName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "URL map not found"
+            }
+          });
+        }
+        if (method === "PATCH") {
+          const requestPayload = JSON.parse(options.body);
+          urlMaps.set(urlMapName, {
+            ...entry,
+            ...requestPayload
+          });
+          return createGoogleJsonResponse(200, {
+            name: "operation-url-map-patch-drift-001"
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/targetHttpsProxies/")) {
+        const proxyName = decodeURIComponent(normalized.split("/targetHttpsProxies/")[1]);
+        const entry = httpsProxies.get(proxyName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Proxy not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/forwardingRules/")) {
+        const ruleName = decodeURIComponent(normalized.split("/forwardingRules/")[1]);
+        const entry = forwardingRules.get(ruleName);
+        if (!entry) {
+          return createGoogleJsonResponse(404, {
+            error: {
+              message: "Forwarding rule not found"
+            }
+          });
+        }
+        return createGoogleJsonResponse(200, entry);
+      }
+
+      if (normalized.startsWith("https://compute.googleapis.com/compute/v1/projects/demo-project/global/operations/")) {
+        return createGoogleJsonResponse(200, {
+          status: "DONE"
+        });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${normalized}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const connection = await seedConnection(server, {
+      credentialPathHint: null,
+      projectId: "",
+      projectNumber: "",
+      projectDisplayName: ""
+    });
+    const imported = await injectJson(server, "POST", buildConnectionRoute(connection.id, "import-key-file"), {
+      fileName: "demo-browser-delivery-drift.json",
+      fileContent: JSON.stringify(payload)
+    });
+    expect(imported.statusCode, JSON.stringify(imported.body)).toBe(200);
+
+    const validatedConnection = await injectJson(server, "POST", buildConnectionRoute(connection.id, "validate"));
+    expect(validatedConnection.statusCode, JSON.stringify(validatedConnection.body)).toBe(200);
+
+    const deploymentTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Deployment Live Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "deployment-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "deployment-bucket",
+        prefix: "site",
+        localRootHint: "deployment"
+      },
+      policy: {
+        allowDeletes: true,
+        allowRestore: true,
+        requireDryRunFirst: true
+      }
+    });
+    expect(deploymentTarget.statusCode).toBe(201);
+
+    const mediaTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Media Live Bucket",
+      connectionProfileId: connection.id,
+      targetKind: "media-storage",
+      adapterMode: "live-gcp",
+      config: {
+        bucketName: "media-bucket",
+        prefix: "library",
+        localRootHint: "media"
+      },
+      policy: {
+        allowDeletes: true,
+        allowRestore: true,
+        requireDryRunFirst: true
+      }
+    });
+    expect(mediaTarget.statusCode).toBe(201);
+
+    const browserTarget = await injectJson(server, "POST", buildItemsRoute("remote-target-profiles"), {
+      title: "Delivery Domain",
+      connectionProfileId: connection.id,
+      targetKind: "browser-delivery",
+      adapterMode: "live-gcp",
+      config: {
+        accessMode: "custom-domain",
+        stackMode: "https-load-balancer",
+        dnsMode: "gcp-managed",
+        hostname: "content.example.com",
+        deploymentTargetProfileId: deploymentTarget.body.item.id,
+        mediaTargetProfileId: mediaTarget.body.item.id
+      },
+      policy: {
+        allowDeletes: false,
+        allowRestore: false,
+        requireDryRunFirst: true
+      }
+    });
+    expect(browserTarget.statusCode).toBe(201);
+
+    const analyze = await injectJson(
+      server,
+      "POST",
+      `/api/reference/modules/test-modules-remote-ops/connections/${connection.id}/analyze-compatibility`
+    );
+    expect(analyze.statusCode, JSON.stringify(analyze.body)).toBe(200);
+    const browserBundle = analyze.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
+    expect(browserBundle.state).toBe("action-required");
+    expect(browserBundle.provisionableActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resourceKind: "url-map" })
+      ])
+    );
+    expect(browserBundle.resourceChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "url-map",
+          state: "drifted"
+        })
+      ])
+    );
+
+    const provision = await injectJson(
+      server,
+      "POST",
+      `/api/reference/modules/test-modules-remote-ops/connections/${connection.id}/provision-missing`,
+      {
+        confirmedSafeguardIds: ["cost-confirmation", "singleton-hygiene", "minimum-footprint"],
+        actionIds: null
+      }
+    );
+    expect(provision.statusCode, JSON.stringify(provision.body)).toBe(200);
+    expect(provision.body.executedActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resourceKind: "url-map" })
+      ])
+    );
+    const provisionedBrowserBundle = provision.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
+    expect(provisionedBrowserBundle.state).toBe("compatible");
+    expect(urlMaps.get("content-example-com-url-map")).toEqual(
+      expect.objectContaining({
+        pathMatchers: expect.arrayContaining([
+          expect.objectContaining({
+            routeRules: expect.arrayContaining([
+              expect.objectContaining({
+                priority: 20,
+                routeAction: {
+                  urlRewrite: {
+                    pathPrefixRewrite: "/site/assets"
+                  }
+                }
+              }),
+              expect.objectContaining({
+                priority: 21,
+                routeAction: {
+                  urlRewrite: {
+                    pathTemplateRewrite: "/site/assets/{assetPath}"
+                  }
+                }
+              }),
+              expect.objectContaining({
+                priority: 30,
+                routeAction: {
+                  urlRewrite: {
+                    pathPrefixRewrite: "/site/index.html"
+                  }
+                }
+              }),
+              expect.objectContaining({
+                priority: 40,
+                routeAction: {
+                  urlRewrite: {
+                    pathTemplateRewrite: "/site/{pagePath}/index.html"
+                  }
+                }
+              })
+            ])
+          })
+        ])
+      })
     );
   } finally {
     await server.close();

@@ -1893,3 +1893,31 @@
     - Cloud DNS nameservers for `fastcart.dev`
     - Google-managed traffic and certificate records
     - the instruction to delegate the registrar and avoid manual registrar A/CNAME records
+
+## 2026-03-23 Domain Delivery Fixes And Remote Runtime Isolation
+- Fixed live public-domain delivery on `fastcart.dev`:
+  - internal post/category links now stay on the custom domain
+  - runtime assets now load successfully through the HTTPS load balancer
+  - public comments fetch on the deployed page now returns `200`
+- Root causes closed:
+  - `modules/test-modules-remote-ops/server/remote-ops-gcp-browser-delivery-gcp-runtime.mjs`
+    - split asset routing into exact + template rules so `/assets/*` rewrites correctly into deployment storage
+  - `modules/test-modules-pages/server/page-runtime-asset-version-runtime.mjs`
+    - runtime asset versioning now changes when delivery origin/mode changes, preventing stale cached `404` asset URLs from being reused after cutover to a custom domain
+  - `modules/test-modules-remote-ops/server/remote-ops-live-validation-runtime.mjs`
+    - browser-delivery validation now derives managed DNS/certificate resource names from the hostname when explicit config fields are blank, so provisioned domains validate cleanly without manual metadata repair
+- Important test hardening:
+  - `modules/test-modules-remote-ops/server/remote-ops-root.mjs`
+  - `server/test/module-conformance/remote-ops.module-conformance.test.js`
+  - remote-ops conformance now runs against isolated test-only runtime roots under `.codex-runtime/remote-ops-tests`
+  - this stops the test suite from deleting the real `remote-runtime/remote-ops-live` credentials and connection recovery files used by the app
+- Live verification completed:
+  - `https://fastcart.dev/post/remote-flow-review-post-01`
+  - `https://fastcart.dev/category/blogcate-001`
+  - both render with working domain-local navigation and media
+- Verified:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - validated connection `remoteco-012`
+  - validated browser-delivery target `remoteta-020`

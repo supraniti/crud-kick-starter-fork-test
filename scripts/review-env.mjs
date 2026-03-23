@@ -59,7 +59,41 @@ function parseListeningPids(netstatOutput, port) {
     .filter((value) => Number.isInteger(value) && value > 0);
 }
 
+function parseWindowsNetConnectionJson(rawValue) {
+  const trimmed = String(rawValue ?? "").trim();
+  if (!trimmed) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(trimmed);
+    const rows = Array.isArray(parsed) ? parsed : [parsed];
+    return rows
+      .map((entry) => Number.parseInt(entry?.OwningProcess, 10))
+      .filter((value) => Number.isInteger(value) && value > 0);
+  } catch {
+    return [];
+  }
+}
+
 function listListeningPids(port) {
+  if (process.platform === "win32") {
+    const psResult = runProcessSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-Command",
+        `Get-NetTCPConnection -State Listen -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object OwningProcess | ConvertTo-Json -Compress`
+      ],
+      {
+        timeout: 10_000
+      }
+    );
+    const psPids = parseWindowsNetConnectionJson(psResult.stdout);
+    if (psPids.length > 0) {
+      return [...new Set(psPids)];
+    }
+  }
+
   const result = runProcessSync("cmd.exe", ["/c", `netstat -ano | findstr ":${port}"`]);
   if (result.status !== 0 && !String(result.stdout || "").trim()) {
     return [];

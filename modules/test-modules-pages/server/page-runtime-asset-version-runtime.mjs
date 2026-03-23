@@ -1,15 +1,20 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 
+const RUNTIME_ASSET_VERSION_MODEL = "page-runtime-asset-v2";
+
 function readVersionSeed(payload = {}) {
-  return (
-    payload?.resolvedAt
-    ?? payload?.page?.updatedOn
-    ?? payload?.page?.publishedOn
-    ?? payload?.page?.createdOn
-    ?? payload?.page?.id
-    ?? "page-runtime-asset"
-  );
+  return [
+    RUNTIME_ASSET_VERSION_MODEL,
+    payload?.resolvedAt ?? "",
+    payload?.page?.updatedOn ?? "",
+    payload?.page?.publishedOn ?? "",
+    payload?.page?.createdOn ?? "",
+    payload?.page?.id ?? "",
+    payload?.delivery?.accessMode ?? "",
+    payload?.delivery?.publicOrigin ?? "",
+    payload?.delivery?.publicMediaBaseUrl ?? ""
+  ].join("|");
 }
 
 const FILE_DIGEST_CACHE = new Map();

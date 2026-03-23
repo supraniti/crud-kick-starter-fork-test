@@ -2852,3 +2852,23 @@
     - what the registrar owner still has to do
   - a saved validated connection is not enough if the copied key file disappears later; the app needs recovery at the credential layer
   - once the nameservers are visible in the Domains desk, the remaining external state is easy to explain and verify
+
+### 2026-03-23 - Fixed Custom-Domain Delivery And Stopped Tests From Wiping Live Credentials
+- Tasks:
+  - fixed the `fastcart.dev` live reader path so deployed post/category pages render with working domain-local navigation
+  - fixed the public comments GET path on the deployed page so it no longer 404s
+  - isolated remote-ops conformance from the real `remote-runtime/remote-ops-live` folders so local validation no longer deletes live credentials and recovery files
+- Verified:
+  - `https://fastcart.dev/post/remote-flow-review-post-01` renders and its internal links stay on `fastcart.dev`
+  - `https://fastcart.dev/category/blogcate-001` renders with working post/category links
+  - runtime assets load through the domain with `200`
+  - public comments listing request returns `200`
+  - focused remote-ops conformance passed after isolation changes
+  - `review:env:verify` and `quality:protocol` passed
+  - `remoteco-012` and `remoteta-020` validate successfully after restart
+- Findings:
+  - the blank custom-domain page was two separate failures layered together:
+    - broken asset rewrite semantics in the HTTPS load balancer
+    - stale cached asset URLs reused after the delivery origin changed
+  - the “missing key file” churn was not random; the remote-ops conformance suite was deleting the real live runtime folders in its cleanup phase
+  - browser-delivery validation should not depend on manually persisted GCP resource-name fields when those names are deterministic from the configured hostname
