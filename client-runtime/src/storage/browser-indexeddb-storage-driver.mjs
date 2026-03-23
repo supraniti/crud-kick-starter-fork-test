@@ -3,6 +3,23 @@ const DB_VERSION = 1;
 const RECORD_STORE = "records";
 const META_STORE = "meta";
 
+function readPathValue(source, pathExpression = "") {
+  const path = String(pathExpression || "")
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  return path.reduce(
+    (current, segment) =>
+      current && typeof current === "object" ? current[segment] : undefined,
+    source
+  );
+}
+
+function resolveRecordKey(dataset, item, index, keyPath = "id") {
+  const resolvedKey = readPathValue(item, keyPath);
+  return `${dataset}:${String(resolvedKey ?? index)}`;
+}
+
 function requestToPromise(request) {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -85,6 +102,39 @@ export function createBrowserIndexedDbStorageDriver(options = {}) {
     return rows.map((row) => structuredClone(row.data));
   }
 
+  async function upsertDataset(dataset, items, status = {}, options = {}) {
+    if (!indexedDbFactory) {
+      throw new Error("indexeddb unavailable");
+    }
+
+    await withStore(indexedDbFactory, RECORD_STORE, "readwrite", async (store) => {
+      items.forEach((item, index) => {
+        store.put({
+          recordKey: resolveRecordKey(dataset, item, index, options.keyPath),
+          dataset,
+          data: structuredClone(item)
+        });
+      });
+    });
+
+    const existingRows = await withStore(indexedDbFactory, RECORD_STORE, "readonly", (store) =>
+      requestToPromise(store.index("dataset").getAll(dataset))
+    );
+
+    const currentStatus = (await getDatasetStatus(dataset)) || { dataset };
+    await withStore(indexedDbFactory, META_STORE, "readwrite", async (store) => {
+      store.put({
+        ...currentStatus,
+        ...status,
+        dataset,
+        installed: true,
+        recordCount: existingRows.length,
+        installedAt: currentStatus.installedAt || new Date().toISOString(),
+        syncedAt: status.syncedAt || currentStatus.syncedAt || new Date().toISOString()
+      });
+    });
+  }
+
   async function getDatasetStatus(dataset) {
     if (!indexedDbFactory) {
       return null;
@@ -107,6 +157,7 @@ export function createBrowserIndexedDbStorageDriver(options = {}) {
     kind: "browser-indexeddb-storage",
     isAvailable: () => typeof indexedDbFactory !== "undefined",
     replaceDataset,
+    upsertDataset,
     getDatasetRecords,
     getDatasetStatus,
     updateDatasetStatus

@@ -1,18 +1,20 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeScriptUrlList } from "./distribution-shared-runtime.mjs";
+import { normalizeScriptUrlList, normalizeOptionalText } from "./distribution-shared-runtime.mjs";
 import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
 
 const DEFAULT_CLIENT_RUNTIME_ASSET_PATH = "assets/client-runtime.global.js";
-const DEFAULT_PAGE_PAYLOAD_DATASET = "page-payload";
-const DEFAULT_PAGE_MEDIA_DATASET = "page-media";
-const DEFAULT_POST_COMMENTS_DATASET = "post-comments";
-const DEFAULT_PAGE_SLOT_RESOURCE = "page-slot";
-const DEFAULT_PAGE_REMOTE_QUERY = "currentRemote";
-const DEFAULT_PAGE_REFRESH_ACTION = "page.refresh";
-const DEFAULT_MEDIA_REFRESH_ACTION = "media.refresh";
-const DEFAULT_COMMENTS_REFRESH_ACTION = "comments.refresh";
+const DEFAULT_READER_BOOTSTRAP_DATASET = "reader-page-bootstrap";
+const DEFAULT_READER_DEFERRED_DATASET = "reader-page-deferred";
+const DEFAULT_READER_PAGE_RESOURCE = "readerPage";
+const DEFAULT_READER_DEFERRED_RESOURCE = "readerDeferred";
+const DEFAULT_PUBLIC_READER_BOOTSTRAP_API_PATH =
+  "/api/reference/modules/test-modules-pages/public/reader/bootstrap";
+const DEFAULT_PUBLIC_READER_DEFERRED_API_PATH =
+  "/api/reference/modules/test-modules-pages/public/reader/deferred";
+const DEFAULT_DEPLOYED_READER_BOOTSTRAP_API_PATH = "/reader/bootstrap";
+const DEFAULT_DEPLOYED_READER_DEFERRED_API_PATH = "/reader/deferred";
 
 function countPathSegments(pagePath) {
   return String(pagePath || "")
@@ -31,392 +33,169 @@ function resolveClientRuntimeSourcePath() {
   return path.resolve(currentDir, "../../../client-runtime/dist/client-runtime.global.js");
 }
 
-function createPagePayloadQueryDefinition() {
-  return {
-    resource: "page",
-    query: "current",
-    policy: "local-first",
-    dataset: DEFAULT_PAGE_PAYLOAD_DATASET
-  };
+function normalizeOrigin(value) {
+  const normalized = normalizeOptionalText(value);
+  return normalized ? normalized.replace(/\/+$/g, "") : null;
 }
 
-function createDatasetRefreshAction(action, dataset) {
-  return {
-    action,
-    policy: "local-only",
-    local: {
-      kind: "sync-dataset",
-      dataset
-    }
-  };
+function readCurrentApplication(payload = {}) {
+  return payload?.application && typeof payload.application === "object" ? payload.application : null;
 }
 
-function normalizeDatasetToken(value, fallback = "slot") {
-  const normalized = String(value ?? "")
-    .trim()
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  return normalized || fallback;
+function readCurrentModel(payload = {}) {
+  const application = readCurrentApplication(payload);
+  return application?.model && typeof application.model === "object" ? application.model : null;
 }
 
-function createPagePayloadDatasetDefinition(payload = {}) {
-  const syncPath = payload?.followUp?.pageByPathRoute ?? null;
-  const definition = {
-    dataset: DEFAULT_PAGE_PAYLOAD_DATASET,
-    bootstrapMode: "inline-json-script",
-    inlineScriptId: "page-data",
-    recordMode: "single-item",
-    versionPath: "resolvedAt",
-    syncTokenPath: "page.id"
-  };
-  if (!syncPath) {
-    return definition;
-  }
-  return {
-    ...definition,
-    remoteSync: {
-      method: "GET",
-      path: syncPath
-    },
-    responsePath: "payload",
-    remoteValuePath: "payload",
-    remoteVersionPath: "payload.resolvedAt",
-    remoteSyncTokenPath: "payload.page.id"
-  };
-}
-
-function createRemotePageQueryDefinition(payload = {}) {
-  const syncPath = payload?.followUp?.pageByPathRoute ?? null;
-  if (!syncPath) {
+function readCurrentPrimaryRecordId(payload = {}) {
+  const model = readCurrentModel(payload);
+  if (!model || typeof model !== "object") {
     return null;
   }
-  return {
-    resource: "page",
-    query: DEFAULT_PAGE_REMOTE_QUERY,
-    policy: "network-first",
-    remote: {
-      method: "GET",
-      path: syncPath,
-      responsePath: "payload"
-    }
-  };
-}
-
-function hasResolvedMediaItems(payload = {}) {
-  return Array.isArray(payload?.media?.items) && payload.media.items.length > 0;
-}
-
-function createMediaQueryDefinitions() {
-  return [
-    {
-      resource: "media",
-      query: "list",
-      policy: "local-first",
-      dataset: DEFAULT_PAGE_MEDIA_DATASET
-    },
-    {
-      resource: "media",
-      query: "byId",
-      policy: "local-first",
-      dataset: DEFAULT_PAGE_MEDIA_DATASET
-    }
-  ];
-}
-
-function createMediaDatasetDefinition(payload = {}) {
-  const syncPath = payload?.followUp?.pageByPathRoute ?? null;
-  const definition = {
-    dataset: DEFAULT_PAGE_MEDIA_DATASET,
-    bootstrapMode: "inline-json-script",
-    inlineScriptId: "page-data",
-    valuePath: "media.items",
-    recordMode: "array",
-    versionPath: "resolvedAt",
-    syncTokenPath: "page.id"
-  };
-  if (!syncPath) {
-    return definition;
+  if (model.kind === "post-detail") {
+    return model.post?.id ?? null;
   }
+  if (model.kind === "category-detail") {
+    return model.category?.id ?? null;
+  }
+  return null;
+}
+
+function createCollectionRemoteResult() {
   return {
-    ...definition,
-    remoteSync: {
-      method: "GET",
-      path: syncPath
-    },
-    responsePath: "payload",
-    remoteValuePath: "payload.media.items",
-    remoteVersionPath: "payload.resolvedAt",
-    remoteSyncTokenPath: "payload.page.id"
+    type: "collection",
+    itemsPath: "items",
+    totalPath: "total"
   };
 }
 
-function readPrimaryRecord(payload = {}) {
-  return payload?.data?.primary?.record && typeof payload.data.primary.record === "object"
-    ? payload.data.primary.record
-    : null;
-}
-
-function resolvePageSlotDatasetName(bindAs) {
-  return `page-slot-${normalizeDatasetToken(bindAs)}`;
-}
-
-function buildPageSlotValuePath(bindAs) {
-  return `data.${bindAs}`;
-}
-
-function buildRemotePageSlotValuePath(bindAs) {
-  return `payload.data.${bindAs}`;
-}
-
-function buildPageSlotDefinitions(payload = {}) {
-  const followUpPath = payload?.followUp?.pageByPathRoute ?? null;
-  const resolvedSources = Array.isArray(payload?.resolvedSources) ? payload.resolvedSources : [];
-  return resolvedSources
-    .filter((entry) => typeof entry?.bindAs === "string" && entry.bindAs.trim().length > 0)
-    .map((entry) => {
-      const bindAs = entry.bindAs.trim();
-      const currentValue = payload?.data?.[bindAs];
-      const recordMode = Array.isArray(currentValue) ? "array" : "single-item";
-      return {
-        bindAs,
-        dataset: resolvePageSlotDatasetName(bindAs),
-        kind: entry.kind ?? "record-by-id",
-        sourceType: entry.sourceType ?? "none",
-        recordMode,
-        valuePath: buildPageSlotValuePath(bindAs),
-        remoteValuePath: buildRemotePageSlotValuePath(bindAs),
-        remoteSync: followUpPath
-          ? {
-              method: "GET",
-              path: followUpPath
-            }
-          : null
-      };
-    });
-}
-
-function createPageSlotQueryDefinitions(slotDefinitions = []) {
-  return slotDefinitions.map((slot) => ({
-    resource: DEFAULT_PAGE_SLOT_RESOURCE,
-    query: slot.bindAs,
-    policy: "local-first",
-    dataset: slot.dataset,
-    ...(slot.remoteSync
-      ? {
-          remote: {
-            ...slot.remoteSync,
-            responsePath: slot.remoteValuePath
-          },
-          ...(slot.recordMode === "array"
-            ? {
-                remoteResult: {
-                  type: "collection"
-                }
-              }
-            : {})
-        }
-      : {})
-  }));
-}
-
-function createPageSlotDatasetDefinitions(slotDefinitions = []) {
-  return slotDefinitions.map((slot) => ({
-    dataset: slot.dataset,
-    bootstrapMode: "inline-json-script",
-    inlineScriptId: "page-data",
-    valuePath: slot.valuePath,
-    recordMode: slot.recordMode,
-    versionPath: "resolvedAt",
-    syncTokenPath: "page.id",
-    ...(slot.remoteSync
-      ? {
-          remoteSync: slot.remoteSync,
-          responsePath: "payload",
-          remoteValuePath: slot.remoteValuePath,
-          remoteVersionPath: "payload.resolvedAt",
-          remoteSyncTokenPath: "payload.page.id"
-        }
-      : {})
-  }));
-}
-
-function createPageSlotActionDefinitions(slotDefinitions = []) {
-  return slotDefinitions.map((slot) =>
-    createDatasetRefreshAction(`page-slot.refresh.${slot.bindAs}`, slot.dataset)
+function resolveReaderApiOrigin(payload = {}) {
+  return normalizeOrigin(
+    payload?.delivery?.applicationApiOrigin ?? payload?.delivery?.publicApplicationApiOrigin
   );
 }
 
-function supportsCommentsRuntime(payload = {}) {
-  const primaryRecord = readPrimaryRecord(payload);
-  if (payload?.page?.primarySourceType !== "blog-post" || !primaryRecord) {
-    return false;
+function buildReaderApiUrl(payload = {}, localPath, deployedPath) {
+  const apiOrigin = resolveReaderApiOrigin(payload);
+  if (apiOrigin) {
+    return `${apiOrigin}${deployedPath}`;
   }
-  if (primaryRecord.allowComments === false) {
-    return false;
-  }
-  return primaryRecord.commentPolicy !== "closed";
+  return localPath;
 }
 
-function createCommentsRemoteDefinition() {
+function createReaderCurrentQueryDefinition() {
   return {
-    method: "GET",
-    path: "/api/reference/collections/blog-comments/items",
-    queryParams: {
-      postId: "context.primaryRecordId",
-      status: "approved"
-    }
+    resource: DEFAULT_READER_PAGE_RESOURCE,
+    query: "current",
+    policy: "local-first",
+    dataset: DEFAULT_READER_BOOTSTRAP_DATASET
   };
 }
 
-function createCommentsQueryDefinitions() {
-  return [
-    {
-      resource: "comments",
-      query: "byPost",
-      policy: "network-first",
-      dataset: DEFAULT_POST_COMMENTS_DATASET,
-      remote: createCommentsRemoteDefinition(),
-      remoteResult: {
-        type: "collection",
-        itemsPath: "items",
-        totalPath: "meta.total"
+function createReaderByPathQueryDefinition(payload = {}) {
+  return {
+    resource: DEFAULT_READER_PAGE_RESOURCE,
+    query: "byPath",
+    policy: "local-first",
+    dataset: DEFAULT_READER_BOOTSTRAP_DATASET,
+    localLookupField: "path",
+    allowRemoteOnEmptyLocal: true,
+    remote: {
+      method: "GET",
+      path: buildReaderApiUrl(
+        payload,
+        DEFAULT_PUBLIC_READER_BOOTSTRAP_API_PATH,
+        DEFAULT_DEPLOYED_READER_BOOTSTRAP_API_PATH
+      ),
+      queryParams: {
+        path: "params.path"
       }
     },
-    {
-      resource: "comments",
-      query: "byId",
-      policy: "local-first",
-      dataset: DEFAULT_POST_COMMENTS_DATASET
+    remoteResult: createCollectionRemoteResult(),
+    persist: {
+      dataset: DEFAULT_READER_BOOTSTRAP_DATASET,
+      storageKeyPath: "path"
     }
-  ];
-}
-
-function createCommentsDatasetDefinition() {
-  return {
-    dataset: DEFAULT_POST_COMMENTS_DATASET,
-    remoteInstall: createCommentsRemoteDefinition(),
-    remoteSync: createCommentsRemoteDefinition(),
-    recordMode: "array",
-    remoteValuePath: "items"
   };
 }
 
-function createCommentsActionDefinitions() {
-  return [
-    createDatasetRefreshAction(DEFAULT_COMMENTS_REFRESH_ACTION, DEFAULT_POST_COMMENTS_DATASET),
-    {
-      action: "comments.submit",
-      policy: "remote-with-local-update",
-      markDatasetsDirty: [DEFAULT_POST_COMMENTS_DATASET],
-      remote: {
-        method: "POST",
-        path: "/api/reference/collections/blog-comments/items",
-        body: {
-          postId: "context.primaryRecordId",
-          parentCommentId: "payload.parentCommentId",
-          authorDisplayName: "payload.authorDisplayName",
-          authorEmail: "payload.authorEmail",
-          body: "payload.body"
-        }
+function createReaderDeferredByPathQueryDefinition(payload = {}) {
+  return {
+    resource: DEFAULT_READER_DEFERRED_RESOURCE,
+    query: "byPath",
+    policy: "local-first",
+    dataset: DEFAULT_READER_DEFERRED_DATASET,
+    localLookupField: "path",
+    allowRemoteOnEmptyLocal: true,
+    remote: {
+      method: "GET",
+      path: buildReaderApiUrl(
+        payload,
+        DEFAULT_PUBLIC_READER_DEFERRED_API_PATH,
+        DEFAULT_DEPLOYED_READER_DEFERRED_API_PATH
+      ),
+      queryParams: {
+        path: "params.path"
       }
+    },
+    remoteResult: createCollectionRemoteResult(),
+    persist: {
+      dataset: DEFAULT_READER_DEFERRED_DATASET,
+      storageKeyPath: "path"
     }
-  ];
+  };
 }
 
-function buildRuntimeRegistries(payload = {}) {
-  const remotePageQuery = createRemotePageQueryDefinition(payload);
-  const pageSlotDefinitions = buildPageSlotDefinitions(payload);
-  const registries = {
-    bootstrapDatasets: [DEFAULT_PAGE_PAYLOAD_DATASET, ...pageSlotDefinitions.map((slot) => slot.dataset)],
-    queries: [
-      createPagePayloadQueryDefinition(),
-      ...(remotePageQuery ? [remotePageQuery] : []),
-      ...createPageSlotQueryDefinitions(pageSlotDefinitions)
-    ],
-    actions: [
-      createDatasetRefreshAction(DEFAULT_PAGE_REFRESH_ACTION, DEFAULT_PAGE_PAYLOAD_DATASET),
-      ...createPageSlotActionDefinitions(pageSlotDefinitions)
-    ],
-    datasets: [createPagePayloadDatasetDefinition(payload), ...createPageSlotDatasetDefinitions(pageSlotDefinitions)],
-    pageSlots: pageSlotDefinitions.map((slot) => ({
-      bindAs: slot.bindAs,
-      dataset: slot.dataset,
-      kind: slot.kind,
-      sourceType: slot.sourceType,
-      recordMode: slot.recordMode
-    }))
-  };
-  if (!hasResolvedMediaItems(payload)) {
-    if (!supportsCommentsRuntime(payload)) {
-      return registries;
-    }
-    return {
-      bootstrapDatasets: registries.bootstrapDatasets,
-      queries: [...registries.queries, ...createCommentsQueryDefinitions()],
-      actions: [...registries.actions, ...createCommentsActionDefinitions()],
-      datasets: [...registries.datasets, createCommentsDatasetDefinition()],
-      pageSlots: registries.pageSlots
-    };
-  }
-  const withMedia = {
-    bootstrapDatasets: [...registries.bootstrapDatasets, DEFAULT_PAGE_MEDIA_DATASET],
-    queries: [...registries.queries, ...createMediaQueryDefinitions()],
-    actions: [...registries.actions, createDatasetRefreshAction(DEFAULT_MEDIA_REFRESH_ACTION, DEFAULT_PAGE_MEDIA_DATASET)],
-    datasets: [...registries.datasets, createMediaDatasetDefinition(payload)],
-    pageSlots: registries.pageSlots
-  };
-  if (!supportsCommentsRuntime(payload)) {
-    return withMedia;
-  }
+function createReaderBootstrapDatasetDefinition() {
   return {
-    bootstrapDatasets: withMedia.bootstrapDatasets,
-    queries: [...withMedia.queries, ...createCommentsQueryDefinitions()],
-    actions: [...withMedia.actions, ...createCommentsActionDefinitions()],
-    datasets: [...withMedia.datasets, createCommentsDatasetDefinition()],
-    pageSlots: withMedia.pageSlots
+    dataset: DEFAULT_READER_BOOTSTRAP_DATASET,
+    bootstrapMode: "inline-json-script",
+    inlineScriptId: "page-data",
+    valuePath: "application",
+    recordMode: "single-item",
+    versionPath: "application.resolvedAt",
+    syncTokenPath: "application.path",
+    storageKeyPath: "path"
   };
 }
 
-function resolveMediaRegistrySize(payload = {}) {
-  return Array.isArray(payload?.media?.items) ? payload.media.items.length : 0;
-}
-
-function buildPageContext(payload = {}) {
-  const primaryRecord = readPrimaryRecord(payload);
+function createReaderDeferredDatasetDefinition() {
   return {
-    pagePayloadScriptId: "page-data",
-    pageId: payload?.page?.id ?? "",
-    pagePath: payload?.page?.path ?? "",
-    pageSyncPath: payload?.followUp?.pageByPathRoute ?? null,
-    primaryRecordId: primaryRecord?.id ?? null,
-    primarySourceType: payload?.page?.primarySourceType ?? "none",
-    commentsEnabled: supportsCommentsRuntime(payload)
-  };
-}
-
-function buildDeliveryContext(payload = {}) {
-  const delivery = payload?.delivery && typeof payload.delivery === "object" ? payload.delivery : {};
-  return {
-    publicOrigin: delivery.publicOrigin ?? null,
-    publicUrl: delivery.publicUrl ?? null,
-    publicMediaBaseUrl: delivery.publicMediaBaseUrl ?? null,
-    temporaryMediaBaseUrl: delivery.temporaryMediaBaseUrl ?? null
+    dataset: DEFAULT_READER_DEFERRED_DATASET,
+    recordMode: "single-item",
+    storageKeyPath: "path"
   };
 }
 
 function buildRuntimeContext(payload = {}) {
+  const application = readCurrentApplication(payload);
+  const model = readCurrentModel(payload);
+  const commentsEnabled = Boolean(
+    model &&
+      model.kind === "post-detail" &&
+      model.comments &&
+      model.comments.enabled
+  );
   return {
-    ...buildPageContext(payload),
-    ...buildDeliveryContext(payload),
-    mediaRegistrySize: resolveMediaRegistrySize(payload)
+    pagePayloadScriptId: "page-data",
+    pageId: payload?.page?.id ?? null,
+    pagePath: payload?.page?.path ?? application?.path ?? "/",
+    primaryRecordId: readCurrentPrimaryRecordId(payload),
+    primarySourceType: payload?.page?.primarySourceType ?? application?.primarySourceType ?? "none",
+    commentsEnabled,
+    publicOrigin: payload?.delivery?.publicOrigin ?? null,
+    publicUrl:
+      payload?.delivery?.publicUrl ??
+      payload?.delivery?.canonicalUrl ??
+      payload?.head?.canonicalUrl ??
+      null,
+    applicationApiOrigin: resolveReaderApiOrigin(payload)
   };
 }
 
 export function buildClientRuntimeContract(payload = {}) {
-  const runtimeRegistries = buildRuntimeRegistries(payload);
   const publicOrigin = payload?.delivery?.publicOrigin ?? null;
+  const apiOrigin = resolveReaderApiOrigin(payload);
   const pagePath = payload?.page?.path ?? "/";
   const publicAssetUrl = publicOrigin
     ? appendRuntimeAssetVersion(
@@ -427,20 +206,27 @@ export function buildClientRuntimeContract(payload = {}) {
     : null;
 
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     assetUrl: publicAssetUrl ?? buildRelativeClientRuntimeAssetUrl(pagePath),
-    bootstrapDatasets: runtimeRegistries.bootstrapDatasets,
+    bootstrapDatasets: [DEFAULT_READER_BOOTSTRAP_DATASET],
     context: buildRuntimeContext(payload),
     remote: {
-      ...(publicOrigin ? { baseUrl: publicOrigin } : {}),
+      ...(apiOrigin ? { baseUrl: apiOrigin } : {}),
       defaultHeaders: {
         Accept: "application/json"
       }
     },
-    slots: runtimeRegistries.pageSlots,
-    queries: runtimeRegistries.queries,
-    actions: runtimeRegistries.actions,
-    datasets: runtimeRegistries.datasets
+    slots: [],
+    queries: [
+      createReaderCurrentQueryDefinition(),
+      createReaderByPathQueryDefinition(payload),
+      createReaderDeferredByPathQueryDefinition(payload)
+    ],
+    actions: [],
+    datasets: [
+      createReaderBootstrapDatasetDefinition(),
+      createReaderDeferredDatasetDefinition()
+    ]
   };
 }
 

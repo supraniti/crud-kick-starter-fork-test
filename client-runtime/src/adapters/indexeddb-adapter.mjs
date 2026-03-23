@@ -13,6 +13,13 @@ export function createIndexedDbAdapter(options = {}) {
     return storage.replaceDataset(dataset, items, status);
   }
 
+  async function upsertDataset(dataset, items, status = {}, options = {}) {
+    if (typeof storage.upsertDataset === "function") {
+      return storage.upsertDataset(dataset, items, status, options);
+    }
+    return storage.replaceDataset(dataset, items, status);
+  }
+
   async function queryDataset(dataset, params = {}) {
     const records = await storage.getDatasetRecords(dataset);
     return runLocalStructuredQuery(records, params);
@@ -30,6 +37,7 @@ export function createIndexedDbAdapter(options = {}) {
     kind: "indexeddb",
     isAvailable: () => storage.isAvailable(),
     replaceDataset,
+    upsertDataset,
     queryDataset,
     getDatasetStatus,
     updateDatasetStatus

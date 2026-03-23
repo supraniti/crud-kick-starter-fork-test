@@ -9,6 +9,7 @@ function attachRuntime(runtime, globalObject) {
     query: (request) => runtime.query(request),
     installDataset: (request) => runtime.installDataset(request),
     syncDataset: (request) => runtime.syncDataset(request),
+    upsertDataset: (request) => runtime.upsertDataset(request),
     getDatasetStatus: (dataset) => runtime.getDatasetStatus(dataset)
   };
 

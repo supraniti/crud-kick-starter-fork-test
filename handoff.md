@@ -1921,3 +1921,94 @@
   - `pnpm review:env:verify`
   - validated connection `remoteco-012`
   - validated browser-delivery target `remoteta-020`
+
+## 2026-03-23 Deployed Page Payload Optimization
+- Mapped the optimization path in:
+  - `docs/research/deployed-page-payload-optimization-plan-2026-03-23.md`
+- Implemented the tier split for reader payloads:
+  - first HTML render now carries an `application` payload with:
+    - `contractVersion: 2`
+    - `tier: "initial"`
+  - initial post/category models keep only current-page display data and empty deferred blocks
+  - adjacent/related/comment-list style data is no longer precomputed into the initial HTML model
+- Added a dedicated public reader JSON route:
+  - local module route:
+    - `/api/reference/modules/test-modules-pages/public/application-view`
+  - public API route:
+    - `/application-view`
+- Enriched published projection documents so JSON-only navigation has enough current-page data:
+  - posts now project author/category/tag/media summaries and core display fields
+  - published pages now project path/deployment/source metadata needed for route resolution
+  - categories now project featured media for reader rendering
+- Reader shell groundwork is in place:
+  - post/category pages render from the initial model first
+  - deferred hydration then loads the richer `application-view` model
+  - same-app reader links can be intercepted and resolved through JSON + `history.pushState`
+- Contract alignment work:
+  - local and public `application-view` responses now both expose top-level `pagePath`
+- Verified:
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Important current boundary:
+  - this slice is implemented and verified in the repo/local review contract
+  - the live deployed domain will use it only after redeploying the public page API and rerunning the release bundles
+
+## 2026-03-23 Data-Layer Reader Replan
+- Replanned the deployed reader optimization around the intended runtime boundary in:
+  - `docs/research/deployed-page-data-layer-navigation-plan-2026-03-23.md`
+- Explicitly rejected the `application-view` route as the main reader architecture.
+- New target direction:
+  - application script reads through `window.dataLayer`
+  - application script mutates through `window.actionLayer`
+  - runtime decides bootstrap vs IndexedDB vs Cache Storage vs Firestore/public transport
+  - first render uses only current-route bootstrap data
+  - deferred blocks load after paint
+  - post/category navigation becomes route/record/listing queries, not HTML fetch and not server-composed page-view fetch
+- Important next implementation focus:
+  - keyed route/record/listing datasets in the runtime
+  - `publishedRoutes` projection family
+  - param-first query model for internal navigation
+- This was a plan-only correction slice. No implementation should continue from the `application-view` path as the target architecture.
+
+## 2026-03-23 Data-Layer Reader Delivery
+- Executed the data-layer reader plan end to end.
+- Client runtime now supports the reader-navigation model:
+  - `upsertDataset(...)`
+  - `allowRemoteOnEmptyLocal`
+  - nested local filters
+  - remote result persistence into datasets
+- Page runtime contract was rewritten around reader datasets and queries:
+  - bootstrap dataset: `reader-page-bootstrap`
+  - deferred dataset: `reader-page-deferred`
+  - queries:
+    - `readerPage.current`
+    - `readerPage.byPath`
+    - `readerDeferred.byPath`
+- Local CMS public routes and the public page API now expose:
+  - `/reader/bootstrap`
+  - `/reader/deferred`
+- Deployed HTML is now slim for first render:
+  - inline `page-data` carries only current-route application bootstrap data
+  - full deferred/adjacent/related state is no longer embedded in the HTML
+- Browser reader shell now:
+  - boots through `window.dataLayer`
+  - loads deferred blocks through `window.dataLayer`
+  - navigates post/category routes by JSON + `history.pushState`
+  - avoids fetching a second HTML document for eligible internal transitions
+- Important live fix during rollout:
+  - the shipped `client-runtime.global.js` bundle was stale after source changes
+  - rebuilt it with `pnpm build:client-runtime`
+  - reran all live release bundles so `fastcart.dev` served the new runtime across both M04 and Nuli page families
+- Important navigation fix:
+  - moved reader-link interception to a document-level capture handler so internal post/category links do not fall through to full document navigation
+- Live verification on `fastcart.dev`:
+  - first render uses the slim HTML bootstrap + deferred JSON
+  - `readerPage.byPath` now falls back from empty local dataset to remote bootstrap correctly
+  - clicking `Next Story` updates the page to `/post/remote-flow-review-post-02` without a second document request
+  - clicking `Primary Category` updates the page to `/category/releases-928325` without a second document request
+- Verified:
+  - `pnpm build:client-runtime`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`

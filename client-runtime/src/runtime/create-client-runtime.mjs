@@ -50,6 +50,7 @@ export function createClientRuntime(options = {}) {
     dispatch: (request) => executeAction(request, context),
     installDataset: (request) => datasetManager.installDataset(normalizeDatasetRequest(request)),
     syncDataset: (request) => datasetManager.syncDataset(normalizeDatasetRequest(request)),
+    upsertDataset: (request) => datasetManager.upsertDataset(request || {}),
     getDatasetStatus: (dataset) => datasetManager.getDatasetStatus(dataset),
     getCapabilities: () => capabilities.getSnapshot(),
     getRegistries: () => ({ queryRegistry, actionRegistry, datasetRegistry })

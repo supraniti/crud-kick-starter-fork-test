@@ -15,6 +15,32 @@
     });
   }
 
+  function mergeByKey(baseValues, augmentValues, readKey) {
+    var merged = [];
+    var positions = new Map();
+
+    function upsert(entry) {
+      if (!entry) {
+        return;
+      }
+      var key = readKey(entry);
+      if (!key) {
+        merged.push(entry);
+        return;
+      }
+      if (positions.has(key)) {
+        merged[positions.get(key)] = entry;
+        return;
+      }
+      positions.set(key, merged.length);
+      merged.push(entry);
+    }
+
+    normalizeArray(baseValues).forEach(upsert);
+    normalizeArray(augmentValues).forEach(upsert);
+    return merged;
+  }
+
   function cloneJsonValue(value) {
     return JSON.parse(JSON.stringify(value ?? null));
   }
@@ -51,20 +77,23 @@
           ...normalizeArray(augment.bootstrapDatasets)
         ])
       ),
-      queries: dedupeBy(
-        [...normalizeArray(base.queries), ...normalizeArray(augment.queries)],
+      queries: mergeByKey(
+        base.queries,
+        augment.queries,
         function (entry) {
           return entry && entry.resource && entry.query ? entry.resource + "." + entry.query : "";
         }
       ),
-      actions: dedupeBy(
-        [...normalizeArray(base.actions), ...normalizeArray(augment.actions)],
+      actions: mergeByKey(
+        base.actions,
+        augment.actions,
         function (entry) {
           return entry && entry.action ? entry.action : "";
         }
       ),
-      datasets: dedupeBy(
-        [...normalizeArray(base.datasets), ...normalizeArray(augment.datasets)],
+      datasets: mergeByKey(
+        base.datasets,
+        augment.datasets,
         function (entry) {
           return entry && entry.dataset ? entry.dataset : "";
         }
@@ -240,8 +269,8 @@
       method: "GET",
       path: path,
       queryParams: {
-        postId: "context.primaryRecordId",
-        status: "approved"
+        postId: "params.postId",
+        status: "params.status"
       }
     };
   }
@@ -277,8 +306,8 @@
             method: "POST",
             path: commentsPath,
             body: {
-              postId: "context.primaryRecordId",
-              pagePath: "context.pagePath",
+              postId: "payload.postId",
+              pagePath: "payload.pagePath",
               parentCommentId: "payload.parentCommentId",
               authorDisplayName: "payload.authorDisplayName",
               authorEmail: "payload.authorEmail",

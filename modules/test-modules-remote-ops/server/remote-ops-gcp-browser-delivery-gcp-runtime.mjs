@@ -281,6 +281,30 @@ export async function loadBackendBucket(projectId, backendBucketName, accessToke
   return requestGoogleJson(buildComputeGlobalUrl(projectId, "backendBuckets", backendBucketName), accessToken);
 }
 
+export async function updateBackendBucket(
+  projectId,
+  backendBucketName,
+  bucketName,
+  accessToken
+) {
+  const payload = await requestGoogleJson(
+    buildComputeGlobalUrl(projectId, "backendBuckets", backendBucketName),
+    accessToken,
+    {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        bucketName,
+        enableCdn: false,
+        description: `Backend bucket for ${bucketName}`
+      })
+    }
+  );
+  return waitForComputeGlobalOperation(projectId, accessToken, payload?.name);
+}
+
 export async function loadUrlMap(projectId, urlMapName, accessToken) {
   return requestGoogleJson(buildComputeGlobalUrl(projectId, "urlMaps", urlMapName), accessToken);
 }
@@ -436,12 +460,35 @@ export async function createBackendBucket(projectId, backendBucketName, bucketNa
       body: JSON.stringify({
         name: backendBucketName,
         bucketName,
-        enableCdn: true,
+        enableCdn: false,
         description: `Backend bucket for ${bucketName}`
       })
     }
   );
   return waitForComputeGlobalOperation(projectId, accessToken, payload?.name);
+}
+
+export async function createOrUpdateBackendBucket(
+  projectId,
+  backendBucketName,
+  bucketName,
+  accessToken
+) {
+  try {
+    const existing = await loadBackendBucket(projectId, backendBucketName, accessToken);
+    if (
+      normalizeOptionalText(existing?.bucketName) !== normalizeOptionalText(bucketName)
+      || existing?.enableCdn !== false
+    ) {
+      return updateBackendBucket(projectId, backendBucketName, bucketName, accessToken);
+    }
+    return existing;
+  } catch (error) {
+    if (error?.statusCode === 404) {
+      return createBackendBucket(projectId, backendBucketName, bucketName, accessToken);
+    }
+    throw error;
+  }
 }
 
 export async function createOrUpdateUrlMap(

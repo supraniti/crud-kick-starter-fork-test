@@ -22,9 +22,12 @@ const DEFAULT_API_ORIGIN_QUERY_PARAMS = ["appApiOrigin", "apiOrigin"];
 const DEFAULT_REVIEW_APPLICATION_API_ORIGINS = ["http://127.0.0.1:3001", "http://localhost:3001"];
 const DEFAULT_PUBLIC_PUBLISHED_DOCUMENT_API_PATH =
   "/api/reference/modules/test-modules-pages/public/published-document";
+const DEFAULT_PUBLIC_APPLICATION_VIEW_API_PATH =
+  "/api/reference/modules/test-modules-pages/public/application-view";
 const DEFAULT_PUBLIC_COMMENTS_API_PATH =
   "/api/reference/modules/test-modules-pages/public/comments";
 const DEFAULT_DEPLOYED_PUBLIC_PUBLISHED_DOCUMENT_API_PATH = "/published-document";
+const DEFAULT_DEPLOYED_PUBLIC_APPLICATION_VIEW_API_PATH = "/application-view";
 const DEFAULT_DEPLOYED_PUBLIC_COMMENTS_API_PATH = "/comments";
 const DEFAULT_PUBLIC_COMMENTS_COLLECTION_PATH = "publicComments";
 
@@ -244,11 +247,16 @@ function buildApplicationTesterActions(allowComments) {
 function buildApplicationTesterPublicApiPaths(publicApiMode, allowComments) {
   if (publicApiMode === "browser-firestore") {
     return {
+      publicApplicationViewApiPath: null,
       publicPublishedDocumentApiPath: null,
       publicCommentsApiPath: null
     };
   }
   return {
+    publicApplicationViewApiPath:
+      publicApiMode === "deployed-public-service"
+        ? DEFAULT_DEPLOYED_PUBLIC_APPLICATION_VIEW_API_PATH
+        : DEFAULT_PUBLIC_APPLICATION_VIEW_API_PATH,
     publicPublishedDocumentApiPath:
       publicApiMode === "deployed-public-service"
         ? DEFAULT_DEPLOYED_PUBLIC_PUBLISHED_DOCUMENT_API_PATH

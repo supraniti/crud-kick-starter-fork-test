@@ -2872,3 +2872,101 @@
     - stale cached asset URLs reused after the delivery origin changed
   - the “missing key file” churn was not random; the remote-ops conformance suite was deleting the real live runtime folders in its cleanup phase
   - browser-delivery validation should not depend on manually persisted GCP resource-name fields when those names are deterministic from the configured hostname
+
+### 2026-03-23 - Split First Paint From Deferred Reader Data
+- Tasks:
+  - wrote the payload-optimization hard plan in:
+    - `docs/research/deployed-page-payload-optimization-plan-2026-03-23.md`
+  - slimmed the server-built page application model so initial HTML only carries current-page render data
+  - added a dedicated reader-facing `application-view` JSON route locally and in the public page API
+  - enriched published Firestore projection documents with author/category/tag/media summaries so JSON-only route changes can render without fetching new HTML
+  - taught the browser reader shell to:
+    - boot from the initial model
+    - hydrate deferred reader blocks after first paint
+    - intercept same-app links and navigate by JSON + `history.pushState`
+  - aligned the local and public reader contracts on top-level `pagePath`
+- Verified:
+  - `node --check` passed on the touched browser/server/public-api files
+  - focused blog-distribution conformance passed after the local/public contract mismatch was corrected
+  - `quality:protocol` passed
+  - `review:env:verify` passed
+- Findings:
+  - the heavy reader payload problem was not only “too much HTML”; it was also a projection-shape problem
+  - if published post/category docs are too thin, the client either over-fetches whole collections or falls back to HTML reloads
+  - local module public routes and the public Cloud Run API must stay shape-compatible, otherwise the reader shell ends up with transport-specific branching again
+  - the right proof is two-layered:
+    - initial payload contains empty deferred blocks
+    - `application-view` returns the hydrated adjacent/related model on demand
+
+### 2026-03-23 - Reframed Reader Optimization Around The Data Layer
+- Task:
+  - stopped the optimization rollout and rewrote the direction as a hard architecture plan in:
+    - `docs/research/deployed-page-data-layer-navigation-plan-2026-03-23.md`
+- Why:
+  - the `application-view` path improved payload size but violated the intended system shape
+  - it moved reader composition back to a server-built page-view contract instead of using the existing browser data/action runtime as the read/mutation bridge
+- Corrected direction:
+  - application script reads through `window.dataLayer`
+  - application script writes through `window.actionLayer`
+  - the runtime decides bootstrap JSON vs IndexedDB vs Cache Storage vs Firestore/public service
+  - first render uses only current-route bootstrap data
+  - deferred blocks and internal navigation use the same query families
+- Key design conclusions:
+  - a future-proof solution needs keyed route/record/listing datasets in the client runtime
+  - published reader data should be projected as domain documents and route documents, not server-composed page views
+  - mutable global context is not enough for route transitions; navigation queries should become param-first
+- Verification:
+  - reviewed the client-runtime contract, runtime plan, playground proof, current page-runtime generator, and recent page-delivery plans before writing the new plan
+- Result:
+  - this was a plan-only architecture correction slice with no new runtime or page-delivery implementation beyond docs/pointer updates
+
+### 2026-03-23 - Delivered Data-Layer Reader Navigation On The Live Domain
+- Task:
+  - executed the data-layer reader plan instead of continuing the rejected `application-view` architecture
+- Implementation:
+  - extended `client-runtime` with:
+    - `upsertDataset(...)`
+    - remote-on-empty-local fallback
+    - nested dot-path local filters
+    - remote-result persistence into datasets
+  - replaced the page reader contract with dataset/query families:
+    - `reader-page-bootstrap`
+    - `reader-page-deferred`
+    - `readerPage.current`
+    - `readerPage.byPath`
+    - `readerDeferred.byPath`
+  - added matching local/public reader routes:
+    - `/api/reference/modules/test-modules-pages/public/reader/bootstrap`
+    - `/api/reference/modules/test-modules-pages/public/reader/deferred`
+    - public API:
+      - `/reader/bootstrap`
+      - `/reader/deferred`
+  - reduced inline HTML payload to current-route bootstrap data only
+  - rewrote the browser page shell to:
+    - read through `window.dataLayer`
+    - fetch deferred reader data after paint
+    - change post/category routes through JSON + `history.pushState`
+- Debugging findings:
+  - the first live rollout still behaved like the old system because the shipped `client-runtime.global.js` bundle had not been rebuilt
+  - the symptom was precise:
+    - `readerPage.byPath` returned an empty local dataset hit instead of falling through to remote
+  - rebuilding with `pnpm build:client-runtime` fixed the shipped runtime logic
+  - a second bug remained in click handling:
+    - internal links could still fall through to full document navigation
+  - moving the interception handler to `document` capture fixed the live route transition
+- Live verification:
+  - on `https://fastcart.dev/post/remote-flow-review-post-01?...`
+    - initial page uses the slim bootstrap payload
+    - `window.dataLayer.query({ resource: 'readerPage', query: 'byPath', ... })` now returns remote documents for other post/category paths
+    - clicking `Next Story` updates to `/post/remote-flow-review-post-02` without a second HTML document request
+    - clicking `Primary Category` updates to `/category/releases-928325` without a second HTML document request
+  - refreshed all live page-family bundles after the runtime rebuild:
+    - `M04 Posts`
+    - `M04 Categories`
+    - `Nuli Posts`
+    - `Nuli Categories`
+- Verified:
+  - `pnpm build:client-runtime`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`

@@ -8,7 +8,7 @@ import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference
 import { attachClientRuntimeContract, resolvePageRuntimeScriptUrls, syncClientRuntimeAsset } from "./page-client-runtime-runtime.mjs";
 import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.mjs";
 import { attachApplicationTesterContract, resolvePageApplicationTesterScriptUrls, syncPageApplicationTesterAsset } from "./page-application-tester-runtime.mjs";
-import { attachPageApplicationPayload } from "./page-application-view-runtime.mjs";
+import { attachPageApplicationPayload, buildStaticReaderPayload } from "./page-application-view-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 
 function escapeHtmlText(value) {
@@ -120,17 +120,17 @@ function buildWindowConfigMarkup(globalKey, configValue) {
   return `window.${globalKey} = ${serializeJsonForScript(configValue)};`;
 }
 
-function renderStaticPageDocument({ payload, mountTagName, runtimeScriptUrls }) {
+function renderStaticPageDocument({ payload, runtimePayload = payload, mountTagName, runtimeScriptUrls }) {
   const payloadScriptId = "page-data";
   const headMarkup = buildHeadMarkup(payload);
   const scriptMarkup = buildRuntimeScriptsMarkup(runtimeScriptUrls);
   const clientRuntimeConfigMarkup = buildWindowConfigMarkup(
     "__CRUD_CLIENT_RUNTIME_CONFIG__",
-    payload?.runtime?.clientRuntime
+    runtimePayload?.runtime?.clientRuntime
   );
   const applicationTesterConfigMarkup = buildWindowConfigMarkup(
     "__CRUD_PAGE_APPLICATION_TESTER__",
-    payload?.runtime?.applicationTester
+    runtimePayload?.runtime?.applicationTester
   );
   const mountMarkup = [
     `<${mountTagName}`,
@@ -610,8 +610,10 @@ async function writeArtifactDocument({
   );
   await syncClientRuntimeAsset(resolvePageDeploymentRootDir());
   await syncPageApplicationTesterAsset(resolvePageDeploymentRootDir());
+  const staticPayload = buildStaticReaderPayload(payload);
   const htmlDocument = renderStaticPageDocument({
-    payload,
+    payload: staticPayload,
+    runtimePayload: payload,
     mountTagName: settings.appMountTagName,
     runtimeScriptUrls: resolvePageApplicationTesterScriptUrls(
       payload,

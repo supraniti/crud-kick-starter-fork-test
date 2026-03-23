@@ -231,6 +231,103 @@ async function inspectHttpsManagedResource({
   });
 }
 
+async function inspectHttpsBackendBucketResource({
+  report,
+  buildProvisioningAction,
+  targetProfile,
+  suffix,
+  label,
+  actionLabel,
+  resourceKind,
+  resourceName,
+  expectedBucketName,
+  loader,
+  notes,
+  projectPermissions,
+  provisionGroup,
+  linkedTargetId = null
+}) {
+  const action = buildHttpsAction({
+    buildProvisioningAction,
+    targetProfile,
+    suffix,
+    label: actionLabel,
+    resourceKind,
+    notes,
+    projectPermissions,
+    provisionGroup,
+    requiredPermissions: ["compute.backendBuckets.create", "compute.backendBuckets.update"],
+    linkedTargetId
+  });
+  try {
+    const resource = await loader();
+    const configuredBucketName = normalizeOptionalText(resource?.bucketName);
+    const usesCdn = resource?.enableCdn === true;
+    if (configuredBucketName !== normalizeOptionalText(expectedBucketName) || usesCdn) {
+      report.resourceChecks.push({
+        kind: resourceKind,
+        state: "drifted",
+        label,
+        resourceName: resource?.name ?? resourceName,
+        details: usesCdn
+          ? "Backend bucket still has Cloud CDN enabled, which serves stale versioned assets on the custom domain."
+          : `Backend bucket points at '${configuredBucketName ?? "unknown"}' instead of '${expectedBucketName}'.`
+      });
+      report.missingResources.push({
+        kind: resourceKind,
+        label,
+        resourceName
+      });
+      report.provisionableActions.push(action);
+      return resource;
+    }
+    report.resourceChecks.push({
+      kind: resourceKind,
+      state: "present",
+      label,
+      resourceName: resource?.name ?? resourceName
+    });
+    return resource;
+  } catch (error) {
+    if (error?.statusCode === 404) {
+      report.missingResources.push({
+        kind: resourceKind,
+        label,
+        resourceName
+      });
+      report.provisionableActions.push(action);
+      return null;
+    }
+    if (isInspectablePermissionFailure(error)) {
+      report.resourceChecks.push({
+        kind: resourceKind,
+        state: "unknown",
+        label,
+        resourceName,
+        details: error?.message ?? `Unable to inspect ${resourceKind} before provisioning`
+      });
+      report.missingResources.push({
+        kind: resourceKind,
+        label,
+        resourceName
+      });
+      report.provisionableActions.push(action);
+      return null;
+    }
+    report.resourceChecks.push({
+      kind: resourceKind,
+      state: "error",
+      label,
+      resourceName,
+      details: error?.message ?? `Failed to inspect ${resourceKind}`
+    });
+    if (notes.length > 0) {
+      report.configurationWarnings.push(...notes);
+    }
+    return null;
+  }
+}
+
 async function inspectHttpsApis({
   report,
   config,
@@ -401,40 +498,40 @@ async function inspectHttpsOriginsAndRouting({
   if (!deploymentBucketName) {
     report.configurationWarnings.push(`${targetProfile.title}: linked deployment bucket is missing.`);
   } else {
-    await inspectHttpsManagedResource({
+    await inspectHttpsBackendBucketResource({
       report,
       buildProvisioningAction,
       targetProfile,
       suffix: "deployment-backend-bucket",
       label: `${targetProfile.title} deployment backend bucket`,
-      actionLabel: `Create deployment backend bucket '${names.deploymentBackendBucketName}'`,
+      actionLabel: `Create or update deployment backend bucket '${names.deploymentBackendBucketName}'`,
       resourceKind: "deployment-backend-bucket",
       resourceName: names.deploymentBackendBucketName,
+      expectedBucketName: deploymentBucketName,
       loader: () => loadBackendBucket(project.projectId, names.deploymentBackendBucketName, accessToken),
       notes: [`Link deployment bucket '${deploymentBucketName}' into the HTTPS delivery stack.`],
       projectPermissions,
       provisionGroup,
-      requiredPermissions: ["compute.backendBuckets.create"],
       linkedTargetId: deploymentTarget?.id ?? null
     });
   }
 
   const mediaBucketName = normalizeOptionalText(mediaTarget?.config?.bucketName);
   if (mediaBucketName) {
-    await inspectHttpsManagedResource({
+    await inspectHttpsBackendBucketResource({
       report,
       buildProvisioningAction,
       targetProfile,
       suffix: "media-backend-bucket",
       label: `${targetProfile.title} media backend bucket`,
-      actionLabel: `Create media backend bucket '${names.mediaBackendBucketName}'`,
+      actionLabel: `Create or update media backend bucket '${names.mediaBackendBucketName}'`,
       resourceKind: "media-backend-bucket",
       resourceName: names.mediaBackendBucketName,
+      expectedBucketName: mediaBucketName,
       loader: () => loadBackendBucket(project.projectId, names.mediaBackendBucketName, accessToken),
       notes: [`Link media bucket '${mediaBucketName}' into the HTTPS delivery stack.`],
       projectPermissions,
       provisionGroup,
-      requiredPermissions: ["compute.backendBuckets.create"],
       linkedTargetId: mediaTarget?.id ?? null
     });
   }

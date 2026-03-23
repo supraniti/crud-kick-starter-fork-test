@@ -43,6 +43,19 @@ async function readHandlerItemsByIds(handler, itemIds = []) {
   return items.filter(Boolean);
 }
 
+async function collectCategoryLineage(handler, category = null) {
+  const lineage = [];
+  let cursor = category;
+  const visited = new Set();
+  while (cursor && cursor.id && !visited.has(cursor.id)) {
+    visited.add(cursor.id);
+    lineage.unshift(cursor);
+    const parentId = normalizeOptionalText(cursor.parentCategoryId);
+    cursor = parentId ? await readHandlerItem(handler, parentId) : null;
+  }
+  return lineage;
+}
+
 function sortByPublishedAscending(items = []) {
   return [...items].sort((left, right) => {
     const leftTime = new Date(left?.publishedOn ?? left?.updatedOn ?? 0).getTime();
@@ -317,7 +330,77 @@ function dedupePosts(items = []) {
   });
 }
 
-async function buildPostApplicationModel(payload, collectionHandlerRegistry) {
+async function buildPostInitialApplicationModel(payload, collectionHandlerRegistry) {
+  const primaryRecord = readPrimaryRecord(payload);
+  if (!primaryRecord) {
+    return null;
+  }
+
+  const authorsHandler = collectionHandlerRegistry.get(AUTHORS_COLLECTION_ID);
+  const categoriesHandler = collectionHandlerRegistry.get(CATEGORIES_COLLECTION_ID);
+  const tagsHandler = collectionHandlerRegistry.get(TAGS_COLLECTION_ID);
+  const pagesHandler = collectionHandlerRegistry.get(PAGES_COLLECTION_ID);
+
+  const publicOrigin = normalizeOptionalText(payload?.delivery?.publicOrigin);
+  const delivery = payload?.delivery ?? {};
+  const [publishedPages, primaryAuthor, coAuthors, categories, tags] = await Promise.all([
+    listHandlerItems(pagesHandler),
+    readHandlerItem(authorsHandler, primaryRecord.primaryAuthorId),
+    readHandlerItemsByIds(authorsHandler, primaryRecord.coAuthorIds),
+    readHandlerItemsByIds(categoriesHandler, primaryRecord.categoryIds),
+    readHandlerItemsByIds(tagsHandler, primaryRecord.tagIds)
+  ]);
+
+  const primaryCategory = categories[0] ?? null;
+  const breadcrumbCategories = primaryCategory
+    ? await collectCategoryLineage(categoriesHandler, primaryCategory)
+    : [];
+
+  return {
+    kind: "post-detail",
+    post: {
+      id: primaryRecord.id ?? null,
+      title: primaryRecord.title ?? "Untitled post",
+      slug: primaryRecord.slug ?? null,
+      subtitle: primaryRecord.subtitle ?? "",
+      excerpt: primaryRecord.excerpt ?? "",
+      body: primaryRecord.body ?? "",
+      format: primaryRecord.format ?? "article",
+      locale: primaryRecord.locale ?? null,
+      readTimeMinutes: primaryRecord.readTimeMinutes ?? null,
+      wordCount: primaryRecord.wordCount ?? null,
+      publishedOn: primaryRecord.publishedOn ?? null,
+      updatedOn: primaryRecord.updatedOn ?? null,
+      featuredMedia: buildMediaSummary(primaryRecord.featuredMedia, delivery),
+      galleryMedia: toArray(primaryRecord.galleryMedia).map((item) => buildMediaSummary(item, delivery)).filter(Boolean),
+      author: primaryAuthor ? buildAuthorSummary(primaryAuthor, publishedPages, publicOrigin, delivery) : null,
+      coAuthors: coAuthors.map((item) => buildAuthorSummary(item, publishedPages, publicOrigin, delivery)),
+      categories: categories.map((item) => buildCategorySummary(item, publishedPages, publicOrigin, delivery)),
+      tags: tags.map((item) => buildTagSummary(item, publishedPages, publicOrigin, delivery))
+    },
+    navigation: {
+      previousPost: null,
+      nextPost: null,
+      authorPage: null,
+      primaryCategory: primaryCategory ? buildCategorySummary(primaryCategory, publishedPages, publicOrigin, delivery) : null,
+      breadcrumbs: breadcrumbCategories.map((item) =>
+        buildCategorySummary(item, publishedPages, publicOrigin, delivery)
+      )
+    },
+    related: {
+      moreFromAuthor: [],
+      byCategory: [],
+      byTag: []
+    },
+    comments: {
+      enabled: primaryRecord.allowComments !== false && primaryRecord.commentPolicy !== "closed",
+      policy: primaryRecord.commentPolicy ?? "open",
+      postId: primaryRecord.id ?? null
+    }
+  };
+}
+
+async function buildPostFullApplicationModel(payload, collectionHandlerRegistry) {
   const primaryRecord = readPrimaryRecord(payload);
   if (!primaryRecord) {
     return null;
@@ -414,7 +497,46 @@ async function buildPostApplicationModel(payload, collectionHandlerRegistry) {
   };
 }
 
-async function buildCategoryApplicationModel(payload, collectionHandlerRegistry) {
+async function buildCategoryInitialApplicationModel(payload, collectionHandlerRegistry) {
+  const primaryRecord = readPrimaryRecord(payload);
+  if (!primaryRecord) {
+    return null;
+  }
+
+  const categoriesHandler = collectionHandlerRegistry.get(CATEGORIES_COLLECTION_ID);
+  const pagesHandler = collectionHandlerRegistry.get(PAGES_COLLECTION_ID);
+  const publicOrigin = normalizeOptionalText(payload?.delivery?.publicOrigin);
+  const delivery = payload?.delivery ?? {};
+  const [publishedPages, categoryPosts, breadcrumbCategories] = await Promise.all([
+    listHandlerItems(pagesHandler),
+    Promise.resolve(toArray(payload?.data?.categoryPosts).map((entry) => entry?.record).filter(Boolean)),
+    collectCategoryLineage(categoriesHandler, primaryRecord)
+  ]);
+  const parentCategory = breadcrumbCategories.length > 1 ? breadcrumbCategories[breadcrumbCategories.length - 2] : null;
+
+  return {
+    kind: "category-detail",
+    category: {
+      id: primaryRecord.id ?? null,
+      name: primaryRecord.name ?? primaryRecord.slug ?? "Category",
+      slug: primaryRecord.slug ?? null,
+      description: primaryRecord.description ?? "",
+      treePath: primaryRecord.path ?? "",
+      depth: primaryRecord.depth ?? 0,
+      featuredMedia: buildMediaSummary(primaryRecord.featuredMedia, delivery)
+    },
+    navigation: {
+      parentCategory: parentCategory ? buildCategorySummary(parentCategory, publishedPages, publicOrigin, delivery) : null,
+      breadcrumbs: breadcrumbCategories.map((item) =>
+        buildCategorySummary(item, publishedPages, publicOrigin, delivery)
+      )
+    },
+    children: [],
+    posts: categoryPosts.map((item) => buildPostCard(item, publishedPages, publicOrigin, delivery))
+  };
+}
+
+async function buildCategoryFullApplicationModel(payload, collectionHandlerRegistry) {
   const primaryRecord = readPrimaryRecord(payload);
   if (!primaryRecord) {
     return null;
@@ -485,20 +607,143 @@ function buildApplicationReviewModel(payload) {
   };
 }
 
+function buildReaderLayoutDocument(payload = {}) {
+  return {
+    pageId: payload?.page?.id ?? null,
+    layoutId: payload?.renderModel?.layoutId ?? null,
+    layoutKey: payload?.renderModel?.layoutKey ?? null,
+    layoutModel: payload?.renderModel?.layoutModel ?? null,
+    layoutDocument: payload?.renderModel?.layoutDocument ?? null,
+    bindings: payload?.renderModel?.bindings ?? {}
+  };
+}
+
+function buildReaderPageBootstrapDocument(payload = {}, model = null) {
+  return {
+    contractVersion: 1,
+    tier: "initial",
+    path: payload?.page?.path ?? null,
+    pageId: payload?.page?.id ?? null,
+    pageKind: model?.kind ?? "generic-page",
+    primarySourceType: payload?.page?.primarySourceType ?? "none",
+    head: payload?.head ?? {},
+    delivery: payload?.delivery ?? {},
+    layout: buildReaderLayoutDocument(payload),
+    model,
+    review: buildApplicationReviewModel(payload),
+    resolvedAt: payload?.resolvedAt ?? null
+  };
+}
+
+function buildReaderDeferredDocument(payload = {}, model = null) {
+  const pageKind = model?.kind ?? "generic-page";
+  if (pageKind === "post-detail") {
+    return {
+      contractVersion: 1,
+      path: payload?.page?.path ?? null,
+      pageId: payload?.page?.id ?? null,
+      pageKind,
+      deferred: {
+        navigation: {
+          previousPost: model?.navigation?.previousPost ?? null,
+          nextPost: model?.navigation?.nextPost ?? null,
+          authorPage: model?.navigation?.authorPage ?? null
+        },
+        related: model?.related ?? {
+          moreFromAuthor: [],
+          byCategory: [],
+          byTag: []
+        }
+      },
+      resolvedAt: payload?.resolvedAt ?? null
+    };
+  }
+  if (pageKind === "category-detail") {
+    return {
+      contractVersion: 1,
+      path: payload?.page?.path ?? null,
+      pageId: payload?.page?.id ?? null,
+      pageKind,
+      deferred: {
+        children: Array.isArray(model?.children) ? model.children : []
+      },
+      resolvedAt: payload?.resolvedAt ?? null
+    };
+  }
+  return {
+    contractVersion: 1,
+    path: payload?.page?.path ?? null,
+    pageId: payload?.page?.id ?? null,
+    pageKind,
+    deferred: {},
+    resolvedAt: payload?.resolvedAt ?? null
+  };
+}
+
+async function buildApplicationModel(payload = {}, collectionHandlerRegistry, options = {}) {
+  const primarySourceType = normalizeText(payload?.page?.primarySourceType);
+  const includeDeferred = options.includeDeferred === true;
+  if (primarySourceType === "blog-post") {
+    return includeDeferred
+      ? buildPostFullApplicationModel(payload, collectionHandlerRegistry)
+      : buildPostInitialApplicationModel(payload, collectionHandlerRegistry);
+  }
+  if (primarySourceType === "blog-category") {
+    return includeDeferred
+      ? buildCategoryFullApplicationModel(payload, collectionHandlerRegistry)
+      : buildCategoryInitialApplicationModel(payload, collectionHandlerRegistry);
+  }
+  return buildGenericApplicationModel(payload);
+}
+
+export async function buildPublicApplicationViewPayload(payload = {}, options = {}) {
+  const collectionHandlerRegistry = options.collectionHandlerRegistry;
+  const model = await buildApplicationModel(payload, collectionHandlerRegistry, {
+    includeDeferred: true
+  });
+  return {
+    ok: true,
+    contractVersion: 1,
+    pagePath: payload?.page?.path ?? null,
+    page: {
+      id: payload?.page?.id ?? null,
+      path: payload?.page?.path ?? null,
+      primarySourceType: payload?.page?.primarySourceType ?? "none"
+    },
+    head: payload?.head ?? {},
+    delivery: payload?.delivery ?? {},
+    model,
+    review: buildApplicationReviewModel(payload),
+    resolvedAt: payload?.resolvedAt ?? null
+  };
+}
+
+export async function buildReaderPageBootstrapPayload(payload = {}, options = {}) {
+  const collectionHandlerRegistry = options.collectionHandlerRegistry;
+  const model = await buildApplicationModel(payload, collectionHandlerRegistry, {
+    includeDeferred: false
+  });
+  return buildReaderPageBootstrapDocument(payload, model);
+}
+
+export async function buildReaderDeferredPayload(payload = {}, options = {}) {
+  const collectionHandlerRegistry = options.collectionHandlerRegistry;
+  const model = await buildApplicationModel(payload, collectionHandlerRegistry, {
+    includeDeferred: true
+  });
+  return buildReaderDeferredDocument(payload, model);
+}
+
 export async function attachPageApplicationPayload(payload = {}, options = {}) {
   const collectionHandlerRegistry = options.collectionHandlerRegistry;
-  const primarySourceType = normalizeText(payload?.page?.primarySourceType);
   let model = null;
   try {
-    if (primarySourceType === "blog-post") {
-      model = await buildPostApplicationModel(payload, collectionHandlerRegistry);
-    } else if (primarySourceType === "blog-category") {
-      model = await buildCategoryApplicationModel(payload, collectionHandlerRegistry);
-    } else {
-      model = buildGenericApplicationModel(payload);
-    }
+    model = await buildApplicationModel(payload, collectionHandlerRegistry, {
+      includeDeferred: false
+    });
   } catch (error) {
     const message = error && error.message ? error.message : String(error);
+    const primarySourceType = normalizeText(payload?.page?.primarySourceType);
     throw new Error(`[page-application] failed to build model for '${primarySourceType || "generic"}': ${message}`, {
       cause: error
     });
@@ -506,10 +751,17 @@ export async function attachPageApplicationPayload(payload = {}, options = {}) {
 
   return {
     ...payload,
-    application: {
-      contractVersion: 1,
-      model,
-      review: buildApplicationReviewModel(payload)
-    }
+    application: buildReaderPageBootstrapDocument(payload, model)
+  };
+}
+
+export function buildStaticReaderPayload(payload = {}) {
+  return {
+    contractVersion: payload?.contractVersion ?? 1,
+    page: payload?.page ?? {},
+    head: payload?.head ?? {},
+    delivery: payload?.delivery ?? {},
+    application: payload?.application ?? null,
+    resolvedAt: payload?.resolvedAt ?? null
   };
 }

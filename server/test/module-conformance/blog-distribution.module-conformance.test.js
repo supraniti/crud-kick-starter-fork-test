@@ -70,6 +70,18 @@ function buildPublicPublishedDocumentRoute(pagePath) {
   return `/api/reference/modules/${MODULE_ID}/public/published-document?path=${encodeURIComponent(pagePath)}`;
 }
 
+function buildPublicApplicationViewRoute(pagePath) {
+  return `/api/reference/modules/${MODULE_ID}/public/application-view?path=${encodeURIComponent(pagePath)}`;
+}
+
+function buildPublicReaderBootstrapRoute(pagePath) {
+  return `/api/reference/modules/${MODULE_ID}/public/reader/bootstrap?path=${encodeURIComponent(pagePath)}`;
+}
+
+function buildPublicReaderDeferredRoute(pagePath) {
+  return `/api/reference/modules/${MODULE_ID}/public/reader/deferred?path=${encodeURIComponent(pagePath)}`;
+}
+
 function buildPublicCommentsRoute() {
   return `/api/reference/modules/${MODULE_ID}/public/comments`;
 }
@@ -173,6 +185,16 @@ async function readRuntimeProbeDocument(deploymentRootDir, artifactRelativePath)
   segments.pop();
   const runtimeProbePath = path.join(deploymentRootDir, ...segments, RUNTIME_PROBE_DOCUMENT_FILE_NAME);
   return JSON.parse(await fs.readFile(runtimeProbePath, "utf8"));
+}
+
+function readInlinePageData(htmlDocument = "") {
+  const match = String(htmlDocument).match(
+    /<script type="application\/json" id="page-data">([\s\S]*?)<\/script>/i
+  );
+  if (!match) {
+    throw new Error("Unable to locate inline page-data payload in deployment HTML.");
+  }
+  return JSON.parse(match[1]);
 }
 
 async function seedAuthor(server, overrides = {}) {
@@ -419,54 +441,90 @@ test("pages create standalone records and resolve deterministic delivery payload
         runtime: expect.objectContaining({
           clientRuntime: expect.objectContaining({
             assetUrl: "../../assets/client-runtime.global.js",
-            bootstrapDatasets: expect.arrayContaining([
-              "page-payload",
-              "page-slot-primary",
-              "page-slot-relatedposts"
-            ]),
-            slots: expect.arrayContaining([
-              expect.objectContaining({
-                bindAs: "primary",
-                dataset: "page-slot-primary",
-                sourceType: "blog-post",
-                recordMode: "single-item"
-              }),
-              expect.objectContaining({
-                bindAs: "relatedPosts",
-                dataset: "page-slot-relatedposts",
-                sourceType: "blog-category",
-                recordMode: "array"
+            bootstrapDatasets: ["reader-page-bootstrap"],
+            context: expect.objectContaining({
+              pageId: postPage.body.item.id,
+              pagePath: "/stories/launch-window-update",
+              primaryRecordId: post.id,
+              primarySourceType: "blog-post",
+              commentsEnabled: true
+            }),
+            slots: [],
+            remote: expect.objectContaining({
+              defaultHeaders: expect.objectContaining({
+                Accept: "application/json"
               })
-            ]),
+            }),
             queries: expect.arrayContaining([
               expect.objectContaining({
-                resource: "page-slot",
-                query: "primary",
-                dataset: "page-slot-primary"
+                resource: "readerPage",
+                query: "current",
+                policy: "local-first",
+                dataset: "reader-page-bootstrap"
               }),
               expect.objectContaining({
-                resource: "page-slot",
-                query: "relatedPosts",
-                dataset: "page-slot-relatedposts",
+                resource: "readerPage",
+                query: "byPath",
+                policy: "local-first",
+                dataset: "reader-page-bootstrap",
+                localLookupField: "path",
+                allowRemoteOnEmptyLocal: true,
                 remote: expect.objectContaining({
-                  path: expect.stringContaining("/delivery/resolve?path="),
-                  responsePath: "payload.data.relatedPosts"
+                  path: "/api/reference/modules/test-modules-pages/public/reader/bootstrap",
+                  queryParams: expect.objectContaining({
+                    path: "params.path"
+                  })
                 }),
                 remoteResult: expect.objectContaining({
-                  type: "collection"
+                  type: "collection",
+                  itemsPath: "items",
+                  totalPath: "total"
+                }),
+                persist: expect.objectContaining({
+                  dataset: "reader-page-bootstrap",
+                  storageKeyPath: "path"
+                })
+              }),
+              expect.objectContaining({
+                resource: "readerDeferred",
+                query: "byPath",
+                policy: "local-first",
+                dataset: "reader-page-deferred",
+                localLookupField: "path",
+                allowRemoteOnEmptyLocal: true,
+                remote: expect.objectContaining({
+                  path: "/api/reference/modules/test-modules-pages/public/reader/deferred",
+                  queryParams: expect.objectContaining({
+                    path: "params.path"
+                  })
+                }),
+                remoteResult: expect.objectContaining({
+                  type: "collection",
+                  itemsPath: "items",
+                  totalPath: "total"
+                }),
+                persist: expect.objectContaining({
+                  dataset: "reader-page-deferred",
+                  storageKeyPath: "path"
                 })
               })
             ]),
+            actions: [],
             datasets: expect.arrayContaining([
               expect.objectContaining({
-                dataset: "page-slot-primary",
-                valuePath: "data.primary",
-                remoteValuePath: "payload.data.primary"
+                dataset: "reader-page-bootstrap",
+                bootstrapMode: "inline-json-script",
+                inlineScriptId: "page-data",
+                valuePath: "application",
+                recordMode: "single-item",
+                versionPath: "application.resolvedAt",
+                syncTokenPath: "application.path",
+                storageKeyPath: "path"
               }),
               expect.objectContaining({
-                dataset: "page-slot-relatedposts",
-                valuePath: "data.relatedPosts",
-                remoteValuePath: "payload.data.relatedPosts"
+                dataset: "reader-page-deferred",
+                recordMode: "single-item",
+                storageKeyPath: "path"
               })
             ])
           }),
@@ -475,6 +533,8 @@ test("pages create standalone records and resolve deterministic delivery payload
             enabledQueryParams: expect.arrayContaining(["appTester", "runtimeProbe"]),
             apiOriginQueryParams: expect.arrayContaining(["appApiOrigin", "apiOrigin"]),
             documentUrl: "./runtime-probe.document.json",
+            publicApplicationViewApiPath:
+              "/api/reference/modules/test-modules-pages/public/application-view",
             publicPublishedDocumentApiPath:
               "/api/reference/modules/test-modules-pages/public/published-document",
             publicCommentsApiPath: "/api/reference/modules/test-modules-pages/public/comments",
@@ -485,6 +545,38 @@ test("pages create standalone records and resolve deterministic delivery payload
               "indexeddb-install-and-local-query",
               "public-app-comment-submit"
             ])
+          })
+        }),
+        application: expect.objectContaining({
+          contractVersion: 1,
+          tier: "initial",
+          path: "/stories/launch-window-update",
+          pageId: postPage.body.item.id,
+          pageKind: "post-detail",
+          primarySourceType: "blog-post",
+          layout: expect.objectContaining({
+            pageId: postPage.body.item.id,
+            layoutKey: "story-shell"
+          }),
+          model: expect.objectContaining({
+            kind: "post-detail",
+            post: expect.objectContaining({
+              id: post.id,
+              title: "Launch Window Update"
+            }),
+            navigation: expect.objectContaining({
+              previousPost: null,
+              nextPost: null
+            }),
+            related: expect.objectContaining({
+              moreFromAuthor: [],
+              byCategory: [],
+              byTag: []
+            })
+          }),
+          review: expect.objectContaining({
+            pageId: postPage.body.item.id,
+            pagePath: "/stories/launch-window-update"
           })
         }),
         data: expect.objectContaining({
@@ -523,6 +615,113 @@ test("pages create standalone records and resolve deterministic delivery payload
       buildPathDeliveryRoute("/stories/launch-window-update")
     );
     expect(pathWithoutPreview.statusCode).toBe(404);
+  } finally {
+    await server.close();
+  }
+}, BLOG_DISTRIBUTION_TEST_TIMEOUT_MS);
+
+test("public reader bootstrap and deferred routes return the post reader model in tiers", async () => {
+  const server = await createEphemeralReferenceServer();
+
+  try {
+    const author = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+
+    const previousPost = await seedPost(server, author.id, category.id, tag.id, {
+      title: "Previous Story",
+      status: "published",
+      publishedOn: "2026-03-09T08:00:00.000Z"
+    });
+    const currentPost = await seedPost(server, author.id, category.id, tag.id, {
+      title: "Current Story",
+      status: "published",
+      publishedOn: "2026-03-09T09:00:00.000Z"
+    });
+    const nextPost = await seedPost(server, author.id, category.id, tag.id, {
+      title: "Next Story",
+      status: "published",
+      publishedOn: "2026-03-09T10:00:00.000Z"
+    });
+    expect(previousPost.id).not.toBe(currentPost.id);
+    expect(nextPost.id).not.toBe(currentPost.id);
+
+    const pageResponse = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
+      title: "Post Page",
+      pageKind: "content-detail",
+      deploymentMode: "per-record",
+      primarySourceType: "blog-post",
+      pathPattern: "/post/{slug}",
+      layoutKey: "story-shell",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: null,
+        bindAs: "primary"
+      },
+      status: "published"
+    });
+    expect(pageResponse.statusCode).toBe(201);
+
+    const bootstrapResponse = await server.inject({
+      method: "GET",
+      url: buildPublicReaderBootstrapRoute(`/post/${currentPost.slug}`)
+    });
+    expect(bootstrapResponse.statusCode).toBe(200);
+    expect(bootstrapResponse.headers["access-control-allow-origin"]).toBe("*");
+    const bootstrapPayload = bootstrapResponse.json();
+    expect(bootstrapPayload.ok).toBe(true);
+    expect(bootstrapPayload.pagePath).toBe(`/post/${currentPost.slug}`);
+    expect(bootstrapPayload.items).toHaveLength(1);
+    expect(bootstrapPayload.items[0]).toEqual(
+      expect.objectContaining({
+        contractVersion: 1,
+        tier: "initial",
+        path: `/post/${currentPost.slug}`,
+        pageKind: "post-detail",
+        model: expect.objectContaining({
+          kind: "post-detail",
+          post: expect.objectContaining({
+            id: currentPost.id,
+            title: "Current Story"
+          }),
+          navigation: expect.objectContaining({
+            previousPost: null,
+            nextPost: null
+          }),
+          related: expect.objectContaining({
+            moreFromAuthor: [],
+            byCategory: [],
+            byTag: []
+          })
+        })
+      })
+    );
+
+    const deferredResponse = await server.inject({
+      method: "GET",
+      url: buildPublicReaderDeferredRoute(`/post/${currentPost.slug}`)
+    });
+    expect(deferredResponse.statusCode).toBe(200);
+    expect(deferredResponse.headers["access-control-allow-origin"]).toBe("*");
+    const deferredPayload = deferredResponse.json();
+    expect(deferredPayload.ok).toBe(true);
+    expect(deferredPayload.pagePath).toBe(`/post/${currentPost.slug}`);
+    expect(deferredPayload.items).toHaveLength(1);
+    expect(deferredPayload.items[0].deferred?.navigation?.previousPost).toMatchObject({
+      title: "Previous Story",
+      path: `/post/${previousPost.slug}`
+    });
+    expect(deferredPayload.items[0].deferred?.navigation?.nextPost).toMatchObject({
+      title: "Next Story",
+      path: `/post/${nextPost.slug}`
+    });
+    expect(deferredPayload.items[0].deferred?.related?.moreFromAuthor).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Previous Story"
+        })
+      ])
+    );
   } finally {
     await server.close();
   }
@@ -757,36 +956,75 @@ test("pages support per-record category templates, deploy public category output
         }),
         runtime: expect.objectContaining({
           clientRuntime: expect.objectContaining({
-            bootstrapDatasets: expect.arrayContaining([
-              "page-payload",
-              "page-slot-primary",
-              "page-slot-categoryposts"
-            ]),
-            slots: expect.arrayContaining([
-              expect.objectContaining({
-                bindAs: "primary",
-                dataset: "page-slot-primary",
-                sourceType: "blog-category",
-                recordMode: "single-item"
-              }),
-              expect.objectContaining({
-                bindAs: "categoryPosts",
-                dataset: "page-slot-categoryposts",
-                sourceType: "blog-category",
-                recordMode: "array"
-              })
-            ]),
+            bootstrapDatasets: ["reader-page-bootstrap"],
+            context: expect.objectContaining({
+              pageId: templatePage.body.item.id,
+              pagePath: "/category/guides",
+              primaryRecordId: rootCategory.id,
+              primarySourceType: "blog-category",
+              commentsEnabled: false
+            }),
+            slots: [],
             queries: expect.arrayContaining([
               expect.objectContaining({
-                resource: "page-slot",
-                query: "categoryPosts",
-                dataset: "page-slot-categoryposts",
+                resource: "readerPage",
+                query: "current",
+                dataset: "reader-page-bootstrap"
+              }),
+              expect.objectContaining({
+                resource: "readerPage",
+                query: "byPath",
+                dataset: "reader-page-bootstrap",
+                localLookupField: "path",
+                allowRemoteOnEmptyLocal: true,
                 remote: expect.objectContaining({
-                  responsePath: "payload.data.categoryPosts"
+                  path: "/api/reference/modules/test-modules-pages/public/reader/bootstrap",
+                  queryParams: expect.objectContaining({
+                    path: "params.path"
+                  })
                 }),
                 remoteResult: expect.objectContaining({
-                  type: "collection"
+                  type: "collection",
+                  itemsPath: "items",
+                  totalPath: "total"
+                }),
+                persist: expect.objectContaining({
+                  dataset: "reader-page-bootstrap",
+                  storageKeyPath: "path"
                 })
+              }),
+              expect.objectContaining({
+                resource: "readerDeferred",
+                query: "byPath",
+                dataset: "reader-page-deferred",
+                localLookupField: "path",
+                allowRemoteOnEmptyLocal: true,
+                remote: expect.objectContaining({
+                  path: "/api/reference/modules/test-modules-pages/public/reader/deferred",
+                  queryParams: expect.objectContaining({
+                    path: "params.path"
+                  })
+                }),
+                remoteResult: expect.objectContaining({
+                  type: "collection",
+                  itemsPath: "items",
+                  totalPath: "total"
+                }),
+                persist: expect.objectContaining({
+                  dataset: "reader-page-deferred",
+                  storageKeyPath: "path"
+                })
+              })
+            ]),
+            actions: [],
+            datasets: expect.arrayContaining([
+              expect.objectContaining({
+                dataset: "reader-page-bootstrap",
+                storageKeyPath: "path"
+              }),
+              expect.objectContaining({
+                dataset: "reader-page-deferred",
+                storageKeyPath: "path"
               })
             ])
           })
@@ -1376,143 +1614,62 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
     );
     expect(deliveryResponse.body.payload.runtime.clientRuntime).toEqual(
       expect.objectContaining({
-        bootstrapDatasets: expect.arrayContaining(["page-payload", "page-media", "page-slot-primary"]),
+        bootstrapDatasets: ["reader-page-bootstrap"],
         context: expect.objectContaining({
           primaryRecordId: post.id,
-          primarySourceType: "blog-post",
-          commentsEnabled: true
+          primarySourceType: "blog-post"
         }),
-        slots: expect.arrayContaining([
-          expect.objectContaining({
-            bindAs: "primary",
-            dataset: "page-slot-primary",
-            sourceType: "blog-post",
-            recordMode: "single-item"
-          })
-        ]),
+        slots: [],
         remote: expect.objectContaining({
-          baseUrl: "https://content.example.com",
           defaultHeaders: expect.objectContaining({
             Accept: "application/json"
           })
         }),
         queries: expect.arrayContaining([
           expect.objectContaining({
-            resource: "page",
-            query: "currentRemote",
-            remote: expect.objectContaining({
-              path: expect.stringContaining("/delivery/resolve?path="),
-              responsePath: "payload"
-            })
+            resource: "readerPage",
+            query: "current",
+            dataset: "reader-page-bootstrap"
           }),
           expect.objectContaining({
-            resource: "media",
-            query: "byId",
-            dataset: "page-media"
-          }),
-          expect.objectContaining({
-            resource: "page-slot",
-            query: "primary",
-            dataset: "page-slot-primary",
+            resource: "readerPage",
+            query: "byPath",
+            dataset: "reader-page-bootstrap",
+            localLookupField: "path",
+            allowRemoteOnEmptyLocal: true,
             remote: expect.objectContaining({
-              path: expect.stringContaining("/delivery/resolve?path="),
-              responsePath: "payload.data.primary"
-            })
-          }),
-          expect.objectContaining({
-            resource: "comments",
-            query: "byPost",
-            dataset: "post-comments",
-            remote: expect.objectContaining({
-              path: "/api/reference/collections/blog-comments/items",
+              path: "/api/reference/modules/test-modules-pages/public/reader/bootstrap",
               queryParams: expect.objectContaining({
-                postId: "context.primaryRecordId",
-                status: "approved"
+                path: "params.path"
               })
-            }),
-            remoteResult: expect.objectContaining({
-              type: "collection",
-              itemsPath: "items",
-              totalPath: "meta.total"
-            })
-          })
-        ]),
-        actions: expect.arrayContaining([
-          expect.objectContaining({
-            action: "page.refresh",
-            local: expect.objectContaining({
-              kind: "sync-dataset",
-              dataset: "page-payload"
             })
           }),
           expect.objectContaining({
-            action: "media.refresh",
-            local: expect.objectContaining({
-              kind: "sync-dataset",
-              dataset: "page-media"
-            })
-          }),
-          expect.objectContaining({
-            action: "comments.refresh",
-            local: expect.objectContaining({
-              kind: "sync-dataset",
-              dataset: "post-comments"
-            })
-          }),
-          expect.objectContaining({
-            action: "page-slot.refresh.primary",
-            local: expect.objectContaining({
-              kind: "sync-dataset",
-              dataset: "page-slot-primary"
-            })
-          }),
-          expect.objectContaining({
-            action: "comments.submit",
-            markDatasetsDirty: ["post-comments"],
+            resource: "readerDeferred",
+            query: "byPath",
+            dataset: "reader-page-deferred",
+            localLookupField: "path",
+            allowRemoteOnEmptyLocal: true,
             remote: expect.objectContaining({
-              method: "POST",
-              path: "/api/reference/collections/blog-comments/items"
+              path: "/api/reference/modules/test-modules-pages/public/reader/deferred",
+              queryParams: expect.objectContaining({
+                path: "params.path"
+              })
             })
           })
         ]),
+        actions: [],
         datasets: expect.arrayContaining([
           expect.objectContaining({
-            dataset: "page-payload",
-            remoteSync: expect.objectContaining({
-              path: expect.stringContaining("/delivery/resolve?path=")
-            }),
-            responsePath: "payload",
-            remoteValuePath: "payload"
+            dataset: "reader-page-bootstrap",
+            bootstrapMode: "inline-json-script",
+            inlineScriptId: "page-data",
+            valuePath: "application",
+            storageKeyPath: "path"
           }),
           expect.objectContaining({
-            dataset: "page-media",
-            remoteSync: expect.objectContaining({
-              path: expect.stringContaining("/delivery/resolve?path=")
-            }),
-            responsePath: "payload",
-            remoteValuePath: "payload.media.items"
-          }),
-          expect.objectContaining({
-            dataset: "page-slot-primary",
-            valuePath: "data.primary",
-            remoteSync: expect.objectContaining({
-              path: expect.stringContaining("/delivery/resolve?path=")
-            }),
-            remoteValuePath: "payload.data.primary"
-          }),
-          expect.objectContaining({
-            dataset: "post-comments",
-            remoteInstall: expect.objectContaining({
-              path: "/api/reference/collections/blog-comments/items",
-              queryParams: expect.objectContaining({
-                postId: "context.primaryRecordId",
-                status: "approved"
-              })
-            }),
-            remoteSync: expect.objectContaining({
-              path: "/api/reference/collections/blog-comments/items"
-            }),
-            remoteValuePath: "items"
+            dataset: "reader-page-deferred",
+            storageKeyPath: "path"
           })
         ])
       })
@@ -2171,17 +2328,43 @@ test("pages publish generates deployment html, updates old artifacts, and remove
       sandbox.deploymentRootDir,
       "stories/launch-rollout/index.html"
     );
+    const initialPageData = readInlinePageData(initialHtml);
     expect(initialHtml).toContain("<page-runtime");
     expect(initialHtml).toContain("window.__CRUD_CLIENT_RUNTIME_CONFIG__ =");
     expect(initialHtml).toContain("window.__CRUD_PAGE_APPLICATION_TESTER__ =");
     expect(initialHtml).toContain("../../assets/client-runtime.global.js");
     expect(initialHtml).toContain("../../assets/page-application-tester.global.js");
-    expect(initialHtml).toContain("\"page-slot-primary\"");
+    expect(initialHtml).toContain("\"reader-page-bootstrap\"");
+    expect(initialHtml).not.toContain("\"page-slot-primary\"");
     expect(initialHtml).toContain("https://cdn.example.com/runtime/app.js");
     expect(initialHtml).toContain("/assets/runtime/entry.js");
     expect(initialHtml).toContain("type=\"application/json\" id=\"page-data\"");
     expect(initialHtml).toContain("Launch Rollout SEO");
     expect(initialHtml).toContain("https://example.com/stories/launch-rollout");
+    expect(initialPageData).toEqual(
+      expect.objectContaining({
+        contractVersion: 1,
+        page: expect.objectContaining({
+          id: pageResponse.body.item.id,
+          path: "/stories/launch-rollout"
+        }),
+        application: expect.objectContaining({
+          contractVersion: 1,
+          tier: "initial",
+          path: "/stories/launch-rollout",
+          pageId: pageResponse.body.item.id,
+          pageKind: "post-detail",
+          model: expect.objectContaining({
+            kind: "post-detail",
+            post: expect.objectContaining({
+              title: "Launch Rollout Story"
+            })
+          })
+        })
+      })
+    );
+    expect(initialPageData).not.toHaveProperty("runtime");
+    expect(initialPageData).not.toHaveProperty("data");
     await expect(
       fs.access(path.join(sandbox.deploymentRootDir, "assets", "client-runtime.global.js"))
     ).resolves.toBeUndefined();

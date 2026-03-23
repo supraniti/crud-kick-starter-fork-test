@@ -7,6 +7,11 @@ import { COMMENTS_COLLECTION_ID } from "../../test-modules-engagement/server/eng
 import { resolvePageByPath } from "./page-delivery-runtime.mjs";
 import { normalizeOptionalText, normalizePagePath } from "./distribution-shared-runtime.mjs";
 import { resolvePublishedFirestoreDescriptor } from "./page-firestore-publication-runtime.mjs";
+import {
+  buildPublicApplicationViewPayload,
+  buildReaderDeferredPayload,
+  buildReaderPageBootstrapPayload
+} from "./page-application-view-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 import { normalizeTargetConfig } from "../../test-modules-remote-ops/server/remote-ops-shared-runtime.mjs";
 
@@ -529,6 +534,39 @@ async function resolvePublishedDocument(routeContext, pagePath) {
   };
 }
 
+async function resolvePublicApplicationView(routeContext, pagePath) {
+  const payload = await resolvePublishedPagePayload(routeContext, pagePath);
+  return buildPublicApplicationViewPayload(payload, {
+    collectionHandlerRegistry: routeContext.collectionHandlerRegistry
+  });
+}
+
+async function resolvePublicReaderBootstrap(routeContext, pagePath) {
+  const payload = await resolvePublishedPagePayload(routeContext, pagePath);
+  const document = await buildReaderPageBootstrapPayload(payload, {
+    collectionHandlerRegistry: routeContext.collectionHandlerRegistry
+  });
+  return {
+    ok: true,
+    pagePath: normalizePagePath(pagePath),
+    items: document ? [document] : [],
+    total: document ? 1 : 0
+  };
+}
+
+async function resolvePublicReaderDeferred(routeContext, pagePath) {
+  const payload = await resolvePublishedPagePayload(routeContext, pagePath);
+  const document = await buildReaderDeferredPayload(payload, {
+    collectionHandlerRegistry: routeContext.collectionHandlerRegistry
+  });
+  return {
+    ok: true,
+    pagePath: normalizePagePath(pagePath),
+    items: document ? [document] : [],
+    total: document ? 1 : 0
+  };
+}
+
 async function createComment(routeContext, body = {}, reply) {
   const commentsHandler = routeContext.collectionHandlerRegistry.get(COMMENTS_COLLECTION_ID);
   if (!commentsHandler) {
@@ -591,9 +629,30 @@ async function createComment(routeContext, body = {}, reply) {
 }
 
 export function registerPagePublicApplicationRoutes(fastify, routeContext) {
+  const publicApplicationViewPath = `/api/reference/modules/${routeContext.moduleId}/public/application-view`;
+  const publicReaderBootstrapPath = `/api/reference/modules/${routeContext.moduleId}/public/reader/bootstrap`;
+  const publicReaderDeferredPath = `/api/reference/modules/${routeContext.moduleId}/public/reader/deferred`;
   const publishedDocumentPath = `/api/reference/modules/${routeContext.moduleId}/public/published-document`;
   const commentsPath = `/api/reference/modules/${routeContext.moduleId}/public/comments`;
   const importCommentsPath = `/api/reference/modules/${routeContext.moduleId}/public/comments/import-local`;
+
+  fastify.options(publicApplicationViewPath, async function publicApplicationViewOptions(_request, reply) {
+    setPublicApiCorsHeaders(reply);
+    reply.code(204);
+    return null;
+  });
+
+  fastify.options(publicReaderBootstrapPath, async function publicReaderBootstrapOptions(_request, reply) {
+    setPublicApiCorsHeaders(reply);
+    reply.code(204);
+    return null;
+  });
+
+  fastify.options(publicReaderDeferredPath, async function publicReaderDeferredOptions(_request, reply) {
+    setPublicApiCorsHeaders(reply);
+    reply.code(204);
+    return null;
+  });
 
   fastify.options(publishedDocumentPath, async function publicPublishedDocumentOptions(_request, reply) {
     setPublicApiCorsHeaders(reply);
@@ -629,6 +688,69 @@ export function registerPagePublicApplicationRoutes(fastify, routeContext) {
         error: {
           code: error?.code ?? "PUBLIC_PUBLISHED_DOCUMENT_FAILED",
           message: error?.message ?? "Failed to resolve the published document."
+        }
+      });
+    }
+  });
+
+  fastify.get(publicApplicationViewPath, async function publicApplicationViewRoute(request, reply) {
+    setPublicApiCorsHeaders(reply);
+    const moduleAvailability = ensureModuleEnabled(routeContext, reply);
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+    try {
+      const path = typeof request.query?.path === "string" ? request.query.path : "";
+      return buildPublicApiPayload(await resolvePublicApplicationView(routeContext, path));
+    } catch (error) {
+      reply.code(error?.statusCode ?? 500);
+      return buildPublicApiPayload({
+        ok: false,
+        error: {
+          code: error?.code ?? "PUBLIC_APPLICATION_VIEW_FAILED",
+          message: error?.message ?? "Failed to resolve the public application view."
+        }
+      });
+    }
+  });
+
+  fastify.get(publicReaderBootstrapPath, async function publicReaderBootstrapRoute(request, reply) {
+    setPublicApiCorsHeaders(reply);
+    const moduleAvailability = ensureModuleEnabled(routeContext, reply);
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+    try {
+      const path = typeof request.query?.path === "string" ? request.query.path : "";
+      return buildPublicApiPayload(await resolvePublicReaderBootstrap(routeContext, path));
+    } catch (error) {
+      reply.code(error?.statusCode ?? 500);
+      return buildPublicApiPayload({
+        ok: false,
+        error: {
+          code: error?.code ?? "PUBLIC_READER_BOOTSTRAP_FAILED",
+          message: error?.message ?? "Failed to resolve the public reader bootstrap."
+        }
+      });
+    }
+  });
+
+  fastify.get(publicReaderDeferredPath, async function publicReaderDeferredRoute(request, reply) {
+    setPublicApiCorsHeaders(reply);
+    const moduleAvailability = ensureModuleEnabled(routeContext, reply);
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+    try {
+      const path = typeof request.query?.path === "string" ? request.query.path : "";
+      return buildPublicApiPayload(await resolvePublicReaderDeferred(routeContext, path));
+    } catch (error) {
+      reply.code(error?.statusCode ?? 500);
+      return buildPublicApiPayload({
+        ok: false,
+        error: {
+          code: error?.code ?? "PUBLIC_READER_DEFERRED_FAILED",
+          message: error?.message ?? "Failed to resolve the public reader deferred document."
         }
       });
     }

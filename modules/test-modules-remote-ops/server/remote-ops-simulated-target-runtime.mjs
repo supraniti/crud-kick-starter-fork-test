@@ -16,6 +16,9 @@ import {
   resolveSimulatedStorageRoot
 } from "./remote-ops-root.mjs";
 
+const AUTHORS_COLLECTION_ID = "blog-authors";
+const MEDIA_ITEMS_COLLECTION_ID = "media-items";
+
 export async function pathExists(targetPath) {
   try {
     await fs.access(targetPath);
@@ -151,8 +154,98 @@ async function removeRelativeFile(rootPath, relativePath) {
   }
 }
 
+async function listHandlerItems(handler) {
+  if (!handler || typeof handler.list !== "function") {
+    return [];
+  }
+  const payload = await handler.list({
+    limit: 5000,
+    offset: 0
+  });
+  return Array.isArray(payload?.items) ? payload.items : [];
+}
+
+async function readHandlerItem(handler, itemId) {
+  if (!handler || typeof handler.findById !== "function" || typeof itemId !== "string" || itemId.trim().length === 0) {
+    return null;
+  }
+  return handler.findById(itemId);
+}
+
+async function readHandlerItemsByIds(handler, itemIds = []) {
+  const uniqueIds = [...new Set((Array.isArray(itemIds) ? itemIds : []).filter(Boolean))];
+  const items = await Promise.all(uniqueIds.map((itemId) => readHandlerItem(handler, itemId)));
+  return items.filter(Boolean);
+}
+
+function buildMediaProjectionSummary(item = null) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  return {
+    id: item.id ?? null,
+    displayName: item.displayName ?? item.altText ?? item.id ?? "Media",
+    altText: item.altText ?? item.displayName ?? "",
+    description: item.description ?? "",
+    preferredUrl: item.preferredUrl ?? item.publicUrl ?? item.temporaryUrl ?? item.localContentUrl ?? null,
+    width: Number.isFinite(item.width) ? item.width : null,
+    height: Number.isFinite(item.height) ? item.height : null,
+    relativePath: item.relativePath ?? null
+  };
+}
+
+function buildAuthorProjectionSummary(item = null, avatarMedia = null) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  return {
+    id: item.id ?? null,
+    slug: item.slug ?? null,
+    displayName: item.displayName ?? item.slug ?? item.id ?? "Author",
+    bio: item.bio ?? "",
+    role: item.role ?? null,
+    locale: item.locale ?? null,
+    avatarMedia: buildMediaProjectionSummary(avatarMedia ?? item.avatarMedia ?? null)
+  };
+}
+
+function buildCategoryProjectionSummary(item = null, featuredMedia = null) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  return {
+    id: item.id ?? null,
+    slug: item.slug ?? null,
+    name: item.name ?? item.slug ?? item.id ?? "Category",
+    description: item.description ?? "",
+    parentCategoryId: item.parentCategoryId ?? null,
+    path: item.path ?? null,
+    depth: Number.isFinite(item.depth) ? item.depth : 0,
+    featuredMedia: buildMediaProjectionSummary(featuredMedia ?? item.featuredMedia ?? null)
+  };
+}
+
+function buildTagProjectionSummary(item = null) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  return {
+    id: item.id ?? null,
+    slug: item.slug ?? null,
+    name: item.name ?? item.slug ?? item.id ?? "Tag",
+    description: item.description ?? "",
+    color: item.color ?? null,
+    seoTitle: item.seoTitle ?? null,
+    seoDescription: item.seoDescription ?? null
+  };
+}
+
 async function buildPublishedPostProjectionMap(collectionHandlerRegistry, targetProfile) {
   const postsHandler = collectionHandlerRegistry.get(POSTS_COLLECTION_ID);
+  const authorsHandler = collectionHandlerRegistry.get(AUTHORS_COLLECTION_ID);
+  const categoriesHandler = collectionHandlerRegistry.get(CATEGORIES_COLLECTION_ID);
+  const tagsHandler = collectionHandlerRegistry.get(TAGS_COLLECTION_ID);
+  const mediaHandler = collectionHandlerRegistry.get(MEDIA_ITEMS_COLLECTION_ID);
   const projectionMap = new Map();
   if (!postsHandler) {
     return projectionMap;
@@ -171,18 +264,47 @@ async function buildPublishedPostProjectionMap(collectionHandlerRegistry, target
     if (item?.status !== "published") {
       continue;
     }
+    const [primaryAuthor, categories, tags, featuredMedia, galleryMedia] = await Promise.all([
+      readHandlerItem(authorsHandler, item.primaryAuthorId),
+      readHandlerItemsByIds(categoriesHandler, item.categoryIds),
+      readHandlerItemsByIds(tagsHandler, item.tagIds),
+      readHandlerItem(mediaHandler, item.featuredMediaId),
+      readHandlerItemsByIds(mediaHandler, item.galleryMediaIds)
+    ]);
     const documentId = typeof item.slug === "string" && item.slug.trim().length > 0 ? item.slug.trim() : item.id;
     const document = {
       id: item.id,
       slug: item.slug ?? null,
       title: item.title ?? null,
+      subtitle: item.subtitle ?? null,
       excerpt: item.excerpt ?? null,
+      body: item.body ?? null,
       status: item.status,
+      format: item.format ?? "article",
+      locale: item.locale ?? null,
       publishedOn: item.publishedOn ?? null,
       updatedOn: item.updatedOn ?? null,
       pagePath: item.pagePath ?? null,
+      readTimeMinutes: Number.isFinite(item.readTimeMinutes) ? item.readTimeMinutes : null,
+      wordCount: Number.isFinite(item.wordCount) ? item.wordCount : null,
       seoTitle: item.seoTitle ?? null,
-      seoDescription: item.seoDescription ?? null
+      seoDescription: item.seoDescription ?? null,
+      allowComments: item.allowComments !== false,
+      commentPolicy: item.commentPolicy ?? "open",
+      primaryAuthorId: item.primaryAuthorId ?? null,
+      primaryAuthorTitle: item.primaryAuthorTitle ?? primaryAuthor?.displayName ?? null,
+      primaryAuthorSlug: primaryAuthor?.slug ?? null,
+      primaryAuthor: buildAuthorProjectionSummary(primaryAuthor),
+      categoryIds: Array.isArray(item.categoryIds) ? item.categoryIds : [],
+      categoryIdsTitles: categories.map((entry) => entry.name ?? entry.slug ?? entry.id ?? "Category"),
+      categories: categories.map((entry) => buildCategoryProjectionSummary(entry)).filter(Boolean),
+      tagIds: Array.isArray(item.tagIds) ? item.tagIds : [],
+      tagIdsTitles: tags.map((entry) => entry.name ?? entry.slug ?? entry.id ?? "Tag"),
+      tags: tags.map((entry) => buildTagProjectionSummary(entry)).filter(Boolean),
+      featuredMediaId: item.featuredMediaId ?? null,
+      featuredMedia: buildMediaProjectionSummary(featuredMedia ?? item.featuredMedia ?? null),
+      galleryMediaIds: Array.isArray(item.galleryMediaIds) ? item.galleryMediaIds : [],
+      galleryMedia: galleryMedia.map((entry) => buildMediaProjectionSummary(entry)).filter(Boolean)
     };
     const content = Buffer.from(stringifyCanonicalJson(document), "utf8");
     const relativePath = `${collectionPath}/${documentId}.json`;
@@ -225,9 +347,13 @@ async function buildPublishedPagesProjectionMap(collectionHandlerRegistry, targe
       id: item.id,
       title: item.title ?? null,
       path: item.path ?? null,
+      pathPattern: item.pathPattern ?? null,
       status: item.status,
       pageKind: item.pageKind ?? null,
       layoutKey: item.layoutKey ?? null,
+      deploymentMode: item.deploymentMode ?? "single-page",
+      primarySourceType: item.primarySourceType ?? "none",
+      primarySource: item.primarySource ?? null,
       publishedOn: item.publishedOn ?? null,
       updatedOn: item.updatedOn ?? null
     };
@@ -278,6 +404,7 @@ function buildPublicCategoryDocument(item) {
     sortOrder: toFiniteNumber(item.sortOrder),
     visibility: item.visibility ?? "public",
     featuredMediaId: item.featuredMediaId ?? null,
+    featuredMedia: buildMediaProjectionSummary(item.featuredMedia ?? null),
     usageCount: toFiniteNumber(item.usageCount),
     updatedOn: item.updatedOn ?? null
   };

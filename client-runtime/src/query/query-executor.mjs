@@ -21,6 +21,53 @@ async function writeCachedRead(cacheKey, value, adapters, definition) {
   await adapters.cacheStorage.write(cacheKey, value);
 }
 
+function buildImplicitLocalFilters(definition, request) {
+  const params = request?.params && typeof request.params === "object" ? request.params : {};
+  if (params.filters || params.where) {
+    return params;
+  }
+
+  const lookupField =
+    typeof definition?.localLookupField === "string" && definition.localLookupField.trim().length > 0
+      ? definition.localLookupField.trim()
+      : typeof definition?.storageKeyPath === "string" && definition.storageKeyPath.trim().length > 0
+        ? definition.storageKeyPath.trim()
+        : typeof definition?.persist?.storageKeyPath === "string" &&
+            definition.persist.storageKeyPath.trim().length > 0
+          ? definition.persist.storageKeyPath.trim()
+        : "";
+  if (!lookupField) {
+    return params;
+  }
+
+  const directValue = Object.prototype.hasOwnProperty.call(params, lookupField)
+    ? params[lookupField]
+    : undefined;
+  if (directValue !== undefined) {
+    return {
+      ...params,
+      filters: {
+        [lookupField]: directValue
+      }
+    };
+  }
+
+  const lookupParam =
+    typeof definition?.localLookupParam === "string" && definition.localLookupParam.trim().length > 0
+      ? definition.localLookupParam.trim()
+      : "";
+  if (lookupParam && Object.prototype.hasOwnProperty.call(params, lookupParam)) {
+    return {
+      ...params,
+      filters: {
+        [lookupField]: params[lookupParam]
+      }
+    };
+  }
+
+  return params;
+}
+
 async function runLocal(definition, request, context) {
   const datasetName = definition.dataset || request.dataset;
   if (!datasetName) {
@@ -30,7 +77,10 @@ async function runLocal(definition, request, context) {
   if (!status?.installed) {
     return null;
   }
-  const localResult = await context.datasetManager.queryDataset(datasetName, request.params);
+  const localResult = await context.datasetManager.queryDataset(
+    datasetName,
+    buildImplicitLocalFilters(definition, request)
+  );
   return {
     data: localResult,
     meta: {
@@ -38,13 +88,51 @@ async function runLocal(definition, request, context) {
       dataset: datasetName,
       installed: true,
       syncedAt: status.syncedAt || null
-    }
+    },
+    empty:
+      !localResult ||
+      (Array.isArray(localResult.items) ? localResult.items.length === 0 : localResult == null)
   };
+}
+
+function shouldTreatLocalResultAsMiss(definition, localResult) {
+  return Boolean(definition?.allowRemoteOnEmptyLocal && localResult?.empty);
+}
+
+function normalizePersistItems(remoteData) {
+  if (Array.isArray(remoteData)) {
+    return remoteData;
+  }
+  if (remoteData && typeof remoteData === "object" && Array.isArray(remoteData.items)) {
+    return remoteData.items;
+  }
+  if (remoteData == null) {
+    return [];
+  }
+  return [remoteData];
+}
+
+async function persistRemoteResult(definition, remoteData, context) {
+  const persist = definition?.persist;
+  if (!persist || !persist.dataset || !context?.datasetManager) {
+    return;
+  }
+  const items = normalizePersistItems(remoteData);
+  if (!items.length && persist.skipEmpty !== false) {
+    return;
+  }
+  await context.datasetManager.upsertDataset({
+    dataset: persist.dataset,
+    items,
+    storageKeyPath: persist.storageKeyPath || "id",
+    syncedAt: new Date().toISOString()
+  });
 }
 
 async function runRemote(definition, request, context, cacheKey) {
   const remoteData = await context.adapters.remote.query(definition, request, context);
   await writeCachedRead(cacheKey, remoteData, context.adapters, definition);
+  await persistRemoteResult(definition, remoteData, context);
   return {
     data: remoteData,
     meta: {
@@ -76,7 +164,7 @@ export async function executeQuery(requestInput, context) {
 
     if (policy === "local-first" || policy === "local-only") {
       const local = await runLocal(definition, request, context);
-      if (local) {
+      if (local && !shouldTreatLocalResultAsMiss(definition, local)) {
         return createResultEnvelope({ ok: true, data: local.data, meta: { ...local.meta, policy, capabilities } });
       }
       if (policy === "local-only") {

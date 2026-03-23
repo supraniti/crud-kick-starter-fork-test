@@ -398,6 +398,411 @@
     return wrapper;
   }
 
+  function readCurrentPagePath(targetGlobal, state) {
+    var routePath = targetGlobal && targetGlobal.location ? targetGlobal.location.pathname : "";
+    if (routePath) {
+      return routePath;
+    }
+    return state && state.payload && state.payload.page ? toText(state.payload.page.path, "/") : "/";
+  }
+
+  function derivePrimaryRecordId(model) {
+    if (!model || typeof model !== "object") {
+      return null;
+    }
+    if (model.kind === "post-detail") {
+      return model.post && model.post.id ? model.post.id : null;
+    }
+    if (model.kind === "category-detail") {
+      return model.category && model.category.id ? model.category.id : null;
+    }
+    return null;
+  }
+
+  function derivePrimaryRecordSlug(model) {
+    if (!model || typeof model !== "object") {
+      return null;
+    }
+    if (model.kind === "post-detail") {
+      return model.post && model.post.slug ? model.post.slug : null;
+    }
+    if (model.kind === "category-detail") {
+      return model.category && model.category.slug ? model.category.slug : null;
+    }
+    return null;
+  }
+
+  function unwrapReaderDocument(value) {
+    if (!value) {
+      return null;
+    }
+    if (Array.isArray(value)) {
+      return value[0] || null;
+    }
+    if (value && typeof value === "object" && Array.isArray(value.items)) {
+      return value.items[0] || null;
+    }
+    return value;
+  }
+
+  function deriveCurrentPublicUrl(targetGlobal, pagePath, readerDocument) {
+    var explicitUrl = toText(
+      (readerDocument && readerDocument.delivery ? readerDocument.delivery.publicUrl : "") ||
+      (readerDocument && readerDocument.review ? readerDocument.review.publicUrl : ""),
+      ""
+    );
+    if (explicitUrl) {
+      return explicitUrl;
+    }
+    try {
+      return new URL(pagePath, targetGlobal.location.origin).toString();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function deriveDocumentSnapshotUrl(targetGlobal, pagePath) {
+    var normalizedPath = toText(pagePath, "/");
+    try {
+      var baseOrigin = targetGlobal.location && targetGlobal.location.origin ? targetGlobal.location.origin : "";
+      if (!baseOrigin) {
+        return "";
+      }
+      if (normalizedPath === "/") {
+        return new URL("runtime-probe.document.json", baseOrigin + "/").toString();
+      }
+      return new URL(normalizedPath.replace(/^\/+/, "").replace(/\/+$/g, "") + "/runtime-probe.document.json", baseOrigin + "/").toString();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function mergeReaderDeferredIntoState(state, deferredDocument) {
+    if (!deferredDocument || typeof deferredDocument !== "object" || !deferredDocument.deferred) {
+      return;
+    }
+    if (state.model && state.model.kind === "post-detail") {
+      state.model = {
+        ...state.model,
+        navigation: {
+          ...(state.model.navigation && typeof state.model.navigation === "object" ? state.model.navigation : {}),
+          ...((deferredDocument.deferred.navigation && typeof deferredDocument.deferred.navigation === "object")
+            ? deferredDocument.deferred.navigation
+            : {})
+        },
+        related: {
+          ...(state.model.related && typeof state.model.related === "object" ? state.model.related : {}),
+          ...((deferredDocument.deferred.related && typeof deferredDocument.deferred.related === "object")
+            ? deferredDocument.deferred.related
+            : {})
+        }
+      };
+    } else if (state.model && state.model.kind === "category-detail") {
+      state.model = {
+        ...state.model,
+        children: normalizeArray(deferredDocument.deferred.children)
+      };
+    }
+    state.payload = {
+      ...(state.payload && typeof state.payload === "object" ? state.payload : {}),
+      application: {
+        ...((state.payload && state.payload.application && typeof state.payload.application === "object")
+          ? state.payload.application
+          : {}),
+        deferred: deferredDocument.deferred,
+        deferredResolvedAt: deferredDocument.resolvedAt || null
+      }
+    };
+  }
+
+  function mergeReaderBootstrapIntoState(targetGlobal, state, bootstrapDocument, pagePath) {
+    if (!bootstrapDocument || typeof bootstrapDocument !== "object" || !bootstrapDocument.model) {
+      return;
+    }
+    var primaryRecordId = derivePrimaryRecordId(bootstrapDocument.model);
+    var primaryRecordSlug = derivePrimaryRecordSlug(bootstrapDocument.model);
+    var publicUrl = deriveCurrentPublicUrl(targetGlobal, pagePath, bootstrapDocument);
+    var documentUrl = deriveDocumentSnapshotUrl(targetGlobal, pagePath);
+    var pageId = toText(bootstrapDocument.pageId, "");
+    var primarySourceType = toText(bootstrapDocument.primarySourceType, "");
+    var commentsEnabled = Boolean(
+      bootstrapDocument &&
+      bootstrapDocument.model &&
+      bootstrapDocument.model.kind === "post-detail" &&
+      bootstrapDocument.model.comments &&
+      bootstrapDocument.model.comments.enabled
+    );
+    var deliveryMerge = {
+      ...((state.payload && state.payload.delivery && typeof state.payload.delivery === "object") ? state.payload.delivery : {})
+    };
+    Object.entries(
+      bootstrapDocument.delivery && typeof bootstrapDocument.delivery === "object"
+        ? bootstrapDocument.delivery
+        : {}
+    ).forEach(function (entry) {
+      var key = entry[0];
+      var value = entry[1];
+      if (value !== null && value !== undefined && value !== "") {
+        deliveryMerge[key] = value;
+      }
+    });
+    state.model = bootstrapDocument.model;
+    state.payload = {
+      ...(state.payload && typeof state.payload === "object" ? state.payload : {}),
+      page: {
+        ...((state.payload && state.payload.page && typeof state.payload.page === "object") ? state.payload.page : {}),
+        id: pageId || (state.payload && state.payload.page ? state.payload.page.id : null),
+        path: pagePath
+      },
+      head: {
+        ...((state.payload && state.payload.head && typeof state.payload.head === "object") ? state.payload.head : {}),
+        ...((bootstrapDocument.head && typeof bootstrapDocument.head === "object") ? bootstrapDocument.head : {})
+      },
+      delivery: deliveryMerge,
+      application: bootstrapDocument,
+      resolvedAt: bootstrapDocument.resolvedAt || null
+    };
+    state.contract = {
+      ...((state.contract && typeof state.contract === "object") ? state.contract : {}),
+      pagePath: pagePath,
+      primaryRecordId: primaryRecordId,
+      documentUrl: documentUrl || state.contract.documentUrl || "",
+      primaryRecord: {
+        ...((state.contract && state.contract.primaryRecord && typeof state.contract.primaryRecord === "object")
+          ? state.contract.primaryRecord
+          : {}),
+        id: primaryRecordId,
+        slug: primaryRecordSlug
+      },
+      firestore: state.contract && state.contract.firestore && typeof state.contract.firestore === "object"
+        ? {
+            ...state.contract.firestore,
+            documentId: primaryRecordSlug || state.contract.firestore.documentId || null
+          }
+        : state.contract.firestore,
+      runtimeAugment: {
+        ...((state.contract && state.contract.runtimeAugment && typeof state.contract.runtimeAugment === "object")
+          ? state.contract.runtimeAugment
+          : {}),
+        context: {
+          ...((state.contract &&
+            state.contract.runtimeAugment &&
+            state.contract.runtimeAugment.context &&
+            typeof state.contract.runtimeAugment.context === "object")
+            ? state.contract.runtimeAugment.context
+            : {}),
+          pagePath: pagePath,
+          primaryRecordId: primaryRecordId,
+          pageId: pageId || null,
+          primarySourceType: primarySourceType || null,
+          commentsEnabled: commentsEnabled,
+          publicUrl: publicUrl || null
+        }
+      }
+    };
+    targetGlobal.__CRUD_PAGE_APPLICATION_TESTER__ = {
+      ...((targetGlobal.__CRUD_PAGE_APPLICATION_TESTER__ && typeof targetGlobal.__CRUD_PAGE_APPLICATION_TESTER__ === "object")
+        ? targetGlobal.__CRUD_PAGE_APPLICATION_TESTER__
+        : {}),
+      ...state.contract
+    };
+    if (targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ && typeof targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ === "object") {
+      targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ = {
+        ...targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__,
+        context: {
+          ...((targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__.context && typeof targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__.context === "object")
+            ? targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__.context
+            : {}),
+          pagePath: pagePath,
+          primaryRecordId: state.contract.primaryRecordId,
+          pageId: pageId || null,
+          primarySourceType: primarySourceType || null,
+          commentsEnabled: commentsEnabled,
+          publicUrl: publicUrl || null
+        }
+      };
+    }
+    state.commentsApproved = [];
+    state.commentsPending = [];
+    state.deferredLoaded = false;
+    targetGlobal.document.title = toText(
+      bootstrapDocument.head && bootstrapDocument.head.title,
+      toText(
+        state.model && state.model.post
+          ? state.model.post.title
+          : state.model && state.model.category
+            ? state.model.category.name
+            : "Page"
+      )
+    );
+  }
+
+  async function queryReaderDocument(targetGlobal, resource, query, params) {
+    if (!targetGlobal.dataLayer || typeof targetGlobal.dataLayer.query !== "function") {
+      throw new Error("reader runtime is unavailable on this page");
+    }
+    var result = await targetGlobal.dataLayer.query({
+      resource: resource,
+      query: query,
+      params: params || {}
+    });
+    if (!result || result.ok !== true) {
+      throw new Error(
+        result && result.error && result.error.message
+          ? result.error.message
+          : "Reader data could not be loaded."
+      );
+    }
+    return unwrapReaderDocument(result.data);
+  }
+
+  function buildReaderByPathParams(pagePath) {
+    return {
+      path: pagePath,
+      filters: {
+        path: pagePath
+      },
+      pageSize: 1
+    };
+  }
+
+  async function loadCurrentReaderPage(targetGlobal, state, pagePath) {
+    var document = await queryReaderDocument(
+      targetGlobal,
+      "readerPage",
+      "current",
+      buildReaderByPathParams(pagePath)
+    );
+    if (!document) {
+      throw new Error("Current page bootstrap was not available.");
+    }
+    mergeReaderBootstrapIntoState(targetGlobal, state, document, pagePath);
+  }
+
+  async function loadReaderPageByPath(targetGlobal, state, pagePath) {
+    var document = await queryReaderDocument(
+      targetGlobal,
+      "readerPage",
+      "byPath",
+      buildReaderByPathParams(pagePath)
+    );
+    if (!document) {
+      throw new Error("Requested page bootstrap was not available.");
+    }
+    mergeReaderBootstrapIntoState(targetGlobal, state, document, pagePath);
+  }
+
+  async function hydrateDeferredReaderData(targetGlobal, state, pagePath) {
+    var deferredDocument = await queryReaderDocument(
+      targetGlobal,
+      "readerDeferred",
+      "byPath",
+      buildReaderByPathParams(pagePath)
+    );
+    if (!deferredDocument) {
+      state.deferredLoaded = true;
+      return;
+    }
+    mergeReaderDeferredIntoState(state, deferredDocument);
+    state.deferredLoaded = true;
+    renderApplication(targetGlobal, state);
+  }
+
+  function shouldHandleInternalNavigation(targetGlobal, anchor, event) {
+    if (!anchor || !anchor.href || event.defaultPrevented) {
+      return false;
+    }
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return false;
+    }
+    var target = toText(anchor.getAttribute("target"), "");
+    if (target && target !== "_self") {
+      return false;
+    }
+    try {
+      var currentUrl = new URL(targetGlobal.location.href);
+      var nextUrl = new URL(anchor.href, currentUrl);
+      if (nextUrl.origin !== currentUrl.origin) {
+        return false;
+      }
+      if (nextUrl.pathname === currentUrl.pathname && nextUrl.search === currentUrl.search && nextUrl.hash === currentUrl.hash) {
+        return false;
+      }
+      return /^\/(post|category)\//.test(nextUrl.pathname);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  async function navigateToPage(targetGlobal, state, nextPath, mode) {
+    if (!nextPath) {
+      return;
+    }
+    var historyMode = toText(mode, "push");
+    if (state.routeLoadPending) {
+      return;
+    }
+    state.routeLoadPending = true;
+    try {
+      await loadReaderPageByPath(targetGlobal, state, nextPath);
+      renderApplication(targetGlobal, state);
+      if (historyMode === "push") {
+        targetGlobal.history.pushState({ pagePath: nextPath }, "", nextPath);
+      } else if (historyMode === "replace") {
+        targetGlobal.history.replaceState({ pagePath: nextPath }, "", nextPath);
+      }
+      if (state.model.kind === "post-detail" && state.model.comments && state.model.comments.enabled) {
+        await refreshComments(targetGlobal, state);
+      }
+      await hydrateDeferredReaderData(targetGlobal, state, nextPath);
+    } finally {
+      state.routeLoadPending = false;
+    }
+  }
+
+  function bindClientNavigation(targetGlobal, state) {
+    if (state.navigationBound) {
+      return;
+    }
+    state.navigationBound = true;
+    state.navigationHandler = function (event) {
+      var rawTarget = event.target && event.target.nodeType === 1
+        ? event.target
+        : event.target && event.target.parentElement
+          ? event.target.parentElement
+          : null;
+      var anchor = rawTarget && typeof rawTarget.closest === "function" ? rawTarget.closest("a[href]") : null;
+      if (!anchor || !state.mount || (anchor !== state.mount && !state.mount.contains(anchor))) {
+        return;
+      }
+      if (!shouldHandleInternalNavigation(targetGlobal, anchor, event)) {
+        return;
+      }
+      var nextUrl = new URL(anchor.href, targetGlobal.location.href);
+      event.preventDefault();
+      if (typeof event.stopPropagation === "function") {
+        event.stopPropagation();
+      }
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation();
+      }
+      anchor.setAttribute("aria-busy", "true");
+      navigateToPage(targetGlobal, state, nextUrl.pathname, "push")
+        .catch(function (error) {
+          console.error(error);
+        })
+        .finally(function () {
+          anchor.removeAttribute("aria-busy");
+        });
+    };
+    targetGlobal.document.addEventListener("click", state.navigationHandler, true);
+    targetGlobal.addEventListener("popstate", function () {
+      navigateToPage(targetGlobal, state, readCurrentPagePath(targetGlobal, state), "replace").catch(function (error) {
+        console.error(error);
+      });
+    });
+  }
+
   function createCommentsSection(documentObject) {
     var card = createNode(documentObject, "section", { className: "page-app-card" });
     card.appendChild(createNode(documentObject, "h2", { text: "Comments" }));
@@ -447,8 +852,24 @@
   async function refreshComments(targetGlobal, state) {
     if (!state.model || state.model.kind !== "post-detail" || !state.model.comments || !state.model.comments.enabled) { return; }
     if (!targetGlobal.dataLayer || typeof targetGlobal.dataLayer.query !== "function") { state.commentsSection.note.textContent = "Comments runtime is unavailable on this page."; return; }
+    var postId = toText(state.model.comments.postId, toText(state.contract && state.contract.primaryRecordId, ""));
+    if (!postId) {
+      state.commentsSection.note.textContent = "This story does not expose a comment target.";
+      return;
+    }
     state.commentsSection.note.textContent = "Refreshing comments...";
-    var result = await targetGlobal.dataLayer.query({ resource: "comments", query: "byPost" });
+    var result = await targetGlobal.dataLayer.query({
+      resource: "comments",
+      query: "byPost",
+      params: {
+        postId: postId,
+        status: "approved",
+        filters: {
+          postId: postId
+        },
+        pageSize: 50
+      }
+    });
     if (!result || result.ok !== true) {
       state.commentsSection.note.textContent = result && result.error && result.error.message ? result.error.message : "Comments could not be loaded.";
       renderCommentList(targetGlobal.document, state);
@@ -461,7 +882,15 @@
 
   async function handleCommentSubmit(targetGlobal, state, event) {
     event.preventDefault();
-    var payload = { parentCommentId: null, authorDisplayName: state.commentsSection.authorInput.value.trim(), authorEmail: state.commentsSection.emailInput.value.trim(), body: state.commentsSection.bodyInput.value.trim() };
+    var postId = toText(state.model && state.model.comments ? state.model.comments.postId : "", toText(state.contract && state.contract.primaryRecordId, ""));
+    var payload = {
+      postId: postId,
+      pagePath: readCurrentPagePath(targetGlobal, state),
+      parentCommentId: null,
+      authorDisplayName: state.commentsSection.authorInput.value.trim(),
+      authorEmail: state.commentsSection.emailInput.value.trim(),
+      body: state.commentsSection.bodyInput.value.trim()
+    };
     if (!payload.authorDisplayName || !payload.body) { state.commentsSection.note.textContent = "Name and comment body are required."; return; }
     state.commentsSection.submitButton.disabled = true;
     try {
@@ -482,6 +911,10 @@
   function renderReviewOverlay(targetGlobal, state) {
     if (!state.reviewEnabled && !state.debugEnabled) { return; }
     var documentObject = targetGlobal.document;
+    var existing = documentObject.querySelector(".page-app-review");
+    if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
     var overlay = createNode(documentObject, "aside", { className: "page-app-review" });
     overlay.appendChild(createNode(documentObject, "h2", { text: state.debugEnabled ? "Debug Overlay" : "Review Overlay" }));
     overlay.appendChild(createNode(documentObject, "p", { text: "Inspect deployment state, query the runtime, and exercise the page contract without leaving the page." }));
@@ -540,7 +973,7 @@
       overlay.appendChild(applicationDetails);
       var layoutDetails = createNode(documentObject, "details", {});
       layoutDetails.appendChild(createNode(documentObject, "summary", { text: "Layout JSON" }));
-      layoutDetails.appendChild(createNode(documentObject, "pre", { text: JSON.stringify(state.payload.renderModel && state.payload.renderModel.layoutDocument ? state.payload.renderModel.layoutDocument : {}, null, 2) }));
+      layoutDetails.appendChild(createNode(documentObject, "pre", { text: JSON.stringify(state.payload.application && state.payload.application.layout ? state.payload.application.layout.layoutDocument || {} : {}, null, 2) }));
       overlay.appendChild(layoutDetails);
       var payloadDetails = createNode(documentObject, "details", {});
       payloadDetails.appendChild(createNode(documentObject, "summary", { text: "Full Payload" }));
@@ -565,12 +998,12 @@
     navigationCard.appendChild(createNode(documentObject, "h2", { text: "Keep Reading" }));
     var navGrid = createNode(documentObject, "div", { className: "page-app-nav" });
     [renderNavigationCard(documentObject, "Previous Story", model.navigation.previousPost, delivery), renderNavigationCard(documentObject, "Next Story", model.navigation.nextPost, delivery), renderNavigationCard(documentObject, "Primary Category", model.navigation.primaryCategory, delivery), renderNavigationCard(documentObject, "Author Page", model.navigation.authorPage, delivery)].filter(Boolean).forEach(function (entry) { navGrid.appendChild(entry); });
-    navigationCard.appendChild(navGrid.childNodes.length ? navGrid : createNode(documentObject, "div", { className: "page-app-empty", text: "No adjacent routes are available for this story yet." }));
+    navigationCard.appendChild(navGrid.childNodes.length ? navGrid : createNode(documentObject, "div", { className: "page-app-empty", text: state.deferredLoaded ? "No adjacent routes are available for this story yet." : "Loading adjacent routes..." }));
     main.appendChild(navigationCard);
     [{ title: "More From This Author", items: model.related.moreFromAuthor }, { title: "Related By Category", items: model.related.byCategory }, { title: "Related By Tag", items: model.related.byTag }].forEach(function (section) {
       var card = createNode(documentObject, "section", { className: "page-app-card" });
       card.appendChild(createNode(documentObject, "h2", { text: section.title }));
-      if (!normalizeArray(section.items).length) { card.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: "No related stories are available yet." })); }
+      if (!normalizeArray(section.items).length) { card.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: state.deferredLoaded ? "No related stories are available yet." : "Loading related stories..." })); }
       else { var list = createNode(documentObject, "div", { className: "page-app-post-list" }); normalizeArray(section.items).forEach(function (item) { list.appendChild(renderPostCard(documentObject, item, delivery)); }); card.appendChild(list); }
       side.appendChild(card);
     });
@@ -588,12 +1021,12 @@
     state.mount.appendChild(renderHero(documentObject, model, state.support, delivery));
     var postsCard = createNode(documentObject, "section", { className: "page-app-card" });
     postsCard.appendChild(createNode(documentObject, "h2", { text: "Stories In This Category" }));
-    if (!normalizeArray(model.posts).length) { postsCard.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: "No stories are currently attached to this category." })); }
+    if (!normalizeArray(model.posts).length) { postsCard.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: state.deferredLoaded ? "No stories are currently attached to this category." : "Loading stories in this category..." })); }
     else { var postsList = createNode(documentObject, "div", { className: "page-app-post-list" }); normalizeArray(model.posts).forEach(function (item) { postsList.appendChild(renderPostCard(documentObject, item, delivery)); }); postsCard.appendChild(postsList); }
     main.appendChild(postsCard);
     var childCard = createNode(documentObject, "section", { className: "page-app-card" });
     childCard.appendChild(createNode(documentObject, "h2", { text: "Child Categories" }));
-    if (!normalizeArray(model.children).length) { childCard.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: "This category has no child branches yet." })); }
+    if (!normalizeArray(model.children).length) { childCard.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: state.deferredLoaded ? "This category has no child branches yet." : "Loading child branches..." })); }
     else { var childGrid = createNode(documentObject, "div", { className: "page-app-grid" }); normalizeArray(model.children).forEach(function (item) { var node = renderNavigationCard(documentObject, "Category", item, delivery); if (node) { childGrid.appendChild(node); } }); childCard.appendChild(childGrid); }
     side.appendChild(childCard);
     if (model.navigation.parentCategory) {
@@ -631,7 +1064,6 @@
   async function bootPageApplication(targetGlobal) {
     var payload = readPayload(targetGlobal.document);
     var runtimePayload = payload && payload.runtime ? payload.runtime : {};
-    var contract = targetGlobal.__CRUD_CLIENT_RUNTIME_CONFIG__ || runtimePayload.clientRuntime || {};
     var support = targetGlobal.__CRUD_PAGE_APPLICATION_TESTER_SUPPORT__;
     if (!support) {
       throw new Error("[page-application] support bridge is unavailable");
@@ -645,24 +1077,42 @@
     var state = {
       payload: payload,
       contract: normalizedTesterContract,
+      apiOrigin: apiOrigin,
       support: support,
       model: payload.application && payload.application.model ? payload.application.model : buildFallbackApplicationModel(payload),
       reviewEnabled: support.isReviewEnabled(normalizedTesterContract, targetGlobal),
       debugEnabled: support.isDebugEnabled(normalizedTesterContract, targetGlobal),
       mount: targetGlobal.document.getElementById("page-app") || targetGlobal.document.getElementById("app") || targetGlobal.document.body,
+      deferredLoaded: false,
+      routeLoadPending: false,
+      navigationBound: false,
       commentsApproved: [],
       commentsPending: []
     };
+
+    try {
+      await loadCurrentReaderPage(targetGlobal, state, readCurrentPagePath(targetGlobal, state));
+    } catch (error) {
+      console.warn(error);
+      state.deferredLoaded = true;
+    }
+
     renderApplication(targetGlobal, state);
+    bindClientNavigation(targetGlobal, state);
     if (state.model.kind === "post-detail" && state.model.comments && state.model.comments.enabled) {
       try {
         await refreshComments(targetGlobal, state);
       } catch (error) {
-        if (state.commentsSection && state.commentsSection.status) {
-          state.commentsSection.status.textContent = error && error.message ? error.message : String(error);
-          state.commentsSection.status.className = "page-app-status error";
+        if (state.commentsSection && state.commentsSection.note) {
+          state.commentsSection.note.textContent = error && error.message ? error.message : String(error);
         }
       }
+    }
+    try {
+      await hydrateDeferredReaderData(targetGlobal, state, readCurrentPagePath(targetGlobal, state));
+    } catch (error) {
+      state.deferredLoaded = true;
+      console.warn(error);
     }
   }
 

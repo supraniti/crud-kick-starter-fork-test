@@ -420,6 +420,174 @@ await runScenario("local-first queries answer from installed dataset state", asy
   assert.deepEqual(queryResult.data.items, [{ id: "p1", title: "Atlas" }]);
 });
 
+await runScenario("network-first reader queries can upsert keyed route documents into indexeddb", async () => {
+  const storage = createMemoryDatasetStorageDriver();
+  let remoteReads = 0;
+  const runtime = createClientRuntime({
+    queries: [
+      {
+        resource: "route",
+        query: "byPath",
+        policy: "local-first",
+        dataset: "reader-routes",
+        allowRemoteOnEmptyLocal: true,
+        remote: {
+          method: "GET",
+          path: "/reader/routes/by-path",
+          queryParams: {
+            path: "params.path"
+          }
+        },
+        persist: {
+          dataset: "reader-routes",
+          storageKeyPath: "path"
+        }
+      }
+    ],
+    datasets: [
+      {
+        dataset: "reader-routes",
+        storageKeyPath: "path"
+      }
+    ],
+    adapters: {
+      indexedDb: createIndexedDbAdapter({ storage }),
+      remote: createRemoteTransportAdapter({
+        baseUrl: "https://example.test",
+        fetchJson: async (url) => {
+          remoteReads += 1;
+          return {
+            ok: true,
+            status: 200,
+            body: {
+              path: "/post/demo-story",
+              pageId: "page-001",
+              primarySourceType: "blog-post",
+              primaryRecordId: "post-001"
+            }
+          };
+        }
+      })
+    },
+    capabilities: {
+      getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
+    }
+  });
+
+  const firstResult = await runtime.query({
+    resource: "route",
+    query: "byPath",
+    params: {
+      path: "/post/demo-story"
+    }
+  });
+  const secondResult = await runtime.query({
+    resource: "route",
+    query: "byPath",
+    params: {
+      path: "/post/demo-story"
+    }
+  });
+  const status = await runtime.getDatasetStatus("reader-routes");
+
+  assert.equal(firstResult.ok, true);
+  assert.equal(firstResult.meta.source, "remote");
+  assert.equal(secondResult.ok, true);
+  assert.equal(secondResult.meta.source, "indexeddb");
+  assert.equal(secondResult.data.items[0].primaryRecordId, "post-001");
+  assert.equal(remoteReads, 1);
+  assert.equal(status.recordCount, 1);
+});
+
+await runScenario("local-first reader queries fall back remote when the installed keyed dataset misses the requested path", async () => {
+  const storage = createMemoryDatasetStorageDriver();
+  let remoteReads = 0;
+  const runtime = createClientRuntime({
+    queries: [
+      {
+        resource: "route",
+        query: "byPath",
+        policy: "local-first",
+        dataset: "reader-routes",
+        allowRemoteOnEmptyLocal: true,
+        remote: {
+          method: "GET",
+          path: "/reader/routes/by-path",
+          queryParams: {
+            path: "params.path"
+          }
+        },
+        persist: {
+          dataset: "reader-routes",
+          storageKeyPath: "path"
+        }
+      }
+    ],
+    datasets: [
+      {
+        dataset: "reader-routes",
+        storageKeyPath: "path",
+        fetchInstall: async () => ({
+          items: [
+            {
+              path: "/post/already-installed",
+              pageId: "page-000",
+              primaryRecordId: "post-000"
+            }
+          ],
+          version: "1",
+          syncToken: "install"
+        })
+      }
+    ],
+    adapters: {
+      indexedDb: createIndexedDbAdapter({ storage }),
+      remote: createRemoteTransportAdapter({
+        baseUrl: "https://example.test",
+        fetchJson: async (_url, _init) => {
+          remoteReads += 1;
+          return {
+            ok: true,
+            status: 200,
+            body: {
+              path: "/post/new-story",
+              pageId: "page-002",
+              primarySourceType: "blog-post",
+              primaryRecordId: "post-002"
+            }
+          };
+        }
+      })
+    },
+    capabilities: {
+      getSnapshot: () => ({ online: true, memory: true, cacheStorage: false, indexedDb: true })
+    }
+  });
+
+  await runtime.installDataset({ dataset: "reader-routes" });
+  const result = await runtime.query({
+    resource: "route",
+    query: "byPath",
+    params: {
+      path: "/post/new-story"
+    }
+  });
+  const repeat = await runtime.query({
+    resource: "route",
+    query: "byPath",
+    params: {
+      path: "/post/new-story"
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.meta.source, "remote");
+  assert.equal(repeat.ok, true);
+  assert.equal(repeat.meta.source, "indexeddb");
+  assert.equal(repeat.data.items[0].pageId, "page-002");
+  assert.equal(remoteReads, 1);
+});
+
 await runScenario("cache storage adapter uses valid request URLs for browser caches", async () => {
   const storedEntries = new Map();
   const cache = {

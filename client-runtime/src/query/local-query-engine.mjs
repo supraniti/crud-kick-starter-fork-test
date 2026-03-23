@@ -1,5 +1,15 @@
+function readPathValue(record, path) {
+  if (!path) {
+    return undefined;
+  }
+  return String(path)
+    .split(".")
+    .filter(Boolean)
+    .reduce((current, segment) => (current == null ? undefined : current[segment]), record);
+}
+
 function applyPredicate(record, predicate) {
-  const value = record[predicate.field];
+  const value = readPathValue(record, predicate.field);
 
   switch (predicate.op) {
     case "eq":

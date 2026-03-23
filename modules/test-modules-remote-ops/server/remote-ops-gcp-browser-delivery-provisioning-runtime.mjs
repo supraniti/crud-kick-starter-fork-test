@@ -1,5 +1,5 @@
 import {
-  createBackendBucket,
+  createOrUpdateBackendBucket,
   createCertificateMap,
   createCertificateMapEntry,
   createDnsAuthorization,
@@ -112,14 +112,24 @@ async function executeHttpsBrowserCoreAction(action, context, projectId, accessT
       if (!bucketName) {
         return null;
       }
-      return createBackendBucket(projectId, names.deploymentBackendBucketName, bucketName, accessToken);
+      return createOrUpdateBackendBucket(
+        projectId,
+        names.deploymentBackendBucketName,
+        bucketName,
+        accessToken
+      );
     }
     case "media-backend-bucket": {
       const bucketName = resolveLinkedBucketName(mediaTarget);
       if (!bucketName) {
         return null;
       }
-      return createBackendBucket(projectId, names.mediaBackendBucketName, bucketName, accessToken);
+      return createOrUpdateBackendBucket(
+        projectId,
+        names.mediaBackendBucketName,
+        bucketName,
+        accessToken
+      );
     }
     case "url-map":
       return createOrUpdateUrlMap(

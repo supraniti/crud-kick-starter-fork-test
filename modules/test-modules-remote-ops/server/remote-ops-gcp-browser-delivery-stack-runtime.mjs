@@ -24,11 +24,22 @@ function encodePathSegments(value) {
     .join("/");
 }
 
+function stripManagedSuffix(value) {
+  const normalized = normalizeOptionalText(value);
+  if (!normalized) {
+    return null;
+  }
+  return normalized.replace(
+    /(?:-url-map|-cert-map-entry|-cert-map|-cert|-zone|-dns-auth|-ip|-deploy-bb|-media-bb|-https-proxy|-https-fr)$/i,
+    ""
+  );
+}
+
 function buildBaseName(targetProfile, config) {
   const nameSeed =
-    normalizeOptionalText(config.urlMapHint) ??
-    normalizeOptionalText(config.certificateName) ??
-    normalizeOptionalText(config.dnsZone) ??
+    stripManagedSuffix(config.urlMapHint) ??
+    stripManagedSuffix(config.certificateName) ??
+    stripManagedSuffix(config.dnsZone) ??
     normalizeOptionalText(config.hostname) ??
     targetProfile?.id ??
     "browser-delivery";
@@ -69,7 +80,7 @@ export function buildDnsAuthorizationResourceName(projectId, dnsAuthorizationNam
   return `projects/${projectId}/locations/global/dnsAuthorizations/${dnsAuthorizationName}`;
 }
 
-export { waitForCertificateManagerOperation, waitForComputeGlobalOperation, loadDnsZone, loadDnsAuthorization, loadCertificate, loadCertificateMap, loadCertificateMapEntry, loadGlobalAddress, loadBackendBucket, loadUrlMap, loadTargetHttpsProxy, loadGlobalForwardingRule, listDnsRecordSets, createManagedZone, createDnsAuthorization, createManagedCertificate, createCertificateMap, createCertificateMapEntry, createGlobalAddress, createBackendBucket, createOrUpdateUrlMap, createOrUpdateTargetHttpsProxy, createGlobalForwardingRule, upsertDnsRecord, buildExpectedUrlMapDefinition } from "./remote-ops-gcp-browser-delivery-gcp-runtime.mjs";
+export { waitForCertificateManagerOperation, waitForComputeGlobalOperation, loadDnsZone, loadDnsAuthorization, loadCertificate, loadCertificateMap, loadCertificateMapEntry, loadGlobalAddress, loadBackendBucket, loadUrlMap, loadTargetHttpsProxy, loadGlobalForwardingRule, listDnsRecordSets, createManagedZone, createDnsAuthorization, createManagedCertificate, createCertificateMap, createCertificateMapEntry, createGlobalAddress, createBackendBucket, createOrUpdateBackendBucket, createOrUpdateUrlMap, createOrUpdateTargetHttpsProxy, createGlobalForwardingRule, upsertDnsRecord, buildExpectedUrlMapDefinition } from "./remote-ops-gcp-browser-delivery-gcp-runtime.mjs";
 
 export function buildBrowserDeliveryPublicMediaBaseUrl(config, mediaTarget) {
   const hostname = normalizeOptionalText(config.hostname);

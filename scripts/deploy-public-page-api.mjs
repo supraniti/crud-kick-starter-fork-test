@@ -154,7 +154,7 @@ function buildCloudRunServiceBody({
             { name: "PUBLIC_PAGE_API_PROJECT_ID", value: projectId },
             {
               name: "PUBLIC_PAGE_API_ALLOWED_COLLECTIONS",
-              value: "publishedPosts,publishedPages,publicBlogCategories,publicBlogTags"
+              value: "publishedPosts,publishedPages,publicCategories,publicTags"
             },
             {
               name: "PUBLIC_PAGE_API_ALLOW_COMMENTS",
