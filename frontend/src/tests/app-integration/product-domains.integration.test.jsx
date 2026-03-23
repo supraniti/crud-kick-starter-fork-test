@@ -297,18 +297,24 @@ test("domains desk guides the operator through go-live readiness", async () => {
   });
 
   fireEvent.click(screen.getByRole("tab", { name: "Go Live" }));
-  fireEvent.click(screen.getByRole("button", { name: "Analyze This Address" }));
+  fireEvent.click(screen.getByRole("button", { name: "Analyze Domain State" }));
 
   await waitFor(() => {
     expect(screen.getByText("Go Live Checklist")).toBeInTheDocument();
-    expect(screen.getByText("Records To Create")).toBeInTheDocument();
+    expect(screen.getByText("What Happens Next")).toBeInTheDocument();
     expect(screen.getByText("Bring This Live")).toBeInTheDocument();
+    expect(screen.getByText("1. Product-Owned Setup")).toBeInTheDocument();
+    expect(screen.getByText("2. Registrar Step")).toBeInTheDocument();
+    expect(screen.getByText("3. Public HTTPS")).toBeInTheDocument();
     expect(screen.getByText("Traffic record")).toBeInTheDocument();
     expect(screen.getByText("A content.example.com -> 203.0.113.10")).toBeInTheDocument();
     expect(screen.getByText("Certificate DNS authorization")).toBeInTheDocument();
     expect(screen.getByText("CNAME _acme-challenge.content.example.com. -> auth.example.gcp.")).toBeInTheDocument();
-    expect(screen.getByText("Name servers: ns-cloud-a1.googledomains.com., ns-cloud-a2.googledomains.com.")).toBeInTheDocument();
+    expect(screen.getByText("Name servers to point the domain to")).toBeInTheDocument();
+    expect(screen.getByText("ns-cloud-a1.googledomains.com., ns-cloud-a2.googledomains.com.")).toBeInTheDocument();
     expect(screen.getByText("Missing: Primary Domain traffic A record")).toBeInTheDocument();
     expect(screen.getByText("Primary Domain: managed certificate state is 'PROVISIONING'. HTTPS may not be ready yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analyze Domain State" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prepare This Domain On Google" })).toBeInTheDocument();
   });
 }, 15000);

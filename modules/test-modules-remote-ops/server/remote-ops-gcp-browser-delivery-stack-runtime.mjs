@@ -201,18 +201,11 @@ function buildMediaPathRule(mediaTarget, backendBucketLink) {
 export function validateBrowserDeliveryStackCompatibility({
   config,
   deploymentTarget,
-  mediaTarget,
   reportTitle
 }) {
   const warnings = [];
   if (config.accessMode !== "custom-domain" || config.stackMode !== "https-load-balancer") {
     return warnings;
-  }
-  const deploymentPrefix = trimSlashes(deploymentTarget?.config?.prefix);
-  if (deploymentPrefix) {
-    warnings.push(
-      `${reportTitle}: HTTPS load-balancer mode requires the linked deployment target prefix to be empty so page paths map directly to deployed objects.`
-    );
   }
   if (!normalizeOptionalText(deploymentTarget?.config?.bucketName)) {
     warnings.push(`${reportTitle}: linked deployment bucket is required for HTTPS load-balancer mode.`);

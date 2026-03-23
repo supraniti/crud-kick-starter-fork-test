@@ -18,6 +18,17 @@ import {
   validateBrowserDeliveryStackCompatibility
 } from "./remote-ops-gcp-browser-delivery-stack-runtime.mjs";
 
+function isInspectablePermissionFailure(error) {
+  const statusCode = Number(error?.statusCode ?? 0);
+  const message = String(error?.message ?? "").toLowerCase();
+  return (
+    statusCode === 403 ||
+    message.includes("permission") ||
+    message.includes("forbidden") ||
+    message.includes("not authorized")
+  );
+}
+
 async function inspectBrowserHttpsResource({
   report,
   kind,
@@ -46,6 +57,22 @@ async function inspectBrowserHttpsResource({
       if (action) {
         report.provisionableActions.push(action);
       }
+      return null;
+    }
+    if (action && isInspectablePermissionFailure(error)) {
+      report.resourceChecks.push({
+        kind,
+        state: "unknown",
+        label,
+        resourceName,
+        details: error?.message ?? `Unable to inspect ${kind} before provisioning`
+      });
+      report.missingResources.push({
+        kind,
+        label,
+        resourceName
+      });
+      report.provisionableActions.push(action);
       return null;
     }
     report.resourceChecks.push({
@@ -85,6 +112,7 @@ function buildHttpsAction({
   notes,
   projectPermissions,
   provisionGroup,
+  requiredPermissions = null,
   linkedTargetId = null
 }) {
   return buildProvisioningAction({
@@ -95,7 +123,8 @@ function buildHttpsAction({
     linkedTargetId,
     notes,
     permissionGroup: provisionGroup,
-    projectPermissions
+    projectPermissions,
+    requiredPermissions
   });
 }
 
@@ -116,6 +145,7 @@ async function inspectHttpsManagedResource({
   notes,
   projectPermissions,
   provisionGroup,
+  requiredPermissions = null,
   linkedTargetId = null
 }) {
   return inspectBrowserHttpsResource({
@@ -133,16 +163,32 @@ async function inspectHttpsManagedResource({
       notes,
       projectPermissions,
       provisionGroup,
+      requiredPermissions,
       linkedTargetId
     })
   });
 }
 
-async function inspectHttpsApis({ report, config, project, accessToken, analyzeOptionalBrowserApi }) {
+async function inspectHttpsApis({
+  report,
+  config,
+  project,
+  accessToken,
+  analyzeOptionalBrowserApi,
+  provisionGroup,
+  projectPermissions,
+  targetProfile
+}) {
   const dnsRequired = config.dnsMode === "gcp-managed";
-  await analyzeOptionalBrowserApi(report, "dns.googleapis.com", dnsRequired, project, accessToken);
-  await analyzeOptionalBrowserApi(report, "certificatemanager.googleapis.com", true, project, accessToken);
-  await analyzeOptionalBrowserApi(report, "compute.googleapis.com", true, project, accessToken);
+  const apiContext = {
+    provisionGroup,
+    projectPermissions,
+    targetId: targetProfile?.id ?? null,
+    targetTitle: targetProfile?.title ?? "Browser delivery"
+  };
+  await analyzeOptionalBrowserApi(report, "dns.googleapis.com", dnsRequired, project, accessToken, apiContext);
+  await analyzeOptionalBrowserApi(report, "certificatemanager.googleapis.com", true, project, accessToken, apiContext);
+  await analyzeOptionalBrowserApi(report, "compute.googleapis.com", true, project, accessToken, apiContext);
   return dnsRequired;
 }
 
@@ -171,7 +217,8 @@ async function inspectHttpsDnsResources({
         loader: () => loadDnsZone(project.projectId, names.dnsZoneName, accessToken),
         notes: [`Manage zone '${names.dnsZoneDnsName ?? config.hostname ?? "hostname"}' on GCP.`],
         projectPermissions,
-        provisionGroup
+        provisionGroup,
+        requiredPermissions: ["dns.managedZones.create"]
       })
     : null;
 
@@ -187,7 +234,8 @@ async function inspectHttpsDnsResources({
     loader: () => loadDnsAuthorization(project.projectId, names.dnsAuthorizationName, accessToken),
     notes: ["Required for the Google-managed HTTPS certificate."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["certificatemanager.dnsauthorizations.create"]
   });
 
   return {
@@ -218,7 +266,8 @@ async function inspectHttpsCertificateResources({
     loader: () => loadCertificate(project.projectId, names.certificateName, accessToken),
     notes: ["Requires DNS authorization before the certificate becomes active."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["certificatemanager.certs.create"]
   });
 
   await inspectHttpsManagedResource({
@@ -233,7 +282,8 @@ async function inspectHttpsCertificateResources({
     loader: () => loadCertificateMap(project.projectId, names.certificateMapName, accessToken),
     notes: ["Links the managed certificate to the HTTPS proxy."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["certificatemanager.certmaps.create"]
   });
 
   await inspectHttpsManagedResource({
@@ -249,7 +299,8 @@ async function inspectHttpsCertificateResources({
       loadCertificateMapEntry(project.projectId, names.certificateMapName, names.certificateMapEntryName, accessToken),
     notes: ["Binds the hostname to the managed certificate."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["certificatemanager.certmapentries.create"]
   });
 
   return certificate;
@@ -279,7 +330,8 @@ async function inspectHttpsOriginsAndRouting({
     loader: () => loadGlobalAddress(project.projectId, names.globalAddressName, accessToken),
     notes: ["Required for the public HTTPS hostname."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["compute.globalAddresses.create"]
   });
 
   const deploymentBucketName = normalizeOptionalText(deploymentTarget?.config?.bucketName);
@@ -299,6 +351,7 @@ async function inspectHttpsOriginsAndRouting({
       notes: [`Link deployment bucket '${deploymentBucketName}' into the HTTPS delivery stack.`],
       projectPermissions,
       provisionGroup,
+      requiredPermissions: ["compute.backendBuckets.create"],
       linkedTargetId: deploymentTarget?.id ?? null
     });
   }
@@ -318,6 +371,7 @@ async function inspectHttpsOriginsAndRouting({
       notes: [`Link media bucket '${mediaBucketName}' into the HTTPS delivery stack.`],
       projectPermissions,
       provisionGroup,
+      requiredPermissions: ["compute.backendBuckets.create"],
       linkedTargetId: mediaTarget?.id ?? null
     });
   }
@@ -334,7 +388,8 @@ async function inspectHttpsOriginsAndRouting({
     loader: () => loadUrlMap(project.projectId, names.urlMapName, accessToken),
     notes: ["Routes the hostname to deployment and optional media backend buckets."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["compute.urlMaps.create", "compute.urlMaps.update"]
   });
 
   await inspectHttpsManagedResource({
@@ -349,7 +404,8 @@ async function inspectHttpsOriginsAndRouting({
     loader: () => loadTargetHttpsProxy(project.projectId, names.httpsProxyName, accessToken),
     notes: ["Terminates HTTPS and attaches the managed certificate map."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["compute.targetHttpsProxies.create"]
   });
 
   await inspectHttpsManagedResource({
@@ -364,7 +420,8 @@ async function inspectHttpsOriginsAndRouting({
     loader: () => loadGlobalForwardingRule(project.projectId, names.httpsForwardingRuleName, accessToken),
     notes: ["Publishes the hostname on TCP 443 using the reserved global IP."],
     projectPermissions,
-    provisionGroup
+    provisionGroup,
+    requiredPermissions: ["compute.globalForwardingRules.create"]
   });
 
   return globalAddress;
@@ -450,7 +507,8 @@ async function inspectManagedZoneRecords({
           resourceKind: "dns-a-record",
           notes: [`Point '${hostname}' to reserved global IP '${globalAddress.address}'.`],
           projectPermissions,
-          provisionGroup
+          provisionGroup,
+          requiredPermissions: ["dns.changes.create"]
         })
       );
     }
@@ -482,7 +540,8 @@ async function inspectManagedZoneRecords({
           resourceKind: "dns-authorization-record",
           notes: [`Publish ${dnsRecord.type} ${dnsRecord.name} -> ${dnsRecord.data}.`],
           projectPermissions,
-          provisionGroup
+          provisionGroup,
+          requiredPermissions: ["dns.changes.create"]
         })
       );
     }
@@ -518,7 +577,10 @@ export async function inspectHttpsBrowserTarget({
     config,
     project,
     accessToken,
-    analyzeOptionalBrowserApi
+    analyzeOptionalBrowserApi,
+    provisionGroup,
+    projectPermissions,
+    targetProfile
   });
   const { dnsZone, dnsAuthorization } = await inspectHttpsDnsResources({
     report,

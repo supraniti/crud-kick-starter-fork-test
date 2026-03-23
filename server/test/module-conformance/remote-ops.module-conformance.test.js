@@ -331,6 +331,57 @@ test("remote ops loads a service-account key, validates the project, and validat
   }
 }, REMOTE_OPS_TEST_TIMEOUT_MS);
 
+test("remote ops restores a missing imported key file from its local recovery copy", async () => {
+  const server = await createRemoteOpsTestServer();
+
+  try {
+    const payload = createServiceAccountCredentialPayload();
+    const fetchMock = vi.fn(async (url) => {
+      const normalized = String(url);
+      if (normalized === "https://oauth2.googleapis.com/token") {
+        return createGoogleJsonResponse(200, {
+          access_token: "access-token-recovered",
+          expires_in: 3600,
+          token_type: "Bearer"
+        });
+      }
+      if (normalized === "https://cloudresourcemanager.googleapis.com/v3/projects/demo-project") {
+        return createGoogleJsonResponse(200, {
+          name: "projects/1234567890",
+          projectId: "demo-project",
+          projectNumber: "1234567890",
+          displayName: "Demo Project",
+          state: "ACTIVE"
+        });
+      }
+      throw new Error(`Unexpected request: ${normalized}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const connection = await seedConnection(server, {
+      credentialPathHint: null,
+      projectId: "",
+      projectNumber: "",
+      projectDisplayName: ""
+    });
+
+    const imported = await injectJson(server, "POST", buildConnectionRoute(connection.id, "import-key-file"), {
+      fileName: "demo-recoverable-key.json",
+      fileContent: JSON.stringify(payload)
+    });
+    expect(imported.statusCode, JSON.stringify(imported.body)).toBe(200);
+
+    await fs.rm(imported.body.item.credentialPathHint, { force: true });
+
+    const validated = await injectJson(server, "POST", buildConnectionRoute(connection.id, "validate"));
+    expect(validated.statusCode, JSON.stringify(validated.body)).toBe(200);
+    expect(validated.body.item.connectionStatus).toBe("validated");
+    expect(existsSync(imported.body.item.credentialPathHint)).toBe(true);
+  } finally {
+    await server.close();
+  }
+}, REMOTE_OPS_TEST_TIMEOUT_MS);
+
 test("remote ops loads GCP billing linkage and visible budgets for a validated live connection", async () => {
   const server = await createRemoteOpsTestServer();
 
@@ -1396,10 +1447,7 @@ test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a l
 
       if (normalized === "https://compute.googleapis.com/compute/v1/projects/demo-project/global/urlMaps" && method === "POST") {
         const requestPayload = JSON.parse(options.body);
-        urlMaps.set(requestPayload.name, {
-          name: requestPayload.name,
-          defaultService: requestPayload.defaultService
-        });
+        urlMaps.set(requestPayload.name, requestPayload);
         return createGoogleJsonResponse(200, {
           name: "operation-url-map-create-001"
         });
@@ -1509,7 +1557,7 @@ test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a l
       adapterMode: "live-gcp",
       config: {
         bucketName: "deployment-bucket",
-        prefix: "",
+        prefix: "site",
         localRootHint: "deployment"
       },
       policy: {
@@ -1567,6 +1615,11 @@ test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a l
     expect(analyze.statusCode, JSON.stringify(analyze.body)).toBe(200);
     const browserBundle = analyze.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
     expect(browserBundle.state).toBe("action-required");
+    expect(browserBundle.configurationWarnings).not.toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("requires the linked deployment target prefix to be empty")
+      ])
+    );
     expect(browserBundle.provisionableActions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ resourceKind: "dns-zone" }),
@@ -1613,6 +1666,40 @@ test("remote ops analyzes and provisions an HTTPS browser-delivery stack for a l
     );
     const provisionedBrowserBundle = provision.body.report.bundles.find((bundle) => bundle.id === "browser-delivery");
     expect(provisionedBrowserBundle.state).toBe("compatible");
+    expect(urlMaps.get("content-example-com-url-map")).toEqual(
+      expect.objectContaining({
+        pathMatchers: expect.arrayContaining([
+          expect.objectContaining({
+            routeRules: expect.arrayContaining([
+              expect.objectContaining({
+                priority: 20,
+                routeAction: {
+                  urlRewrite: {
+                    pathPrefixRewrite: "/site/assets"
+                  }
+                }
+              }),
+              expect.objectContaining({
+                priority: 30,
+                routeAction: {
+                  urlRewrite: {
+                    pathPrefixRewrite: "/site/index.html"
+                  }
+                }
+              }),
+              expect.objectContaining({
+                priority: 40,
+                routeAction: {
+                  urlRewrite: {
+                    pathTemplateRewrite: "/site/{pagePath}/index.html"
+                  }
+                }
+              })
+            ])
+          })
+        ])
+      })
+    );
     expect(provisionedBrowserBundle.deliveryReports).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -2425,3 +2512,4 @@ test("remote ops can seed a simulated remote-only deployment artifact and restor
     }
   }
 }, REMOTE_OPS_TEST_TIMEOUT_MS);
+

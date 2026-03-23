@@ -1721,3 +1721,175 @@
   - `pnpm quality:protocol`
   - `pnpm review:env:start`
   - `pnpm review:env:verify`
+
+## 2026-03-23 Comment Intake And Deployed Navigation Follow-Up
+- Root cause on the user-reported mismatch was split across two seams:
+  - stale unmanaged listeners on `3000/3001` were masking newer backend/frontend code
+  - the local `Comments` desk refreshed public intake on initial mount only, so newly submitted remote comments could be missed while the desk stayed open
+- Fixes implemented:
+  - `scripts/review-env.mjs`
+    - Windows listener discovery now uses `Get-NetTCPConnection` first, so the launcher clears the real port owners instead of trusting stale pid files
+  - `frontend/src/app/product-shell/ProductModerationView.jsx`
+    - public intake now refreshes:
+      - on first load
+      - on window focus
+      - on document visibility return
+      - every 20 seconds while the desk is open
+- Regenerated and rereleased:
+  - `blogpage-013`
+  - `blogpage-014`
+  - `pagedepl-001`
+  - `pagedepl-002`
+- Verified live after rerelease:
+  - remote deployed post now renders:
+    - breadcrumb/category links
+    - next-story link
+    - related-story links
+  - remote comment submission from the real deployed page appears in the local `Comments` desk as `pending`
+- Important remaining truth:
+  - author and tag links still depend on actual published author/tag pages; this pass restored links for destinations that are currently published and available
+
+## 2026-03-23 Temporary GCS Links Now Use index.html
+- Goal:
+  - support both delivery modes without forcing the user to choose one URL shape manually:
+    - temporary GCS object delivery should browse with `/index.html`
+    - custom-domain delivery should browse with clean route URLs
+- Implemented:
+  - `modules/test-modules-pages/browser/page-application-tester.global.js`
+    - rendered page links now normalize against the active delivery mode and append `/index.html` for provider-object origins
+  - `modules/test-modules-pages/frontend/page-public-link-support.js`
+    - local app page/output links now follow the same rule
+  - `modules/test-modules-pages/frontend/page-output-forecast-support.js`
+    - output forecasts now show the same URL contract the reader will actually use
+  - retained the earlier server-side application payload patch in:
+    - `modules/test-modules-pages/server/page-application-view-runtime.mjs`
+- Verified:
+  - local build:
+    - `pnpm --filter frontend build`
+  - protocol:
+    - `pnpm quality:protocol`
+  - remote browser proof:
+    - `https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/remote-flow-review-post-01/index.html?cb=20260323-0801`
+  - confirmed live links now resolve as:
+    - breadcrumb/category: `.../category/<slug-or-id>/index.html`
+    - next/related posts: `.../post/<slug>/index.html`
+
+## 2026-03-23 fastcart.dev Domain Setup - Current State
+- App/UI configuration completed:
+  - `Domains` target `Primary Domain`
+    - access mode: `custom-domain`
+    - hostname: `fastcart.dev`
+    - DNS ownership: `gcp-managed`
+    - delivery stack: `https-load-balancer`
+- App-side GCP automation fixes completed:
+  - `modules/test-modules-remote-ops/server/remote-ops-gcp-browser-delivery-compatibility-runtime.mjs`
+    - disabled required APIs now surface as real provisionable actions with only `serviceusage.services.enable`
+  - `modules/test-modules-remote-ops/server/remote-ops-gcp-provisioning-execution-runtime.mjs`
+    - Service Usage long-running operation polling window expanded so fresh-project API enablement does not false-timeout
+  - `modules/test-modules-remote-ops/server/remote-ops-gcp-browser-delivery-gcp-runtime.mjs`
+    - Compute and Certificate Manager operation polling windows expanded
+  - `modules/test-modules-remote-ops/server/remote-ops-gcp-browser-delivery-https-compatibility-runtime.mjs`
+    - browser-delivery compatibility now:
+      - treats inspect-permission failures as `unknown` instead of silently blocking action creation
+      - surfaces per-resource browser-delivery provision actions
+      - evaluates each action against only the permission it actually needs
+- Live GCP state reached through the app flow:
+  - required APIs are now enabled:
+    - `dns.googleapis.com`
+    - `certificatemanager.googleapis.com`
+    - `compute.googleapis.com`
+- Current blocker is no longer API enablement; it is IAM on the service account:
+  - action-specific missing create permissions currently reported by the app:
+    - `dns.managedZones.create`
+    - `certificatemanager.dnsauthorizations.create`
+    - `certificatemanager.certs.create`
+    - `certificatemanager.certmaps.create`
+    - `certificatemanager.certmapentries.create`
+    - `compute.globalAddresses.create`
+    - `compute.backendBuckets.create`
+    - `compute.urlMaps.create`
+    - `compute.urlMaps.update`
+    - `compute.targetHttpsProxies.create`
+    - `compute.globalForwardingRules.create`
+- Important operator truth:
+  - do not change registrar name servers yet
+  - the app cannot show the exact Cloud DNS assigned name servers until it can create the managed zone
+  - once the managed zone exists, compare its exact `nameServers` to the registrar values and only change them if they differ
+- Remaining app-side warning still to resolve after IAM:
+  - `Primary Domain: HTTPS load-balancer mode requires the linked deployment target prefix to be empty so page paths map directly to deployed objects.`
+
+## 2026-03-23 fastcart.dev Domain Rollout - Current State
+- App-side browser-delivery fixes completed and validated:
+  - `modules/test-modules-remote-ops/server/remote-ops-gcp-browser-delivery-gcp-runtime.mjs`
+    - HTTPS URL map now supports prefixed deployment targets like `site`
+    - URL map now includes the required top-level default backend bucket
+    - HTTPS proxy creation now includes the certificate map on create
+  - `modules/test-modules-remote-ops/server/remote-ops-live-google-runtime.mjs`
+    - live Google API parsing now survives non-JSON error bodies instead of crashing on HTML responses
+  - `modules/test-modules-remote-ops/server/remote-ops-gcp-browser-delivery-stack-runtime.mjs`
+    - removed the false compatibility warning that required an empty deployment prefix for HTTPS delivery
+- Verified:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Live GCP provisioning state for `fastcart.dev`:
+  - managed zone created
+  - DNS authorization created
+  - managed certificate created and currently `PROVISIONING`
+  - certificate map + entry created
+  - global IP reserved: `34.111.205.190`
+  - deployment backend bucket created
+  - media backend bucket created
+  - URL map created
+  - HTTPS proxy created
+  - HTTPS forwarding rule created
+  - Cloud DNS A record created inside the managed zone
+  - Cloud DNS certificate CNAME created inside the managed zone
+- Exact authoritative Cloud DNS name servers now assigned by GCP:
+  - `ns-cloud-e1.googledomains.com.`
+  - `ns-cloud-e2.googledomains.com.`
+  - `ns-cloud-e3.googledomains.com.`
+  - `ns-cloud-e4.googledomains.com.`
+- Registrar mismatch still blocking public resolution:
+  - current registrar values reported by the operator:
+    - `ns-cloud-b1.googledomains.com.`
+    - `ns-cloud-b2.googledomains.com.`
+    - `ns-cloud-b3.googledomains.com.`
+    - `ns-cloud-b4.googledomains.com.`
+  - required registrar change:
+    - replace the `b1-b4` set with the `e1-e4` set above
+- Important operator truth:
+  - no extra A or CNAME records need to be created manually at the registrar
+  - the app already created those records inside the managed Cloud DNS zone
+  - the only remaining external step is delegating `fastcart.dev` to the assigned Cloud DNS name servers
+
+## 2026-03-23 Domain Onboarding Hardening
+- App hardening completed for running the domain flow from scratch:
+  - `modules/test-modules-remote-ops/server/remote-ops-service-account-auth-runtime.mjs`
+    - imported service-account keys now write a local recovery copy under the untracked remote runtime
+    - if the copied key file later disappears, the app can restore it automatically instead of forcing a re-import
+  - `frontend/src/app/product-shell/ProductDomainSetupPanels.jsx`
+    - Domains `Go Live` now explains the rollout in 3 plain steps:
+      - product-owned Google setup
+      - registrar step
+      - public HTTPS readiness
+    - `gcp-managed` DNS now explicitly tells the operator to point the registrar to the shown Cloud DNS nameservers and not create manual registrar A/CNAME records
+    - domain action labels now read:
+      - `Analyze Domain State`
+      - `Prepare This Domain On Google`
+  - `frontend/src/app/product-shell/ProductDomainsView.jsx`
+    - saving a real-domain address now returns the operator to the `Go Live` section instead of the generic public summary
+- Verified:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/product-domains.integration.test.jsx`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Live route proof:
+  - re-imported the current `merchant-guild` service-account key through the Remotes UI
+  - revalidated the connection through the Remotes UI
+  - re-ran the domain analysis through the Domains UI
+  - `http://localhost:3000/app/domains` now surfaces:
+    - Cloud DNS nameservers for `fastcart.dev`
+    - Google-managed traffic and certificate records
+    - the instruction to delegate the registrar and avoid manual registrar A/CNAME records

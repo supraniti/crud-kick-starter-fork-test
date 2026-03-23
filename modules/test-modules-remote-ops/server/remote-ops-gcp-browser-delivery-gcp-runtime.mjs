@@ -51,8 +51,105 @@ function buildDnsAuthorizationResourceName(projectId, dnsAuthorizationName) {
   return `projects/${projectId}/locations/global/dnsAuthorizations/${dnsAuthorizationName}`;
 }
 
-function buildBackendBucketPathMatcher(hostname, deploymentBackendBucketLink, mediaRule = null) {
+function trimPathPrefix(value) {
+  const normalized = normalizeOptionalText(value);
+  return normalized ? normalized.replace(/^\/+|\/+$/g, "") : "";
+}
+
+function buildMediaRouteRule(mediaTarget, backendBucketLink, priority = 10) {
+  const rawPrefix = normalizeOptionalText(mediaTarget?.config?.prefix);
+  const trimmedPrefix = rawPrefix ? rawPrefix.replace(/^\/+|\/+$/g, "") : "";
+  if (!trimmedPrefix) {
+    return null;
+  }
   return {
+    priority,
+    matchRules: [
+      {
+        fullPathMatch: `/${trimmedPrefix}`
+      },
+      {
+        prefixMatch: `/${trimmedPrefix}/`
+      }
+    ],
+    service: backendBucketLink
+  };
+}
+
+function buildDeploymentAssetsRouteRule(deploymentPrefix, deploymentBackendBucketLink, priority = 20) {
+  if (!deploymentPrefix) {
+    return null;
+  }
+  return {
+    priority,
+    matchRules: [
+      {
+        fullPathMatch: "/assets"
+      },
+      {
+        prefixMatch: "/assets/"
+      }
+    ],
+    service: deploymentBackendBucketLink,
+    routeAction: {
+      urlRewrite: {
+        pathPrefixRewrite: `/${deploymentPrefix}/assets`
+      }
+    }
+  };
+}
+
+function buildDeploymentRootRouteRule(deploymentPrefix, deploymentBackendBucketLink, priority = 30) {
+  if (!deploymentPrefix) {
+    return null;
+  }
+  return {
+    priority,
+    matchRules: [
+      {
+        fullPathMatch: "/"
+      }
+    ],
+    service: deploymentBackendBucketLink,
+    routeAction: {
+      urlRewrite: {
+        pathPrefixRewrite: `/${deploymentPrefix}/index.html`
+      }
+    }
+  };
+}
+
+function buildDeploymentPageRouteRule(deploymentPrefix, deploymentBackendBucketLink, priority = 40) {
+  if (!deploymentPrefix) {
+    return null;
+  }
+  return {
+    priority,
+    matchRules: [
+      {
+        pathTemplateMatch: "/{pagePath=**}"
+      }
+    ],
+    service: deploymentBackendBucketLink,
+    routeAction: {
+      urlRewrite: {
+        pathTemplateRewrite: `/${deploymentPrefix}/{pagePath}/index.html`
+      }
+    }
+  };
+}
+
+function buildBackendBucketPathMatcher(hostname, deploymentBackendBucketLink, deploymentTarget = null, mediaTarget = null, mediaBackendBucketLink = null) {
+  const deploymentPrefix = trimPathPrefix(deploymentTarget?.config?.prefix);
+  const routeRules = [
+    buildMediaRouteRule(mediaTarget, mediaBackendBucketLink, 10),
+    buildDeploymentAssetsRouteRule(deploymentPrefix, deploymentBackendBucketLink, 20),
+    buildDeploymentRootRouteRule(deploymentPrefix, deploymentBackendBucketLink, 30),
+    buildDeploymentPageRouteRule(deploymentPrefix, deploymentBackendBucketLink, 40)
+  ].filter(Boolean);
+
+  return {
+    defaultService: deploymentBackendBucketLink,
     hostRules: [
       {
         hosts: [hostname],
@@ -63,24 +160,9 @@ function buildBackendBucketPathMatcher(hostname, deploymentBackendBucketLink, me
       {
         name: "primary-matcher",
         defaultService: deploymentBackendBucketLink,
-        pathRules: mediaRule ? [mediaRule] : []
+        ...(routeRules.length > 0 ? { routeRules } : {})
       }
     ]
-  };
-}
-
-function buildMediaPathRule(mediaTarget, backendBucketLink) {
-  const rawPrefix = normalizeOptionalText(mediaTarget?.config?.prefix);
-  const trimmedPrefix = rawPrefix ? rawPrefix.replace(/^\/+|\/+$/g, "") : "";
-  if (!trimmedPrefix) {
-    return {
-      paths: ["/media", "/media/*"],
-      service: backendBucketLink
-    };
-  }
-  return {
-    paths: [`/${trimmedPrefix}`, `/${trimmedPrefix}/*`],
-    service: backendBucketLink
   };
 }
 
@@ -89,7 +171,7 @@ export async function waitForCertificateManagerOperation(accessToken, operationN
   if (!normalizedName) {
     return null;
   }
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  for (let attempt = 0; attempt < 180; attempt += 1) {
     const payload = await requestGoogleJson(
       `https://certificatemanager.googleapis.com/v1/${normalizedName}`,
       accessToken
@@ -100,7 +182,7 @@ export async function waitForCertificateManagerOperation(accessToken, operationN
       }
       return payload?.response ?? payload;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error(`Timed out while waiting for Certificate Manager operation '${normalizedName}'.`);
 }
@@ -110,7 +192,7 @@ export async function waitForComputeGlobalOperation(projectId, accessToken, oper
   if (!normalizedName) {
     return null;
   }
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 240; attempt += 1) {
     const payload = await requestGoogleJson(
       buildComputeGlobalUrl(projectId, "operations", normalizedName),
       accessToken
@@ -122,7 +204,7 @@ export async function waitForComputeGlobalOperation(projectId, accessToken, oper
       }
       return payload;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error(`Timed out while waiting for Compute operation '${normalizedName}'.`);
 }
@@ -322,21 +404,26 @@ export async function createOrUpdateUrlMap(
   projectId,
   urlMapName,
   hostname,
+  deploymentTarget,
   deploymentBackendBucketName,
   mediaTarget,
   mediaBackendBucketName,
   accessToken
 ) {
   const deploymentBackendBucketLink = buildComputeGlobalUrl(projectId, "backendBuckets", deploymentBackendBucketName);
-  const mediaRule = mediaTarget
-    ? buildMediaPathRule(
-        mediaTarget,
-        buildComputeGlobalUrl(projectId, "backendBuckets", mediaBackendBucketName)
-      )
-    : null;
+  const mediaBackendBucketLink =
+    mediaTarget && mediaBackendBucketName
+      ? buildComputeGlobalUrl(projectId, "backendBuckets", mediaBackendBucketName)
+      : null;
   const payloadBody = {
     name: urlMapName,
-    ...buildBackendBucketPathMatcher(hostname, deploymentBackendBucketLink, mediaRule)
+    ...buildBackendBucketPathMatcher(
+      hostname,
+      deploymentBackendBucketLink,
+      deploymentTarget,
+      mediaTarget,
+      mediaBackendBucketLink
+    )
   };
   try {
     await loadUrlMap(projectId, urlMapName, accessToken);
@@ -396,7 +483,8 @@ export async function createOrUpdateTargetHttpsProxy(
         },
         body: JSON.stringify({
           name: proxyName,
-          urlMap
+          urlMap,
+          certificateMap
         })
       }
     );

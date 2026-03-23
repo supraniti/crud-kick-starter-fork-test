@@ -46,12 +46,20 @@ function sortProvisionableActions(actions) {
   });
 }
 
-async function waitForLongRunningOperation(accessToken, buildUrl, operationName) {
+async function waitForLongRunningOperation(
+  accessToken,
+  buildUrl,
+  operationName,
+  {
+    maxAttempts = 180,
+    intervalMs = 1000
+  } = {}
+) {
   const normalizedName = normalizeOptionalText(operationName);
   if (!normalizedName) {
     return null;
   }
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const payload = await requestGoogleJson(buildUrl(normalizedName), accessToken);
     if (payload?.done === true) {
       if (payload?.error?.message) {
@@ -59,7 +67,7 @@ async function waitForLongRunningOperation(accessToken, buildUrl, operationName)
       }
       return payload?.response ?? payload;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw createProvisioningError(`Timed out while waiting for operation '${normalizedName}' to finish.`);
 }

@@ -2,7 +2,10 @@ import { createSign } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { normalizeOptionalText } from "./remote-ops-shared-runtime.mjs";
-import { resolveRemoteOpsCredentialsRoot } from "./remote-ops-root.mjs";
+import {
+  resolveRemoteOpsCredentialsRoot,
+  resolveRemoteOpsLiveConnectionsRoot
+} from "./remote-ops-root.mjs";
 
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const DEFAULT_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
@@ -30,6 +33,21 @@ function sanitizeCredentialFileName(inputName) {
   const baseName = path.basename(normalized);
   const sanitized = baseName.replace(/[^A-Za-z0-9._-]+/g, "-");
   return sanitized.length > 0 ? sanitized : "service-account.json";
+}
+
+function resolveCredentialBackupPath(connectionId) {
+  return path.join(resolveRemoteOpsLiveConnectionsRoot(), connectionId, "credential-import.json");
+}
+
+function tryResolveConnectionIdFromCredentialPath(absolutePath) {
+  const credentialsRoot = path.normalize(resolveRemoteOpsCredentialsRoot());
+  const normalizedPath = path.normalize(absolutePath);
+  const relativePath = path.relative(credentialsRoot, normalizedPath);
+  if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return null;
+  }
+  const [connectionId] = relativePath.split(path.sep).filter(Boolean);
+  return normalizeOptionalText(connectionId);
 }
 
 function requireText(value, label) {
@@ -67,11 +85,24 @@ export async function readServiceAccountCredentialFromPath(inputPath) {
     rawText = await readFile(absolutePath, "utf8");
   } catch (error) {
     if (error?.code === "ENOENT") {
-      throw new Error(
-        "Stored service-account key file is missing. Choose the JSON key file again to re-import it."
-      );
+      const connectionId = tryResolveConnectionIdFromCredentialPath(absolutePath);
+      if (connectionId) {
+        const recovered = await recoverMissingImportedCredentialFile(connectionId, absolutePath);
+        if (recovered) {
+          rawText = recovered;
+        } else {
+          throw new Error(
+            "Stored service-account key file is missing. Choose the JSON key file again to re-import it."
+          );
+        }
+      } else {
+        throw new Error(
+          "Stored service-account key file is missing. Choose the JSON key file again to re-import it."
+        );
+      }
+    } else {
+      throw error;
     }
-    throw error;
   }
   const parsed = parseCredentialPayload(rawText);
   const credential = validateServiceAccountCredentialPayload(parsed);
@@ -80,6 +111,42 @@ export async function readServiceAccountCredentialFromPath(inputPath) {
     fileName: path.basename(absolutePath),
     credential
   };
+}
+
+async function persistImportedCredentialBackup({ connectionId, fileName, fileContent }) {
+  const backupPath = resolveCredentialBackupPath(connectionId);
+  await mkdir(path.dirname(backupPath), { recursive: true });
+  await writeFile(
+    backupPath,
+    JSON.stringify(
+      {
+        fileName,
+        fileContent
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+}
+
+async function recoverMissingImportedCredentialFile(connectionId, absolutePath) {
+  const backupPath = resolveCredentialBackupPath(connectionId);
+  try {
+    const backupRaw = await readFile(backupPath, "utf8");
+    const backupPayload = parseCredentialPayload(backupRaw);
+    const fileContent = normalizeOptionalText(backupPayload?.fileContent);
+    if (!fileContent) {
+      return null;
+    }
+    const parsed = parseCredentialPayload(fileContent);
+    validateServiceAccountCredentialPayload(parsed);
+    await mkdir(path.dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, JSON.stringify(parsed, null, 2), "utf8");
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return null;
+  }
 }
 
 export async function importServiceAccountCredentialFile({
@@ -105,6 +172,11 @@ export async function importServiceAccountCredentialFile({
 
   await mkdir(targetDir, { recursive: true });
   await writeFile(absolutePath, JSON.stringify(parsed, null, 2), "utf8");
+  await persistImportedCredentialBackup({
+    connectionId: normalizedConnectionId,
+    fileName: safeFileName,
+    fileContent
+  });
 
   const normalizedPreviousPath = normalizeOptionalText(previousPath);
   if (

@@ -412,7 +412,7 @@ function useConnectionInsights(selection, reload) {
 
   const analyzeSelectedConnectionCompatibility = useCallback(async () => {
     if (!selection.selectedConnectionId) {
-      return;
+      return null;
     }
     setCompatibilityActionState(createCompatibilityActionState({ processing: true }));
     try {
@@ -427,12 +427,14 @@ function useConnectionInsights(selection, reload) {
           successMessage: payload?.message ?? "Loaded compatibility analysis."
         })
       );
+      return payload ?? null;
     } catch (error) {
       setCompatibilityActionState(
         createCompatibilityActionState({
           errorMessage: error?.message ?? "Failed to analyze remote compatibility."
         })
       );
+      return null;
     }
   }, [reload, selection.selectedConnectionId]);
 
@@ -446,7 +448,7 @@ function useConnectionInsights(selection, reload) {
 
   const provisionSelectedConnectionCompatibility = useCallback(async (actionIds = null) => {
     if (!selection.selectedConnectionId) {
-      return;
+      return null;
     }
     setProvisioningActionState(createProvisioningActionState({ processing: true }));
     try {
@@ -465,12 +467,14 @@ function useConnectionInsights(selection, reload) {
           successMessage: payload?.message ?? "Provisioned missing remote requirements."
         })
       );
+      return payload ?? null;
     } catch (error) {
       setProvisioningActionState(
         createProvisioningActionState({
           errorMessage: error?.message ?? "Failed to provision missing remote requirements."
         })
       );
+      return null;
     }
   }, [confirmedSafeguardIds, reload, selection.selectedConnectionId]);
 

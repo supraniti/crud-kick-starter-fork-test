@@ -126,6 +126,7 @@ async function executeHttpsBrowserCoreAction(action, context, projectId, accessT
         projectId,
         names.urlMapName,
         hostname,
+        deploymentTarget,
         names.deploymentBackendBucketName,
         mediaTarget,
         names.mediaBackendBucketName,

@@ -32,7 +32,19 @@ function updateBundleState(report) {
   return report;
 }
 
-async function analyzeOptionalBrowserApi(report, serviceName, shouldInspect, project, accessToken) {
+async function analyzeOptionalBrowserApi(
+  report,
+  serviceName,
+  shouldInspect,
+  project,
+  accessToken,
+  {
+    provisionGroup = null,
+    projectPermissions = new Set(),
+    targetId = null,
+    targetTitle = "Browser delivery"
+  } = {}
+) {
   if (!shouldInspect) {
     report.requiredApis = report.requiredApis.map((entry) =>
       entry.serviceName === serviceName
@@ -53,6 +65,25 @@ async function analyzeOptionalBrowserApi(report, serviceName, shouldInspect, pro
         ? createApiEntry(serviceName, isEnabled ? "enabled" : "disabled", service?.state ?? null)
         : entry
     );
+    if (!isEnabled) {
+      report.missingResources.push({
+        kind: "api",
+        label: `Enable ${serviceName}`,
+        serviceName
+      });
+      report.provisionableActions.push(
+        buildProvisioningAction({
+          id: `enable-${serviceName}`,
+          label: `Enable ${serviceName}`,
+          resourceKind: "api",
+          targetId,
+          notes: [`${targetTitle} requires ${serviceName}.`],
+          permissionGroup: provisionGroup,
+          projectPermissions,
+          requiredPermissions: ["serviceusage.services.enable"]
+        })
+      );
+    }
   } catch (error) {
     report.requiredApis = report.requiredApis.map((entry) =>
       entry.serviceName === serviceName

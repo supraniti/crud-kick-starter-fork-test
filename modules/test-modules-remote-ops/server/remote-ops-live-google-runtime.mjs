@@ -19,12 +19,26 @@ export function buildAuthorizedHeaders(accessToken, extraHeaders = {}) {
 
 async function parseJsonResponse(response) {
   const rawText = await response.text();
-  return rawText ? JSON.parse(rawText) : {};
+  if (!rawText) {
+    return {};
+  }
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    return {
+      rawText
+    };
+  }
 }
 
 function buildLiveApiError(payload, response) {
+  const rawText = typeof payload?.rawText === "string" ? payload.rawText.trim() : "";
   return new LiveApiError(
-    payload?.error?.message ?? payload?.error_description ?? payload?.error ?? "Google API request failed",
+    payload?.error?.message ??
+      payload?.error_description ??
+      payload?.error ??
+      (rawText ? rawText.slice(0, 240) : null) ??
+      "Google API request failed",
     response.status,
     payload
   );
@@ -52,7 +66,16 @@ export async function requestGoogleBuffer(url, accessToken, options = {}) {
   const bytes = Buffer.from(await response.arrayBuffer());
   if (!response.ok) {
     const rawText = bytes.toString("utf8");
-    const payload = rawText ? JSON.parse(rawText) : {};
+    let payload = {};
+    if (rawText) {
+      try {
+        payload = JSON.parse(rawText);
+      } catch {
+        payload = {
+          rawText
+        };
+      }
+    }
     throw buildLiveApiError(payload, response);
   }
   return bytes;

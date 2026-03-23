@@ -278,6 +278,33 @@ function StatusLine({ label, value, tone = "default" }) {
     </Paper>
   );
 }
+
+function GoLiveStepCard({ title, description, tone, detail, children = null }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, flex: 1, minWidth: 0 }}>
+      <Stack spacing={0.75}>
+        <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+          <Typography variant="subtitle2">{title}</Typography>
+          <Chip
+            size="small"
+            color={tone}
+            label={tone === "success" ? "Ready" : tone === "warning" ? "Action Needed" : tone === "error" ? "Blocked" : tone === "info" ? "Info" : "Waiting"}
+          />
+        </Stack>
+        <Typography variant="body2" color="text.secondary">
+          {description}
+        </Typography>
+        {detail ? (
+          <Typography variant="caption" color="text.secondary">
+            {detail}
+          </Typography>
+        ) : null}
+        {children}
+      </Stack>
+    </Paper>
+  );
+}
+
 export function GoLiveChecklistPanel({
   workspace,
   selectedTarget,
@@ -303,6 +330,34 @@ export function GoLiveChecklistPanel({
     ? bundleReport.configurationWarnings.some((warning) => String(warning).toLowerCase().includes("certificate"))
     : false;
   const isTemporary = descriptor?.accessMode === "gcp-temporary";
+  const isManagedDns = descriptor?.dnsMode === "gcp-managed";
+  const canAnalyze =
+    Boolean(workspace.selectedConnectionId) &&
+    workspace.connectionDraft.connectionStatus === "validated" &&
+    !workspace.compatibilityActionState.processing &&
+    !workspace.provisioningActionState.processing;
+  const canPrepare =
+    Boolean(workspace.selectedConnectionId) &&
+    workspace.connectionDraft.connectionStatus === "validated" &&
+    !workspace.compatibilityActionState.processing &&
+    !workspace.provisioningActionState.processing &&
+    safeguardsConfirmed;
+  const latestMissingCount = Array.isArray(bundleReport?.missingResources) ? bundleReport.missingResources.length : 0;
+
+  async function handlePrepareDomain() {
+    const analysisPayload = await workspace.analyzeSelectedConnectionCompatibility();
+    const nextReport = analysisPayload?.report ?? workspace.compatibilityReport;
+    const nextBundleReport = Array.isArray(nextReport?.bundles)
+      ? nextReport.bundles.find((bundle) => bundle?.id === "browser-delivery") ?? null
+      : null;
+    const nextReadyActionIds = getBrowserStageActions(nextBundleReport, selectedTarget.id)
+      .filter((action) => action.availableNow === true)
+      .map((action) => action.id);
+    if (nextReadyActionIds.length === 0) {
+      return;
+    }
+    await workspace.provisionSelectedConnectionCompatibility(nextReadyActionIds);
+  }
 
   return (
     <Stack spacing={2}>
@@ -351,16 +406,110 @@ export function GoLiveChecklistPanel({
         <CardContent>
           <Stack spacing={1.5}>
             <Stack spacing={0.35}>
-              <Typography variant="subtitle1">Records To Create</Typography>
+              <Typography variant="subtitle1">What Happens Next</Typography>
               <Typography variant="body2" color="text.secondary">
-                When a real hostname is involved, these are the exact records the operator needs to create or verify.
+                This flow is split cleanly between product-owned setup on Google and the one registrar change the operator still controls.
               </Typography>
+            </Stack>
+
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              <GoLiveStepCard
+                title="1. Product-Owned Setup"
+                tone={
+                  isTemporary
+                    ? "info"
+                    : bundleReport?.state === "ready" || (latestMissingCount === 0 && readyActions.length === 0)
+                      ? "success"
+                      : workspace.connectionDraft.connectionStatus !== "validated"
+                        ? "warning"
+                        : "warning"
+                }
+                description={
+                  isTemporary
+                    ? "Testing mode does not need Google delivery setup."
+                    : latestMissingCount > 0 || readyActions.length > 0
+                      ? "Press the prepare action. The app will create and wire the Google delivery resources for this hostname."
+                      : "The Google-side delivery resources are already in place for this hostname."
+                }
+                detail={
+                  isTemporary
+                    ? "No domain stack is required."
+                    : workspace.connectionDraft.connectionStatus !== "validated"
+                      ? "Validate the selected remote connection first."
+                      : readyActions.length > 0
+                        ? `${readyActions.length} setup action${readyActions.length === 1 ? "" : "s"} can be executed now.`
+                        : "The app has no remaining create actions to run for this hostname."
+                }
+              />
+              <GoLiveStepCard
+                title="2. Registrar Step"
+                tone={
+                  isTemporary
+                    ? "info"
+                    : isManagedDns
+                      ? nameServers.length > 0
+                        ? "warning"
+                        : "info"
+                      : dnsInstructions.length > 0
+                        ? "warning"
+                        : "info"
+                }
+                description={
+                  isTemporary
+                    ? "No registrar change is needed in testing mode."
+                    : isManagedDns
+                      ? nameServers.length > 0
+                        ? "Point the domain to these Google-managed name servers. The app already owns the zone records after preparation."
+                        : "After prepare runs, this desk will show the exact Google name servers to use."
+                      : "Use the exact records below at your current DNS provider."
+                }
+                detail={
+                  isTemporary
+                    ? "Temporary provider URLs stay active."
+                    : isManagedDns
+                      ? nameServers.length > 0
+                        ? "Do not create registrar A or CNAME records manually for this hostname."
+                        : "The nameserver instruction appears only after the managed zone exists."
+                      : "External DNS keeps nameservers unchanged."
+                }
+              >
+                {!isTemporary && isManagedDns && nameServers.length > 0 ? (
+                  <Typography variant="caption" color="text.secondary">
+                    Name servers: {nameServers.join(", ")}
+                  </Typography>
+                ) : null}
+              </GoLiveStepCard>
+              <GoLiveStepCard
+                title="3. Public HTTPS"
+                tone={isTemporary ? "default" : bundleReport?.state === "ready" ? "success" : certificateWaiting ? "warning" : "info"}
+                description={
+                  isTemporary
+                    ? "Testing mode does not wait on a certificate."
+                    : bundleReport?.state === "ready"
+                      ? "Readers can now use the real public hostname."
+                      : certificateWaiting
+                        ? "Google is still waiting for DNS delegation and certificate activation to settle."
+                        : "Public HTTPS is still waiting on the earlier steps."
+                }
+                detail={
+                  isTemporary
+                    ? "You can open the temporary site immediately."
+                    : certificateWaiting
+                      ? "Once delegation propagates, the managed certificate should become active automatically."
+                      : "This card will turn ready when the hostname is genuinely live."
+                }
+              />
             </Stack>
 
             {isTemporary ? (
               <Alert severity="info">Testing mode needs no DNS records. The temporary provider URLs are the current public path.</Alert>
             ) : dnsInstructions.length > 0 ? (
               <Stack spacing={1}>
+                <Alert severity={isManagedDns ? "info" : "warning"}>
+                  {isManagedDns
+                    ? "Point the registrar to the Google name servers shown here. The app will create and maintain the needed zone records on Google."
+                    : "Create or verify these exact records at your DNS provider."}
+                </Alert>
                 {dnsInstructions.map((instruction) => (
                   <Paper key={`${instruction.label}-${instruction.recordName}-${instruction.recordType}`} variant="outlined" sx={{ p: 1.25 }}>
                     <Stack spacing={0.35}>
@@ -378,8 +527,9 @@ export function GoLiveChecklistPanel({
                 ))}
                 {nameServers.length > 0 ? (
                   <Paper variant="outlined" sx={{ p: 1.25 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Name servers: {nameServers.join(", ")}
+                    <Typography variant="subtitle2">Name servers to point the domain to</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+                      {nameServers.join(", ")}
                     </Typography>
                   </Paper>
                 ) : null}
@@ -399,7 +549,7 @@ export function GoLiveChecklistPanel({
             <Stack spacing={0.35}>
               <Typography variant="subtitle1">Bring This Live</Typography>
               <Typography variant="body2" color="text.secondary">
-                Analyze what is missing, prepare what the product can prepare, and use the linked desks when this address depends on broader remote or release work.
+                The product can inspect the domain, create the Google delivery pieces, and then tell you the single registrar step that remains outside the app.
               </Typography>
             </Stack>
 
@@ -451,17 +601,17 @@ export function GoLiveChecklistPanel({
               <Button
                 variant="outlined"
                 onClick={workspace.analyzeSelectedConnectionCompatibility}
-                disabled={!workspace.selectedConnectionId || workspace.connectionDraft.connectionStatus !== "validated" || workspace.compatibilityActionState.processing}
+                disabled={!canAnalyze}
               >
-                {workspace.compatibilityActionState.processing ? "Analyzing..." : "Analyze This Address"}
+                {workspace.compatibilityActionState.processing ? "Analyzing..." : "Analyze Domain State"}
               </Button>
               <Button
                 variant="contained"
                 color="secondary"
-                onClick={() => workspace.provisionSelectedConnectionCompatibility(readyActions.map((action) => action.id))}
-                disabled={readyActions.length === 0 || !safeguardsConfirmed || workspace.provisioningActionState.processing}
+                onClick={handlePrepareDomain}
+                disabled={!canPrepare}
               >
-                {workspace.provisioningActionState.processing ? "Preparing..." : "Prepare What The Product Can"}
+                {workspace.provisioningActionState.processing ? "Preparing..." : "Prepare This Domain On Google"}
               </Button>
               <Button variant="text" onClick={onOpenRemotes}>Open Remotes</Button>
               <Button variant="text" onClick={onOpenDeployments}>Open Deployments</Button>
@@ -470,6 +620,7 @@ export function GoLiveChecklistPanel({
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <Chip size="small" variant="outlined" label={`Ready actions ${readyActions.length}`} />
               <Chip size="small" variant="outlined" label={`Blocked actions ${blockedActions.length}`} />
+              {latestMissingCount > 0 ? <Chip size="small" variant="outlined" label={`Missing pieces ${latestMissingCount}`} /> : null}
             </Stack>
           </Stack>
         </CardContent>
@@ -525,17 +676,22 @@ export function PublicAddressEditorDrawer({ open, onClose, workspace, connection
 
         {isLiveDomain ? (
           <Stack spacing={2}>
-            <TextField label="Hostname" value={draft.config.hostname ?? ""} onChange={(event) => workspace.changeTargetConfigField("hostname", event.target.value)} helperText="Example: content.example.com" fullWidth />
+            <TextField label="Hostname" value={draft.config.hostname ?? ""} onChange={(event) => workspace.changeTargetConfigField("hostname", event.target.value)} helperText="Example: fastcart.dev" fullWidth />
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField select label="DNS Ownership" value={draft.config.dnsMode ?? "external"} onChange={(event) => workspace.changeTargetConfigField("dnsMode", event.target.value)} fullWidth>
+              <TextField select label="DNS Ownership" value={draft.config.dnsMode ?? "external"} onChange={(event) => workspace.changeTargetConfigField("dnsMode", event.target.value)} helperText={draft.config.dnsMode === "gcp-managed" ? "The app will create the Cloud DNS zone and then tell the operator which Google name servers to use." : "Keep your current nameservers and create the shown records at your DNS provider."} fullWidth>
                 <MenuItem value="external">External DNS provider</MenuItem>
                 <MenuItem value="gcp-managed">Google-managed DNS</MenuItem>
               </TextField>
-              <TextField select label="Delivery Stack" value={draft.config.stackMode ?? "direct-storage"} onChange={(event) => workspace.changeTargetConfigField("stackMode", event.target.value)} fullWidth>
+              <TextField select label="Delivery Stack" value={draft.config.stackMode ?? "direct-storage"} onChange={(event) => workspace.changeTargetConfigField("stackMode", event.target.value)} helperText="Use HTTPS load balancer for clean public routes and managed certificates." fullWidth>
                 <MenuItem value="direct-storage">Direct storage</MenuItem>
                 <MenuItem value="https-load-balancer">HTTPS load balancer</MenuItem>
               </TextField>
             </Stack>
+            {draft.config.dnsMode === "gcp-managed" ? (
+              <Alert severity="info">
+                After saving this address, open <strong>Go Live</strong>. The app will prepare the Google DNS and delivery resources, then show the exact nameservers to point the domain to.
+              </Alert>
+            ) : null}
           </Stack>
         ) : (
           <Alert severity="info">Testing mode uses provider-owned URLs. This is useful for review, but it is not the final public address.</Alert>

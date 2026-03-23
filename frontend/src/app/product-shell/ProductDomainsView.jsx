@@ -104,6 +104,7 @@ export function ProductDomainsView({ navigate = null, route = {} }) {
     () => workspace.targets.filter((target) => target.targetKind === "media-storage"),
     [workspace.targets]
   );
+  const draftAccessMode = workspace.targetDraft?.config?.accessMode;
 
   useEffect(() => {
     const routeTargetId = typeof route?.targetId === "string" ? route.targetId : "";
@@ -133,9 +134,10 @@ export function ProductDomainsView({ navigate = null, route = {} }) {
 
   useEffect(() => {
     if (workspace.targetActionState.successMessage && editorOpen) {
+      setSection(draftAccessMode === "custom-domain" ? "go-live" : "public");
       setEditorOpen(false);
     }
-  }, [editorOpen, workspace.targetActionState.successMessage]);
+  }, [draftAccessMode, editorOpen, workspace.targetActionState.successMessage]);
 
   function openRoute(moduleId) {
     if (typeof navigate === "function") {

@@ -2709,3 +2709,146 @@
     - against the real remote deployed page
   - browser asset URLs must always version against asset content, not only page state
   - deployment render and delivery resolve paths must be kept structurally aligned or one side will silently lag behind the other
+
+### 2026-03-23 - Stale Port Owners Hid The Real Fix
+- Tasks:
+  - traced the user-reported regression on remote comments and missing page links back to the live surfaces
+  - proved the managed launcher and the actual `3000/3001` port owners had diverged
+  - updated `scripts/review-env.mjs` so Windows listener discovery uses `Get-NetTCPConnection` before the older `netstat` fallback
+  - updated `frontend/src/app/product-shell/ProductModerationView.jsx` so public comment intake refreshes on:
+    - first mount
+    - focus
+    - visibility return
+    - a 20-second interval
+  - reran:
+    - `blogpage-013` sync
+    - `blogpage-014` sync
+    - `pagedepl-001` release
+    - `pagedepl-002` release
+- Verified:
+  - the remote deployed post now shows real navigation and category links
+  - a new remote comment submitted after the rerelease was imported automatically into the local moderation queue as `pending`
+- Improve:
+  - a healthy review env is not the same thing as the correct review env; port ownership must match the launcher’s pids
+  - comment-intake convergence must keep refreshing while the moderation desk is open, not only when it first mounts
+
+### 2026-03-23 - Temporary GCS Needs index.html, Domains Should Not
+- Tasks:
+  - traced the remaining broken deployed-page links after the comment fix
+  - proved the live temporary browser-delivery target was still `gcp-temporary` with no hostname
+  - confirmed the remote reader page needs `.../index.html` links on raw `storage.googleapis.com/.../site` delivery
+  - implemented delivery-aware page-link normalization in:
+    - `modules/test-modules-pages/browser/page-application-tester.global.js`
+    - `modules/test-modules-pages/frontend/page-public-link-support.js`
+    - `modules/test-modules-pages/frontend/page-output-forecast-support.js`
+  - kept the server-side application payload patch in `modules/test-modules-pages/server/page-application-view-runtime.mjs`
+- Verified:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - fresh remote browser proof on:
+    - `https://storage.googleapis.com/merchant-guild-dev-deployment-679134333951/site/post/remote-flow-review-post-01/index.html?cb=20260323-0801`
+  - confirmed live links now include `/index.html` on:
+    - breadcrumbs
+    - category chips
+    - next-story
+    - related-story cards
+- Improve:
+  - temporary provider-owned object delivery and custom-domain route delivery are different contracts; the URL builder must model both explicitly
+  - page-output forecasts and the deployed reader app must share the same public-link rule or the app will lie about what is actually browseable
+
+### 2026-03-23 - fastcart.dev Exposed The Real Browser-Delivery Provisioning Gaps
+- Tasks:
+  - configured the live `Primary Domain` target in the UI for:
+    - hostname `fastcart.dev`
+    - `gcp-managed` DNS
+    - `https-load-balancer`
+  - proved the initial browser-delivery compatibility flow could now surface disabled API actions after the earlier API-action patch
+  - used the product flow to enable:
+    - `dns.googleapis.com`
+    - `certificatemanager.googleapis.com`
+    - `compute.googleapis.com`
+  - widened long-running operation polling in:
+    - `remote-ops-gcp-provisioning-execution-runtime.mjs`
+    - `remote-ops-gcp-browser-delivery-gcp-runtime.mjs`
+  - fixed HTTPS browser-delivery compatibility so inspect-permission failures no longer hide create actions
+  - narrowed each HTTPS browser-delivery action to the exact permission it needs instead of the whole provision bundle
+- Verified:
+  - direct compatibility analysis now reports:
+    - APIs enabled
+    - browser-delivery resources as `unknown` when inspect access is missing
+    - per-resource provision actions with precise missing permissions
+- Findings:
+  - the previous model had two separate product bugs:
+    - false timeout while enabling APIs on a fresh project
+    - false “everything blocked” state because every stack action was checked against the full browser-delivery provision permission bundle
+  - after those fixes, the remaining blocker is real IAM, not app logic
+  - the service account currently lacks create rights for the load-balancer / certificate / DNS stack, so the app cannot yet create the Cloud DNS zone and therefore cannot yet show the exact authoritative name servers for `fastcart.dev`
+- Improve:
+  - inspect permissions and create permissions must never be conflated in provisioning UX
+  - long-running GCP service-activation flows need much wider polling windows than ordinary CRUD actions
+  - do not tell the operator to change registrar name servers until the managed zone actually exists and the app can show the exact assigned `nameServers`
+
+### 2026-03-23 - fastcart.dev Reached Real GCP Browser-Delivery Provisioning
+- Tasks:
+  - fixed HTTPS browser-delivery URL map creation so it supports a prefixed deployment bucket instead of requiring the deployment target prefix to be empty
+  - fixed HTTPS URL map creation to send the required top-level default backend bucket
+  - fixed HTTPS proxy creation to attach the certificate map on create
+  - hardened the live Google API client so non-JSON upstream error bodies no longer explode as JSON parser crashes
+  - provisioned the remaining `fastcart.dev` browser-delivery resources against live GCP:
+    - URL map
+    - HTTPS proxy
+    - HTTPS forwarding rule
+    - managed-zone A record
+    - certificate authorization CNAME
+- Verified:
+  - `pnpm --filter server exec vitest run test/module-conformance/remote-ops.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+  - live compatibility analysis now reports:
+    - browser-delivery resources present
+    - only certificate `PROVISIONING` remains as a warning
+    - authoritative Cloud DNS name servers are available in the report
+- Findings:
+  - the earlier “empty deployment prefix required” warning was product debt, not a true platform limit
+  - the app’s local review environment can still lose the copied service-account file across backend restarts, so live remote work must re-check the stored credential path after each restart
+  - `fastcart.dev` is not publicly live yet because the registrar is still delegated to:
+    - `ns-cloud-b1.googledomains.com.`
+    - `ns-cloud-b2.googledomains.com.`
+    - `ns-cloud-b3.googledomains.com.`
+    - `ns-cloud-b4.googledomains.com.`
+  - GCP assigned a different authoritative set for the managed zone:
+    - `ns-cloud-e1.googledomains.com.`
+    - `ns-cloud-e2.googledomains.com.`
+    - `ns-cloud-e3.googledomains.com.`
+    - `ns-cloud-e4.googledomains.com.`
+- Improve:
+  - browser-delivery provisioning tests must cover real Compute API field requirements, not just mocked happy-path acceptance
+  - the review env should not report a healthy remote setup if the copied credential file is missing on disk
+  - when using `gcp-managed` DNS, the product should surface a stronger registrar-delegation warning as soon as the managed zone exists and the current nameservers do not match
+
+### 2026-03-23 - Domain Onboarding Became A Real Product Flow
+- Tasks:
+  - added local recovery copies for imported service-account keys so missing copied key files can self-heal
+  - rewrote the Domains `Go Live` route into a 3-step product flow:
+    - product-owned Google setup
+    - registrar delegation step
+    - public HTTPS readiness
+  - changed action language from generic infrastructure verbs to domain-specific actions:
+    - `Analyze Domain State`
+    - `Prepare This Domain On Google`
+  - moved saved real-domain targets directly into the `Go Live` context after save
+  - re-imported the current `merchant-guild` key through the Remotes UI and revalidated the connection so the live desk could be rechecked
+- Verified:
+  - server conformance for remote ops passed with the new credential self-recovery proof
+  - Domains integration test passed against the new nameserver-guidance flow
+  - frontend build, protocol checks, and review env verification all passed
+  - live Domains UI now shows:
+    - `ns-cloud-e1` to `ns-cloud-e4` nameservers
+    - Google-managed A and certificate DNS records
+    - explicit guidance not to create manual registrar A/CNAME records
+- Findings:
+  - the biggest operator confusion in this flow was not GCP complexity; it was the app mixing:
+    - what the product owns
+    - what the registrar owner still has to do
+  - a saved validated connection is not enough if the copied key file disappears later; the app needs recovery at the credential layer
+  - once the nameservers are visible in the Domains desk, the remaining external state is easy to explain and verify
