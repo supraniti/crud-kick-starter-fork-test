@@ -73,6 +73,10 @@ function BuilderHeader({ activeModuleLabel, workspace, activeSupportTab, onToggl
             <Typography variant="body2" color="text.secondary">
               Shape reusable page structure on the canvas. Start from a page frame, then open library, layers, or details only when you need them.
             </Typography>
+            <Alert severity="info">
+              To add dynamic page content, open a block, choose its widget, then switch the relevant field source to
+              {" "}<strong>Dynamic page data</strong> or <strong>Media library</strong>.
+            </Alert>
             {workspace.returnRoute ? (
               <Alert severity="info">
                 You opened Layouts from a page. Save here, then return to continue shaping that page with the updated structure.
@@ -353,6 +357,9 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
             selectedNode={workspace.selectedNode}
             selectedPathIds={workspace.selectedPathIds}
             parentNode={parentNode}
+            pageContextManifest={workspace.widgetBindingManifest}
+            widgetBindingManifestNote={workspace.widgetBindingManifestNote}
+            mediaItems={workspace.mediaItems}
             onClose={workspace.closeNodeDialog}
             onUpdateNode={(patch) => workspace.updateNode(workspace.selectedNodeId, patch)}
             onRemoveNode={workspace.removeSelectedNode}

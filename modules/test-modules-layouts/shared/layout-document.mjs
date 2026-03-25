@@ -1,3 +1,5 @@
+import { validateWidgetComponentInstance } from "./widget-component-schema.mjs";
+
 const LAYOUT_NODE_KIND_SET = new Set(["container", "block"]);
 const LAYOUT_MODE_SET = new Set(["grid", "flex"]);
 const FLEX_DIRECTION_SET = new Set(["row", "column"]);
@@ -117,6 +119,8 @@ export function createLayoutNode(node = {}) {
       ? createDefaultContainerProps(layoutMode, node.props)
       : createDefaultBlockProps(node.props),
     placement,
+    componentInstance:
+      kind === "block" ? validateWidgetComponentInstance(node.componentInstance).componentInstance : undefined,
     children: kind === "container"
       ? (Array.isArray(node.children) ? [...new Set(node.children.filter((entry) => typeof entry === "string" && entry.trim().length > 0))] : [])
       : []
@@ -260,6 +264,24 @@ export function validateLayoutDocument(rawValue) {
         childSet.add(childId);
         seenChildren.add(childId);
       }
+    }
+  }
+
+  const rawNodes = rawValue && typeof rawValue === "object" && !Array.isArray(rawValue) && rawValue.nodes && typeof rawValue.nodes === "object"
+    ? rawValue.nodes
+    : {};
+  for (const [nodeId, rawNodeValue] of Object.entries(rawNodes)) {
+    const normalizedNode = document.nodes[nodeId];
+    if (!normalizedNode || normalizedNode.kind !== "block") {
+      continue;
+    }
+    const componentValidation = validateWidgetComponentInstance(rawNodeValue?.componentInstance);
+    for (const issue of componentValidation.issues) {
+      issues.push({
+        code: issue.code,
+        message: `Block '${nodeId}' has an invalid component instance: ${issue.message}`,
+        fieldId: "layoutDocument"
+      });
     }
   }
 

@@ -6,6 +6,9 @@ import {
   sortPagesForDesk,
   sortRedirectRules
 } from "./distribution-readiness.js";
+import { resolvePageContextManifest } from "../server/page-context-manifest-runtime.mjs";
+import { resolvePageWidgetCompatibility } from "../shared/page-widget-compatibility.mjs";
+import { normalizeLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
 import {
   createActionState,
   createDeploymentInstancesState,
@@ -35,6 +38,69 @@ const DEFAULT_PAGE_FILTERS = Object.freeze({
   primarySourceType: "",
   readiness: ""
 });
+
+function createManifestPayloadForPage(page = {}) {
+  const primarySourceType = page?.primarySourceType ?? "none";
+  return {
+    page: {
+      pageKind: page?.pageKind ?? null,
+      primarySourceType
+    },
+    application: {
+      model:
+        primarySourceType === "blog-post"
+          ? { kind: "post-detail" }
+          : primarySourceType === "blog-category"
+            ? { kind: "category-detail" }
+            : null
+    }
+  };
+}
+
+function resolveLayoutDocumentForCompatibility(layout = null) {
+  if (!layout) {
+    return null;
+  }
+  return normalizeLayoutDocument(layout.layoutDocument ?? layout.layoutDocumentJson ?? null);
+}
+
+function resolvePageWidgetCompatibilityState(page = {}, layoutById = new Map(), mediaItems = []) {
+  const layout = page?.layoutId ? layoutById.get(page.layoutId) ?? null : null;
+  if (!layout) {
+    return {
+      contractVersion: 1,
+      summary: {
+        totalBlocks: 0,
+        widgetizedBlocks: 0,
+        compatibleWidgets: 0,
+        blockingIssueCount: 0,
+        warningIssueCount: 0
+      },
+      widgetInventory: [],
+      issues: [],
+      blockingIssues: [],
+      warningIssues: [],
+      supported: true
+    };
+  }
+
+  const pageContextManifest = resolvePageContextManifest(createManifestPayloadForPage(page)).manifest;
+  return resolvePageWidgetCompatibility({
+    layoutDocument: resolveLayoutDocumentForCompatibility(layout),
+    pageContextManifest,
+    pageKind: pageContextManifest?.pageKind ?? page?.pageKind ?? null,
+    primarySourceType: pageContextManifest?.primarySourceType ?? page?.primarySourceType ?? null,
+    mediaItems
+  });
+}
+
+function mergeReadinessWithWidgetCompatibility(page = {}, widgetCompatibility = null) {
+  const baseIssues = buildReadinessIssues(page);
+  const widgetIssues = Array.isArray(widgetCompatibility?.issues)
+    ? widgetCompatibility.issues.map((issue) => `Widget: ${issue.message}`)
+    : [];
+  return [...baseIssues, ...widgetIssues];
+}
 
 function usePageSelection(pages) {
   const [selectedPageId, setSelectedPageId] = useState(null);
@@ -441,7 +507,7 @@ function useSyncDeploymentAction({
   }, [reloadSupportData, selection.selectedPageId, setDeliveryRefreshToken, setPageActionState]);
 }
 
-function usePageWorkspace({ pages, layouts, reloadSupportData, selectedActorId }) {
+function usePageWorkspace({ pages, layouts, mediaItems, reloadSupportData, selectedActorId }) {
   const selection = usePageSelection(pages);
   const [pageFilters, setPageFilters] = useState(DEFAULT_PAGE_FILTERS);
   const [pageActionState, setPageActionState] = useState(createActionState);
@@ -451,10 +517,28 @@ function usePageWorkspace({ pages, layouts, reloadSupportData, selectedActorId }
     selection.isCreatingNewPage
       ? null
       : pages.find((page) => page.id === selection.selectedPageId) ?? null;
-  const readinessMap = useMemo(() => new Map(pages.map((page) => [page.id, buildReadinessIssues(page)])), [pages]);
-  const filteredPages = useMemo(() => pages.filter((page) => matchesPageFilters(page, pageFilters, readinessMap.get(page.id) ?? [])), [pageFilters, pages, readinessMap]);
-
   const layoutById = useMemo(() => new Map(layouts.map((layout) => [layout.id, layout])), [layouts]);
+  const widgetCompatibilityByPageId = useMemo(
+    () =>
+      new Map(
+        pages.map((page) => [
+          page.id,
+          resolvePageWidgetCompatibilityState(page, layoutById, mediaItems)
+        ])
+      ),
+    [layoutById, mediaItems, pages]
+  );
+  const readinessMap = useMemo(
+    () =>
+      new Map(
+        pages.map((page) => [
+          page.id,
+          mergeReadinessWithWidgetCompatibility(page, widgetCompatibilityByPageId.get(page.id))
+        ])
+      ),
+    [pages, widgetCompatibilityByPageId]
+  );
+  const filteredPages = useMemo(() => pages.filter((page) => matchesPageFilters(page, pageFilters, readinessMap.get(page.id) ?? [])), [pageFilters, pages, readinessMap]);
   const setPageDraftField = useCallback((updater) => {
     selection.setPageDraft(updater);
     setPageActionState(createActionState());
@@ -503,6 +587,7 @@ function usePageWorkspace({ pages, layouts, reloadSupportData, selectedActorId }
     selectedPageId: effectiveSelectedPageId,
     selectedPage: effectiveSelectedPage,
     readinessMap,
+    widgetCompatibilityByPageId,
     deliveryRefreshToken,
     filteredPages,
     pageFilters,
@@ -564,6 +649,7 @@ export function useBlogDistributionWorkspace() {
   const pageWorkspace = usePageWorkspace({
     pages,
     layouts: support.supportState.layouts,
+    mediaItems: support.supportState.media,
     reloadSupportData: support.reloadSupportData,
     selectedActorId
   });
@@ -610,9 +696,27 @@ export function useBlogDistributionWorkspace() {
     pageWorkspace.deliveryRefreshToken,
     pageWorkspace.pageDraft.previewSourceItemId
   );
+  const draftWidgetCompatibility = useMemo(
+    () =>
+      resolvePageWidgetCompatibilityState(
+        pageWorkspace.pageDraft,
+        new Map(support.supportState.layouts.map((layout) => [layout.id, layout])),
+        support.supportState.media
+      ),
+    [pageWorkspace.pageDraft, support.supportState.layouts, support.supportState.media]
+  );
   const readinessMap = useMemo(
-    () => new Map(pages.map((page) => [page.id, buildReadinessIssues(page)])),
-    [pages]
+    () =>
+      new Map(
+        pages.map((page) => [
+          page.id,
+          mergeReadinessWithWidgetCompatibility(
+            page,
+            pageWorkspace.widgetCompatibilityByPageId.get(page.id)
+          )
+        ])
+      ),
+    [pageWorkspace.widgetCompatibilityByPageId, pages]
   );
 
   return {
@@ -635,6 +739,7 @@ export function useBlogDistributionWorkspace() {
     deliveryState,
     deploymentInstancesState,
     previewSourceState,
+    draftWidgetCompatibility,
     ...pageWorkspace,
     ...redirectWorkspace
   };

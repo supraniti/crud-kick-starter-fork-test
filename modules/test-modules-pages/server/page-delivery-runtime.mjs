@@ -463,10 +463,17 @@ function applyCanonicalUrlToPayload(payload, canonicalUrl) {
     head: { ...(payload?.head && typeof payload.head === "object" ? payload.head : {}), canonicalUrl }
   };
 }
-async function finalizeDeliveryPayload(payload, collectionHandlerRegistry, browserDeliveryState = null) {
+async function finalizeDeliveryPayload(
+  payload,
+  collectionHandlerRegistry,
+  browserDeliveryState = null,
+  resolveSettingsRepository = null
+) {
   const mediaAwarePayload = await attachResolvedMediaReferences(payload, collectionHandlerRegistry, browserDeliveryState);
   const applicationAwarePayload = await attachPageApplicationPayload(mediaAwarePayload, {
-    collectionHandlerRegistry
+    collectionHandlerRegistry,
+    resolveSettingsRepository,
+    enforceWidgetCompatibility: true
   });
   return attachApplicationTesterContract(attachClientRuntimeContract(applicationAwarePayload), {
     collectionHandlerRegistry
@@ -505,7 +512,7 @@ async function finalizePagePayloadWithSettings({
   resolvedPath
 }) {
   if (typeof resolveSettingsRepository !== "function") {
-    return finalizeDeliveryPayload(payload, collectionHandlerRegistry);
+    return finalizeDeliveryPayload(payload, collectionHandlerRegistry, null, null);
   }
 
   const settings = await readPagesModuleSettings({
@@ -522,7 +529,8 @@ async function finalizePagePayloadWithSettings({
   return finalizeDeliveryPayload(
     browserAwarePayload,
     collectionHandlerRegistry,
-    settings.browserDeliveryState
+    settings.browserDeliveryState,
+    resolveSettingsRepository
   );
 }
 

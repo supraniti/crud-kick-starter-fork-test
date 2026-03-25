@@ -1,5 +1,10 @@
 import { createServer } from "node:http";
 import { createSign } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolvePageContextManifest } from "../../server/page-context-manifest-runtime.mjs";
+import { buildPageWidgetRenderState } from "../../server/page-widget-render-contract-runtime.mjs";
 
 const PORT = Number.parseInt(process.env.PORT ?? "8080", 10);
 const POSTS_COLLECTION_PATH = "publishedPosts";
@@ -8,6 +13,15 @@ const CATEGORIES_COLLECTION_PATH = "publicCategories";
 const TAGS_COLLECTION_PATH = "publicTags";
 const COMMENTS_COLLECTION_PATH =
   normalizeText(process.env.PUBLIC_PAGE_API_COMMENTS_COLLECTION) ?? "publicComments";
+const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const LOCAL_PAGES_STATE_PATH = path.resolve(
+  CURRENT_DIR,
+  "../../../../server/runtime/module-data/test-modules-pages-state.json"
+);
+const LOCAL_LAYOUTS_STATE_PATH = path.resolve(
+  CURRENT_DIR,
+  "../../../../server/runtime/module-data/test-modules-layouts-state.json"
+);
 const ALLOWED_COLLECTIONS = new Set(
   String(
     process.env.PUBLIC_PAGE_API_ALLOWED_COLLECTIONS
@@ -81,6 +95,84 @@ function buildPayload(payload = {}) {
     ...payload,
     timestamp: new Date().toISOString()
   };
+}
+
+async function readLocalJsonFile(filePath) {
+  try {
+    const raw = await readFile(filePath, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function parseLayoutDocumentJson(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+  try {
+    return JSON.parse(normalized);
+  } catch {
+    return null;
+  }
+}
+
+async function listFallbackPublishedPages() {
+  const [pagesState, layoutsState] = await Promise.all([
+    readLocalJsonFile(LOCAL_PAGES_STATE_PATH),
+    readLocalJsonFile(LOCAL_LAYOUTS_STATE_PATH)
+  ]);
+  const pages = Array.isArray(pagesState?.["blog-pages"]) ? pagesState["blog-pages"] : [];
+  const layouts = Array.isArray(layoutsState?.["page-layouts"]) ? layoutsState["page-layouts"] : [];
+  const layoutsById = new Map(
+    layouts.map((layout) => [
+      normalizeText(layout?.id),
+      {
+        ...layout,
+        layoutDocument: parseLayoutDocumentJson(layout?.layoutDocumentJson)
+      }
+    ])
+  );
+  return pages
+    .filter((page) => normalizeText(page?.status) === "published")
+    .map((page) => {
+      const layout = layoutsById.get(normalizeText(page?.layoutId)) ?? null;
+      return {
+        ...page,
+        layoutDocument: page?.layoutDocument ?? layout?.layoutDocument ?? null,
+        layoutKey: page?.layoutKey ?? layout?.layoutKey ?? null,
+        layoutModel: page?.layoutModel ?? null,
+        bindings:
+          page?.bindings && typeof page.bindings === "object"
+            ? page.bindings
+            : {}
+      };
+    });
+}
+
+async function listPublishedPageDefinitions(projectId) {
+  let firestorePages = [];
+  try {
+    firestorePages = await listCollectionDocuments(projectId, PAGES_COLLECTION_PATH);
+  } catch (_error) {
+    firestorePages = [];
+  }
+  const fallbackPages = await listFallbackPublishedPages();
+  const merged = new Map();
+  firestorePages.forEach((page) => {
+    const key = normalizeText(page?.id) ?? `${normalizeText(page?.primarySourceType)}:${normalizeText(page?.pathPattern)}`;
+    if (key) {
+      merged.set(key, page);
+    }
+  });
+  fallbackPages.forEach((page) => {
+    const key = normalizeText(page?.id) ?? `${normalizeText(page?.primarySourceType)}:${normalizeText(page?.pathPattern)}`;
+    if (key) {
+      merged.set(key, page);
+    }
+  });
+  return Array.from(merged.values());
 }
 
 async function readJsonBody(request) {
@@ -402,12 +494,28 @@ function selectPublishedPagesBySourceType(pages = [], sourceType) {
   );
 }
 
-function resolveRecordPageLink({ pages = [], sourceType, record }) {
+function resolveCurrentPagePreference(currentPage = null, sourceType = null) {
+  if (!currentPage || typeof currentPage !== "object") {
+    return null;
+  }
+  return normalizeText(currentPage?.primarySourceType) === normalizeText(sourceType)
+    ? normalizeText(currentPage?.id)
+    : null;
+}
+
+function resolveRecordPageLink({ pages = [], sourceType, record, currentPage = null }) {
   if (!record) {
     return null;
   }
   const candidates = selectPublishedPagesBySourceType(pages, sourceType);
-  for (const page of candidates) {
+  const preferredPageId = resolveCurrentPagePreference(currentPage, sourceType);
+  const orderedCandidates = preferredPageId
+    ? [
+        ...candidates.filter((page) => page?.id === preferredPageId),
+        ...candidates.filter((page) => page?.id !== preferredPageId)
+      ]
+    : candidates;
+  for (const page of orderedCandidates) {
     if (isPerRecordDeploymentMode(page?.deploymentMode)) {
       const path = buildResolvedPagePath(page, record);
       if (!path) {
@@ -460,11 +568,12 @@ function buildMediaSummary(media = null) {
   };
 }
 
-function buildAuthorSummary(author = {}, pages = []) {
+function buildAuthorSummary(author = {}, pages = [], currentPage = null) {
   const pageLink = resolveRecordPageLink({
     pages,
     sourceType: "blog-author",
-    record: author
+    record: author,
+    currentPage
   });
   return {
     id: author.id ?? null,
@@ -479,11 +588,12 @@ function buildAuthorSummary(author = {}, pages = []) {
   };
 }
 
-function buildCategorySummary(category = {}, pages = []) {
+function buildCategorySummary(category = {}, pages = [], currentPage = null) {
   const pageLink = resolveRecordPageLink({
     pages,
     sourceType: "blog-category",
-    record: category
+    record: category,
+    currentPage
   });
   return {
     id: category.id ?? null,
@@ -499,11 +609,12 @@ function buildCategorySummary(category = {}, pages = []) {
   };
 }
 
-function buildTagSummary(tag = {}, pages = []) {
+function buildTagSummary(tag = {}, pages = [], currentPage = null) {
   const pageLink = resolveRecordPageLink({
     pages,
     sourceType: "blog-tag",
-    record: tag
+    record: tag,
+    currentPage
   });
   return {
     id: tag.id ?? null,
@@ -516,11 +627,12 @@ function buildTagSummary(tag = {}, pages = []) {
   };
 }
 
-function buildPostCard(post = {}, pages = []) {
+function buildPostCard(post = {}, pages = [], currentPage = null) {
   const pageLink = resolveRecordPageLink({
     pages,
     sourceType: "blog-post",
-    record: post
+    record: post,
+    currentPage
   });
   return {
     id: post.id ?? null,
@@ -538,13 +650,13 @@ function buildPostCard(post = {}, pages = []) {
   };
 }
 
-function buildBreadcrumbChain(categoriesById, category = null, pages = []) {
+function buildBreadcrumbChain(categoriesById, category = null, pages = [], currentPage = null) {
   const chain = [];
   let cursor = category;
   const visited = new Set();
   while (cursor && cursor.id && !visited.has(cursor.id)) {
     visited.add(cursor.id);
-    chain.unshift(buildCategorySummary(cursor, pages));
+    chain.unshift(buildCategorySummary(cursor, pages, currentPage));
     const parentId = normalizeText(cursor.parentCategoryId);
     cursor = parentId ? categoriesById.get(parentId) ?? null : null;
   }
@@ -569,16 +681,16 @@ function pickRelatedPosts(items = [], currentPostId, limit = 3) {
     .slice(0, limit);
 }
 
-function buildPostNavigation(posts = [], currentPost = {}, pages = []) {
+function buildPostNavigation(posts = [], currentPost = {}, pages = [], currentPage = null) {
   const ordered = sortByPublishedAscending(
     posts.filter((entry) => normalizeText(entry?.status) === "published")
   );
   const index = ordered.findIndex((entry) => entry.id === currentPost.id);
   return {
-    previousPost: index > 0 ? buildPostCard(ordered[index - 1], pages) : null,
+    previousPost: index > 0 ? buildPostCard(ordered[index - 1], pages, currentPage) : null,
     nextPost:
       index >= 0 && index < ordered.length - 1
-        ? buildPostCard(ordered[index + 1], pages)
+        ? buildPostCard(ordered[index + 1], pages, currentPage)
         : null
   };
 }
@@ -761,18 +873,19 @@ function buildHeadFromDocument(document = {}, fallbackTitle = "Page") {
   };
 }
 
-function buildReaderLayoutDocument(page = {}) {
+function buildReaderLayoutDocument(page = {}, widgetRenderContract = null) {
   return {
     pageId: page.id ?? null,
     layoutId: page.layoutId ?? null,
     layoutKey: page.layoutKey ?? null,
     layoutModel: page.layoutModel ?? null,
     layoutDocument: page.layoutDocument ?? null,
-    bindings: page.bindings && typeof page.bindings === "object" ? page.bindings : {}
+    bindings: page.bindings && typeof page.bindings === "object" ? page.bindings : {},
+    widgetRenderContract
   };
 }
 
-function buildReaderBootstrapDocument({ pagePath, page, head, model }) {
+function buildReaderBootstrapDocument({ pagePath, page, head, model, widgetRenderContract = null }) {
   return {
     contractVersion: 1,
     tier: "initial",
@@ -785,7 +898,7 @@ function buildReaderBootstrapDocument({ pagePath, page, head, model }) {
       publicOrigin: null,
       publicUrl: null
     },
-    layout: buildReaderLayoutDocument(page),
+    layout: buildReaderLayoutDocument(page, widgetRenderContract),
     model,
     review: {
       pageId: page?.id ?? null,
@@ -804,6 +917,34 @@ function buildReaderBootstrapDocument({ pagePath, page, head, model }) {
     },
     resolvedAt: new Date().toISOString()
   };
+}
+
+function createWidgetManifestPayload(page = {}, model = null) {
+  return {
+    page: {
+      pageKind: page?.pageKind ?? null,
+      primarySourceType: page?.primarySourceType ?? null
+    },
+    application: {
+      model
+    }
+  };
+}
+
+async function resolvePublicWidgetRenderContract(page = {}, model = null) {
+  const { manifest } = resolvePageContextManifest(createWidgetManifestPayload(page, model));
+  const renderState = await buildPageWidgetRenderState({
+    page,
+    model,
+    layoutDocument: page?.layoutDocument ?? null,
+    pageContextManifest: manifest,
+    pageKind: manifest?.pageKind ?? page?.pageKind ?? null,
+    primarySourceType: manifest?.primarySourceType ?? page?.primarySourceType ?? null,
+    delivery: {},
+    mediaResolver: null,
+    enforceCompatibility: false
+  });
+  return renderState.widgetRenderContract;
 }
 
 function buildReaderDeferredDocument({ pagePath, page, model }) {
@@ -850,7 +991,24 @@ function buildReaderDeferredDocument({ pagePath, page, model }) {
   };
 }
 
-function buildPostInitialApplicationModel(projectedPost, allCategories, allPages) {
+function buildRawReaderDeferredDocument({
+  pagePath,
+  pageId = null,
+  primarySourceType = "none",
+  deferred = {}
+}) {
+  return {
+    contractVersion: 2,
+    path: pagePath,
+    pageId,
+    pageKind: primarySourceType === "blog-post" ? "post-detail" : primarySourceType === "blog-category" ? "category-detail" : "generic-page",
+    primarySourceType,
+    deferred,
+    resolvedAt: new Date().toISOString()
+  };
+}
+
+function buildPostInitialApplicationModel(projectedPost, allCategories, allPages, currentPage = null) {
   const currentPost = projectedPost ?? {};
   const categoriesById = new Map(allCategories.map((item) => [item.id, item]));
   const postCategories = toArray(currentPost.categories).length
@@ -868,7 +1026,7 @@ function buildPostInitialApplicationModel(projectedPost, allCategories, allPages
   const primaryCategoryId = postCategories[0]?.id ?? normalizeText(currentPost.categoryIds?.[0]);
   const primaryCategory = primaryCategoryId ? categoriesById.get(primaryCategoryId) ?? postCategories[0] ?? null : null;
   const author = currentPost.primaryAuthor && typeof currentPost.primaryAuthor === "object"
-    ? buildAuthorSummary(currentPost.primaryAuthor, allPages)
+    ? buildAuthorSummary(currentPost.primaryAuthor, allPages, currentPage)
     : currentPost.primaryAuthorId || currentPost.primaryAuthorTitle
       ? buildAuthorSummary({
           id: currentPost.primaryAuthorId ?? null,
@@ -878,7 +1036,7 @@ function buildPostInitialApplicationModel(projectedPost, allCategories, allPages
           role: null,
           locale: null,
           avatarMedia: null
-        }, allPages)
+        }, allPages, currentPage)
       : null;
 
   return {
@@ -900,15 +1058,24 @@ function buildPostInitialApplicationModel(projectedPost, allCategories, allPages
       galleryMedia: toArray(currentPost.galleryMedia).map((item) => buildMediaSummary(item)).filter(Boolean),
       author,
       coAuthors: [],
-      categories: postCategories.map((item) => buildCategorySummary(item, allPages)),
-      tags: postTags.map((item) => buildTagSummary(item, allPages))
+      categories: postCategories.map((item) => buildCategorySummary(item, allPages, currentPage)),
+      tags: postTags.map((item) => buildTagSummary(item, allPages, currentPage))
     },
     navigation: {
       previousPost: null,
       nextPost: null,
       authorPage: null,
-      primaryCategory: primaryCategory ? buildCategorySummary(primaryCategory, allPages) : null,
-      breadcrumbs: primaryCategory ? buildBreadcrumbChain(categoriesById, categoriesById.get(primaryCategory.id) ?? primaryCategory, allPages) : []
+      primaryCategory: primaryCategory
+        ? buildCategorySummary(primaryCategory, allPages, currentPage)
+        : null,
+      breadcrumbs: primaryCategory
+        ? buildBreadcrumbChain(
+            categoriesById,
+            categoriesById.get(primaryCategory.id) ?? primaryCategory,
+            allPages,
+            currentPage
+          )
+        : []
     },
     related: {
       moreFromAuthor: [],
@@ -923,7 +1090,13 @@ function buildPostInitialApplicationModel(projectedPost, allCategories, allPages
   };
 }
 
-function buildCategoryInitialApplicationModel(projectedCategory, allCategories, allPosts, allPages) {
+function buildCategoryInitialApplicationModel(
+  projectedCategory,
+  allCategories,
+  allPosts,
+  allPages,
+  currentPage = null
+) {
   const currentCategory = projectedCategory ?? {};
   const categoriesById = new Map(allCategories.map((item) => [item.id, item]));
   const categoryPosts = allPosts.filter((item) =>
@@ -945,11 +1118,13 @@ function buildCategoryInitialApplicationModel(projectedCategory, allCategories, 
       featuredMedia: buildMediaSummary(currentCategory.featuredMedia)
     },
     navigation: {
-      parentCategory: parentCategory ? buildCategorySummary(parentCategory, allPages) : null,
-      breadcrumbs: buildBreadcrumbChain(categoriesById, currentCategory, allPages)
+      parentCategory: parentCategory
+        ? buildCategorySummary(parentCategory, allPages, currentPage)
+        : null,
+      breadcrumbs: buildBreadcrumbChain(categoriesById, currentCategory, allPages, currentPage)
     },
     children: [],
-    posts: categoryPosts.map((item) => buildPostCard(item, allPages))
+    posts: categoryPosts.map((item) => buildPostCard(item, allPages, currentPage))
   };
 }
 
@@ -1008,7 +1183,7 @@ async function resolveProjectedDocumentWithFallback({
   return null;
 }
 
-function buildPostApplicationModel(projectedPost, allPosts, allCategories, allPages) {
+function buildPostApplicationModel(projectedPost, allPosts, allCategories, allPages, currentPage = null) {
   const currentPost = projectedPost ?? {};
   const categoriesById = new Map(allCategories.map((item) => [item.id, item]));
   const postCategories = toArray(currentPost.categories).length
@@ -1039,7 +1214,7 @@ function buildPostApplicationModel(projectedPost, allPosts, allCategories, allPa
     )
   );
   const author = currentPost.primaryAuthor && typeof currentPost.primaryAuthor === "object"
-    ? buildAuthorSummary(currentPost.primaryAuthor, allPages)
+    ? buildAuthorSummary(currentPost.primaryAuthor, allPages, currentPage)
     : currentPost.primaryAuthorId || currentPost.primaryAuthorTitle
       ? buildAuthorSummary({
           id: currentPost.primaryAuthorId ?? null,
@@ -1049,7 +1224,7 @@ function buildPostApplicationModel(projectedPost, allPosts, allCategories, allPa
           role: null,
           locale: null,
           avatarMedia: null
-        }, allPages)
+        }, allPages, currentPage)
       : null;
   return {
     kind: "post-detail",
@@ -1070,19 +1245,34 @@ function buildPostApplicationModel(projectedPost, allPosts, allCategories, allPa
       galleryMedia: toArray(currentPost.galleryMedia).map((item) => buildMediaSummary(item)).filter(Boolean),
       author,
       coAuthors: [],
-      categories: postCategories.map((item) => buildCategorySummary(item, allPages)),
-      tags: postTags.map((item) => buildTagSummary(item, allPages))
+      categories: postCategories.map((item) => buildCategorySummary(item, allPages, currentPage)),
+      tags: postTags.map((item) => buildTagSummary(item, allPages, currentPage))
     },
     navigation: {
-      ...buildPostNavigation(allPosts, currentPost, allPages),
+      ...buildPostNavigation(allPosts, currentPost, allPages, currentPage),
       authorPage: author?.path ? { path: author.path, publicUrl: null } : null,
-      primaryCategory: primaryCategory ? buildCategorySummary(primaryCategory, allPages) : null,
-      breadcrumbs: primaryCategory ? buildBreadcrumbChain(categoriesById, categoriesById.get(primaryCategory.id) ?? primaryCategory, allPages) : []
+      primaryCategory: primaryCategory
+        ? buildCategorySummary(primaryCategory, allPages, currentPage)
+        : null,
+      breadcrumbs: primaryCategory
+        ? buildBreadcrumbChain(
+            categoriesById,
+            categoriesById.get(primaryCategory.id) ?? primaryCategory,
+            allPages,
+            currentPage
+          )
+        : []
     },
     related: {
-      moreFromAuthor: pickRelatedPosts(relatedByAuthor, currentPost.id).map((item) => buildPostCard(item, allPages)),
-      byCategory: pickRelatedPosts(relatedByCategory, currentPost.id).map((item) => buildPostCard(item, allPages)),
-      byTag: pickRelatedPosts(relatedByTag, currentPost.id).map((item) => buildPostCard(item, allPages))
+      moreFromAuthor: pickRelatedPosts(relatedByAuthor, currentPost.id).map((item) =>
+        buildPostCard(item, allPages, currentPage)
+      ),
+      byCategory: pickRelatedPosts(relatedByCategory, currentPost.id).map((item) =>
+        buildPostCard(item, allPages, currentPage)
+      ),
+      byTag: pickRelatedPosts(relatedByTag, currentPost.id).map((item) =>
+        buildPostCard(item, allPages, currentPage)
+      )
     },
     comments: {
       enabled: currentPost.allowComments !== false && normalizeText(currentPost.commentPolicy) !== "closed",
@@ -1092,7 +1282,13 @@ function buildPostApplicationModel(projectedPost, allPosts, allCategories, allPa
   };
 }
 
-function buildCategoryApplicationModel(projectedCategory, allCategories, allPosts, allPages) {
+function buildCategoryApplicationModel(
+  projectedCategory,
+  allCategories,
+  allPosts,
+  allPages,
+  currentPage = null
+) {
   const currentCategory = projectedCategory ?? {};
   const categoriesById = new Map(allCategories.map((item) => [item.id, item]));
   const childCategories = allCategories.filter(
@@ -1117,11 +1313,13 @@ function buildCategoryApplicationModel(projectedCategory, allCategories, allPost
       featuredMedia: buildMediaSummary(currentCategory.featuredMedia)
     },
     navigation: {
-      parentCategory: parentCategory ? buildCategorySummary(parentCategory, allPages) : null,
-      breadcrumbs: buildBreadcrumbChain(categoriesById, currentCategory, allPages)
+      parentCategory: parentCategory
+        ? buildCategorySummary(parentCategory, allPages, currentPage)
+        : null,
+      breadcrumbs: buildBreadcrumbChain(categoriesById, currentCategory, allPages, currentPage)
     },
-    children: childCategories.map((item) => buildCategorySummary(item, allPages)),
-    posts: categoryPosts.map((item) => buildPostCard(item, allPages))
+    children: childCategories.map((item) => buildCategorySummary(item, allPages, currentPage)),
+    posts: categoryPosts.map((item) => buildPostCard(item, allPages, currentPage))
   };
 }
 
@@ -1133,12 +1331,7 @@ async function resolveApplicationView(query) {
     throw buildError("PAGE_PATH_REQUIRED", "path is required.", 400);
   }
 
-  let allPages = [];
-  try {
-    allPages = await listCollectionDocuments(projectId, PAGES_COLLECTION_PATH);
-  } catch (_error) {
-    allPages = [];
-  }
+  const allPages = await listPublishedPageDefinitions(projectId);
   const matchedPage = findPublishedPageByPath(allPages, pagePath);
   const fallbackPrimarySourceType = pagePath.startsWith("/post/")
     ? "blog-post"
@@ -1185,7 +1378,7 @@ async function resolveApplicationView(query) {
         primarySourceType
       },
       head: buildHeadFromDocument(currentPost, page.title ?? "Page"),
-      model: buildPostApplicationModel(currentPost, allPosts, allCategories, allPages)
+      model: buildPostApplicationModel(currentPost, allPosts, allCategories, allPages, page)
     };
   }
 
@@ -1215,7 +1408,7 @@ async function resolveApplicationView(query) {
         primarySourceType
       },
       head: buildHeadFromDocument(currentCategory, page.title ?? "Category"),
-      model: buildCategoryApplicationModel(currentCategory, allCategories, allPosts, allPages)
+      model: buildCategoryApplicationModel(currentCategory, allCategories, allPosts, allPages, page)
     };
   }
 
@@ -1234,12 +1427,7 @@ async function resolveReaderBootstrap(query) {
     throw buildError("PAGE_PATH_REQUIRED", "path is required.", 400);
   }
 
-  let allPages = [];
-  try {
-    allPages = await listCollectionDocuments(projectId, PAGES_COLLECTION_PATH);
-  } catch (_error) {
-    allPages = [];
-  }
+  const allPages = await listPublishedPageDefinitions(projectId);
   const matchedPage = findPublishedPageByPath(allPages, pagePath);
   const fallbackPrimarySourceType = pagePath.startsWith("/post/")
     ? "blog-post"
@@ -1279,6 +1467,8 @@ async function resolveReaderBootstrap(query) {
       throw buildError("POST_NOT_FOUND", `No published post matched '${pagePath}'.`, 404);
     }
     const head = buildHeadFromDocument(currentPost, page.title ?? "Page");
+    const model = buildPostInitialApplicationModel(currentPost, allCategories, allPages, page);
+    const widgetRenderContract = await resolvePublicWidgetRenderContract(page, model);
     return {
       ok: true,
       pagePath,
@@ -1287,7 +1477,8 @@ async function resolveReaderBootstrap(query) {
           pagePath,
           page,
           head,
-          model: buildPostInitialApplicationModel(currentPost, allCategories, allPages)
+          model,
+          widgetRenderContract
         })
       ],
       total: 1
@@ -1312,6 +1503,14 @@ async function resolveReaderBootstrap(query) {
       throw buildError("CATEGORY_NOT_FOUND", `No published category matched '${pagePath}'.`, 404);
     }
     const head = buildHeadFromDocument(currentCategory, page.title ?? "Category");
+    const model = buildCategoryInitialApplicationModel(
+      currentCategory,
+      allCategories,
+      allPosts,
+      allPages,
+      page
+    );
+    const widgetRenderContract = await resolvePublicWidgetRenderContract(page, model);
     return {
       ok: true,
       pagePath,
@@ -1320,7 +1519,8 @@ async function resolveReaderBootstrap(query) {
           pagePath,
           page,
           head,
-          model: buildCategoryInitialApplicationModel(currentCategory, allCategories, allPosts, allPages)
+          model,
+          widgetRenderContract
         })
       ],
       total: 1
@@ -1342,12 +1542,98 @@ async function resolveReaderDeferred(query) {
     throw buildError("PAGE_PATH_REQUIRED", "path is required.", 400);
   }
 
-  let allPages = [];
-  try {
-    allPages = await listCollectionDocuments(projectId, PAGES_COLLECTION_PATH);
-  } catch (_error) {
-    allPages = [];
+  const explicitPrimarySourceType = normalizeText(query.get("primarySourceType"));
+  const explicitDocumentId = normalizeDocumentId(query.get("documentId"));
+  const explicitPageId = normalizeDocumentId(query.get("pageId"));
+
+  if (explicitPrimarySourceType === "blog-post" && explicitDocumentId) {
+    const [allPosts, currentPost] = await Promise.all([
+      listCollectionDocuments(projectId, POSTS_COLLECTION_PATH),
+      readCollectionDocument(projectId, POSTS_COLLECTION_PATH, explicitDocumentId)
+    ]);
+    if (!currentPost) {
+      throw buildError("POST_NOT_FOUND", `No published post matched '${explicitDocumentId}'.`, 404);
+    }
+    const relatedByAuthor = dedupePosts(
+      allPosts.filter((item) => normalizeText(item?.primaryAuthorId) === normalizeText(currentPost.primaryAuthorId))
+    );
+    const relatedByCategory = dedupePosts(
+      allPosts.filter((item) =>
+        toArray(item?.categoryIds).some((categoryId) => toArray(currentPost.categoryIds).includes(categoryId))
+      )
+    );
+    const relatedByTag = dedupePosts(
+      allPosts.filter((item) =>
+        toArray(item?.tagIds).some((tagId) => toArray(currentPost.tagIds).includes(tagId))
+      )
+    );
+    const orderedPosts = sortByPublishedAscending(
+      allPosts.filter((entry) => normalizeText(entry?.status) === "published")
+    );
+    const currentIndex = orderedPosts.findIndex((entry) => normalizeText(entry?.id) === normalizeText(currentPost.id));
+    return {
+      ok: true,
+      pagePath,
+      items: [
+        buildRawReaderDeferredDocument({
+          pagePath,
+          pageId: explicitPageId,
+          primarySourceType: explicitPrimarySourceType,
+          deferred: {
+            navigation: {
+              previousPost: currentIndex > 0 ? orderedPosts[currentIndex - 1] : null,
+              nextPost:
+                currentIndex >= 0 && currentIndex < orderedPosts.length - 1
+                  ? orderedPosts[currentIndex + 1]
+                  : null,
+              authorPage: null
+            },
+            related: {
+              moreFromAuthor: pickRelatedPosts(relatedByAuthor, currentPost.id),
+              byCategory: pickRelatedPosts(relatedByCategory, currentPost.id),
+              byTag: pickRelatedPosts(relatedByTag, currentPost.id)
+            }
+          }
+        })
+      ],
+      total: 1
+    };
   }
+
+  if (explicitPrimarySourceType === "blog-category" && explicitDocumentId) {
+    const [allCategories, allPosts, currentCategory] = await Promise.all([
+      listCollectionDocuments(projectId, CATEGORIES_COLLECTION_PATH),
+      listCollectionDocuments(projectId, POSTS_COLLECTION_PATH),
+      readCollectionDocument(projectId, CATEGORIES_COLLECTION_PATH, explicitDocumentId)
+    ]);
+    if (!currentCategory) {
+      throw buildError("CATEGORY_NOT_FOUND", `No published category matched '${explicitDocumentId}'.`, 404);
+    }
+    const childCategories = allCategories.filter(
+      (item) => normalizeText(item?.parentCategoryId) === normalizeText(currentCategory.id)
+    );
+    const categoryPosts = allPosts.filter((item) =>
+      toArray(item?.categoryIds).includes(currentCategory.id)
+    );
+    return {
+      ok: true,
+      pagePath,
+      items: [
+        buildRawReaderDeferredDocument({
+          pagePath,
+          pageId: explicitPageId,
+          primarySourceType: explicitPrimarySourceType,
+          deferred: {
+            children: childCategories,
+            posts: categoryPosts
+          }
+        })
+      ],
+      total: 1
+    };
+  }
+
+  const allPages = await listPublishedPageDefinitions(projectId);
   const matchedPage = findPublishedPageByPath(allPages, pagePath);
   const fallbackPrimarySourceType = pagePath.startsWith("/post/")
     ? "blog-post"
@@ -1393,7 +1679,7 @@ async function resolveReaderDeferred(query) {
         buildReaderDeferredDocument({
           pagePath,
           page,
-          model: buildPostApplicationModel(currentPost, allPosts, allCategories, allPages)
+          model: buildPostApplicationModel(currentPost, allPosts, allCategories, allPages, page)
         })
       ],
       total: 1
@@ -1424,7 +1710,7 @@ async function resolveReaderDeferred(query) {
         buildReaderDeferredDocument({
           pagePath,
           page,
-          model: buildCategoryApplicationModel(currentCategory, allCategories, allPosts, allPages)
+          model: buildCategoryApplicationModel(currentCategory, allCategories, allPosts, allPages, page)
         })
       ],
       total: 1

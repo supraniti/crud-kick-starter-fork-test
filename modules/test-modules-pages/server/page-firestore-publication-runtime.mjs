@@ -110,9 +110,12 @@ async function resolveBindingFromProductTargets(collectionHandlerRegistry, descr
 async function resolveProjectionBinding({
   collectionHandlerRegistry,
   resolveSettingsRepository,
-  payload
+  payload,
+  primarySourceType
 }) {
-  const descriptor = resolveProjectionSettingsDescriptor(payload?.page?.primarySourceType ?? "none");
+  const descriptor = resolveProjectionSettingsDescriptor(
+    primarySourceType ?? payload?.page?.primarySourceType ?? "none"
+  );
   if (!descriptor) {
     return null;
   }
@@ -181,5 +184,38 @@ export async function resolvePublishedFirestoreDescriptor({
     collectionPath,
     documentId,
     documentUrl: buildFirestoreDocumentUrl(projectId, collectionPath, documentId)
+  };
+}
+
+export async function resolvePublishedFirestoreCollectionDescriptor({
+  collectionHandlerRegistry,
+  resolveSettingsRepository,
+  primarySourceType
+}) {
+  const projectionBinding = await resolveProjectionBinding({
+    collectionHandlerRegistry,
+    resolveSettingsRepository,
+    payload: null,
+    primarySourceType
+  });
+  if (!projectionBinding) {
+    return null;
+  }
+
+  const targetConfig = normalizeTargetConfig(
+    projectionBinding.targetProfile.config,
+    projectionBinding.targetProfile.targetKind
+  );
+  const collectionPath = normalizeOptionalText(targetConfig.firestoreCollectionPath);
+  const projectId = normalizeOptionalText(projectionBinding.connectionProfile.projectId);
+  if (!collectionPath || !projectId) {
+    return null;
+  }
+
+  return {
+    targetProfileId: projectionBinding.targetProfile.id ?? null,
+    connectionProfileId: projectionBinding.connectionProfile.id ?? null,
+    projectId,
+    collectionPath
   };
 }

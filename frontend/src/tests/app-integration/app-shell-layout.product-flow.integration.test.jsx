@@ -79,3 +79,47 @@ test("app shell layout groups north-star workflow stages and exposes next-step g
 
   expect(handleSelectModule).toHaveBeenCalledWith("test-modules-layouts");
 });
+
+test("layouts route keeps the workflow sidebar when immersive mode is not explicitly requested", () => {
+  const moduleState = {
+    loading: false,
+    errorMessage: null,
+    items: buildProductNavigationItems(createNorthStarModules())
+  };
+
+  render(
+    <AppShellLayout
+      moduleState={moduleState}
+      route={{ moduleId: "test-modules-layouts" }}
+      activeRouteGuide={resolveProductRouteGuide(moduleState.items, "test-modules-layouts")}
+      handleSelectModule={() => {}}
+      routeUrl="/app/layouts?layoutId=pagelayo-003"
+      connectivityMode="connected"
+      runConnectivityCheck={() => {}}
+      handleSignOut={() => {}}
+      viewActions={[]}
+      handleRunViewAction={() => {}}
+      requiredDomains={new Set()}
+      remotesDeployDomain={{
+        deployState: { deploy: {}, latestJob: null, starting: false },
+        remotesState: { items: [] },
+        selectedRemoteId: "",
+        setSelectedRemoteId: () => {},
+        handleDeployNow: () => {},
+        moduleRuntimeState: { items: [] },
+        handleRunModuleAction: () => {}
+      }}
+      activeViewRegistration={{}}
+      runtimeSettingsOpen={false}
+      handleOpenRuntimeSettings={() => {}}
+      handleCloseRuntimeSettings={() => {}}
+      handleOpenRemotes={() => {}}
+      developerModeEnabled={false}
+      activeModuleView={<div>Layouts Surface</div>}
+    />
+  );
+
+  expect(screen.getByText("Workflow")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Layouts" })).toBeInTheDocument();
+  expect(screen.getByText("Layouts Surface")).toBeInTheDocument();
+});

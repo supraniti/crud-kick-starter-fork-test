@@ -2012,3 +2012,299 @@
   - `pnpm quality:protocol`
   - `pnpm review:env:verify`
   - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+- Researched the requested Widget/Component Builder direction against the current layout, page, runtime, and deployed-reader seams.
+- Wrote the implementation ticket:
+  - `docs/research/widget-component-builder-implementation-ticket-2026-03-24.md`
+- Main ticket position:
+  - current layouts are structural only
+  - pages still bind at coarse section level
+  - deployed reader still renders mostly from hardcoded application composition
+  - the next layer must be a typed widget registry plus block-owned component instances, guided context binding, bounded action descriptors, and runtime-driven rendering through `window.dataLayer` / `window.actionLayer`
+- Recommended first delivery slice in the ticket:
+  - registry foundation
+  - block `componentInstance`
+  - post-detail only
+  - widget subset:
+    - title
+    - rich text
+    - image
+    - category chips
+    - author card
+  - guided context binding
+  - deployed widget rendering through the existing runtime bridge
+- Re-reviewed the Widget/Component Builder research against the original directive and tightened the ticket accordingly.
+- Strengthened the ticket to make these points explicit:
+  - one widget/component per block in V1
+  - page-owned query/context as the only dynamic binding truth
+  - design-library wrappers include both primitive and composite/template widgets
+  - mixed static/dynamic widget cases such as tabs are first-class in the design
+  - deployment/runtime must stay centered on `window.dataLayer` / `window.actionLayer`
+- Prepared the full pre-implementation document set:
+  - `docs/research/widget-component-builder-implementation-ticket-2026-03-24.md`
+  - `docs/research/widget-component-builder-manager-brief-2026-03-24.md`
+  - `docs/research/widget-component-builder-implementation-program-2026-03-24.md`
+  - `docs/research/widget-component-builder-authoring-runtime-design-2026-03-24.md`
+- The implementation program now defines concrete passes, candidate file touchpoints, validation bars, and program start rules before coding begins.
+- Applied review corrections to the Widget/Component Builder document set.
+- Main corrections:
+  - chose one canonical binding namespace: `context.*`
+  - distinguished declared page-owned context from derived runtime context
+  - narrowed V1 binding to declared bindable branches only
+  - added a bounded page-level widget override seam for overrideable fields
+  - defined an explicit reader navigation bridge instead of implying all actions map directly to `window.actionLayer`
+  - aligned V1 scope to post-detail only across the document set
+  - added repeater/composite contract requirements:
+    - `context.item`
+    - item key path
+    - empty state
+    - item renderer boundary
+  - added explicit validation lifecycle rules for layout save, page save, preview, and deployment
+- Executed Widget/Component Builder Pass 0 foundations.
+- Added shared canonical binding namespace:
+  - `modules/test-modules-pages/shared/widget-binding-namespace.mjs`
+- Added page context manifest schema foundation:
+  - `modules/test-modules-pages/shared/page-context-manifest-schema.mjs`
+- Added widget/component schema and seeded registry foundations:
+  - `modules/test-modules-layouts/shared/widget-component-schema.mjs`
+  - `modules/test-modules-layouts/shared/widget-component-registry.mjs`
+- Extended structural layout documents so block nodes now normalize `componentInstance` while legacy layout documents still load cleanly:
+  - `modules/test-modules-layouts/shared/layout-document.mjs`
+- Added focused proofs:
+  - `frontend/src/tests/core/widget-component-contracts.core.test.jsx`
+  - updated `server/test/module-conformance/layouts.module-conformance.test.js`
+- Verified:
+  - `pnpm --filter frontend test -- src/tests/core/widget-component-contracts.core.test.jsx`
+  - `pnpm --filter server test -- test/module-conformance/layouts.module-conformance.test.js`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+- Important boundary:
+  - this pass only establishes schemas/registry/normalization
+  - no widget authoring UI or runtime rendering changes yet
+- Executed Widget/Component Builder Pass 1.
+- Added canonical page context manifest generation:
+  - `modules/test-modules-pages/server/page-context-manifest-runtime.mjs`
+- The manifest is now attached to delivered page payloads and mirrored into the client-runtime contract:
+  - `payload.pageContextManifest`
+  - `payload.runtime.clientRuntime.contextManifest`
+- Pass 1 design choice:
+  - the manifest is deterministic for the page contract, not reflective of whichever specific record happened to load
+  - V1 post-detail bindable branches are:
+    - `context.page`
+    - `context.post`
+    - `context.author`
+    - `context.categories`
+    - `context.tags`
+  - future-only non-bindable derived transparency branches are now exposed as:
+    - `context.navigation`
+    - `context.related`
+    - `context.commentsMeta`
+- Updated the Pages runtime inspection surface so operators can review:
+  - bindable context branches
+  - derived context branches
+  - full resolved manifest JSON
+  - file:
+    - `modules/test-modules-pages/frontend/BlogDistributionRuntimeContractPanel.jsx`
+- Focused proofs added/updated:
+  - `frontend/src/tests/core/widget-component-contracts.core.test.jsx`
+  - `server/test/module-conformance/blog-distribution.module-conformance.test.js`
+- Verified:
+  - `pnpm --filter frontend test -- src/tests/core/widget-component-contracts.core.test.jsx`
+  - `pnpm --filter server test -- test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Important boundary:
+  - this pass exposes the canonical binding contract and inspection surface
+  - it does not yet add widget authoring UI, compiled widget render contracts, or deployed widget rendering
+
+## 2026-03-24 Widget/Component Builder Feature Complete And Reviewable
+- The Widget/Component Builder slice is now implemented end to end in the worktree and has been live-validated.
+- What is now true:
+  - block nodes can own a single widget/component instance in V1
+  - the canonical widget binding namespace is `context.*`
+  - page contracts expose a deterministic page context manifest for widget authoring/validation
+  - Pages now surface widget compatibility for a selected page template
+  - Layouts now expose widget library, binding picker, widget inspector, and authored widgetized block shells
+  - deployed post/category readers now render from authored widget contracts instead of the old hardcoded page composition path
+- Canonical authoring proof used during this slice:
+  - page template: `blogpage-013` `M04 North Star Post Page`
+  - layout: `pagelayo-003` `Widget Story Shell`
+- Browser-verified widgetized layout composition on the local review app:
+  - route: `http://localhost:3000/app/layouts?layoutId=pagelayo-003&returnModuleId=test-modules-pages&returnPageId=blogpage-013&returnTab=overview`
+  - visible authored widgets:
+    - `Breadcrumbs`
+    - `Post Title` -> `context.post.title`
+    - `Image` -> `context.post.featuredMedia`
+    - `Category Chips` -> `context.categories`
+    - `Author Card` -> `context.author`
+    - `Image` -> `library:mdi-015`
+    - `Rich Text` -> `context.post.body`
+    - `Tabs` -> `context.post.excerpt • context.author.bio`
+    - `Previous / Next Navigation`
+    - `Related Stories`
+  - `Used In Pages` shows `M04 North Star Post Page`
+- Browser-verified live reader on `fastcart.dev`:
+  - `https://fastcart.dev/post/remote-flow-review-post-01`
+  - `https://fastcart.dev/post/remote-flow-review-post-02`
+  - `https://fastcart.dev/category/releases-928325`
+- Live reader behavior proven in browser/network tools:
+  - first load fetches one HTML document plus runtime assets
+  - same-app post/category transitions do not fetch a second HTML document
+  - transitions fetch reader JSON only:
+    - `/reader/bootstrap?path=...`
+    - `/reader/deferred?path=...`
+  - internal links remain on `fastcart.dev`
+- Public API packaging was updated so the deployed comments/reader service can import the new page runtime/server helpers from the repo-root build context:
+  - `modules/test-modules-pages/public-app-api/Dockerfile`
+  - `scripts/deploy-public-page-api.mjs`
+- Live rollout completed in this slice:
+  - public page API redeployed successfully
+  - `M04 Posts Release Bundle` rerun successfully
+  - `M04 Categories Release Bundle` rerun successfully
+- Focused proofs counted for completion:
+  - `pnpm --filter frontend exec vitest run src/tests/core/widget-component-contracts.core.test.jsx` (rerun outside sandbox because local Vitest worker spawn still hits `EPERM` inside sandbox)
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/layouts.integration.test.jsx` (same boundary and workaround)
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Important boundary:
+  - V1 is post-detail first, but the deployed category reader path is also validated because the same reader/runtime bridge now powers post and category route changes
+  - the worktree is intentionally uncommitted pending final product review
+## 2026-03-24 Layouts Authoring Follow-Up: Restore Workflow Sidebar And Make Dynamic Binding Discoverable
+- Fixed a real product regression on the Layouts route: the app workflow sidebar was hidden because Layouts was still forcing immersive shell mode.
+- Removed the forced immersive path in:
+  - `frontend/src/app/product-shell/product-view-descriptors.jsx`
+  - `frontend/src/app/parts/04-app-shell-layout.jsx`
+- Result:
+  - `http://localhost:3000/app/layouts?...` now keeps the normal workflow sidebar, so the operator can navigate back to Pages and the rest of the product.
+- Fixed the second review issue by making dynamic widget binding explicit in the Layouts authoring UI.
+- Authoring guidance improvements:
+  - top-level Layouts header now explains the authoring rule:
+    - open a block
+    - choose its widget
+    - switch a field source to `Dynamic page data` or `Media library`
+  - block edit dialog now includes:
+    - `How Dynamic Page Data Works`
+    - explicit source labels:
+      - `Static value`
+      - `Dynamic page data`
+      - `Media library`
+    - `Page data field` selector
+    - visible manifest note and available bindable branches for the current preview
+- Compatibility hardening added:
+  - normalized `content-detail` -> `post-detail` in widget availability and compatibility checks so the widget library does not disappear because of page-kind alias drift
+- Focused proofs passed:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx src/tests/app-integration/layouts.integration.test.jsx`
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:verify`
+- Browser-verified on:
+  - `http://localhost:3000/app/layouts?layoutId=pagelayo-003&returnModuleId=test-modules-pages&returnPageId=blogpage-013&returnTab=overview`
+- Browser proof:
+  - workflow sidebar visible again
+  - Layouts header shows the dynamic binding instruction
+  - opening the `Post Title` block shows the binding guide, available page data, `Dynamic page data` source, and `Page data field` selector
+- Important boundary:
+  - this follow-up improves discoverability and routing ergonomics; it does not yet redesign the overall block edit action labels (`Edit node`) into more product-specific wording.
+### 2026-03-25 - UI Content Reset / Rebuild Mission Reached Deploy-Compare Stage
+- Journey doc completed:
+  - `docs/research/ui-content-reset-and-rebuild-journey-2026-03-24.md`
+- UI-only mission outcomes:
+  - cleaned part of old author clutter through real roster deletion
+  - uploaded fresh media (`20231215_132221`, `20230822_113914`)
+  - kept two clean published posts as the stable comparison set:
+    - `First Cup On The Table`
+    - `Park Bench Weather Log`
+  - reassigned `Nuli Post Page` to `/journal/{slug}`
+  - switched `Nuli Post Page` to `Widget Story Shell`
+  - updated the custom layout static library image to the fresh upload `library:mdi-042`
+  - released both post bundles from the UI:
+    - `M04 Posts Release Bundle`
+    - `Nuli Posts Release Bundle`
+- Live routes reviewed:
+  - `https://fastcart.dev/post/first-cup-on-the-table`
+  - `https://fastcart.dev/post/park-bench-weather-log`
+  - `https://fastcart.dev/journal/first-cup-on-the-table`
+  - `https://fastcart.dev/category/park-walks`
+- Critical findings:
+  - same-app navigation on the deployed predefined route works and uses JSON-only route hydration (`reader/bootstrap` + `reader/deferred`)
+  - custom `/journal/...` route still breaks on deferred reader fetch (`/reader/deferred` returns `404`)
+  - comments on `/post/...` remain stuck in `Loading comments...`
+  - predefined `/post/...` rendering is inconsistent across records
+  - live pages still ship tester assets on public routes
+- Important boundary:
+  - no commit was made in this mission slice
+  - there are still many unrelated/uncommitted widget-builder files in the worktree
+### 2026-03-25 - Deployed Reader Bootstrap Was Slimmed To Current-Page Authority Plus Lightweight Route Index
+- Tasks:
+  - removed the heavy inline route contract from deployed HTML
+  - kept current-page layout/widget authority inline for first render
+  - moved full cross-family page contracts into a deployment-owned static manifest asset
+  - made same-app reader navigation use the cached data-layer manifest only when route-family changes require it
+- Delivered:
+  - first render HTML now carries:
+    - current page model
+    - current page layout/widget contract
+    - lightweight route index for published route families
+  - full page contract manifest is now emitted to:
+    - `assets/page-route-manifest.json?v=<token>`
+  - client runtime now exposes and persists:
+    - `readerRouteManifest.current`
+    - dataset: `reader-route-manifest`
+- Verified locally:
+  - `pnpm build:client-runtime`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified live on:
+  - `https://fastcart.dev/post/first-cup-on-the-table`
+  - `https://fastcart.dev/post/park-bench-weather-log`
+  - `https://fastcart.dev/category/park-walks`
+- Live transport proof:
+  - first load:
+    - one HTML document
+    - runtime assets
+    - deferred/comments only
+    - no route-manifest fetch
+  - post -> post:
+    - no second HTML document
+    - one `published-document` fetch
+    - comments refresh for the new post
+    - no route-manifest fetch
+  - cold post -> category:
+    - one `assets/page-route-manifest.json?v=<token>` fetch
+    - one `published-document` fetch for the category
+    - no second HTML document
+  - warm cross-family navigation:
+    - route manifest served from local runtime storage, no second remote fetch observed
+- Important boundary:
+  - the route-family authority is now deployment-owned and no longer depends on the old hidden server fallback for verified reader navigation
+### 2026-03-25 - Public Routes No Longer Ship Tester-Named Assets By Default
+- Tasks:
+  - removed `page-application-tester*` assets from default live page delivery
+  - renamed default live reader assets to:
+    - `page-reader.global.js`
+    - `page-reader-support.global.js`
+  - stopped loading the Firestore helper on deployed-public-service routes
+- Verified locally:
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm build:client-runtime`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+- Verified live on:
+  - `https://fastcart.dev/post/first-cup-on-the-table`
+  - `https://fastcart.dev/post/park-bench-weather-log`
+- Live network proof:
+  - default route requests:
+    - `client-runtime.global.js`
+    - `page-reader-support.global.js`
+    - `page-reader.global.js`
+  - default route does not request:
+    - `page-application-tester.global.js`
+    - `page-application-tester-support.global.js`
+    - `page-application-tester-firestore.global.js`
+  - deployed-public-service route also does not request:
+    - `page-reader-firestore.global.js`
+- Important boundary:
+  - the reader still reuses the legacy `applicationTester` contract/config object name internally; only the shipped public asset contract was cleaned in this pass

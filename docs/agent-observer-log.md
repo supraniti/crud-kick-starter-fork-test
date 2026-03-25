@@ -2970,3 +2970,190 @@
   - `pnpm quality:protocol`
   - `pnpm review:env:verify`
   - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+- Widget/Component Builder research pass completed.
+- Reviewed current seams before proposing the ticket:
+  - structural layout persistence in `layoutDocument`
+  - coarse page bindings (`hero/body/supporting`)
+  - page-bound runtime slot contracts
+  - deployed reader application still authored mostly in browser code
+- Strong architectural conclusion:
+  - this should not be implemented as "more props on blocks"
+  - it needs a new typed presentation layer between page context and deployed runtime
+- Ticket written in:
+  - `docs/research/widget-component-builder-implementation-ticket-2026-03-24.md`
+- Ticket recommends:
+  - typed component registry
+  - one component instance per block in V1
+  - structured binding descriptors instead of raw template strings
+  - bounded action descriptors
+  - compiled render contract
+  - data-layer-driven deployed rendering
+  - phased migration away from hardcoded reader sections
+- Widget/Component Builder document set completed.
+- The research pass was re-reviewed against the original product directive before finalizing the implementation program.
+- Main alignment additions in the final document set:
+  - page-owned query correlation is now a named architectural requirement
+  - binding source modes are explicitly separated:
+    - static
+    - page context
+    - media library
+    - listing item context
+  - composite/template wrappers are now a first-class part of the registry model, not a later accidental extension
+  - the `tabs` mixed static/dynamic case is explicitly modeled in the design docs
+- Pre-implementation docs now cover three levels:
+  - manager brief
+  - implementation program
+  - authoring/runtime design contract
+- No implementation code started in this slice.
+- Widget/Component Builder docs were revised after review findings.
+- Architectural clarifications now locked in the docs:
+  - canonical binding namespace is `context.*`
+  - current `application.model.*` and raw payload bags are internal assembly layers only
+  - V1 bindable sources are only declared page-owned context branches
+  - derived runtime branches can exist in the manifest but are not general-purpose V1 widget inputs
+  - action model now includes a reader navigation bridge separate from `window.actionLayer`
+  - bounded page-level override seam added so reusable layouts stay practical
+  - V1 scope aligned to post-detail only
+- Widget/Component Builder Pass 0 implemented.
+- Contracts established in code:
+  - canonical binding namespace: `context.*`
+  - page context manifest schema with declared/derived provenance
+  - widget/component descriptor schema
+  - widget component instance normalization
+  - seeded V1 registry entries:
+    - post-title
+    - post-rich-text
+    - media-image
+    - category-chips
+    - author-card
+- Structural layout documents now support block-owned `componentInstance` values without breaking legacy layouts.
+- Validation behavior added at the layout-document level for invalid block component instances.
+- Focused proofs passed after rerunning outside the sandbox because Vitest worker spawn still hits the known local `EPERM` boundary inside the sandbox.
+- Widget/Component Builder Pass 1 implemented.
+- New runtime seam:
+  - `modules/test-modules-pages/server/page-context-manifest-runtime.mjs`
+- The delivery/runtime contract now exposes a canonical manifest for widget binding:
+  - root payload:
+    - `pageContextManifest`
+    - `pageContextManifestIssues`
+  - client runtime:
+    - `runtime.clientRuntime.contextManifest`
+- Architectural decision held in code:
+  - the manifest is deterministic for the page contract
+  - it is not allowed to drift with whichever record happened to load
+- V1 bindable post-detail surface now resolves to:
+  - `context.page`
+  - `context.post`
+  - `context.author`
+  - `context.categories`
+  - `context.tags`
+- Derived transparency branches are present but not bindable:
+  - `context.navigation`
+  - `context.related`
+  - `context.commentsMeta`
+- Pages review surface updated:
+  - `BlogDistributionRuntimeContractPanel.jsx`
+  - now shows:
+    - context branch counts
+    - bindable branches
+    - derived branches
+    - resolved manifest JSON
+- Focused proofs:
+  - core contract test now proves deterministic post-detail manifest generation
+  - blog distribution conformance now proves the page payload and client-runtime contract carry the canonical manifest
+- Verification completed:
+  - `pnpm --filter frontend test -- src/tests/core/widget-component-contracts.core.test.jsx`
+  - `pnpm --filter server test -- test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+
+### 2026-03-24 - Widget Builder Only Became Reviewable After Verifying The Authoring Surface And The Live Reader Together
+- Tasks:
+  - finished the Widget/Component Builder passes through live delivery
+  - repaired the public page API packaging so the deployed reader service could import the new page runtime helpers
+  - reran the live M04 post/category releases and validated both the local authoring flow and the real `fastcart.dev` reader
+- Easy:
+  - once the layout route was opened directly with the target `layoutId`, the authored widget tree made the product state obvious immediately
+  - the live reader network proof was crisp: one initial document, then JSON-only route changes through the reader bridge
+- Hard:
+  - direct SPA route state on the Pages desk is still less trustworthy to verify than the Layouts route because the drawer/portal state does not always show cleanly in the devtools accessibility snapshot
+  - the public API deploy initially failed because the Docker build context only copied the service folder while the new runtime imports reached into shared/server files outside that subtree
+  - the known Windows sandbox `spawn EPERM` boundary still affects focused frontend Vitest runs, so the correct move was to rerun those proofs outside the sandbox instead of pretending the failure was product-related
+- Improve:
+  - for authored presentation work, always verify both sides:
+    - the authoring surface that defines the contract
+    - the live reader that consumes it
+  - if a deployable service starts importing shared runtime code, move the Docker build context decision into the feature slice immediately or deployment will lag behind the repo state
+  - for SPA verification, trust the route whose visible canvas reflects the authored state most directly; here that was Layouts, not the Pages drawer snapshot
+### 2026-03-24 - Layouts Review Surfaced Two Real Product Gaps: Shell Routing And Dynamic Binding Discoverability
+- Tasks:
+  - restored the normal workflow shell on the Layouts route
+  - made widget dynamic binding understandable from the authoring surface instead of assuming the operator would infer it
+- Easy:
+  - the shell regression was concrete and easy to prove once the live route was opened: no sidebar meant Layouts was still forcing immersive mode
+  - a small, explicit authoring rule at the top of the page closed a large part of the confusion immediately
+- Hard:
+  - the dynamic-binding problem was not a missing runtime capability; it was a discoverability failure, which is slower to diagnose because the data already existed in the system
+  - the new focused proof initially failed for the wrong reason: duplicated MUI label text in the dialog, not a bad product behavior
+- Improve:
+  - when a feature depends on a dialog-level workflow, add one top-level sentence on the main desk telling the operator where that workflow begins
+  - do not leave module routes on hardcoded shell exceptions once the product expects cross-module navigation
+  - when adding UI proofs around MUI forms, assert the actual control (`getByLabelText`) rather than raw repeated text nodes
+### 2026-03-25 - UI Content Reset And Deploy Compare Exposed Real Product Gaps In Cleanup, Authoring, And Reader Consistency
+- Tasks:
+  - continued the UI-only cleanup/content rebuild mission
+  - pushed the fresh post set through page/template reassignment and live deployment
+  - compared predicted reader transport with real deployed behavior
+- Easy:
+  - the release room was the strongest surface in the product; both post bundles ran cleanly and exposed real progress detail
+  - once `Nuli Post Page` was moved to `/journal/{slug}` and attached to `Widget Story Shell`, the Pages preview became a trustworthy planning surface
+- Hard:
+  - true cleanup is still not realistically supported by the product; posts can be archived and some authors can be deleted, but ownership chains keep old proof records alive across modules
+  - post authoring remains fragile under long-form input and can still jam the session badly enough to lose an unsaved draft
+  - the deployed reader is not internally consistent yet:
+    - `/post/...` comments stay in loading
+    - `/journal/...` deferred reader fetch returns `404`
+    - the predefined route does not render the same way for every record
+- Improve:
+  - cleanup needs a first-class destructive workflow that reconciles posts, authors, taxonomies, and pages together instead of forcing operators to discover dependencies through failed deletes
+  - public routes should not ship tester assets by default
+  - deployment validation should include route-specific deferred reads and comment loads, not only bundle completion
+  - page-template forecasting should use live examples that stay aligned with the actual generated records after release
+### 2026-03-25 - Reader Optimization Needed A Hybrid Contract, Not Just A Smaller Inline Payload
+- Tasks:
+  - removed the fully inlined route-family contract from deployed HTML
+  - kept enough inline route knowledge to support first render and same-family post navigation
+  - added a deployment-owned page-contract manifest asset for cross-family navigation
+  - verified the new transport live on `fastcart.dev`
+- Easy:
+  - once the backend was actually restarted, the generated HTML made the payload shift obvious: only the current page retained `layout` and `pageContextManifest`, while the other route entries became lightweight
+  - same-family post navigation was already structurally compatible with the data-layer model once the current page contract stayed inline
+- Hard:
+  - the first release check was misleading because the old backend process was still emitting stale HTML; the live page looked wrong even though the repo diff was correct
+  - a first pass at the manifest query produced a malformed `?v=... ?scope=current` asset URL because a versioned asset path was mixed with query-parameter templating
+  - the correct architecture was not “inline everything” or “fetch everything”; it had to be:
+    - current page contract inline
+    - lightweight route index inline
+    - full route contract fetched only when the route family changes
+- Improve:
+  - for deployment-facing work, never trust a rerun until the backend process itself is known to be fresh
+  - when a static asset path already carries a version query, do not layer additional declarative query params onto it
+  - route-family navigation requirements should be reasoned from actual user flows:
+    - post -> post should not need the full cross-family contract
+    - post -> category can pay that cost once and then cache it
+### 2026-03-25 - Public Routes Needed A Distinct Reader Asset Contract, Even Before A Deeper Runtime Cleanup
+- Tasks:
+  - removed tester-named assets from default live page delivery
+  - kept the current reader behavior intact by renaming the shipped public assets rather than redesigning the reader boot sequence in the same pass
+  - stopped shipping the Firestore helper on deployed-public-service routes where it is unused
+- Easy:
+  - the actual public issue was concrete and measurable in network traces: the live route loaded three `page-application-tester*` assets by name
+  - changing the emitted asset contract and the inclusion rule for the Firestore helper closed the live issue without destabilizing reader navigation
+- Hard:
+  - the code is still structurally centered on the older `applicationTester` contract naming, so the live/public cleanup had to stop at the delivery boundary instead of pretending the full internal naming debt was gone
+  - the right scope here was delivery cleanup, not a full reader/tester runtime split
+- Improve:
+  - separate “public contract cleanliness” from “internal module naming cleanup”; both matter, but they are not the same-sized task
+  - keep using live network traces as the acceptance source for shipped-page asset hygiene

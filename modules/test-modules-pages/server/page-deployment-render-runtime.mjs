@@ -8,8 +8,12 @@ import { resolveBrowserDeliveryPayloadState } from "./browser-delivery-reference
 import { attachClientRuntimeContract, resolvePageRuntimeScriptUrls, syncClientRuntimeAsset } from "./page-client-runtime-runtime.mjs";
 import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.mjs";
 import { attachApplicationTesterContract, resolvePageApplicationTesterScriptUrls, syncPageApplicationTesterAsset } from "./page-application-tester-runtime.mjs";
-import { attachPageApplicationPayload, buildStaticReaderPayload } from "./page-application-view-runtime.mjs";
+import { attachPageApplicationPayload, buildReaderRouteManifest, buildStaticReaderPayload } from "./page-application-view-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
+import {
+  buildReaderRouteManifestVersionToken,
+  READER_ROUTE_MANIFEST_ASSET_PATH
+} from "./page-route-manifest-runtime.mjs";
 
 function escapeHtmlText(value) {
   return String(value ?? "")
@@ -92,10 +96,13 @@ function buildOpenGraphHeadTags({
 
 function buildHeadMarkup(payload) {
   const head = resolveHeadContent(payload);
+  const faviconSvg =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%239b4d19'/%3E%3Cpath d='M18 20h28v6H34v18h-8V26H18z' fill='white'/%3E%3C/svg%3E";
   return [
     "<meta charset=\"utf-8\">",
     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
     `<title>${escapeHtmlText(head.title)}</title>`,
+    `<link rel="icon" href="${faviconSvg}">`,
     buildMetaTag("name", "description", head.description),
     ...buildCanonicalHeadTags(head.canonicalUrl),
     ...buildOpenGraphHeadTags(head)
@@ -196,6 +203,10 @@ function resolveRuntimeProbeDocumentRelativePath(artifactRelativePath) {
   }
   segments.pop();
   return [...segments, RUNTIME_PROBE_DOCUMENT_FILE_NAME].join("/");
+}
+
+function resolveRouteManifestAbsolutePath(rootDir) {
+  return path.resolve(rootDir, ...READER_ROUTE_MANIFEST_ASSET_PATH.split("/"));
 }
 
 function readRuntimeProbePrimaryRecord(payload = {}) {
@@ -598,8 +609,18 @@ async function writeArtifactDocument({
     page,
     artifactRelativePath
   );
+  const routeManifestDocument = await buildReaderRouteManifest(
+    browserAwarePayload,
+    collectionHandlerRegistry,
+    resolveSettingsRepository
+  );
+  const routeManifestVersionToken = buildReaderRouteManifestVersionToken(routeManifestDocument);
   const applicationAwarePayload = await attachPageApplicationPayload(browserAwarePayload, {
-    collectionHandlerRegistry
+    collectionHandlerRegistry,
+    resolveSettingsRepository,
+    enforceWidgetCompatibility: true,
+    routeManifestDocument,
+    routeManifestVersionToken
   });
   const payload = await attachApplicationTesterContract(
     attachClientRuntimeContract(applicationAwarePayload),
@@ -610,6 +631,13 @@ async function writeArtifactDocument({
   );
   await syncClientRuntimeAsset(resolvePageDeploymentRootDir());
   await syncPageApplicationTesterAsset(resolvePageDeploymentRootDir());
+  const routeManifestAbsolutePath = resolveRouteManifestAbsolutePath(resolvePageDeploymentRootDir());
+  await fs.mkdir(path.dirname(routeManifestAbsolutePath), { recursive: true });
+  await fs.writeFile(
+    routeManifestAbsolutePath,
+    JSON.stringify(routeManifestDocument, null, 2),
+    "utf8"
+  );
   const staticPayload = buildStaticReaderPayload(payload);
   const htmlDocument = renderStaticPageDocument({
     payload: staticPayload,

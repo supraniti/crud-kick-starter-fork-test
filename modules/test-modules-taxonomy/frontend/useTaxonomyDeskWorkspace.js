@@ -136,6 +136,43 @@ function sortMediaItems(items = []) {
   });
 }
 
+function areMediaItemsEquivalent(leftItems = [], rightItems = []) {
+  if (leftItems === rightItems) {
+    return true;
+  }
+  if (!Array.isArray(leftItems) || !Array.isArray(rightItems) || leftItems.length !== rightItems.length) {
+    return false;
+  }
+  for (let index = 0; index < leftItems.length; index += 1) {
+    const left = leftItems[index];
+    const right = rightItems[index];
+    if (
+      left?.id !== right?.id ||
+      left?.updatedOn !== right?.updatedOn ||
+      left?.createdOn !== right?.createdOn ||
+      left?.displayName !== right?.displayName
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areStringArraysEquivalent(leftItems = [], rightItems = []) {
+  if (leftItems === rightItems) {
+    return true;
+  }
+  if (!Array.isArray(leftItems) || !Array.isArray(rightItems) || leftItems.length !== rightItems.length) {
+    return false;
+  }
+  for (let index = 0; index < leftItems.length; index += 1) {
+    if (leftItems[index] !== rightItems[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function useFeaturedMediaGallery(referenceOptionsState) {
   const seedItems = normalizeArray(referenceOptionsState?.[MEDIA_COLLECTION_ID]?.items);
   const [mediaItems, setMediaItems] = useState(() => sortMediaItems(seedItems));
@@ -150,7 +187,8 @@ function useFeaturedMediaGallery(referenceOptionsState) {
     if (seedItems.length === 0) {
       return;
     }
-    setMediaItems(sortMediaItems(seedItems));
+    const nextItems = sortMediaItems(seedItems);
+    setMediaItems((previous) => (areMediaItemsEquivalent(previous, nextItems) ? previous : nextItems));
   }, [seedItems]);
 
   const refreshMediaItems = useCallback(async () => {
@@ -759,7 +797,10 @@ export function useTaxonomyDeskWorkspace({
 
   useEffect(() => {
     const visibleIds = new Set(tagRows.map((row) => row.id));
-    setSelectedTagIds((previous) => previous.filter((tagId) => visibleIds.has(tagId)));
+    setSelectedTagIds((previous) => {
+      const nextSelectedIds = previous.filter((tagId) => visibleIds.has(tagId));
+      return areStringArraysEquivalent(previous, nextSelectedIds) ? previous : nextSelectedIds;
+    });
   }, [tagRows]);
 
   const handleDeleteTag = useCallback(async (tagId) => {

@@ -35,9 +35,11 @@ import {
   useLayoutRouteSync
 } from "./layouts-workspace-support.js";
 import { createSelectionActions } from "./layouts-workspace-selection-actions.js";
+import { resolvePageContextManifest } from "../../test-modules-pages/server/page-context-manifest-runtime.mjs";
 
 const LAYOUTS_COLLECTION_ID = "page-layouts";
 const PAGES_COLLECTION_ID = "blog-pages";
+const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 
 function createActionState() {
   return {
@@ -49,7 +51,7 @@ function createActionState() {
 }
 
 async function loadSupportData() {
-  const [layoutsPayload, pagesPayload] = await Promise.all([
+  const [layoutsPayload, pagesPayload, mediaPayload] = await Promise.all([
     fetchReferenceCollectionItems({
       collectionId: LAYOUTS_COLLECTION_ID,
       limit: 200
@@ -57,12 +59,17 @@ async function loadSupportData() {
     fetchReferenceCollectionItems({
       collectionId: PAGES_COLLECTION_ID,
       limit: 500
+    }),
+    fetchReferenceCollectionItems({
+      collectionId: MEDIA_ITEMS_COLLECTION_ID,
+      limit: 500
     })
   ]);
 
   return {
     layouts: Array.isArray(layoutsPayload?.items) ? layoutsPayload.items : [],
-    pages: Array.isArray(pagesPayload?.items) ? pagesPayload.items : []
+    pages: Array.isArray(pagesPayload?.items) ? pagesPayload.items : [],
+    media: Array.isArray(mediaPayload?.items) ? mediaPayload.items : []
   };
 }
 
@@ -71,7 +78,8 @@ function useLayoutsSupportData() {
     loading: true,
     errorMessage: null,
     layouts: [],
-    pages: []
+    pages: [],
+    media: []
   });
 
   const reload = useCallback(async () => {
@@ -92,7 +100,8 @@ function useLayoutsSupportData() {
         loading: false,
         errorMessage: error?.message ?? "Failed to load layouts",
         layouts: [],
-        pages: []
+        pages: [],
+        media: []
       });
     }
   }, []);
@@ -609,6 +618,41 @@ function useLayoutsWorkspaceInternal({ navigate = null, route = {} } = {}) {
       navigate,
       route
     });
+  const bindingPreviewPage = useMemo(() => {
+    if (returnRoute?.returnPageId) {
+      return supportState.pages.find((page) => page.id === returnRoute.returnPageId) ?? null;
+    }
+    if (selectedLayout?.id) {
+      const linkedPage = supportState.pages.find((page) => page.layoutId === selectedLayout.id);
+      if (linkedPage) {
+        return linkedPage;
+      }
+    }
+    return supportState.pages.find((page) => page.primarySourceType === "blog-post") ?? null;
+  }, [returnRoute?.returnPageId, selectedLayout?.id, supportState.pages]);
+  const widgetBindingManifest = useMemo(() => {
+    const pageSummary = bindingPreviewPage ?? {
+      pageKind: "content-detail",
+      primarySourceType: "blog-post"
+    };
+    return resolvePageContextManifest({
+      page: {
+        pageKind: pageSummary.pageKind ?? "content-detail",
+        primarySourceType: pageSummary.primarySourceType ?? "blog-post"
+      },
+      application: {
+        model:
+          pageSummary.primarySourceType === "blog-post"
+            ? { kind: "post-detail" }
+            : pageSummary.primarySourceType === "blog-category"
+              ? { kind: "category-detail" }
+              : null
+      }
+    }).manifest;
+  }, [bindingPreviewPage]);
+  const widgetBindingManifestNote = bindingPreviewPage
+    ? `Binding preview follows '${bindingPreviewPage.title ?? bindingPreviewPage.id}'.`
+    : "Binding preview is using the default post-detail context contract.";
   const selectionActions = createSelectionActions({
     selection,
     selectedNode,
@@ -650,6 +694,9 @@ function useLayoutsWorkspaceInternal({ navigate = null, route = {} } = {}) {
     selectedLayoutDeploymentImpact,
     returnRoute,
     returnToCallingRoute,
+    mediaItems: supportState.media,
+    widgetBindingManifest,
+    widgetBindingManifestNote,
     selectedLayout,
     selectedNode,
     selectedPathIds,

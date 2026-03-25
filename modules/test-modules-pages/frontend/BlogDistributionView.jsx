@@ -26,6 +26,7 @@ import {
   RedirectList
 } from "./BlogDistributionPanels.jsx";
 import { RuntimeContractPanel } from "./BlogDistributionRuntimeContractPanel.jsx";
+import { PageWidgetCompatibilityPanel } from "./PageWidgetCompatibilityPanel.jsx";
 import {
   PagesBrowserDeliveryPanel,
   PagesRemoteDeploymentPanel,
@@ -580,6 +581,11 @@ function CreatePageTypeStep({ selectedPreset, onSelectPreset }) {
 
 function PageBasicsTab({ workspace, isCreateMode }) {
   const page = workspace.selectedPage ?? workspace.pageDraft;
+  const widgetCompatibility = isCreateMode
+    ? workspace.draftWidgetCompatibility
+    : workspace.selectedPage
+      ? workspace.widgetCompatibilityByPageId.get(workspace.selectedPage.id) ?? workspace.draftWidgetCompatibility
+      : workspace.draftWidgetCompatibility;
   const sourceOptions = workspace.sourceOptionsByType[workspace.pageDraft.primarySourceType] ?? [];
   const sourceLabels = resolveSourceTypeLabels(workspace.pageDraft.primarySourceType);
   const isPerRecordMode = workspace.pageDraft.deploymentMode === "per-record";
@@ -682,11 +688,17 @@ function PageBasicsTab({ workspace, isCreateMode }) {
           </Stack>
           {usingReusableLayout ? (
             <Alert severity="info">
-              This page uses a reusable layout record. Most structural edits should happen in the Layouts desk.
+              This page uses a reusable layout record. The layout now owns widget structure and default bindings.
             </Alert>
           ) : null}
         </Stack>
       </Paper>
+
+      <PageWidgetCompatibilityPanel
+        page={page}
+        widgetCompatibility={widgetCompatibility}
+        onOpenLayoutBuilder={workspace.openLayoutBuilder}
+      />
 
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={2}>
@@ -833,6 +845,10 @@ function PageDefinitionSection({ workspace }) {
 }
 
 function PageMoreTab({ workspace, moduleSettingsDomain, onSaveModuleSettings }) {
+  const page = workspace.selectedPage ?? workspace.pageDraft;
+  const widgetCompatibility = workspace.selectedPage
+    ? workspace.widgetCompatibilityByPageId.get(workspace.selectedPage.id) ?? workspace.draftWidgetCompatibility
+    : workspace.draftWidgetCompatibility;
   return (
     <Stack spacing={2}>
       <PageSeoSection workspace={workspace} />
@@ -877,6 +893,18 @@ function PageMoreTab({ workspace, moduleSettingsDomain, onSaveModuleSettings }) 
         />
       </SecondaryOverviewSection>
       <SecondaryOverviewSection
+        title="Layout Widget Contract"
+        description="Check widget inventory and compatibility before going deeper into runtime and remote details."
+        collapsedLabel="Show Layout Widgets"
+        expandedLabel="Hide Layout Widgets"
+      >
+        <PageWidgetCompatibilityPanel
+          page={page}
+          widgetCompatibility={widgetCompatibility}
+          onOpenLayoutBuilder={workspace.openLayoutBuilder}
+        />
+      </SecondaryOverviewSection>
+      <SecondaryOverviewSection
         title="Client Runtime Contract"
         description="Inspect the exact browser bootstrap and tester contract that this page will publish."
         collapsedLabel="Show Runtime Contract"
@@ -891,6 +919,7 @@ function PageMoreTab({ workspace, moduleSettingsDomain, onSaveModuleSettings }) 
 function PageOutputContextPanel({
   page,
   deliveryPayload,
+  widgetCompatibility,
   readinessIssues,
   onOpenLayoutBuilder,
   onOpenSourceRecord
@@ -911,6 +940,16 @@ function PageOutputContextPanel({
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           <StateChip label={posture.label} tone={posture.tone} variant={posture.tone === "success" ? "filled" : "outlined"} />
           <StateChip label={posture.summary} />
+          {widgetCompatibility?.summary?.widgetizedBlocks > 0 ? (
+            <StateChip
+              label={
+                widgetCompatibility.summary.blockingIssueCount > 0
+                  ? `${widgetCompatibility.summary.blockingIssueCount} widget blockers`
+                  : `${widgetCompatibility.summary.compatibleWidgets} widget blocks ready`
+              }
+              tone={widgetCompatibility.summary.blockingIssueCount > 0 ? "warning" : "success"}
+            />
+          ) : null}
           {readinessIssues.length > 0 ? (
             <StateChip label={`${readinessIssues.length} warning${readinessIssues.length === 1 ? "" : "s"}`} tone="warning" />
           ) : null}
@@ -992,6 +1031,9 @@ function PagesWorkbench({
 }) {
   const page = workspace.selectedPage ?? workspace.pageDraft;
   const readinessIssues = workspace.selectedPage ? workspace.readinessMap.get(workspace.selectedPage.id) ?? [] : [];
+  const widgetCompatibility = workspace.selectedPage
+    ? workspace.widgetCompatibilityByPageId.get(workspace.selectedPage.id) ?? workspace.draftWidgetCompatibility
+    : workspace.draftWidgetCompatibility;
   const isCreateMode = workspace.isCreatingNewPage;
   const canReturnToType = isCreateMode && routeState.createStage === "basics";
   const createReady = Boolean(routeState.createPreset) && routeState.createStage === "basics";
@@ -1064,9 +1106,15 @@ function PagesWorkbench({
             <PageOutputContextPanel
               page={page}
               deliveryPayload={workspace.deliveryState.payload}
+              widgetCompatibility={widgetCompatibility}
               readinessIssues={readinessIssues}
               onOpenLayoutBuilder={onOpenLayoutBuilder}
               onOpenSourceRecord={onOpenSourceRecord}
+            />
+            <PageWidgetCompatibilityPanel
+              page={page}
+              widgetCompatibility={widgetCompatibility}
+              onOpenLayoutBuilder={onOpenLayoutBuilder}
             />
             <PageReadinessSection
               page={workspace.selectedPage}
@@ -1378,17 +1426,18 @@ export function BlogDistributionView({
     if (typeof navigate !== "function") {
       return;
     }
+    const targetLayoutId = workspace.pageDraft.layoutId || workspace.selectedPage?.layoutId || "";
     navigate(
       {
         moduleId: "test-modules-layouts",
-        layoutId: workspace.pageDraft.layoutId,
+        layoutId: targetLayoutId,
         returnModuleId: "test-modules-pages",
         returnPageId: workspace.selectedPageId ?? "",
         returnTab: "overview"
       },
       { replace: false }
     );
-  }, [navigate, workspace.pageDraft.layoutId, workspace.selectedPageId]);
+  }, [navigate, workspace.pageDraft.layoutId, workspace.selectedPage?.layoutId, workspace.selectedPageId]);
 
   const saveModuleSettings = useCallback(async () => {
     if (!moduleSettingsDomain || typeof moduleSettingsDomain.handleSaveModuleSettings !== "function") {

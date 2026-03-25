@@ -11,6 +11,8 @@ import {
   Typography
 } from "@mui/material";
 import { LayoutRenderPreview } from "./LayoutRenderPreview.jsx";
+import { summarizeWidgetInstance } from "../../test-modules-pages/shared/page-widget-compatibility.mjs";
+import { DEFAULT_WIDGET_COMPONENT_REGISTRY } from "../shared/widget-component-schema.mjs";
 
 function SummaryExpandIcon() {
   return (
@@ -122,6 +124,8 @@ function SelectedNodeSection({
   onMoveSelectedToStart,
   onMoveSelectedToEnd
 }) {
+  const widgetSummary = summarizeWidgetInstance(selectedNode?.componentInstance ?? null, DEFAULT_WIDGET_COMPONENT_REGISTRY);
+
   return (
     <Accordion defaultExpanded disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
       <AccordionSummary expandIcon={<SummaryExpandIcon />}>
@@ -145,9 +149,19 @@ function SelectedNodeSection({
                 {selectedNode.kind === "container" ? (
                   <Chip size="small" variant="outlined" color="primary" label={selectedNode.layoutMode} />
                 ) : null}
+                {selectedNode.kind === "block" ? (
+                  <Chip
+                    size="small"
+                    color={selectedNode.componentInstance ? "primary" : "default"}
+                    variant={selectedNode.componentInstance ? "filled" : "outlined"}
+                    label={widgetSummary.displayName}
+                  />
+                ) : null}
               </Stack>
               <Alert severity="info">
-                Node settings now open in a dialog so edits can be observed while the selected node stays visible on the canvas.
+                {selectedNode.kind === "block"
+                  ? `${widgetSummary.detail} Open the node dialog to assign or configure its widget.`
+                  : "Node settings now open in a dialog so edits can be observed while the selected node stays visible on the canvas."}
               </Alert>
             </Stack>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap flexWrap="wrap">
@@ -211,6 +225,13 @@ export function LayoutBuilderInspector({
   onMoveSelectedToEnd,
   onOpenPage
 }) {
+  const widgetizedBlockCount = Object.values(draft.layoutDocument?.nodes ?? {}).filter(
+    (node) => node?.kind === "block" && node?.componentInstance
+  ).length;
+  const totalBlockCount = Object.values(draft.layoutDocument?.nodes ?? {}).filter(
+    (node) => node?.kind === "block"
+  ).length;
+
   return (
     <Stack spacing={2} sx={{ height: "100%", overflow: "auto" }}>
       <LayoutRecordSection
@@ -239,6 +260,20 @@ export function LayoutBuilderInspector({
         onMoveSelectedToStart={onMoveSelectedToStart}
         onMoveSelectedToEnd={onMoveSelectedToEnd}
       />
+      <Accordion disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+        <AccordionSummary expandIcon={<SummaryExpandIcon />}>
+          <Typography variant="subtitle1">Widget Coverage</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Stack spacing={1.5}>
+            <Alert severity={widgetizedBlockCount > 0 ? "success" : "info"}>
+              {widgetizedBlockCount > 0
+                ? `${widgetizedBlockCount} of ${totalBlockCount} block${totalBlockCount === 1 ? "" : "s"} already host authored widgets.`
+                : "This layout still behaves like a structural shell. Assign widgets to blocks to turn it into authored page output."}
+            </Alert>
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
       <Accordion disableGutters sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
         <AccordionSummary expandIcon={<SummaryExpandIcon />}>
           <Typography variant="subtitle1">Rendered Base Preview</Typography>

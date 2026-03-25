@@ -544,7 +544,8 @@ async function resolvePublicApplicationView(routeContext, pagePath) {
 async function resolvePublicReaderBootstrap(routeContext, pagePath) {
   const payload = await resolvePublishedPagePayload(routeContext, pagePath);
   const document = await buildReaderPageBootstrapPayload(payload, {
-    collectionHandlerRegistry: routeContext.collectionHandlerRegistry
+    collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+    resolveSettingsRepository: routeContext.resolveSettingsRepository
   });
   return {
     ok: true,

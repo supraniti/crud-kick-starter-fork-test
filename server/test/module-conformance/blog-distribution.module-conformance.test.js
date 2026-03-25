@@ -438,16 +438,79 @@ test("pages create standalone records and resolve deterministic delivery payload
           id: postPage.body.item.id,
           path: "/stories/launch-window-update"
         }),
+        pageContextManifest: expect.objectContaining({
+          canonicalRoot: "context",
+          pageKind: "post-detail",
+          primarySourceType: "blog-post",
+          branches: expect.arrayContaining([
+            expect.objectContaining({
+              path: "context.page",
+              provenance: "declared",
+              bindable: true
+            }),
+            expect.objectContaining({
+              path: "context.post",
+              provenance: "declared",
+              bindable: true,
+              fields: expect.arrayContaining(["context.post.title", "context.post.featuredMedia.id"])
+            }),
+            expect.objectContaining({
+              path: "context.author",
+              provenance: "declared",
+              bindable: true,
+              fields: expect.arrayContaining(["context.author.displayName", "context.author.avatarMedia.id"])
+            }),
+            expect.objectContaining({
+              path: "context.categories",
+              provenance: "declared",
+              bindable: true,
+              fields: expect.arrayContaining(["context.categories[].name"])
+            }),
+            expect.objectContaining({
+              path: "context.tags",
+              provenance: "declared",
+              bindable: true,
+              fields: expect.arrayContaining(["context.tags[].name"])
+            }),
+            expect.objectContaining({
+              path: "context.navigation",
+              provenance: "derived",
+              bindable: false,
+              initial: false
+            }),
+            expect.objectContaining({
+              path: "context.commentsMeta",
+              provenance: "derived",
+              bindable: false,
+              initial: false
+            })
+          ])
+        }),
+        pageContextManifestIssues: [],
         runtime: expect.objectContaining({
           clientRuntime: expect.objectContaining({
             assetUrl: "../../assets/client-runtime.global.js",
             bootstrapDatasets: ["reader-page-bootstrap"],
+            contextManifest: expect.objectContaining({
+              canonicalRoot: "context",
+              branches: expect.arrayContaining([
+                expect.objectContaining({
+                  path: "context.post",
+                  provenance: "declared",
+                  bindable: true
+                })
+              ])
+            }),
             context: expect.objectContaining({
               pageId: postPage.body.item.id,
               pagePath: "/stories/launch-window-update",
               primaryRecordId: post.id,
               primarySourceType: "blog-post",
-              commentsEnabled: true
+              commentsEnabled: true,
+              routeManifest: expect.objectContaining({
+                currentPageId: postPage.body.item.id,
+                entries: []
+              })
             }),
             slots: [],
             remote: expect.objectContaining({
@@ -469,17 +532,6 @@ test("pages create standalone records and resolve deterministic delivery payload
                 dataset: "reader-page-bootstrap",
                 localLookupField: "path",
                 allowRemoteOnEmptyLocal: true,
-                remote: expect.objectContaining({
-                  path: "/api/reference/modules/test-modules-pages/public/reader/bootstrap",
-                  queryParams: expect.objectContaining({
-                    path: "params.path"
-                  })
-                }),
-                remoteResult: expect.objectContaining({
-                  type: "collection",
-                  itemsPath: "items",
-                  totalPath: "total"
-                }),
                 persist: expect.objectContaining({
                   dataset: "reader-page-bootstrap",
                   storageKeyPath: "path"
@@ -492,17 +544,6 @@ test("pages create standalone records and resolve deterministic delivery payload
                 dataset: "reader-page-deferred",
                 localLookupField: "path",
                 allowRemoteOnEmptyLocal: true,
-                remote: expect.objectContaining({
-                  path: "/api/reference/modules/test-modules-pages/public/reader/deferred",
-                  queryParams: expect.objectContaining({
-                    path: "params.path"
-                  })
-                }),
-                remoteResult: expect.objectContaining({
-                  type: "collection",
-                  itemsPath: "items",
-                  totalPath: "total"
-                }),
                 persist: expect.objectContaining({
                   dataset: "reader-page-deferred",
                   storageKeyPath: "path"
@@ -529,7 +570,7 @@ test("pages create standalone records and resolve deterministic delivery payload
             ])
           }),
           applicationTester: expect.objectContaining({
-            assetUrl: "../../assets/page-application-tester.global.js",
+            assetUrl: "../../assets/page-reader.global.js",
             enabledQueryParams: expect.arrayContaining(["appTester", "runtimeProbe"]),
             apiOriginQueryParams: expect.arrayContaining(["appApiOrigin", "apiOrigin"]),
             documentUrl: "./runtime-probe.document.json",
@@ -962,7 +1003,20 @@ test("pages support per-record category templates, deploy public category output
               pagePath: "/category/guides",
               primaryRecordId: rootCategory.id,
               primarySourceType: "blog-category",
-              commentsEnabled: false
+              commentsEnabled: false,
+              routeManifest: expect.objectContaining({
+                entries: expect.arrayContaining([
+                  expect.objectContaining({
+                    pageId: templatePage.body.item.id,
+                    primarySourceType: "blog-category",
+                    path: "/category",
+                    pathPattern: "/category/{slug}",
+                    contentSource: expect.objectContaining({
+                      documentIdToken: "slug"
+                    })
+                  })
+                ])
+              })
             }),
             slots: [],
             queries: expect.arrayContaining([
@@ -977,17 +1031,6 @@ test("pages support per-record category templates, deploy public category output
                 dataset: "reader-page-bootstrap",
                 localLookupField: "path",
                 allowRemoteOnEmptyLocal: true,
-                remote: expect.objectContaining({
-                  path: "/api/reference/modules/test-modules-pages/public/reader/bootstrap",
-                  queryParams: expect.objectContaining({
-                    path: "params.path"
-                  })
-                }),
-                remoteResult: expect.objectContaining({
-                  type: "collection",
-                  itemsPath: "items",
-                  totalPath: "total"
-                }),
                 persist: expect.objectContaining({
                   dataset: "reader-page-bootstrap",
                   storageKeyPath: "path"
@@ -999,17 +1042,6 @@ test("pages support per-record category templates, deploy public category output
                 dataset: "reader-page-deferred",
                 localLookupField: "path",
                 allowRemoteOnEmptyLocal: true,
-                remote: expect.objectContaining({
-                  path: "/api/reference/modules/test-modules-pages/public/reader/deferred",
-                  queryParams: expect.objectContaining({
-                    path: "params.path"
-                  })
-                }),
-                remoteResult: expect.objectContaining({
-                  type: "collection",
-                  itemsPath: "items",
-                  totalPath: "total"
-                }),
                 persist: expect.objectContaining({
                   dataset: "reader-page-deferred",
                   storageKeyPath: "path"
@@ -1615,9 +1647,37 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
     expect(deliveryResponse.body.payload.runtime.clientRuntime).toEqual(
       expect.objectContaining({
         bootstrapDatasets: ["reader-page-bootstrap"],
+        contextManifest: expect.objectContaining({
+          canonicalRoot: "context",
+          branches: expect.arrayContaining([
+            expect.objectContaining({
+              path: "context.post",
+              provenance: "declared",
+              bindable: true
+            }),
+            expect.objectContaining({
+              path: "context.commentsMeta",
+              provenance: "derived",
+              bindable: false
+            })
+          ])
+        }),
         context: expect.objectContaining({
           primaryRecordId: post.id,
-          primarySourceType: "blog-post"
+          primarySourceType: "blog-post",
+          routeManifest: expect.objectContaining({
+            entries: expect.arrayContaining([
+              expect.objectContaining({
+                pageId: templatePage.body.item.id,
+                primarySourceType: "blog-post",
+                path: "/posts",
+                pathPattern: "/posts/{slug}",
+                contentSource: expect.objectContaining({
+                  documentIdToken: "slug"
+                })
+              })
+            ])
+          })
         }),
         slots: [],
         remote: expect.objectContaining({
@@ -1636,26 +1696,14 @@ test("pages emit HTTPS load-balancer browser-delivery metadata including public 
             query: "byPath",
             dataset: "reader-page-bootstrap",
             localLookupField: "path",
-            allowRemoteOnEmptyLocal: true,
-            remote: expect.objectContaining({
-              path: "/api/reference/modules/test-modules-pages/public/reader/bootstrap",
-              queryParams: expect.objectContaining({
-                path: "params.path"
-              })
-            })
+            allowRemoteOnEmptyLocal: true
           }),
           expect.objectContaining({
             resource: "readerDeferred",
             query: "byPath",
             dataset: "reader-page-deferred",
             localLookupField: "path",
-            allowRemoteOnEmptyLocal: true,
-            remote: expect.objectContaining({
-              path: "/api/reference/modules/test-modules-pages/public/reader/deferred",
-              queryParams: expect.objectContaining({
-                path: "params.path"
-              })
-            })
+            allowRemoteOnEmptyLocal: true
           })
         ]),
         actions: [],
@@ -2333,7 +2381,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
     expect(initialHtml).toContain("window.__CRUD_CLIENT_RUNTIME_CONFIG__ =");
     expect(initialHtml).toContain("window.__CRUD_PAGE_APPLICATION_TESTER__ =");
     expect(initialHtml).toContain("../../assets/client-runtime.global.js");
-    expect(initialHtml).toContain("../../assets/page-application-tester.global.js");
+    expect(initialHtml).toContain("../../assets/page-reader.global.js");
     expect(initialHtml).toContain("\"reader-page-bootstrap\"");
     expect(initialHtml).not.toContain("\"page-slot-primary\"");
     expect(initialHtml).toContain("https://cdn.example.com/runtime/app.js");
@@ -2369,7 +2417,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
       fs.access(path.join(sandbox.deploymentRootDir, "assets", "client-runtime.global.js"))
     ).resolves.toBeUndefined();
     await expect(
-      fs.access(path.join(sandbox.deploymentRootDir, "assets", "page-application-tester.global.js"))
+      fs.access(path.join(sandbox.deploymentRootDir, "assets", "page-reader.global.js"))
     ).resolves.toBeUndefined();
 
     const updateResponse = await injectJson(
@@ -2415,7 +2463,7 @@ test("pages publish generates deployment html, updates old artifacts, and remove
     );
     expect(updatedHtml).toContain("Launch Rollout Recap");
     expect(updatedHtml).toContain("../../assets/client-runtime.global.js");
-    expect(updatedHtml).toContain("../../assets/page-application-tester.global.js");
+    expect(updatedHtml).toContain("../../assets/page-reader.global.js");
     expect(updatedHtml).toContain("/assets/runtime/recap.js");
     expect(updatedHtml).not.toContain("/assets/runtime/entry.js");
 

@@ -6,6 +6,8 @@ import {
   getBlockPlaceholderDefinition,
   STRUCTURAL_LAYOUT_PRESETS
 } from "./layout-builder-palette.js";
+import { DEFAULT_WIDGET_COMPONENT_REGISTRY } from "../shared/widget-component-schema.mjs";
+import { summarizeWidgetInstance } from "../../test-modules-pages/shared/page-widget-compatibility.mjs";
 
 function CompactActionButton({ ariaLabel, title, onClick, children, active = false, tone = "default" }) {
   const backgroundColor = tone === "primary"
@@ -412,6 +414,112 @@ function resolvePlaceholderVisual(node) {
 
 export function BlockVisual({ node, parentMode, isSelected }) {
   const useMeasuredMinHeight = parentMode !== "grid";
+  const widgetSummary = summarizeWidgetInstance(node.componentInstance ?? null, DEFAULT_WIDGET_COMPONENT_REGISTRY);
+  const widgetDescriptor = node.componentInstance?.componentKey
+    ? DEFAULT_WIDGET_COMPONENT_REGISTRY.get(node.componentInstance.componentKey) ?? null
+    : null;
+  if (widgetDescriptor) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          width: "100%",
+          minWidth: 0,
+          height: parentMode === "grid" ? "100%" : "auto",
+          minHeight: useMeasuredMinHeight ? `${node.props?.minHeight ?? 160}px` : 0,
+          borderRadius: 2.5,
+          border: "1px solid rgba(37,99,235,0.24)",
+          background: "linear-gradient(180deg, rgba(239,246,255,0.98), rgba(219,234,254,0.94))",
+          position: "relative",
+          display: "flex",
+          alignItems: "stretch",
+          justifyContent: "stretch",
+          overflow: "hidden",
+          boxShadow: isSelected
+            ? "inset 0 0 0 1px rgba(255,255,255,0.72), 0 0 0 2px rgba(37,99,235,0.16)"
+            : "inset 0 0 0 1px rgba(255,255,255,0.48)"
+        }}
+      >
+        <Stack
+          spacing={1.25}
+          sx={{
+            width: "100%",
+            justifyContent: "space-between",
+            px: { xs: 2, lg: 3 },
+            py: { xs: 2, lg: 3 }
+          }}
+        >
+          <Stack spacing={0.5}>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+              <Typography variant="subtitle2">{widgetDescriptor.displayName}</Typography>
+              <Chip size="small" color="primary" variant="outlined" label={widgetDescriptor.group} />
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              {widgetSummary.detail}
+            </Typography>
+          </Stack>
+          <Stack spacing={0.75}>
+            {widgetDescriptor.componentKey === "post-title" ? (
+              <>
+                <SampleLine width="55%" height={10} strong />
+                <SampleLine width="88%" height={18} strong />
+              </>
+            ) : null}
+            {widgetDescriptor.componentKey === "post-rich-text" ? (
+              <>
+                <SampleLine width="92%" />
+                <SampleLine width="82%" />
+                <SampleLine width="87%" />
+                <SampleLine width="64%" />
+              </>
+            ) : null}
+            {widgetDescriptor.componentKey === "media-image" ? (
+              <Box
+                sx={{
+                  height: 120,
+                  borderRadius: 2,
+                  border: "1px solid rgba(2,132,199,0.18)",
+                  background: "linear-gradient(135deg, rgba(186,230,253,0.9), rgba(125,211,252,0.48))"
+                }}
+              />
+            ) : null}
+            {widgetDescriptor.componentKey === "category-chips" ? (
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                <Chip size="small" label="Category" />
+                <Chip size="small" label="Category" />
+              </Stack>
+            ) : null}
+            {widgetDescriptor.componentKey === "author-card" ? (
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 2,
+                    backgroundColor: "rgba(148,163,184,0.24)"
+                  }}
+                />
+                <Stack spacing={0.5} sx={{ flex: 1 }}>
+                  <SampleLine width="48%" strong />
+                  <SampleLine width="74%" />
+                </Stack>
+              </Stack>
+            ) : null}
+            {widgetDescriptor.componentKey === "tabs" ? (
+              <Stack spacing={1}>
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                  <Chip size="small" label="Overview" color="primary" />
+                  <Chip size="small" label="Author" variant="outlined" />
+                </Stack>
+                <SampleLine width="88%" />
+                <SampleLine width="72%" />
+              </Stack>
+            ) : null}
+          </Stack>
+        </Stack>
+      </Box>
+    );
+  }
   const { definition, palette } = resolvePlaceholderVisual(node);
   const sampleContent = renderPlaceholderSample(definition.id, isSelected);
 

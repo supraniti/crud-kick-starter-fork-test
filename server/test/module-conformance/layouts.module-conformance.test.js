@@ -12,6 +12,72 @@ function buildDeliveryRoute(pageId) {
   return `/api/reference/modules/test-modules-pages/pages/${pageId}/delivery`;
 }
 
+async function seedAuthor(server, overrides = {}) {
+  const response = await injectJson(server, "POST", buildItemsRoute("blog-authors"), {
+    displayName: "Layout Editor",
+    legalName: "Layout Editor",
+    bio: "Shapes reusable story templates.",
+    email: "layout-editor@example.com",
+    role: "editor",
+    status: "active",
+    locale: "en-US",
+    expertiseTagIds: [],
+    ...overrides
+  });
+  expect(response.statusCode).toBe(201);
+  return response.body.item;
+}
+
+async function seedCategory(server, overrides = {}) {
+  const response = await injectJson(server, "POST", buildItemsRoute("blog-categories"), {
+    name: "Layouts",
+    description: "Layout announcements",
+    parentCategoryId: null,
+    sortOrder: 1,
+    visibility: "public",
+    ...overrides
+  });
+  expect(response.statusCode).toBe(201);
+  return response.body.item;
+}
+
+async function seedTag(server, overrides = {}) {
+  const response = await injectJson(server, "POST", buildItemsRoute("blog-tags"), {
+    name: "Templates",
+    description: "Template news",
+    color: "#365d75",
+    visibility: "public",
+    ...overrides
+  });
+  expect(response.statusCode).toBe(201);
+  return response.body.item;
+}
+
+async function seedPost(server, authorId, categoryId, tagId, overrides = {}) {
+  const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+  const response = await injectJson(server, "POST", buildItemsRoute("blog-posts"), {
+    title: `Layout Driven Story ${uniqueSuffix}`,
+    excerpt: "Layout driven story excerpt",
+    body: "<p>Layout driven story body with enough editorial copy to satisfy the minimum word count for validation. This reusable layout proof uses a realistic post record, a stable author, category, and tag relationship, and a long enough article body to pass content validation without relying on shortcuts.</p>",
+    status: "draft",
+    format: "article",
+    primaryAuthorId: authorId,
+    coAuthorIds: [],
+    categoryIds: [categoryId],
+    tagIds: [tagId],
+    galleryMediaIds: [],
+    allowComments: true,
+    commentPolicy: "open",
+    createdByAuthorId: authorId,
+    updatedByAuthorId: authorId,
+    ...overrides
+  });
+  if (response.statusCode !== 201) {
+    throw new Error(JSON.stringify(response.body));
+  }
+  return response.body.item;
+}
+
 function createLayoutDocument() {
   return {
     version: 1,
@@ -43,6 +109,24 @@ function createLayoutDocument() {
           minHeight: 240,
           emphasis: "default"
         },
+        componentInstance: {
+          componentKey: "post-title",
+          variantKey: "default",
+          content: {
+            text: {
+              mode: "dynamic",
+              source: "context",
+              path: "context.post.title"
+            }
+          },
+          props: {
+            tag: {
+              mode: "static",
+              value: "h1"
+            }
+          },
+          actions: []
+        },
         placement: {
           grid: { x: 0, y: 0, w: 12, h: 3 },
           flex: { order: 0, basis: "100%", grow: 0, shrink: 0 }
@@ -57,6 +141,11 @@ test("layouts create reusable layout records and pages resolve them in delivery 
   const server = await createEphemeralReferenceServer();
 
   try {
+    const author = await seedAuthor(server);
+    const category = await seedCategory(server);
+    const tag = await seedTag(server);
+    const post = await seedPost(server, author.id, category.id, tag.id);
+
     const createdLayout = await injectJson(server, "POST", buildItemsRoute("page-layouts"), {
       title: "Landing Shell",
       layoutKey: "landing-shell",
@@ -71,7 +160,14 @@ test("layouts create reusable layout records and pages resolve them in delivery 
         layoutKey: "landing-shell",
         rootLayoutMode: "grid",
         layoutDocument: expect.objectContaining({
-          rootId: "root"
+          rootId: "root",
+          nodes: expect.objectContaining({
+            hero: expect.objectContaining({
+              componentInstance: expect.objectContaining({
+                componentKey: "post-title"
+              })
+            })
+          })
         })
       })
     );
@@ -92,16 +188,22 @@ test("layouts create reusable layout records and pages resolve them in delivery 
     );
 
     const pageResponse = await injectJson(server, "POST", buildItemsRoute("blog-pages"), {
-      title: "Standalone Landing",
-      pageKind: "standalone",
-      primarySourceType: "none",
+      title: "Story Landing",
+      pageKind: "content-detail",
+      primarySourceType: "blog-post",
       path: "/landing",
       layoutId: createdLayout.body.item.id,
       layoutKey: "landing-shell",
+      sourceSelectionMode: "specific-record",
+      primarySource: {
+        sourceType: "blog-post",
+        itemId: post.id,
+        bindAs: "primary"
+      },
       status: "draft",
-      seoTitle: "Standalone Landing",
+      seoTitle: "Story Landing",
       seoDescription: "Landing description",
-      ogTitle: "Standalone Landing",
+      ogTitle: "Story Landing",
       ogDescription: "Landing description"
     });
     expect(pageResponse.statusCode).toBe(201);
@@ -117,7 +219,28 @@ test("layouts create reusable layout records and pages resolve them in delivery 
         layoutId: createdLayout.body.item.id,
         layoutKey: "landing-shell",
         layoutDocument: expect.objectContaining({
-          rootId: "root"
+          rootId: "root",
+          nodes: expect.objectContaining({
+            hero: expect.objectContaining({
+              componentInstance: expect.objectContaining({
+                componentKey: "post-title"
+              })
+            })
+          })
+        })
+      })
+    );
+    expect(deliveryResponse.body.payload.application.layout.widgetRenderContract).toEqual(
+      expect.objectContaining({
+        enabled: true,
+        pageKind: "post-detail",
+        primarySourceType: "blog-post",
+        nodes: expect.objectContaining({
+          hero: expect.objectContaining({
+            widget: expect.objectContaining({
+              componentKey: "post-title"
+            })
+          })
         })
       })
     );

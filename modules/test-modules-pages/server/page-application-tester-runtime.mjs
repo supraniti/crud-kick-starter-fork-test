@@ -5,9 +5,9 @@ import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.m
 import { resolvePublishedFirestoreDescriptor } from "./page-firestore-publication-runtime.mjs";
 import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
 
-const DEFAULT_APPLICATION_TESTER_ASSET_PATH = "assets/page-application-tester.global.js";
-const DEFAULT_APPLICATION_TESTER_FIRESTORE_ASSET_PATH = "assets/page-application-tester-firestore.global.js";
-const DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH = "assets/page-application-tester-support.global.js";
+const DEFAULT_APPLICATION_TESTER_ASSET_PATH = "assets/page-reader.global.js";
+const DEFAULT_APPLICATION_TESTER_FIRESTORE_ASSET_PATH = "assets/page-reader-firestore.global.js";
+const DEFAULT_APPLICATION_TESTER_SUPPORT_ASSET_PATH = "assets/page-reader-support.global.js";
 const DEFAULT_APPLICATION_TESTER_DATASET = "page-application-tester-published-document";
 const DEFAULT_APPLICATION_TESTER_RESOURCE = "pageApplicationTester";
 const DEFAULT_REMOTE_QUERY = "publishedDocumentSnapshot";
@@ -45,17 +45,17 @@ function buildRelativeAssetUrl(pagePath, assetPath) {
 
 function resolveApplicationTesterSourcePath() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir, "../browser/page-application-tester.global.js");
+  return path.resolve(currentDir, "../browser/page-reader.global.js");
 }
 
 function resolveApplicationTesterFirestoreSourcePath() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir, "../browser/page-application-tester-firestore.global.js");
+  return path.resolve(currentDir, "../browser/page-reader-firestore.global.js");
 }
 
 function resolveApplicationTesterSupportSourcePath() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir, "../browser/page-application-tester-support.global.js");
+  return path.resolve(currentDir, "../browser/page-reader-support.global.js");
 }
 
 function normalizeAbsoluteUrl(value) {
@@ -380,13 +380,17 @@ export function resolvePageApplicationTesterScriptUrls(payload, runtimeScriptUrl
   const applicationTesterAssetUrl =
     payload?.runtime?.applicationTester?.assetUrl
     ?? buildOptionalTesterAssetUrl(payload, DEFAULT_APPLICATION_TESTER_ASSET_PATH);
-  return appendUniqueAssetUrl(
-    appendUniqueAssetUrl(
-      appendUniqueAssetUrl(normalizedUrls, applicationTesterFirestoreAssetUrl),
-      applicationTesterSupportAssetUrl
-    ),
-    applicationTesterAssetUrl
-  );
+  const applicationTesterContract =
+    payload?.runtime?.applicationTester && typeof payload.runtime.applicationTester === "object"
+      ? payload.runtime.applicationTester
+      : {};
+  const publicApiMode = applicationTesterContract.publicApiMode ?? null;
+  const includeFirestoreHelper = publicApiMode === "browser-firestore";
+  const withSupport = appendUniqueAssetUrl(normalizedUrls, applicationTesterSupportAssetUrl);
+  const withReader = appendUniqueAssetUrl(withSupport, applicationTesterAssetUrl);
+  return includeFirestoreHelper
+    ? appendUniqueAssetUrl(withReader, applicationTesterFirestoreAssetUrl)
+    : withReader;
 }
 
 export async function syncPageApplicationTesterAsset(deploymentRootDir) {

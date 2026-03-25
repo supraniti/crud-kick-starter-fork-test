@@ -21,6 +21,10 @@ function formatFlowLabel(value) {
   return String(value ?? "").trim() || "flow";
 }
 
+function formatContextBranchLabel(branch = {}) {
+  return `${branch.path ?? "context.unknown"} • ${branch.provenance ?? "declared"} • ${branch.kind ?? "value"}`;
+}
+
 function ValueList({ title, values = [], emptyLabel }) {
   return (
     <Stack spacing={0.75}>
@@ -43,6 +47,14 @@ function ValueList({ title, values = [], emptyLabel }) {
 export function RuntimeContractPanel({ workspace }) {
   const clientRuntime = workspace.deliveryState.payload?.runtime?.clientRuntime ?? null;
   const applicationTester = workspace.deliveryState.payload?.runtime?.applicationTester ?? null;
+  const widgetRenderContract =
+    workspace.deliveryState.payload?.application?.layout?.widgetRenderContract ?? null;
+  const pageContextManifest = clientRuntime?.contextManifest ?? workspace.deliveryState.payload?.pageContextManifest ?? null;
+  const pageContextManifestIssues = Array.isArray(workspace.deliveryState.payload?.pageContextManifestIssues)
+    ? workspace.deliveryState.payload.pageContextManifestIssues
+    : [];
+  const bindableContextBranches = (pageContextManifest?.branches ?? []).filter((branch) => branch.bindable);
+  const derivedContextBranches = (pageContextManifest?.branches ?? []).filter((branch) => branch.provenance === "derived");
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -63,6 +75,12 @@ export function RuntimeContractPanel({ workspace }) {
               <Chip size="small" label={`Actions ${clientRuntime.actions?.length ?? 0}`} variant="outlined" />
               <Chip size="small" label={`Datasets ${clientRuntime.datasets?.length ?? 0}`} variant="outlined" />
               <Chip size="small" label={`Slots ${clientRuntime.slots?.length ?? 0}`} variant="outlined" />
+              <Chip
+                size="small"
+                label={`Context Branches ${pageContextManifest?.branches?.length ?? 0}`}
+                variant="outlined"
+              />
+              <Chip size="small" label={`Bindable ${bindableContextBranches.length}`} variant="outlined" />
             </Stack>
             <TextField label="Runtime Asset URL" value={clientRuntime.assetUrl ?? ""} InputProps={{ readOnly: true }} fullWidth />
             <TextField
@@ -97,11 +115,40 @@ export function RuntimeContractPanel({ workspace }) {
               values={(clientRuntime.slots ?? []).map(formatSlotLabel)}
               emptyLabel="No page-bound runtime slots declared."
             />
+            {pageContextManifestIssues.length > 0 ? (
+              <Alert severity="warning">
+                {`Page context manifest surfaced ${pageContextManifestIssues.length} validation issue(s).`}
+              </Alert>
+            ) : null}
+            <ValueList
+              title="Bindable Context Branches"
+              values={bindableContextBranches.map((branch) => formatContextBranchLabel(branch))}
+              emptyLabel="No bindable context branches declared."
+            />
+            <ValueList
+              title="Derived Context Branches"
+              values={derivedContextBranches.map((branch) => formatContextBranchLabel(branch))}
+              emptyLabel="No derived context branches declared."
+            />
+            <TextField
+              label="Resolved Page Context Manifest JSON"
+              multiline
+              minRows={14}
+              value={jsonPreview(pageContextManifest)}
+              InputProps={{ readOnly: true }}
+            />
             <TextField
               label="Resolved Runtime Contract JSON"
               multiline
               minRows={16}
               value={jsonPreview(clientRuntime)}
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              label="Compiled Widget Render Contract JSON"
+              multiline
+              minRows={14}
+              value={jsonPreview(widgetRenderContract)}
               InputProps={{ readOnly: true }}
             />
           </>

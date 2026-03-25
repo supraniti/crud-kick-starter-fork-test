@@ -278,10 +278,11 @@ async function main() {
   await ensureServiceEnabled(projectId, "run.googleapis.com", accessToken);
 
   const imageTag = `gcr.io/${projectId}/${serviceName}:${Date.now()}`;
-  const buildContext = path.resolve("modules/test-modules-pages/public-app-api");
+  const buildContext = path.resolve(".");
+  const dockerfilePath = path.resolve("modules/test-modules-pages/public-app-api/Dockerfile");
 
   await runCommand("docker", ["login", "-u", "oauth2accesstoken", "-p", accessToken, "https://gcr.io"]);
-  await runCommand("docker", ["build", "-t", imageTag, buildContext]);
+  await runCommand("docker", ["build", "-f", dockerfilePath, "-t", imageTag, buildContext]);
   await runCommand("docker", ["push", imageTag]);
 
   await upsertCloudRunService({

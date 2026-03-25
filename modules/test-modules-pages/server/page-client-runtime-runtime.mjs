@@ -3,19 +3,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeScriptUrlList, normalizeOptionalText } from "./distribution-shared-runtime.mjs";
 import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
+import { attachPageContextManifest } from "./page-context-manifest-runtime.mjs";
+import { resolveReaderRouteManifestAssetUrl } from "./page-route-manifest-runtime.mjs";
 
 const DEFAULT_CLIENT_RUNTIME_ASSET_PATH = "assets/client-runtime.global.js";
 const DEFAULT_READER_BOOTSTRAP_DATASET = "reader-page-bootstrap";
 const DEFAULT_READER_DEFERRED_DATASET = "reader-page-deferred";
+const DEFAULT_READER_ROUTE_MANIFEST_DATASET = "reader-route-manifest";
 const DEFAULT_READER_PAGE_RESOURCE = "readerPage";
 const DEFAULT_READER_DEFERRED_RESOURCE = "readerDeferred";
-const DEFAULT_PUBLIC_READER_BOOTSTRAP_API_PATH =
-  "/api/reference/modules/test-modules-pages/public/reader/bootstrap";
-const DEFAULT_PUBLIC_READER_DEFERRED_API_PATH =
-  "/api/reference/modules/test-modules-pages/public/reader/deferred";
-const DEFAULT_DEPLOYED_READER_BOOTSTRAP_API_PATH = "/reader/bootstrap";
-const DEFAULT_DEPLOYED_READER_DEFERRED_API_PATH = "/reader/deferred";
-
+const DEFAULT_READER_ROUTE_MANIFEST_RESOURCE = "readerRouteManifest";
 function countPathSegments(pagePath) {
   return String(pagePath || "")
     .split("/")
@@ -47,6 +44,18 @@ function readCurrentModel(payload = {}) {
   return application?.model && typeof application.model === "object" ? application.model : null;
 }
 
+function readCurrentRouteManifestAssetUrl(payload = {}) {
+  const application = readCurrentApplication(payload);
+  const applicationRouteManifest =
+    application?.routeManifest && typeof application.routeManifest === "object"
+      ? application.routeManifest
+      : null;
+  return (
+    normalizeOptionalText(applicationRouteManifest?.assetUrl) ??
+    resolveReaderRouteManifestAssetUrl(payload)
+  );
+}
+
 function readCurrentPrimaryRecordId(payload = {}) {
   const model = readCurrentModel(payload);
   if (!model || typeof model !== "object") {
@@ -61,26 +70,10 @@ function readCurrentPrimaryRecordId(payload = {}) {
   return null;
 }
 
-function createCollectionRemoteResult() {
-  return {
-    type: "collection",
-    itemsPath: "items",
-    totalPath: "total"
-  };
-}
-
 function resolveReaderApiOrigin(payload = {}) {
   return normalizeOrigin(
     payload?.delivery?.applicationApiOrigin ?? payload?.delivery?.publicApplicationApiOrigin
   );
-}
-
-function buildReaderApiUrl(payload = {}, localPath, deployedPath) {
-  const apiOrigin = resolveReaderApiOrigin(payload);
-  if (apiOrigin) {
-    return `${apiOrigin}${deployedPath}`;
-  }
-  return localPath;
 }
 
 function createReaderCurrentQueryDefinition() {
@@ -100,18 +93,6 @@ function createReaderByPathQueryDefinition(payload = {}) {
     dataset: DEFAULT_READER_BOOTSTRAP_DATASET,
     localLookupField: "path",
     allowRemoteOnEmptyLocal: true,
-    remote: {
-      method: "GET",
-      path: buildReaderApiUrl(
-        payload,
-        DEFAULT_PUBLIC_READER_BOOTSTRAP_API_PATH,
-        DEFAULT_DEPLOYED_READER_BOOTSTRAP_API_PATH
-      ),
-      queryParams: {
-        path: "params.path"
-      }
-    },
-    remoteResult: createCollectionRemoteResult(),
     persist: {
       dataset: DEFAULT_READER_BOOTSTRAP_DATASET,
       storageKeyPath: "path"
@@ -127,21 +108,25 @@ function createReaderDeferredByPathQueryDefinition(payload = {}) {
     dataset: DEFAULT_READER_DEFERRED_DATASET,
     localLookupField: "path",
     allowRemoteOnEmptyLocal: true,
-    remote: {
-      method: "GET",
-      path: buildReaderApiUrl(
-        payload,
-        DEFAULT_PUBLIC_READER_DEFERRED_API_PATH,
-        DEFAULT_DEPLOYED_READER_DEFERRED_API_PATH
-      ),
-      queryParams: {
-        path: "params.path"
-      }
-    },
-    remoteResult: createCollectionRemoteResult(),
     persist: {
       dataset: DEFAULT_READER_DEFERRED_DATASET,
       storageKeyPath: "path"
+    }
+  };
+}
+
+function createReaderRouteManifestCurrentQueryDefinition(payload = {}) {
+  return {
+    resource: DEFAULT_READER_ROUTE_MANIFEST_RESOURCE,
+    query: "current",
+    policy: "local-first",
+    dataset: DEFAULT_READER_ROUTE_MANIFEST_DATASET,
+    allowRemoteOnEmptyLocal: true,
+    persist: {
+      dataset: DEFAULT_READER_ROUTE_MANIFEST_DATASET
+    },
+    remote: {
+      path: readCurrentRouteManifestAssetUrl(payload)
     }
   };
 }
@@ -167,6 +152,13 @@ function createReaderDeferredDatasetDefinition() {
   };
 }
 
+function createReaderRouteManifestDatasetDefinition() {
+  return {
+    dataset: DEFAULT_READER_ROUTE_MANIFEST_DATASET,
+    recordMode: "single-item"
+  };
+}
+
 function buildRuntimeContext(payload = {}) {
   const application = readCurrentApplication(payload);
   const model = readCurrentModel(payload);
@@ -182,6 +174,9 @@ function buildRuntimeContext(payload = {}) {
     pagePath: payload?.page?.path ?? application?.path ?? "/",
     primaryRecordId: readCurrentPrimaryRecordId(payload),
     primarySourceType: payload?.page?.primarySourceType ?? application?.primarySourceType ?? "none",
+    routeManifest:
+      application && typeof application.routeManifest === "object" ? application.routeManifest : null,
+    routeManifestAssetUrl: readCurrentRouteManifestAssetUrl(payload),
     commentsEnabled,
     publicOrigin: payload?.delivery?.publicOrigin ?? null,
     publicUrl:
@@ -193,7 +188,7 @@ function buildRuntimeContext(payload = {}) {
   };
 }
 
-export function buildClientRuntimeContract(payload = {}) {
+export function buildClientRuntimeContract(payload = {}, pageContextManifest = null) {
   const publicOrigin = payload?.delivery?.publicOrigin ?? null;
   const apiOrigin = resolveReaderApiOrigin(payload);
   const pagePath = payload?.page?.path ?? "/";
@@ -210,6 +205,7 @@ export function buildClientRuntimeContract(payload = {}) {
     assetUrl: publicAssetUrl ?? buildRelativeClientRuntimeAssetUrl(pagePath),
     bootstrapDatasets: [DEFAULT_READER_BOOTSTRAP_DATASET],
     context: buildRuntimeContext(payload),
+    contextManifest: pageContextManifest ?? payload?.pageContextManifest ?? null,
     remote: {
       ...(apiOrigin ? { baseUrl: apiOrigin } : {}),
       defaultHeaders: {
@@ -220,22 +216,28 @@ export function buildClientRuntimeContract(payload = {}) {
     queries: [
       createReaderCurrentQueryDefinition(),
       createReaderByPathQueryDefinition(payload),
-      createReaderDeferredByPathQueryDefinition(payload)
+      createReaderDeferredByPathQueryDefinition(payload),
+      createReaderRouteManifestCurrentQueryDefinition(payload)
     ],
     actions: [],
     datasets: [
       createReaderBootstrapDatasetDefinition(),
-      createReaderDeferredDatasetDefinition()
+      createReaderDeferredDatasetDefinition(),
+      createReaderRouteManifestDatasetDefinition()
     ]
   };
 }
 
 export function attachClientRuntimeContract(payload = {}) {
+  const manifestAwarePayload = attachPageContextManifest(payload);
   return {
-    ...payload,
+    ...manifestAwarePayload,
     runtime: {
-      ...(payload?.runtime && typeof payload.runtime === "object" ? payload.runtime : {}),
-      clientRuntime: buildClientRuntimeContract(payload)
+      ...(manifestAwarePayload?.runtime && typeof manifestAwarePayload.runtime === "object" ? manifestAwarePayload.runtime : {}),
+      clientRuntime: buildClientRuntimeContract(
+        manifestAwarePayload,
+        manifestAwarePayload?.pageContextManifest ?? null
+      )
     }
   };
 }

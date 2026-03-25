@@ -40,8 +40,7 @@ function AppShellLayout({
   activeModuleView
 }) {
   const immersiveShell =
-    activeViewRegistration?.shell?.mode === "immersive" ||
-    route.moduleId === "test-modules-layouts";
+    activeViewRegistration?.shell?.mode === "immersive";
 
   return (
     <Box

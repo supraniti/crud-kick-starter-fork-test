@@ -115,9 +115,6 @@ export const PRODUCT_VIEW_DESCRIPTORS = Object.freeze([
     moduleId: "test-modules-layouts",
     usesCollectionsDomain: true,
     requiredDomains: ["collections"],
-    shell: {
-      mode: "immersive"
-    },
     routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
     render: (context) => (
       <LayoutsView

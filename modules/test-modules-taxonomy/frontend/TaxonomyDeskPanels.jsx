@@ -740,11 +740,24 @@ export function CategoryFormDrawer({
           <Stack spacing={1.5}>
             <TextField label="Name" size="small" value={formState.name ?? ""} error={Boolean(validationErrors.name)} helperText={validationErrors.name ?? "Public category label"} onChange={(event) => onChangeField("name", event.target.value)} />
             <TextField label="Path Preview" size="small" value={pathPreview} InputProps={{ readOnly: true }} helperText="Computed from the category name and parent." />
-            <TextField select label="Parent" size="small" value={formState.parentCategoryId ?? ""} error={Boolean(validationErrors.parentCategoryId)} helperText={validationErrors.parentCategoryId ?? "Optional parent branch"} onChange={(event) => onChangeField("parentCategoryId", event.target.value)}>
-              <MenuItem value="">No parent</MenuItem>
-              {Array.isArray(parentCategoryOptions) ? parentCategoryOptions.map((option) => (
-                <MenuItem key={option.id} value={option.id}>{option.label}</MenuItem>
-              )) : null}
+            <TextField
+              select
+              label="Parent"
+              size="small"
+              value={formState.parentCategoryId ?? ""}
+              error={Boolean(validationErrors.parentCategoryId)}
+              helperText={validationErrors.parentCategoryId ?? "Optional parent branch"}
+              onChange={(event) => onChangeField("parentCategoryId", event.target.value)}
+              SelectProps={{ native: true }}
+            >
+              <option value="">No parent</option>
+              {Array.isArray(parentCategoryOptions)
+                ? parentCategoryOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))
+                : null}
             </TextField>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField select label="Visibility" size="small" value={formState.visibility ?? "public"} onChange={(event) => onChangeField("visibility", event.target.value)} fullWidth>

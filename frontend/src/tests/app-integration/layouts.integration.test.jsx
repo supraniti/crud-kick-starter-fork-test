@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { LayoutsView } from "../../../../modules/test-modules-layouts/frontend/LayoutsView.jsx";
+import { LayoutBuilderWidgetInspector } from "../../../../modules/test-modules-layouts/frontend/LayoutBuilderWidgetInspector.jsx";
 import * as referenceApi from "../../api/reference.js";
 
 vi.mock("../../api/reference.js", async () => {
@@ -332,4 +334,153 @@ test("layout builder surfaces deployment impact and can return to the calling pa
     },
     { replace: false }
   );
+}, 15000);
+
+test("layout builder honors the requested layoutId route without immediately replacing it away", async () => {
+  referenceApi.fetchReferenceCollectionItems.mockImplementation(async ({ collectionId }) => {
+    if (collectionId === "page-layouts") {
+      return {
+        items: [
+          {
+            id: "layout-001",
+            title: "Landing Shell",
+            layoutKey: "landing-shell",
+            summary: "Reusable layout",
+            status: "ready",
+            layoutDocument: createLayoutDocument(),
+            rootLayoutMode: "grid"
+          },
+          {
+            id: "layout-002",
+            title: "Widget Story Shell",
+            layoutKey: "widget-story-shell",
+            summary: "Widgetized layout",
+            status: "ready",
+            layoutDocument: createLayoutDocument(),
+            rootLayoutMode: "grid"
+          }
+        ]
+      };
+    }
+
+    if (collectionId === "blog-pages") {
+      return {
+        items: [
+          {
+            id: "page-020",
+            title: "Posts Page",
+            layoutId: "layout-002",
+            status: "published",
+            deploymentStatus: "clean"
+          }
+        ]
+      };
+    }
+
+    return { items: [] };
+  });
+
+  const navigate = vi.fn();
+
+  render(
+    <LayoutsView
+      activeModuleLabel="Layouts"
+      navigate={navigate}
+      route={{
+        moduleId: "test-modules-layouts",
+        layoutId: "layout-002"
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText("Widget Story Shell")).toBeInTheDocument();
+  });
+
+  expect(navigate).not.toHaveBeenCalledWith(
+    expect.objectContaining({
+      layoutId: ""
+    }),
+    expect.anything()
+  );
+}, 15000);
+
+test("widget editing explains dynamic page-data binding and exposes it as an explicit source choice", async () => {
+  const node = {
+    id: "block-1",
+    kind: "block",
+    label: "Hero Block",
+    componentInstance: null
+  };
+
+  const pageContextManifest = {
+    pageKind: "content-detail",
+    primarySourceType: "blog-post",
+    branches: [
+      {
+        path: "context.page",
+        label: "Page",
+        kind: "record",
+        bindable: true,
+        fields: ["context.page.title"]
+      },
+      {
+        path: "context.post",
+        label: "Post",
+        kind: "record",
+        bindable: true,
+        fields: ["context.post.title", "context.post.excerpt", "context.post.body", "context.post.featuredMedia"]
+      },
+      {
+        path: "context.author",
+        label: "Author",
+        kind: "record",
+        bindable: true,
+        fields: ["context.author.name", "context.author.bio"]
+      },
+      {
+        path: "context.categories",
+        label: "Categories",
+        kind: "collection",
+        bindable: true,
+        fields: ["context.categories"]
+      }
+    ]
+  };
+
+  function TestHarness() {
+    const [componentInstance, setComponentInstance] = useState(null);
+
+    return (
+      <LayoutBuilderWidgetInspector
+        node={{
+          ...node,
+          componentInstance
+        }}
+        pageContextManifest={pageContextManifest}
+        widgetBindingManifestNote="Binding preview follows 'M04 North Star Post Page'."
+        mediaItems={[
+          {
+            id: "mdi-015",
+            displayName: "Inline Proof Image"
+          }
+        ]}
+        onChangeComponentInstance={setComponentInstance}
+      />
+    );
+  }
+
+  render(<TestHarness />);
+
+  expect(screen.getByText("How Dynamic Page Data Works")).toBeInTheDocument();
+  expect(screen.getByText("Available page data in this preview")).toBeInTheDocument();
+
+  const postTitleCard = screen.getByText("Post Title").closest(".MuiPaper-root");
+  expect(postTitleCard).toBeTruthy();
+  fireEvent.click(within(postTitleCard).getByRole("button", { name: "Use This Widget" }));
+
+  await waitFor(() => {
+    expect(screen.getByText(/This value will be filled at render time from the current page record\./i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Page data field")).toBeInTheDocument();
+  });
 }, 15000);

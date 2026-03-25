@@ -7,6 +7,7 @@ export function useLayoutRouteSync({
   selection
 }) {
   const routeLayoutId = typeof route?.layoutId === "string" ? route.layoutId : "";
+  const routeLayoutExists = routeLayoutId.length > 0 && layouts.some((layout) => layout.id === routeLayoutId);
 
   useEffect(() => {
     if (
@@ -16,7 +17,7 @@ export function useLayoutRouteSync({
     ) {
       return;
     }
-    if (!layouts.some((layout) => layout.id === routeLayoutId)) {
+    if (!routeLayoutExists) {
       return;
     }
     selection.setIsCreatingNewLayout(false);
@@ -25,6 +26,7 @@ export function useLayoutRouteSync({
     selection.setIsMoveMode(false);
   }, [
     layouts,
+    routeLayoutExists,
     routeLayoutId,
     selection.isCreatingNewLayout,
     selection.selectedLayoutId,
@@ -38,7 +40,16 @@ export function useLayoutRouteSync({
     if (typeof navigate !== "function") {
       return;
     }
+    if (routeLayoutId.length > 0 && layouts.length === 0) {
+      return;
+    }
     const nextLayoutId = selection.isCreatingNewLayout ? "" : selection.selectedLayoutId ?? "";
+    if (
+      routeLayoutExists
+      && routeLayoutId !== nextLayoutId
+    ) {
+      return;
+    }
     if (routeLayoutId === nextLayoutId) {
       return;
     }
@@ -51,7 +62,9 @@ export function useLayoutRouteSync({
     );
   }, [
     navigate,
+    layouts.length,
     route,
+    routeLayoutExists,
     routeLayoutId,
     selection.isCreatingNewLayout,
     selection.selectedLayoutId

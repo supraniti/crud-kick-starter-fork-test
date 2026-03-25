@@ -11,6 +11,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { LayoutBuilderWidgetInspector } from "./LayoutBuilderWidgetInspector.jsx";
 
 function NumberField({ label, value, onChange, min = 0, max = 999 }) {
   return (
@@ -330,7 +331,14 @@ function ContainerFields({ draft, node, parentNode, onUpdateNode }) {
   );
 }
 
-function BlockFields({ node, parentNode, onUpdateNode }) {
+function BlockFields({
+  node,
+  parentNode,
+  pageContextManifest,
+  widgetBindingManifestNote,
+  mediaItems,
+  onUpdateNode
+}) {
   const parentMode = parentNode?.layoutMode ?? "grid";
 
   return (
@@ -356,6 +364,17 @@ function BlockFields({ node, parentNode, onUpdateNode }) {
       />
       {parentMode === "grid" ? <GridPlacementFields node={node} onUpdateNode={onUpdateNode} /> : null}
       {parentMode === "flex" ? <FlexPlacementFields node={node} onUpdateNode={onUpdateNode} /> : null}
+      <LayoutBuilderWidgetInspector
+        node={node}
+        pageContextManifest={pageContextManifest}
+        widgetBindingManifestNote={widgetBindingManifestNote}
+        mediaItems={mediaItems}
+        onChangeComponentInstance={(componentInstance) =>
+          onUpdateNode({
+            componentInstance
+          })
+        }
+      />
     </Stack>
   );
 }
@@ -366,6 +385,9 @@ export function LayoutBuilderNodeDialog({
   selectedNode,
   selectedPathIds,
   parentNode,
+  pageContextManifest,
+  widgetBindingManifestNote,
+  mediaItems,
   onClose,
   onUpdateNode,
   onRemoveNode
@@ -377,7 +399,7 @@ export function LayoutBuilderNodeDialog({
   const isRoot = selectedNode.id === draft.layoutDocument.rootId;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle>
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
           <Typography variant="h6">Edit {selectedNode.kind === "container" ? "Container" : "Block"}</Typography>
@@ -406,6 +428,9 @@ export function LayoutBuilderNodeDialog({
             <BlockFields
               node={selectedNode}
               parentNode={parentNode}
+              pageContextManifest={pageContextManifest}
+              widgetBindingManifestNote={widgetBindingManifestNote}
+              mediaItems={mediaItems}
               onUpdateNode={onUpdateNode}
             />
           )}

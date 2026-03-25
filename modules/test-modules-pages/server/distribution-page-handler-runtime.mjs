@@ -25,6 +25,8 @@ import {
   removeDeletedPageDeploymentArtifact,
   syncPageDeploymentArtifact
 } from "./page-deployment-runtime.mjs";
+import { parseStoredLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
+import { resolvePageWidgetCompatibilityForPageDefinition } from "./page-widget-render-contract-runtime.mjs";
 
 const PAGE_OPTIONAL_TEXT_FIELD_IDS = Object.freeze([
   "pathPattern",
@@ -431,11 +433,13 @@ function collectPageUniquenessConflicts({ existingPages, currentItem, preparedVa
 
 async function collectPageConflicts({ handler, preparedValue, currentItem = null }) {
   const layoutConflicts = [];
+  let resolvedLayout = null;
   if (preparedValue.layoutId) {
     const layoutsHandler = handler?.context?.registry?.get?.(LAYOUTS_COLLECTION_ID);
     const layout = layoutsHandler && typeof layoutsHandler.findById === "function"
       ? await layoutsHandler.findById(preparedValue.layoutId)
       : null;
+    resolvedLayout = layout;
     if (!layout) {
       layoutConflicts.push(
         buildConflict(
@@ -447,10 +451,27 @@ async function collectPageConflicts({ handler, preparedValue, currentItem = null
     }
   }
 
+  const widgetConflicts =
+    resolvedLayout &&
+    (preparedValue.status === "published" || preparedValue.status === "scheduled")
+      ? (
+          await resolvePageWidgetCompatibilityForPageDefinition({
+            page: preparedValue,
+            layoutDocument:
+              resolvedLayout.layoutDocument ??
+              parseStoredLayoutDocument(resolvedLayout.layoutDocumentJson),
+            collectionHandlerRegistry: handler?.context?.registry ?? null
+          })
+        ).blockingIssues.map((issue) =>
+          buildConflict(issue.code, `Widget: ${issue.message}`, "layoutId")
+        )
+      : [];
+
   const existingPages = await listExistingItems(handler);
   return [
     ...collectPageFieldConflicts(preparedValue),
     ...layoutConflicts,
+    ...widgetConflicts,
     ...collectPageUniquenessConflicts({
       existingPages,
       currentItem,
