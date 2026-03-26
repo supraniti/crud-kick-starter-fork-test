@@ -3157,3 +3157,27 @@
 - Improve:
   - separate “public contract cleanliness” from “internal module naming cleanup”; both matter, but they are not the same-sized task
   - keep using live network traces as the acceptance source for shipped-page asset hygiene
+### 2026-03-25 - Widgetized Layout Review Needed A Presentation Pass, Not Another Data Pass
+- Tasks:
+  - compared the authored `Widget Story Shell` in the Layouts desk with the deployed `park-bench-weather-log` page on `fastcart.dev`
+  - confirmed the contract and node tree were already present in the browser, so the mismatch was visual composition rather than missing widget data
+  - found two concrete causes:
+    - every block used the same generic wrapper treatment
+    - column flex containers still applied `flex-basis` on the vertical axis, which made each child consume the full container height
+  - added semantic reader classes from layout node labels, placeholder types, emphasis, and widget keys
+  - shifted widget shells to more appropriate defaults:
+    - breadcrumbs/title/body/category chips/related stories plain
+    - author/navigation/tabs soft surfaced
+    - media blocks visually prominent without filename captions
+  - corrected column flex child placement so stored `basis` values become width instead of height
+  - reran `Post Release Bundle`, `Journal Release Bundle`, and `Category Release Bundle`
+- Easy:
+  - the live contract inspection made it obvious the renderer already had the right tree; the failure was presentation semantics, not missing route data
+  - fresh isolated browser contexts were the reliable way to prove new public asset versions after redeploy
+- Hard:
+  - an intermediate live check was misleading because the page reused cached asset URLs; the DOM still showed the old broken height behavior until a fresh isolated context loaded the new asset version
+  - text-only snapshots understated the visual issue; bounding-box inspection exposed the real bug immediately by showing every root child at the full root height
+- Improve:
+  - for widgetized reader regressions, inspect both the rendered DOM tree and actual element geometry before assuming the data contract is wrong
+  - flex placement in authored layout systems must be axis-aware; stored `basis` means width in row layouts but cannot be applied blindly in column layouts
+  - public layout review should always include a fresh-browser verification path so asset-cache reuse does not fake a failed redeploy

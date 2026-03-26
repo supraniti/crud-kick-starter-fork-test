@@ -2308,3 +2308,28 @@
     - `page-reader-firestore.global.js`
 - Important boundary:
   - the reader still reuses the legacy `applicationTester` contract/config object name internally; only the shipped public asset contract was cleaned in this pass
+### 2026-03-25 - Live Widget Layout Needed Presentation Fidelity, Not Another Data Contract
+- Tasks:
+  - reviewed `https://fastcart.dev/post/park-bench-weather-log` against the authored `Widget Story Shell`
+  - confirmed the live reader was already consuming the widget layout tree, but every block still rendered through the same generic shell
+  - added semantic container/block classes from layout labels, placeholder types, emphasis, and widget keys
+  - differentiated block surfaces so breadcrumbs, title, body, image, sidebar cards, support row, and related stories no longer collapse into one repeated card treatment
+  - fixed flex placement for column containers so saved `basis` values affect width instead of incorrectly forcing each child to full container height
+  - stopped image widgets from leaking raw media filenames as captions when no real caption exists
+  - reran the live release bundles and verified the page again on `fastcart.dev`
+- Verified locally:
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified live on:
+  - `https://fastcart.dev/post/park-bench-weather-log?cb=20260325-layout-final-fresh`
+- Live proof:
+  - fresh isolated browser context loaded new assets:
+    - `client-runtime.global.js?v=b81940c885d8`
+    - `page-reader-support.global.js?v=db25bb3ad6be`
+    - `page-reader.global.js?v=867dc9bc3f61`
+  - same-app navigation still works after the layout pass:
+    - `/post/park-bench-weather-log` -> `/post/first-cup-on-the-table`
+    - no second HTML document during the verified post-to-post transition
+- Important boundary:
+  - the page now matches the authored structure much more closely, but widget-level visual polish is still mostly hardcoded inside the reader stylesheet rather than authored in the layout system itself
