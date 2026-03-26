@@ -17,6 +17,11 @@ const MANAGED_PRODUCT_TARGETS = Object.freeze([
     description: "Remote Firestore collection for public tags."
   },
   {
+    key: "translations-projection",
+    label: "Translations Projection",
+    description: "Remote Firestore collection for route-scoped locale overlays."
+  },
+  {
     key: "deployment-storage",
     label: "HTML Deployment",
     description: "Remote storage mirror for generated page HTML."

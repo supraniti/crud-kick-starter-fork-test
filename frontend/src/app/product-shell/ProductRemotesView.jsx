@@ -15,6 +15,7 @@ const MANAGED_PRODUCT_TARGET_KEYS = new Set([
   "posts-projection",
   "categories-projection",
   "tags-projection",
+  "translations-projection",
   "deployment-storage",
   "media-storage",
   "browser-delivery"
@@ -155,7 +156,7 @@ function ActiveRemotePanel({
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Chip size="small" color={connection.connectionStatus === "validated" ? "success" : "warning"} label={connection.connectionStatus === "validated" ? "Connection validated" : "Needs validation"} />
             <Chip size="small" variant="outlined" label={`Environment: ${connection.environmentLabel || "not named"}`} />
-            <Chip size="small" variant="outlined" label={`Prepared pieces: ${preparedTargetCount}/6`} />
+            <Chip size="small" variant="outlined" label={`Prepared pieces: ${preparedTargetCount}/7`} />
             <Chip size="small" color={readinessColor} label={`Readiness: ${readinessLabel}`} />
             {permissionIssueCount > 0 ? <Chip size="small" variant="outlined" label={`Permission notes: ${permissionIssueCount}`} /> : null}
           </Stack>

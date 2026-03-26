@@ -264,6 +264,17 @@
     return source;
   }
 
+  function buildTranslationsCollectionRemote(path) {
+    return {
+      method: "GET",
+      path: path,
+      queryParams: {
+        path: "params.path",
+        locale: "params.locale"
+      }
+    };
+  }
+
   function buildCommentsCollectionRemote(path) {
     return {
       method: "GET",
@@ -325,6 +336,49 @@
           remoteValuePath: "items",
           remoteVersionPath: "timestamp",
           remoteSyncTokenPath: "postId"
+        }
+      ]
+    };
+  }
+
+  function buildPublicTranslationsRuntimeAugment(contract, apiOrigin) {
+    var normalizedOrigin = normalizeApiOrigin(apiOrigin);
+    if (!normalizedOrigin || !contract || !contract.publicTranslationsApiPath) {
+      return {};
+    }
+
+    var translationsPath = normalizedOrigin + contract.publicTranslationsApiPath;
+    return {
+      queries: [
+        {
+          resource: "readerTranslations",
+          query: "byPathAndLocale",
+          policy: "local-first",
+          dataset: "reader-page-translations",
+          localLookupField: "cacheKey",
+          allowRemoteOnEmptyLocal: true,
+          persist: {
+            dataset: "reader-page-translations",
+            storageKeyPath: "cacheKey"
+          },
+          remote: buildTranslationsCollectionRemote(translationsPath),
+          remoteResult: {
+            type: "collection",
+            itemsPath: "items",
+            totalPath: "items.length"
+          }
+        }
+      ],
+      datasets: [
+        {
+          dataset: "reader-page-translations",
+          recordMode: "array",
+          remoteInstall: buildTranslationsCollectionRemote(translationsPath),
+          remoteSync: buildTranslationsCollectionRemote(translationsPath),
+          remoteValuePath: "items",
+          remoteVersionPath: "timestamp",
+          remoteSyncTokenPath: "path",
+          storageKeyPath: "cacheKey"
         }
       ]
     };
@@ -409,11 +463,15 @@
           ? firestoreSupport.buildBrowserFirestoreRuntimeAugment(contract, targetGlobal)
           : {}
         : buildPublicCommentsRuntimeAugment(contract, apiOrigin);
+    var translationsAugment = buildPublicTranslationsRuntimeAugment(contract, apiOrigin);
     var readerAugment = buildReaderNavigationRuntimeAugment(contract, apiOrigin, targetGlobal);
     var mergedConfig = mergeRuntimeConfig(
       mergeRuntimeConfig(
-        mergeRuntimeConfig(baseConfig, contract && contract.runtimeAugment ? contract.runtimeAugment : {}),
-        transportAugment
+        mergeRuntimeConfig(
+          mergeRuntimeConfig(baseConfig, contract && contract.runtimeAugment ? contract.runtimeAugment : {}),
+          transportAugment
+        ),
+        translationsAugment
       ),
       readerAugment
     );

@@ -38,6 +38,22 @@ function createInstanceFromDescriptor(descriptor) {
   };
 }
 
+function buildLayoutTranslationField(translationTarget, fieldPath, fieldLabel, sourceValue, valueKind) {
+  if (!translationTarget || typeof translationTarget !== "object") {
+    return null;
+  }
+  return {
+    entityType: translationTarget.entityType ?? "page-layouts",
+    entityId: translationTarget.entityId ?? null,
+    entityLabel: translationTarget.entityLabel ?? "Layout",
+    sourceLocale: translationTarget.sourceLocale ?? "en-US",
+    fieldPath,
+    fieldLabel,
+    sourceValue: typeof sourceValue === "string" ? sourceValue : "",
+    valueKind
+  };
+}
+
 function readAvailableComponents(pageContextManifest = null) {
   const pageKind = normalizeWidgetPageKind(pageContextManifest?.pageKind ?? "post-detail");
   const primarySourceType = pageContextManifest?.primarySourceType ?? "blog-post";
@@ -85,7 +101,7 @@ function WidgetCompatibilityAlert({ node, pageContextManifest, mediaItems }) {
   );
 }
 
-function TabsEditor({ instance, pageContextManifest, mediaItems, onChange }) {
+function TabsEditor({ instance, pageContextManifest, mediaItems, translationTarget, node, onChange }) {
   const tabs = Array.isArray(instance?.content?.tabs) ? instance.content.tabs : [];
 
   function updateTabs(nextTabs) {
@@ -142,6 +158,13 @@ function TabsEditor({ instance, pageContextManifest, mediaItems, onChange }) {
               binding={tab.header}
               pageContextManifest={pageContextManifest}
               mediaOptions={mediaItems}
+              translationField={buildLayoutTranslationField(
+                translationTarget,
+                `layoutDocument.nodes.${node.id}.componentInstance.content.tabs[${index}].header`,
+                `${node.label || "Tabs"} Header ${index + 1}`,
+                tab?.header?.value ?? "",
+                "text"
+              )}
               onChange={(nextBinding) =>
                 updateTabs(
                   tabs.map((entry, tabIndex) =>
@@ -166,6 +189,13 @@ function TabsEditor({ instance, pageContextManifest, mediaItems, onChange }) {
               binding={tab.body}
               pageContextManifest={pageContextManifest}
               mediaOptions={mediaItems}
+              translationField={buildLayoutTranslationField(
+                translationTarget,
+                `layoutDocument.nodes.${node.id}.componentInstance.content.tabs[${index}].body`,
+                `${node.label || "Tabs"} Body ${index + 1}`,
+                tab?.body?.value ?? "",
+                "rich-text"
+              )}
               onChange={(nextBinding) =>
                 updateTabs(
                   tabs.map((entry, tabIndex) =>
@@ -237,6 +267,7 @@ export function LayoutBuilderWidgetInspector({
   pageContextManifest,
   widgetBindingManifestNote,
   mediaItems = [],
+  translationTarget = null,
   onChangeComponentInstance
 }) {
   const components = readAvailableComponents(pageContextManifest);
@@ -309,6 +340,8 @@ export function LayoutBuilderWidgetInspector({
                   instance={instance}
                   pageContextManifest={pageContextManifest}
                   mediaItems={mediaItems}
+                  translationTarget={translationTarget}
+                  node={node}
                   onChange={onChangeComponentInstance}
                 />
               ) : Object.entries(selectedDescriptor.contentBindings ?? {}).map(([fieldKey, fieldDefinition]) => (
@@ -320,6 +353,13 @@ export function LayoutBuilderWidgetInspector({
                   pageContextManifest={pageContextManifest}
                   mediaOptions={mediaItems}
                   helperNote={widgetBindingManifestNote}
+                  translationField={buildLayoutTranslationField(
+                    translationTarget,
+                    `layoutDocument.nodes.${node.id}.componentInstance.content.${fieldKey}`,
+                    `${node.label || "Widget"} ${fieldDefinition.label ?? fieldKey}`,
+                    instance.content?.[fieldKey]?.value ?? "",
+                    fieldDefinition.valueKind
+                  )}
                   onChange={(nextBinding) =>
                     onChangeComponentInstance({
                       ...instance,
@@ -344,11 +384,18 @@ export function LayoutBuilderWidgetInspector({
                     label={fieldDefinition.label ?? fieldKey}
                     definition={fieldDefinition}
                     binding={instance.props?.[fieldKey]}
-                    pageContextManifest={pageContextManifest}
-                    mediaOptions={mediaItems}
-                    helperNote={widgetBindingManifestNote}
-                    onChange={(nextBinding) =>
-                      onChangeComponentInstance({
+                  pageContextManifest={pageContextManifest}
+                  mediaOptions={mediaItems}
+                  helperNote={widgetBindingManifestNote}
+                  translationField={buildLayoutTranslationField(
+                    translationTarget,
+                    `layoutDocument.nodes.${node.id}.componentInstance.props.${fieldKey}`,
+                    `${node.label || "Widget"} ${fieldDefinition.label ?? fieldKey}`,
+                    instance.props?.[fieldKey]?.value ?? "",
+                    fieldDefinition.valueKind
+                  )}
+                  onChange={(nextBinding) =>
+                    onChangeComponentInstance({
                         ...instance,
                         props: {
                           ...instance.props,

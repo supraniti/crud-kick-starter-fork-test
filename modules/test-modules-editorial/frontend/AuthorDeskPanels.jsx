@@ -26,6 +26,9 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
+import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
+import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
 import { SORT_OPTIONS } from "./author-desk-model.js";
 
 function SummaryCard({ label, value, tone = "default", caption = "" }) {
@@ -518,6 +521,12 @@ export function AuthorFormDrawer({
     mediaItemsById.get(selectedAvatarItem?.id)?.updatedOn ?? selectedAvatarItem?.updatedOn ?? "";
   const avatarUrl =
     selectedAvatarItem ? mediaContentUrlFor(selectedAvatarItem.id, avatarVersionToken) : "";
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "blog-authors",
+    entityId: formState.itemId ?? null,
+    entityLabel: formState.displayName ?? formState.legalName ?? "Author",
+    sourceLocale: formState.locale ?? "en-US"
+  });
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
@@ -557,27 +566,45 @@ export function AuthorFormDrawer({
               </Stack>
             </Stack>
 
-            <TextField
+            <TranslatableTextField
               label="Display name"
               size="small"
               value={formState.displayName ?? ""}
               error={Boolean(validationErrors.displayName)}
               helperText={validationErrors.displayName ?? "Public author name shown on posts and pages."}
               onChange={(event) => onChangeField("displayName", event.target.value)}
+              translationField={buildTranslationField({
+                fieldPath: "displayName",
+                fieldLabel: "Display Name",
+                sourceValue: formState.displayName ?? "",
+                valueKind: "text"
+              })}
             />
-            <TextField
+            <TranslatableTextField
               label="Legal name"
               size="small"
               value={formState.legalName ?? ""}
               onChange={(event) => onChangeField("legalName", event.target.value)}
+              translationField={buildTranslationField({
+                fieldPath: "legalName",
+                fieldLabel: "Legal Name",
+                sourceValue: formState.legalName ?? "",
+                valueKind: "text"
+              })}
             />
-            <TextField
+            <TranslatableMultilineTextField
               label="Bio"
               size="small"
-              multiline
-              minRows={4}
               value={formState.bio ?? ""}
-              onChange={(event) => onChangeField("bio", event.target.value)}
+              fieldId="bio"
+              onChangeField={onChangeField}
+              minRows={4}
+              translationField={buildTranslationField({
+                fieldPath: "bio",
+                fieldLabel: "Bio",
+                sourceValue: formState.bio ?? "",
+                valueKind: "rich-text"
+              })}
             />
             <TextField
               label="Email"

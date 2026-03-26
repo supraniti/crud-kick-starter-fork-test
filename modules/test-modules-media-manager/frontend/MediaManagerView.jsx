@@ -765,6 +765,7 @@ export function MediaManagerView({
           {activeDetailSection === "details" ? (
             <Stack spacing={2}>
               <MetadataEditor
+                selectedItem={workspace.selectedItem}
                 metadataState={workspace.metadataState}
                 onChangeField={workspace.handleMetadataFieldChange}
                 onSave={workspace.handleSaveMetadata}

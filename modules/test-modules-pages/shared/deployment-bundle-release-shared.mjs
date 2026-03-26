@@ -17,6 +17,8 @@ export function createDeploymentBundleReleaseStepPlan(includeBrowserValidation =
     { key: "sync-categories-projection", label: "Sync categories projection" },
     { key: "compare-tags-projection", label: "Compare tags projection" },
     { key: "sync-tags-projection", label: "Sync tags projection" },
+    { key: "compare-translations-projection", label: "Compare translations projection" },
+    { key: "sync-translations-projection", label: "Sync translations projection" },
     { key: "compare-media", label: "Compare media sync" },
     { key: "sync-media", label: "Sync media" },
     { key: "compare-html-deployment", label: "Compare HTML deployment" },

@@ -9,6 +9,7 @@ import { collectDeploymentBundleOperationalConflicts } from "./distribution-bund
 import {
   DEPLOYMENT_BUNDLE_RUNS_COLLECTION_ID,
   REMOTE_OPERATION_RUNS_COLLECTION_ID,
+  normalizeOptionalText,
   isPagePublished,
   toTimestamp
 } from "./distribution-shared-runtime.mjs";
@@ -34,6 +35,13 @@ const RELEASE_TARGET_BINDINGS = Object.freeze([
     fieldId: "tagsProjectionTargetProfileId",
     compareKey: "compare-tags-projection",
     executeKey: "sync-tags-projection"
+  }),
+  Object.freeze({
+    fieldId: null,
+    bindingKey: "translations-projection",
+    compareKey: "compare-translations-projection",
+    executeKey: "sync-translations-projection",
+    optional: true
   }),
   Object.freeze({
     fieldId: "mediaTargetProfileId",
@@ -102,13 +110,30 @@ async function validateBundleContract(routeContext, bundle) {
 }
 
 async function loadReleaseTargetBinding(routeContext, bundle, bindingDefinition) {
-  const targetId = bundle?.[bindingDefinition.fieldId] ?? null;
-  const targetProfile = await loadRequiredItem(
-    routeContext.remoteTargetsHandler,
-    targetId,
-    "PAGE_DEPLOYMENT_BUNDLE_TARGET_MISSING",
-    `Target '${targetId}' was not found`
-  );
+  const targetId = bindingDefinition.fieldId ? bundle?.[bindingDefinition.fieldId] ?? null : null;
+  let targetProfile = targetId ? await routeContext.remoteTargetsHandler?.findById?.(targetId) : null;
+  if (!targetProfile && bindingDefinition.bindingKey) {
+    const listedTargetsPayload = await routeContext.remoteTargetsHandler?.list?.({
+      limit: 500,
+      offset: 0
+    });
+    const listedTargets = Array.isArray(listedTargetsPayload?.items) ? listedTargetsPayload.items : [];
+    targetProfile =
+      listedTargets.find(
+        (target) =>
+          normalizeOptionalText(target?.productBindingKey) === bindingDefinition.bindingKey
+      ) ?? null;
+  }
+  if (!targetProfile && bindingDefinition.optional) {
+    return null;
+  }
+  if (!targetProfile) {
+    throw createReleaseError(
+      "PAGE_DEPLOYMENT_BUNDLE_TARGET_MISSING",
+      targetId ? `Target '${targetId}' was not found` : `Target binding '${bindingDefinition.bindingKey ?? bindingDefinition.fieldId}' is not configured`,
+      404
+    );
+  }
   const connectionProfile = await loadRequiredItem(
     routeContext.remoteConnectionsHandler,
     targetProfile.connectionProfileId,
@@ -280,6 +305,9 @@ async function runLocalHtmlSync(routeContext, releaseContext, runController) {
 }
 
 async function runRemoteBindingCompare(routeContext, binding, runController) {
+  if (!binding) {
+    return;
+  }
   const procedure = await executeBoundStep(runController, binding.compareKey, () =>
     performTargetCompareProcedure({
       targetProfile: binding.targetProfile,
@@ -294,6 +322,9 @@ async function runRemoteBindingCompare(routeContext, binding, runController) {
 }
 
 async function runRemoteBindingExecute(routeContext, binding, runController) {
+  if (!binding) {
+    return;
+  }
   const procedure = await executeBoundStep(runController, binding.executeKey, () =>
     performTargetExecuteProcedure({
       targetProfile: binding.targetProfile,

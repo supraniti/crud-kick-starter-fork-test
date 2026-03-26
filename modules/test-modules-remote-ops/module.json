@@ -318,7 +318,8 @@
                     "published-blog-posts",
                     "published-pages",
                     "public-blog-categories",
-                    "public-blog-tags"
+                    "public-blog-tags",
+                    "public-translations"
                   ]
                 },
                 {

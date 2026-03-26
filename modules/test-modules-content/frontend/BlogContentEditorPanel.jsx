@@ -26,7 +26,9 @@ import { fetchReferenceCollectionItems } from "../../../frontend/src/api/referen
 import { buildMediaContentUrl, uploadMediaAsset } from "../../test-modules-media-manager/frontend/media-manager-api.js";
 import { computeHealth } from "./publication-support.js";
 import { SeoPreview, optionItems, resolveOptionLabel } from "./BlogContentPanels.jsx";
-import { StableMultilineTextField } from "./StableMultilineTextField.jsx";
+import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
+import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
+import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
 
 const SECTION_LABELS = {
   story: "Story",
@@ -466,6 +468,12 @@ function EditorHeader({ workspace }) {
 function WritingCanvas({ draft, changeField }) {
   const wordCount = draft.wordCount || countWords(draft.body);
   const readTimeMinutes = draft.readTimeMinutes || estimateReadTime(wordCount);
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "blog-posts",
+    entityId: draft.id ?? null,
+    entityLabel: draft.title ?? draft.slug ?? "Post",
+    sourceLocale: draft.locale ?? "en-US"
+  });
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
@@ -482,31 +490,55 @@ function WritingCanvas({ draft, changeField }) {
             <Chip size="small" label={`${readTimeMinutes} min read`} variant="outlined" />
           </Stack>
         </Stack>
-        <TextField
+        <TranslatableTextField
           label="Title"
           value={draft.title}
           onChange={(event) => changeField("title", event.target.value)}
           size="small"
+          translationField={buildTranslationField({
+            fieldPath: "title",
+            fieldLabel: "Title",
+            sourceValue: draft.title ?? "",
+            valueKind: "text"
+          })}
         />
-        <TextField
+        <TranslatableTextField
           label="Subtitle"
           value={draft.subtitle}
           onChange={(event) => changeField("subtitle", event.target.value)}
           size="small"
+          translationField={buildTranslationField({
+            fieldPath: "subtitle",
+            fieldLabel: "Subtitle",
+            sourceValue: draft.subtitle ?? "",
+            valueKind: "text"
+          })}
         />
-        <StableMultilineTextField
+        <TranslatableMultilineTextField
           label="Excerpt"
           value={draft.excerpt}
           fieldId="excerpt"
           onChangeField={changeField}
           minRows={4}
+          translationField={buildTranslationField({
+            fieldPath: "excerpt",
+            fieldLabel: "Excerpt",
+            sourceValue: draft.excerpt ?? "",
+            valueKind: "rich-text"
+          })}
         />
-        <StableMultilineTextField
+        <TranslatableMultilineTextField
           label="Body"
           value={draft.body}
           fieldId="body"
           onChangeField={changeField}
           minRows={18}
+          translationField={buildTranslationField({
+            fieldPath: "body",
+            fieldLabel: "Body",
+            sourceValue: draft.body ?? "",
+            valueKind: "rich-text"
+          })}
         />
       </Stack>
     </Paper>
@@ -972,6 +1004,13 @@ function MediaRail({ draft, mediaOptions, changeField, toggleFieldValue, onOpenM
 }
 
 function SeoRail({ draft, changeField, mediaOptions }) {
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "blog-posts",
+    entityId: draft.id ?? null,
+    entityLabel: draft.title ?? draft.slug ?? "Post",
+    sourceLocale: draft.locale ?? "en-US"
+  });
+
   return (
     <Stack spacing={2}>
       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -983,31 +1022,55 @@ function SeoRail({ draft, changeField, mediaOptions }) {
             value={draft.canonicalUrl}
             onChange={(event) => changeField("canonicalUrl", event.target.value)}
           />
-          <TextField
+          <TranslatableTextField
             size="small"
             label="SEO Title"
             value={draft.seoTitle}
             onChange={(event) => changeField("seoTitle", event.target.value)}
+            translationField={buildTranslationField({
+              fieldPath: "seoTitle",
+              fieldLabel: "SEO Title",
+              sourceValue: draft.seoTitle ?? "",
+              valueKind: "text"
+            })}
           />
-          <StableMultilineTextField
+          <TranslatableMultilineTextField
             label="SEO Description"
             value={draft.seoDescription}
             fieldId="seoDescription"
             onChangeField={changeField}
             minRows={3}
+            translationField={buildTranslationField({
+              fieldPath: "seoDescription",
+              fieldLabel: "SEO Description",
+              sourceValue: draft.seoDescription ?? "",
+              valueKind: "rich-text"
+            })}
           />
-          <TextField
+          <TranslatableTextField
             size="small"
             label="OpenGraph Title"
             value={draft.ogTitle}
             onChange={(event) => changeField("ogTitle", event.target.value)}
+            translationField={buildTranslationField({
+              fieldPath: "ogTitle",
+              fieldLabel: "OpenGraph Title",
+              sourceValue: draft.ogTitle ?? "",
+              valueKind: "text"
+            })}
           />
-          <StableMultilineTextField
+          <TranslatableMultilineTextField
             label="OpenGraph Description"
             value={draft.ogDescription}
             fieldId="ogDescription"
             onChangeField={changeField}
             minRows={3}
+            translationField={buildTranslationField({
+              fieldPath: "ogDescription",
+              fieldLabel: "OpenGraph Description",
+              sourceValue: draft.ogDescription ?? "",
+              valueKind: "rich-text"
+            })}
           />
         </Stack>
       </Paper>

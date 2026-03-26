@@ -5,6 +5,7 @@ import { MediaManagerView } from "../../../../modules/test-modules-media-manager
 import { BlogDistributionView } from "../../../../modules/test-modules-pages/frontend/BlogDistributionView.jsx";
 import { BlogTaxonomyView } from "../../../../modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx";
 import { ThemesView } from "../../../../modules/test-modules-themes/frontend/ThemesView.jsx";
+import { TranslationsView } from "../../../../modules/test-modules-translations/frontend/TranslationsView.jsx";
 import { ProductDeploymentsView } from "./ProductDeploymentsView.jsx";
 import { ProductDomainsView } from "./ProductDomainsView.jsx";
 import { ProductEditorialView } from "./ProductEditorialView.jsx";
@@ -125,6 +126,13 @@ export const PRODUCT_VIEW_DESCRIPTORS = Object.freeze([
     requiredDomains: [],
     routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
     render: (context) => <ThemesView activeModuleLabel={context.activeModuleLabel} />
+  },
+  {
+    moduleId: "test-modules-translations",
+    usesCollectionsDomain: false,
+    requiredDomains: [],
+    routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
+    render: (context) => <TranslationsView activeModuleLabel={context.activeModuleLabel} />
   },
   {
     moduleId: "test-modules-layouts",

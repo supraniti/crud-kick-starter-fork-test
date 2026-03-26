@@ -928,11 +928,20 @@ function buildReaderPageBootstrapDocument(payload = {}, model = null, routeManif
     normalizeOptionalText(options.routeManifestVersionToken) ??
     buildReaderRouteManifestVersionToken(routeManifest);
   const inlineRouteManifest = buildInlineRouteManifest(routeManifest, payload, versionToken);
+  const sourceLocale =
+    normalizeOptionalText(
+      model?.kind === "post-detail"
+        ? model?.post?.locale
+        : model?.kind === "category-detail"
+          ? model?.category?.locale
+          : payload?.page?.locale
+    ) ?? "en-US";
   return {
     contractVersion: 1,
     tier: "initial",
     path: payload?.page?.path ?? null,
     pageId: payload?.page?.id ?? null,
+    sourceLocale,
     pageKind: model?.kind ?? "generic-page",
     primarySourceType: payload?.page?.primarySourceType ?? "none",
     head: payload?.head ?? {},

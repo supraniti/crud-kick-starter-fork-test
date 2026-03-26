@@ -3233,3 +3233,29 @@
     before assuming the resolver is wrong
   - if a runtime uses multiple style nodes, make the precedence explicit in code rather than relying on creation timing
   - bundle releases that write shared public assets should be treated as sequential operations unless the deployment runtime is made concurrency-safe
+### 2026-03-26 - Translations Delivery Exposed Two Different Reader Locale Gaps
+- Tasks:
+  - built the `Translations` module, inline field popup, release binding, and deployed-reader overlay path
+  - verified the central desk and inline popup locally first
+  - then moved to live `fastcart.dev` proof with Chrome DevTools instead of assuming the contract was enough
+  - found that the deployed translations endpoint was working, but widgetized pages had no locale menu because only the fallback hero path rendered one
+  - fixed widgetized pages by adding a dedicated reader utility bar with the locale picker
+  - found a second live bug on post-to-post navigation:
+    - the reader applied the locale overlay before `history.pushState`
+    - so it fetched translation patches for the previous URL and patched the next page with stale strings
+  - fixed that by passing the intended next path into `applyActiveLocaleToState(...)`
+  - found a third live bug on direct category pages:
+    - fallback post/category hero rendering called `renderHero(...)` without the `state` argument
+    - the locale menu dereferenced `state.activeLocale` and crashed
+  - fixed the fallback hero callers and reran the post, journal, and category bundles sequentially
+- Easy:
+  - the data-layer translation endpoint already produced the right overlay document shape
+  - once the live network trace showed `/translations?...` returning `200`, the remaining problems were clearly reader-side
+- Hard:
+  - initial suspicion focused on `contractVersion`, but the real first defect was renderer-specific: widgetized routes simply never mounted the locale control
+  - the stale-translation bug only appeared after same-app navigation with a non-source locale active, so it was invisible in direct-load proof
+  - the category crash hid behind the generic boot error wrapper until the live console stack was inspected directly
+- Improve:
+  - for reader features that affect both widgetized and fallback routes, prove both route families in the browser before calling the slice done
+  - when same-app navigation depends on URL-derived state, pass the intended next path explicitly rather than reading `window.location` too early
+  - treat live DevTools verification as mandatory for deployed-reader work; local route checks alone would have missed all three bugs

@@ -1,4 +1,7 @@
 import { Alert, Button, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
+import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
+import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
 import {
   DATA_SOURCE_KIND_OPTIONS,
   DATA_SOURCE_SORT_KEY_OPTIONS,
@@ -191,6 +194,13 @@ export function DataSourcesSection({ workspace }) {
 }
 
 export function PageSeoSection({ workspace }) {
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "blog-pages",
+    entityId: workspace.selectedPageId ?? null,
+    entityLabel: workspace.pageDraft.title ?? "Page",
+    sourceLocale: workspace.pageDraft.locale ?? "en-US"
+  });
+
   return (
     <Stack spacing={2}>
       <Typography variant="subtitle1">SEO + Delivery</Typography>
@@ -200,10 +210,16 @@ export function PageSeoSection({ workspace }) {
           value={workspace.pageDraft.canonicalUrl}
           onChange={(event) => workspace.changePageField("canonicalUrl", event.target.value)}
         />
-        <TextField
+        <TranslatableTextField
           label="SEO Title"
           value={workspace.pageDraft.seoTitle}
           onChange={(event) => workspace.changePageField("seoTitle", event.target.value)}
+          translationField={buildTranslationField({
+            fieldPath: "seoTitle",
+            fieldLabel: "SEO Title",
+            sourceValue: workspace.pageDraft.seoTitle ?? "",
+            valueKind: "text"
+          })}
         />
         <TextField
           select
@@ -220,24 +236,42 @@ export function PageSeoSection({ workspace }) {
           ))}
         </TextField>
       </Stack>
-      <TextField
+      <TranslatableMultilineTextField
         label="SEO Description"
         value={workspace.pageDraft.seoDescription}
-        onChange={(event) => workspace.changePageField("seoDescription", event.target.value)}
-        multiline
+        fieldId="seoDescription"
+        onChangeField={workspace.changePageField}
         minRows={3}
+        translationField={buildTranslationField({
+          fieldPath: "seoDescription",
+          fieldLabel: "SEO Description",
+          sourceValue: workspace.pageDraft.seoDescription ?? "",
+          valueKind: "rich-text"
+        })}
       />
-      <TextField
+      <TranslatableTextField
         label="OpenGraph Title"
         value={workspace.pageDraft.ogTitle}
         onChange={(event) => workspace.changePageField("ogTitle", event.target.value)}
+        translationField={buildTranslationField({
+          fieldPath: "ogTitle",
+          fieldLabel: "OpenGraph Title",
+          sourceValue: workspace.pageDraft.ogTitle ?? "",
+          valueKind: "text"
+        })}
       />
-      <TextField
+      <TranslatableMultilineTextField
         label="OpenGraph Description"
         value={workspace.pageDraft.ogDescription}
-        onChange={(event) => workspace.changePageField("ogDescription", event.target.value)}
-        multiline
+        fieldId="ogDescription"
+        onChangeField={workspace.changePageField}
         minRows={3}
+        translationField={buildTranslationField({
+          fieldPath: "ogDescription",
+          fieldLabel: "OpenGraph Description",
+          sourceValue: workspace.pageDraft.ogDescription ?? "",
+          valueKind: "rich-text"
+        })}
       />
       <TextField
         label="Runtime Script URLs"

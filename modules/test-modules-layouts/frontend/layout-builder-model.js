@@ -32,6 +32,7 @@ function clampInsertionIndex(container, targetIndex) {
 export function createEmptyLayoutDraft() {
   const document = createInitialLayoutDocument();
   return {
+    id: null,
     title: "",
     layoutKey: "layout-shell",
     summary: "",
@@ -42,6 +43,7 @@ export function createEmptyLayoutDraft() {
 
 export function createLayoutDraftFromItem(item = {}) {
   return {
+    id: item.id ?? null,
     title: item.title ?? "",
     layoutKey: item.layoutKey ?? "layout-shell",
     summary: item.summary ?? "",

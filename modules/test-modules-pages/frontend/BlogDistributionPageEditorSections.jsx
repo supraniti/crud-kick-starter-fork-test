@@ -11,6 +11,8 @@ import {
   Typography
 } from "@mui/material";
 import { useState } from "react";
+import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
+import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
 import {
   DEPLOYMENT_MODE_OPTIONS,
   PAGE_KIND_OPTIONS,
@@ -79,12 +81,24 @@ function PageIdentitySection({
 }) {
   const perRecordTemplatePathPlaceholder =
     workspace.pageDraft.primarySourceType === "blog-category" ? "/category" : "/posts";
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "blog-pages",
+    entityId: workspace.selectedPageId ?? null,
+    entityLabel: workspace.pageDraft.title ?? "Page",
+    sourceLocale: workspace.pageDraft.locale ?? "en-US"
+  });
   return (
     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-      <TextField
+      <TranslatableTextField
         label="Page Title"
         value={workspace.pageDraft.title}
         onChange={(event) => workspace.changePageField("title", event.target.value)}
+        translationField={buildTranslationField({
+          fieldPath: "title",
+          fieldLabel: "Title",
+          sourceValue: workspace.pageDraft.title ?? "",
+          valueKind: "text"
+        })}
       />
       {includeDeploymentMode ? (
         <TextField

@@ -2,6 +2,11 @@ import { buildGcpProvisioningModel } from "./remote-ops-gcp-provisioning-model.m
 import { analyzeGcpCompatibility } from "./remote-ops-gcp-compatibility-runtime.mjs";
 import { executeGcpProvisioning } from "./remote-ops-gcp-provisioning-execution-runtime.mjs";
 import {
+  ensureStandardProductBundle,
+  listMissingManagedTargetSpecs,
+  resolveManagedTargetCompatibilityBundleId
+} from "./remote-ops-product-bundle-runtime.mjs";
+import {
   buildProcedureStatus,
   buildRunPayload,
   buildSuccessResponse,
@@ -21,6 +26,103 @@ async function loadConnectionTargets(routeContext, connectionId) {
   });
   const items = Array.isArray(payload?.items) ? payload.items : [];
   return items.filter((item) => item.connectionProfileId === connectionId);
+}
+
+function createManagedTargetProvisionAction(spec) {
+  return {
+    id: `prepare-managed-target-${spec.key}`,
+    label: `Prepare ${spec.title}`,
+    resourceKind: "managed-target",
+    bindingKey: spec.key,
+    createSupported: true,
+    phaseStatus: "execution-started",
+    availableNow: true,
+    missingPermissions: [],
+    notes: [`Create the standard managed target for ${spec.title}.`]
+  };
+}
+
+function recomputeCompatibilitySummary(report) {
+  const bundles = Array.isArray(report?.bundles) ? report.bundles : [];
+  const blockedBundles = bundles.filter((bundle) => bundle?.state === "blocked").length;
+  const actionRequiredBundles = bundles.filter((bundle) => bundle?.state === "action-required").length;
+  const compatibleBundles = bundles.filter((bundle) => bundle?.state === "compatible").length;
+  report.provisionableActions = bundles.flatMap((bundle) =>
+    (Array.isArray(bundle?.provisionableActions) ? bundle.provisionableActions : []).map((action) => ({
+      ...action,
+      bundleId: bundle.id,
+      bundleLabel: bundle.label
+    }))
+  );
+  report.missingResources = bundles.flatMap((bundle) =>
+    (Array.isArray(bundle?.missingResources) ? bundle.missingResources : []).map((resource) => ({
+      ...resource,
+      bundleId: bundle.id,
+      bundleLabel: bundle.label
+    }))
+  );
+  report.counts = {
+    blockedBundles,
+    actionRequiredBundles,
+    compatibleBundles
+  };
+  report.overallState = blockedBundles > 0 ? "blocked" : actionRequiredBundles > 0 ? "action-required" : "compatible";
+  return report;
+}
+
+function augmentCompatibilityReportWithManagedTargetGaps(report, targetProfiles = []) {
+  const missingSpecs = listMissingManagedTargetSpecs(targetProfiles);
+  if (missingSpecs.length === 0) {
+    return report;
+  }
+
+  for (const spec of missingSpecs) {
+    const bundleId = resolveManagedTargetCompatibilityBundleId(spec.key);
+    const bundle = Array.isArray(report?.bundles)
+      ? report.bundles.find((entry) => entry?.id === bundleId) ?? null
+      : null;
+    if (!bundle) {
+      continue;
+    }
+    const alreadyTracked = Array.isArray(bundle.missingResources)
+      ? bundle.missingResources.some((resource) => resource?.bindingKey === spec.key)
+      : false;
+    if (alreadyTracked) {
+      continue;
+    }
+    bundle.missingResources = [
+      ...(Array.isArray(bundle.missingResources) ? bundle.missingResources : []),
+      {
+        kind: "managed-target",
+        label: spec.title,
+        bindingKey: spec.key
+      }
+    ];
+    bundle.provisionableActions = [
+      ...(Array.isArray(bundle.provisionableActions) ? bundle.provisionableActions : []),
+      createManagedTargetProvisionAction(spec)
+    ];
+    bundle.notes = [
+      ...(Array.isArray(bundle.notes) ? bundle.notes : []),
+      `${spec.title} has not been prepared yet.`
+    ];
+    if (bundle.state !== "blocked") {
+      bundle.state = "action-required";
+    }
+  }
+
+  return recomputeCompatibilitySummary(report);
+}
+
+function selectRequestedManagedTargetSpecs(connectionTargets, actionIds = null) {
+  const requestedIds =
+    Array.isArray(actionIds) && actionIds.length > 0 ? new Set(actionIds) : null;
+  return listMissingManagedTargetSpecs(connectionTargets).filter((spec) => {
+    if (!requestedIds) {
+      return true;
+    }
+    return requestedIds.has(`prepare-managed-target-${spec.key}`);
+  });
 }
 
 function registerProvisioningModelRoute(fastify, routeContext) {
@@ -55,10 +157,13 @@ function registerAnalyzeCompatibilityRoute(fastify, routeContext) {
 
       try {
         const targetProfiles = await loadConnectionTargets(routeContext, connectionProfile.id);
-        const report = await analyzeGcpCompatibility({
-          connectionProfile,
+        const report = augmentCompatibilityReportWithManagedTargetGaps(
+          await analyzeGcpCompatibility({
+            connectionProfile,
+            targetProfiles
+          }),
           targetProfiles
-        });
+        );
         const run = await createRun(
           routeContext,
           buildRunPayload({
@@ -132,24 +237,75 @@ function registerProvisionMissingRoute(fastify, routeContext) {
       }
 
       try {
-        const targetProfiles = await loadConnectionTargets(routeContext, connectionProfile.id);
+        let targetProfiles = await loadConnectionTargets(routeContext, connectionProfile.id);
         const model = buildGcpProvisioningModel();
-        const report = await analyzeGcpCompatibility({
-          connectionProfile,
+        let report = augmentCompatibilityReportWithManagedTargetGaps(
+          await analyzeGcpCompatibility({
+            connectionProfile,
+            targetProfiles
+          }),
           targetProfiles
-        });
+        );
+        const requestedManagedTargetSpecs = selectRequestedManagedTargetSpecs(
+          targetProfiles,
+          request.body?.actionIds
+        );
+        const executedManagedActions = [];
+        if (requestedManagedTargetSpecs.length > 0) {
+          const bundleResult = await ensureStandardProductBundle(
+            routeContext,
+            connectionProfile,
+            reply
+          );
+          if (bundleResult?.ok !== true) {
+            return bundleResult?.payload ?? errorPayload(
+              "REMOTE_OPS_MANAGED_TARGET_PREPARE_FAILED",
+              "Failed to prepare managed product targets."
+            );
+          }
+          executedManagedActions.push(
+            ...requestedManagedTargetSpecs.map((spec) => ({
+              id: `prepare-managed-target-${spec.key}`,
+              label: `Prepare ${spec.title}`,
+              resourceKind: "managed-target"
+            }))
+          );
+          targetProfiles = await loadConnectionTargets(routeContext, connectionProfile.id);
+          report = augmentCompatibilityReportWithManagedTargetGaps(
+            await analyzeGcpCompatibility({
+              connectionProfile,
+              targetProfiles
+            }),
+            targetProfiles
+          );
+        }
+        const gcpActionIds = Array.isArray(request.body?.actionIds)
+          ? request.body.actionIds.filter((actionId) => !String(actionId).startsWith("prepare-managed-target-"))
+          : null;
         const provisioningResult = await executeGcpProvisioning({
           model,
           connectionProfile,
           targetProfiles,
           report,
           confirmedSafeguardIds: request.body?.confirmedSafeguardIds,
-          actionIds: request.body?.actionIds
+          actionIds: gcpActionIds
         });
-        const nextReport = await analyzeGcpCompatibility({
-          connectionProfile,
-          targetProfiles
-        });
+        const nextReport = augmentCompatibilityReportWithManagedTargetGaps(
+          await analyzeGcpCompatibility({
+            connectionProfile,
+            targetProfiles: await loadConnectionTargets(routeContext, connectionProfile.id)
+          }),
+          await loadConnectionTargets(routeContext, connectionProfile.id)
+        );
+        const combinedExecutedActions = [...executedManagedActions, ...(provisioningResult.executedActions ?? [])];
+        const combinedSummary = {
+          createCount: combinedExecutedActions.length,
+          updateCount: 0,
+          deleteCount: 0,
+          restoredCount: 0,
+          sampleKeys: combinedExecutedActions.map((action) => action.label).slice(0, 8),
+          warnings: combinedExecutedActions.length > 0 ? [] : provisioningResult.summary?.warnings ?? []
+        };
         const run = await createRun(
           routeContext,
           buildRunPayload({
@@ -166,8 +322,11 @@ function registerProvisionMissingRoute(fastify, routeContext) {
                   ? "warning"
                   : "validated"
             ),
-            message: provisioningResult.message,
-            summary: provisioningResult.summary
+            message:
+              combinedExecutedActions.length > 0
+                ? `Prepared ${combinedExecutedActions.length} missing remote requirement${combinedExecutedActions.length === 1 ? "" : "s"}.`
+                : provisioningResult.message,
+            summary: combinedSummary
           }),
           reply
         );
@@ -175,11 +334,16 @@ function registerProvisionMissingRoute(fastify, routeContext) {
           return run;
         }
 
-        return buildSuccessResponse(provisioningResult.message, {
+        return buildSuccessResponse(
+          combinedExecutedActions.length > 0
+            ? `Prepared ${combinedExecutedActions.length} missing remote requirement${combinedExecutedActions.length === 1 ? "" : "s"}.`
+            : provisioningResult.message,
+          {
           report: nextReport,
           run,
-          executedActions: provisioningResult.executedActions
-        });
+          executedActions: combinedExecutedActions
+          }
+        );
       } catch (error) {
         reply.code(error?.code === "REMOTE_OPS_GCP_SAFEGUARD_CONFIRMATION_REQUIRED" ? 409 : 400);
         return errorPayload(

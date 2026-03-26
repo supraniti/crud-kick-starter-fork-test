@@ -2424,3 +2424,48 @@
   - `https://fastcart.dev/category/home-corners`
 - Important boundary:
   - release bundles touching shared deployment assets must be rerun sequentially; parallel bundle release can fail with object metadata edit conflicts even when the feature itself is correct
+### 2026-03-26 - Translations Module Delivered End To End
+- Ticket and plan saved:
+  - `docs/research/translations-module-implementation-ticket-2026-03-26.md`
+  - `docs/research/translations-module-implementation-plan-2026-03-26.md`
+- Delivered:
+  - new `Translations` module and `/app/translations` desk
+  - inline translation popup on authored text fields across:
+    - posts
+    - authors
+    - taxonomies
+    - pages
+    - media
+    - layout widget static text
+  - release/runtime support for `translations-projection`
+  - deployed reader locale menu and locale-aware link handling
+  - live translation overlays fetched through the data layer and cached locally
+- Key fixes during self-review:
+  - preserved post ids in `publication-support.js` so inline translation saves work on real saved posts
+  - added missing `Translations Projection` readiness/provisioning support to Remotes
+  - fixed public page API image packaging to include the translations module
+  - fixed widgetized deployed pages so they render the locale menu
+  - fixed post-to-post locale navigation so translation overlays use the next route path rather than the previous URL
+  - fixed fallback post/category hero rendering so non-widget routes no longer crash on locale menu render
+- Released live sequentially:
+  - `pagedepl-146` `Post Release Bundle`
+  - `pagedepl-147` `Journal Release Bundle`
+  - `pagedepl-148` `Category Release Bundle`
+- Verified locally:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - local:
+    - `/app/translations`
+    - `/app/posts?postId=blogpost-021&postEditorSection=story`
+  - live:
+    - `https://fastcart.dev/post/first-cup-on-the-table?cb=translations-proof-20260326c`
+    - `https://fastcart.dev/post/park-bench-weather-log?locale=fr-FR&cb=translations-nav-proof-20260326`
+    - `https://fastcart.dev/category/park-walks?locale=fr-FR&cb=translations-category-proof-20260326b`
+- Observed live behavior:
+  - first render uses inline bootstrap and deferred comments
+  - switching locale to `fr-FR` on `first-cup-on-the-table` fetches `/translations?...` and updates the `h1` to `Premiere tasse sur la table`
+  - post-to-post navigation keeps `locale=fr-FR`, avoids a second HTML document, and preserves translated adjacent links
+  - post-to-category navigation keeps `locale=fr-FR`, avoids a second HTML document, and fetches category translations through the data layer

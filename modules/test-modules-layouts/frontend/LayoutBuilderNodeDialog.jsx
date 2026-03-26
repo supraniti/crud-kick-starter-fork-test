@@ -369,6 +369,12 @@ function BlockFields({
         pageContextManifest={pageContextManifest}
         widgetBindingManifestNote={widgetBindingManifestNote}
         mediaItems={mediaItems}
+        translationTarget={{
+          entityType: "page-layouts",
+          entityId: draft?.id ?? null,
+          entityLabel: draft?.title ?? "Layout",
+          sourceLocale: draft?.locale ?? "en-US"
+        }}
         onChangeComponentInstance={(componentInstance) =>
           onUpdateNode({
             componentInstance

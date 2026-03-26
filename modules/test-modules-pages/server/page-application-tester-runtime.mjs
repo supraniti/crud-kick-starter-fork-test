@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.mjs";
 import { resolvePublishedFirestoreDescriptor } from "./page-firestore-publication-runtime.mjs";
 import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
+import {
+  DEFAULT_SOURCE_LOCALE,
+  listSupportedTranslationLocales
+} from "../../test-modules-translations/shared/translation-locale-catalog.mjs";
 
 const DEFAULT_APPLICATION_TESTER_ASSET_PATH = "assets/page-reader.global.js";
 const DEFAULT_APPLICATION_TESTER_FIRESTORE_ASSET_PATH = "assets/page-reader-firestore.global.js";
@@ -26,9 +30,12 @@ const DEFAULT_PUBLIC_APPLICATION_VIEW_API_PATH =
   "/api/reference/modules/test-modules-pages/public/application-view";
 const DEFAULT_PUBLIC_COMMENTS_API_PATH =
   "/api/reference/modules/test-modules-pages/public/comments";
+const DEFAULT_PUBLIC_TRANSLATIONS_API_PATH =
+  "/api/reference/modules/test-modules-pages/public/translations";
 const DEFAULT_DEPLOYED_PUBLIC_PUBLISHED_DOCUMENT_API_PATH = "/published-document";
 const DEFAULT_DEPLOYED_PUBLIC_APPLICATION_VIEW_API_PATH = "/application-view";
 const DEFAULT_DEPLOYED_PUBLIC_COMMENTS_API_PATH = "/comments";
+const DEFAULT_DEPLOYED_PUBLIC_TRANSLATIONS_API_PATH = "/translations";
 const DEFAULT_PUBLIC_COMMENTS_COLLECTION_PATH = "publicComments";
 
 function countPathSegments(pagePath) {
@@ -249,7 +256,8 @@ function buildApplicationTesterPublicApiPaths(publicApiMode, allowComments) {
     return {
       publicApplicationViewApiPath: null,
       publicPublishedDocumentApiPath: null,
-      publicCommentsApiPath: null
+      publicCommentsApiPath: null,
+      publicTranslationsApiPath: DEFAULT_DEPLOYED_PUBLIC_TRANSLATIONS_API_PATH
     };
   }
   return {
@@ -265,7 +273,11 @@ function buildApplicationTesterPublicApiPaths(publicApiMode, allowComments) {
       ? publicApiMode === "deployed-public-service"
         ? DEFAULT_DEPLOYED_PUBLIC_COMMENTS_API_PATH
         : DEFAULT_PUBLIC_COMMENTS_API_PATH
-      : null
+      : null,
+    publicTranslationsApiPath:
+      publicApiMode === "deployed-public-service"
+        ? DEFAULT_DEPLOYED_PUBLIC_TRANSLATIONS_API_PATH
+        : DEFAULT_PUBLIC_TRANSLATIONS_API_PATH
   };
 }
 
@@ -341,6 +353,8 @@ export async function buildApplicationTesterContract(payload = {}, options = {})
     pagePath,
     firestore,
     commentsCollectionPath: firebase?.publicCommentsCollectionPath ?? DEFAULT_PUBLIC_COMMENTS_COLLECTION_PATH,
+    translationDefaultLocale: DEFAULT_SOURCE_LOCALE,
+    supportedTranslationLocales: listSupportedTranslationLocales(),
     ...publicApiPaths,
     primaryRecord: buildApplicationTesterPrimaryRecord(primaryRecord),
     featuredMedia: buildFeaturedMediaDescriptor(payload),

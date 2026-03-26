@@ -1,5 +1,7 @@
 import { Alert, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { resolveBindableContextOptions } from "../../test-modules-pages/shared/page-widget-compatibility.mjs";
+import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
+import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
 
 function toText(value, fallback = "") {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
@@ -54,7 +56,7 @@ function createBindingForSource(source, definition = {}, pageContextManifest = n
   };
 }
 
-function renderStaticField({ definition, binding, onChange }) {
+function renderStaticField({ definition, binding, onChange, translationField = null }) {
   const value = Object.prototype.hasOwnProperty.call(binding ?? {}, "value") ? binding.value : "";
   const valueKind = definition.valueKind ?? "text";
   if (valueKind === "enum" && Array.isArray(definition.options) && definition.options.length > 0) {
@@ -86,11 +88,31 @@ function renderStaticField({ definition, binding, onChange }) {
       </TextField>
     );
   }
+  if (valueKind === "rich-text") {
+    return (
+      <TranslatableMultilineTextField
+        label={definition.label ?? definition.key}
+        value={value ?? ""}
+        fieldId={definition.key ?? definition.label ?? "value"}
+        onChangeField={(_fieldId, nextValue) => onChange({ mode: "static", value: nextValue })}
+        minRows={5}
+        translationField={translationField}
+      />
+    );
+  }
+  if (valueKind === "text") {
+    return (
+      <TranslatableTextField
+        label={definition.label ?? definition.key}
+        value={value ?? ""}
+        onChange={(event) => onChange({ mode: "static", value: event.target.value })}
+        translationField={translationField}
+      />
+    );
+  }
   return (
     <TextField
       label={definition.label ?? definition.key}
-      multiline={valueKind === "rich-text"}
-      minRows={valueKind === "rich-text" ? 5 : 1}
       type={valueKind === "number" ? "number" : "text"}
       value={value ?? ""}
       onChange={(event) =>
@@ -110,6 +132,7 @@ export function LayoutBuilderBindingPicker({
   pageContextManifest = null,
   mediaOptions = [],
   helperNote = "",
+  translationField = null,
   onChange
 }) {
   const sourceOptions = resolveSourceOptions(definition);
@@ -154,6 +177,7 @@ export function LayoutBuilderBindingPicker({
         ? renderStaticField({
             definition,
             binding: binding ?? createBindingForSource("static", definition, pageContextManifest, mediaOptions),
+            translationField,
             onChange
           })
         : null}

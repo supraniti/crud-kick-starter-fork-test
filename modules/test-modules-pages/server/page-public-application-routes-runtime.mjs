@@ -14,6 +14,7 @@ import {
 } from "./page-application-view-runtime.mjs";
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 import { normalizeTargetConfig } from "../../test-modules-remote-ops/server/remote-ops-shared-runtime.mjs";
+import { resolveLocalPublicTranslationOverlay } from "../../test-modules-translations/server/public-translations-runtime.mjs";
 
 function readPrimaryRecord(payload = {}) {
   const record = payload?.data?.primary?.record;
@@ -568,6 +569,16 @@ async function resolvePublicReaderDeferred(routeContext, pagePath) {
   };
 }
 
+async function resolvePublicTranslations(routeContext, pagePath, localeCode) {
+  return resolveLocalPublicTranslationOverlay({
+    collectionHandlerRegistry: routeContext.collectionHandlerRegistry,
+    resolveSettingsRepository: routeContext.resolveSettingsRepository,
+    settingsDefinition: routeContext.manifest?.settings ?? null,
+    pagePath,
+    localeCode
+  });
+}
+
 async function createComment(routeContext, body = {}, reply) {
   const commentsHandler = routeContext.collectionHandlerRegistry.get(COMMENTS_COLLECTION_ID);
   if (!commentsHandler) {
@@ -633,6 +644,7 @@ export function registerPagePublicApplicationRoutes(fastify, routeContext) {
   const publicApplicationViewPath = `/api/reference/modules/${routeContext.moduleId}/public/application-view`;
   const publicReaderBootstrapPath = `/api/reference/modules/${routeContext.moduleId}/public/reader/bootstrap`;
   const publicReaderDeferredPath = `/api/reference/modules/${routeContext.moduleId}/public/reader/deferred`;
+  const publicTranslationsPath = `/api/reference/modules/${routeContext.moduleId}/public/translations`;
   const publishedDocumentPath = `/api/reference/modules/${routeContext.moduleId}/public/published-document`;
   const commentsPath = `/api/reference/modules/${routeContext.moduleId}/public/comments`;
   const importCommentsPath = `/api/reference/modules/${routeContext.moduleId}/public/comments/import-local`;
@@ -650,6 +662,12 @@ export function registerPagePublicApplicationRoutes(fastify, routeContext) {
   });
 
   fastify.options(publicReaderDeferredPath, async function publicReaderDeferredOptions(_request, reply) {
+    setPublicApiCorsHeaders(reply);
+    reply.code(204);
+    return null;
+  });
+
+  fastify.options(publicTranslationsPath, async function publicTranslationsOptions(_request, reply) {
     setPublicApiCorsHeaders(reply);
     reply.code(204);
     return null;
@@ -752,6 +770,28 @@ export function registerPagePublicApplicationRoutes(fastify, routeContext) {
         error: {
           code: error?.code ?? "PUBLIC_READER_DEFERRED_FAILED",
           message: error?.message ?? "Failed to resolve the public reader deferred document."
+        }
+      });
+    }
+  });
+
+  fastify.get(publicTranslationsPath, async function publicTranslationsRoute(request, reply) {
+    setPublicApiCorsHeaders(reply);
+    const moduleAvailability = ensureModuleEnabled(routeContext, reply);
+    if (moduleAvailability !== true) {
+      return moduleAvailability;
+    }
+    try {
+      const path = typeof request.query?.path === "string" ? request.query.path : "";
+      const locale = typeof request.query?.locale === "string" ? request.query.locale : "";
+      return buildPublicApiPayload(await resolvePublicTranslations(routeContext, path, locale));
+    } catch (error) {
+      reply.code(error?.statusCode ?? 500);
+      return buildPublicApiPayload({
+        ok: false,
+        error: {
+          code: error?.code ?? "PUBLIC_TRANSLATIONS_FAILED",
+          message: error?.message ?? "Failed to resolve route translations."
         }
       });
     }

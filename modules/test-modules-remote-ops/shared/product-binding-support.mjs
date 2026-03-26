@@ -29,6 +29,9 @@ export function resolveManagedProductBindingKey(target = null) {
     if (projectionScope === "public-blog-tags") {
       return "tags-projection";
     }
+    if (projectionScope === "public-translations") {
+      return "translations-projection";
+    }
   }
 
   if (targetKind === "deployment-storage" && title === "HTML Deployment") {

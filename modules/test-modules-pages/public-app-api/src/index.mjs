@@ -5,12 +5,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePageContextManifest } from "../../server/page-context-manifest-runtime.mjs";
 import { buildPageWidgetRenderState } from "../../server/page-widget-render-contract-runtime.mjs";
+import { buildTranslationProjectionDocumentId } from "../../../test-modules-translations/shared/translation-entry.mjs";
 
 const PORT = Number.parseInt(process.env.PORT ?? "8080", 10);
 const POSTS_COLLECTION_PATH = "publishedPosts";
 const PAGES_COLLECTION_PATH = "publishedPages";
 const CATEGORIES_COLLECTION_PATH = "publicCategories";
 const TAGS_COLLECTION_PATH = "publicTags";
+const TRANSLATIONS_COLLECTION_PATH =
+  normalizeCollectionPath(process.env.PUBLIC_PAGE_API_TRANSLATIONS_COLLECTION) ?? "publicTranslations";
 const COMMENTS_COLLECTION_PATH =
   normalizeText(process.env.PUBLIC_PAGE_API_COMMENTS_COLLECTION) ?? "publicComments";
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -25,13 +28,14 @@ const LOCAL_LAYOUTS_STATE_PATH = path.resolve(
 const ALLOWED_COLLECTIONS = new Set(
   String(
     process.env.PUBLIC_PAGE_API_ALLOWED_COLLECTIONS
-      ?? `${POSTS_COLLECTION_PATH},${PAGES_COLLECTION_PATH},${CATEGORIES_COLLECTION_PATH},${TAGS_COLLECTION_PATH}`
+      ?? `${POSTS_COLLECTION_PATH},${PAGES_COLLECTION_PATH},${CATEGORIES_COLLECTION_PATH},${TAGS_COLLECTION_PATH},${TRANSLATIONS_COLLECTION_PATH}`
   )
     .split(",")
     .map((entry) => normalizeText(entry))
     .filter(Boolean)
 );
 ALLOWED_COLLECTIONS.add(COMMENTS_COLLECTION_PATH);
+ALLOWED_COLLECTIONS.add(TRANSLATIONS_COLLECTION_PATH);
 const ALLOWED_PROJECT_ID = normalizeText(process.env.PUBLIC_PAGE_API_PROJECT_ID);
 const ALLOW_COMMENTS = String(process.env.PUBLIC_PAGE_API_ALLOW_COMMENTS ?? "true").toLowerCase() !== "false";
 
@@ -1724,6 +1728,32 @@ async function resolveReaderDeferred(query) {
   );
 }
 
+async function resolveTranslations(query) {
+  const projectId = normalizeText(query.get("projectId")) ?? ALLOWED_PROJECT_ID;
+  const pagePath = normalizePagePath(query.get("path"));
+  const locale = normalizeText(query.get("locale"));
+  ensureProjectAllowed(projectId);
+  if (!normalizeText(query.get("path"))) {
+    throw buildError("PAGE_PATH_REQUIRED", "path is required.", 400);
+  }
+  if (!locale) {
+    throw buildError("LOCALE_REQUIRED", "locale is required.", 400);
+  }
+
+  const document = await readCollectionDocument(
+    projectId,
+    TRANSLATIONS_COLLECTION_PATH,
+    buildTranslationProjectionDocumentId(pagePath, locale)
+  );
+  return {
+    ok: true,
+    path: pagePath,
+    locale,
+    items: document ? [document] : [],
+    total: document ? 1 : 0
+  };
+}
+
 async function listFirestoreComments(projectId) {
   return listCollectionDocuments(projectId, COMMENTS_COLLECTION_PATH);
 }
@@ -1860,6 +1890,11 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/reader/deferred") {
       sendJson(response, 200, buildPayload(await resolveReaderDeferred(url.searchParams)));
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/translations") {
+      sendJson(response, 200, buildPayload(await resolveTranslations(url.searchParams)));
       return;
     }
 

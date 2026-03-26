@@ -25,6 +25,7 @@ function pickFields(item, fieldIds, normalizeValue) {
 export function normalizeDraftFromSources(post = {}) {
   const primaryAuthorId = readItemValue(post, "primaryAuthorId");
   return {
+    id: readItemValue(post, "id", null),
     ...pickFields(post, DRAFT_TEXT_FIELDS, (value) => value ?? ""),
     ...pickFields(post, DRAFT_LIST_FIELDS, toArray),
     status: readItemValue(post, "status", "draft"),

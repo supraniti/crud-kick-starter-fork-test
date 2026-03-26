@@ -29,6 +29,11 @@ const PRODUCT_BINDING_SPECS = Object.freeze([
     targetKind: "firestore-projection"
   },
   {
+    key: "translations-projection",
+    title: "Translations Projection",
+    targetKind: "firestore-projection"
+  },
+  {
     key: "deployment-storage",
     title: "HTML Deployment",
     targetKind: "deployment-storage"
@@ -159,6 +164,8 @@ function createManagedTargetDefaults(bindingKey, connectionProfile, linkedTarget
     "categories-projection": () =>
       createProjectionDefaults("public-blog-categories", "publicCategories"),
     "tags-projection": () => createProjectionDefaults("public-blog-tags", "publicTags"),
+    "translations-projection": () =>
+      createProjectionDefaults("public-translations", "publicTranslations"),
     "deployment-storage": () =>
       createStorageDefaults(connectionProfile, "deployment", "site", "deployment"),
     "media-storage": () =>
@@ -265,6 +272,33 @@ function findExistingManagedTarget(connectionTargets, spec) {
     ) ??
     null
   );
+}
+
+export function listMissingManagedTargetSpecs(connectionTargets = []) {
+  return PRODUCT_BINDING_SPECS.filter(
+    (spec) => !findExistingManagedTarget(connectionTargets, spec)
+  );
+}
+
+export function resolveManagedTargetCompatibilityBundleId(bindingKey) {
+  if (
+    bindingKey === "posts-projection" ||
+    bindingKey === "categories-projection" ||
+    bindingKey === "tags-projection" ||
+    bindingKey === "translations-projection"
+  ) {
+    return "firestore-projection";
+  }
+  if (bindingKey === "deployment-storage") {
+    return "deployment-storage";
+  }
+  if (bindingKey === "media-storage") {
+    return "media-storage";
+  }
+  if (bindingKey === "browser-delivery") {
+    return "browser-delivery";
+  }
+  return null;
 }
 
 async function persistTarget(routeContext, currentTarget, nextTarget, reply) {

@@ -27,9 +27,10 @@ const PRODUCT_STAGE_SPECS = Object.freeze([
   {
     id: "projections",
     title: "3. Published Data",
-    description: "Posts, categories, and tags need a healthy remote home before the site can publish data-backed pages.",
+    description:
+      "Posts, categories, tags, and locale overlays need a healthy remote home before the site can publish data-backed pages.",
     bundleId: "firestore-projection",
-    bindingKeys: ["posts-projection", "categories-projection", "tags-projection"]
+    bindingKeys: ["posts-projection", "categories-projection", "tags-projection", "translations-projection"]
   },
   {
     id: "media",
@@ -53,6 +54,16 @@ const PRODUCT_STAGE_SPECS = Object.freeze([
     bindingKeys: ["browser-delivery"]
   }
 ]);
+
+const BINDING_LABELS = Object.freeze({
+  "posts-projection": "Posts Projection",
+  "categories-projection": "Categories Projection",
+  "tags-projection": "Tags Projection",
+  "translations-projection": "Translations Projection",
+  "deployment-storage": "HTML Deployment",
+  "media-storage": "Media Library",
+  "browser-delivery": "Primary Domain"
+});
 
 function getStageTone(state) {
   if (state === "ready") {
@@ -261,6 +272,10 @@ function createBundleStage(stageSpec, connection, targets, compatibilityReport) 
   const stageTargets = getManagedTargetsForStage(targets, connection.id, stageSpec.bindingKeys);
   const bundleReport = getBundleReport(compatibilityReport, stageSpec.bundleId);
   const targetDetails = summarizeTargetDetails(stageTargets);
+  const preparedBindingKeys = new Set(stageTargets.map((target) => resolveManagedProductBindingKey(target)));
+  const missingBindingKeys = (Array.isArray(stageSpec.bindingKeys) ? stageSpec.bindingKeys : []).filter(
+    (bindingKey) => !preparedBindingKeys.has(bindingKey)
+  );
 
   if (stageTargets.length === 0) {
     return {
@@ -268,6 +283,22 @@ function createBundleStage(stageSpec, connection, targets, compatibilityReport) 
       summary: "This publishing piece has not been prepared yet.",
       nextStep: "Analyze readiness, then prepare the missing piece from this desk.",
       details: [],
+      stageTargets,
+      bundleReport
+    };
+  }
+
+  if (missingBindingKeys.length > 0) {
+    return {
+      state: "action-required",
+      summary: "One or more standard publishing pieces have not been prepared yet.",
+      nextStep: "Prepare the missing piece from this desk before relying on this stage in production.",
+      details: [
+        ...targetDetails,
+        ...missingBindingKeys.map(
+          (bindingKey) => `Missing: ${BINDING_LABELS[bindingKey] ?? bindingKey}`
+        )
+      ],
       stageTargets,
       bundleReport
     };

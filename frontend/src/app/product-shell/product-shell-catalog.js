@@ -6,6 +6,7 @@ const NORTH_STAR_MODULE_SET = new Set([
   "test-modules-pages",
   "test-modules-layouts",
   "test-modules-themes",
+  "test-modules-translations",
   "test-modules-media-manager",
   "test-modules-remote-ops"
 ]);
@@ -99,6 +100,17 @@ const PRODUCT_NAVIGATION_SPECS = Object.freeze([
     purpose: "Moderate comment intake and keep public discussion aligned with the published content set.",
     nextRouteId: "deployments",
     order: 170
+  },
+  {
+    id: "test-modules-translations",
+    kind: "module",
+    label: "Translations",
+    icon: "translate",
+    stageId: "content",
+    stageLabel: "Content",
+    purpose: "Translate authored fields centrally and inline without leaving the editing flow, then keep locale coverage visible before release.",
+    nextRouteId: "test-modules-layouts",
+    order: 175
   },
   {
     id: "test-modules-layouts",
@@ -269,3 +281,4 @@ export function resolveProductRouteGuide(moduleItems = [], moduleId = "") {
     nextRouteLabel: nextItem?.label ?? ""
   };
 }
+

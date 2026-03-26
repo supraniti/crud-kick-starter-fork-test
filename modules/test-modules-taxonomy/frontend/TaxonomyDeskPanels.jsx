@@ -27,6 +27,9 @@ import {
 } from "@mui/material";
 import { DeskSplitLayout } from "../../../frontend/src/ui/DeskSplitLayout.jsx";
 import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
+import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
+import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
+import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
 
 function SummaryCard({ label, value, tone = "default", caption = "" }) {
   const color = tone === "warning" ? "warning.main" : tone === "success" ? "success.main" : "text.primary";
@@ -723,6 +726,12 @@ export function CategoryFormDrawer({
   onSubmit
 }) {
   const previewUrl = selectedFeaturedMedia ? mediaContentUrlFor(selectedFeaturedMedia.id, selectedFeaturedMedia.updatedOn) : "";
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "blog-categories",
+    entityId: formState.itemId ?? null,
+    entityLabel: formState.name ?? "Category",
+    sourceLocale: formState.locale ?? "en-US"
+  });
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
       <Stack sx={{ width: { xs: "100vw", sm: 480 }, p: 2.5 }} spacing={2}>
@@ -738,7 +747,20 @@ export function CategoryFormDrawer({
 
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Stack spacing={1.5}>
-            <TextField label="Name" size="small" value={formState.name ?? ""} error={Boolean(validationErrors.name)} helperText={validationErrors.name ?? "Public category label"} onChange={(event) => onChangeField("name", event.target.value)} />
+            <TranslatableTextField
+              label="Name"
+              size="small"
+              value={formState.name ?? ""}
+              error={Boolean(validationErrors.name)}
+              helperText={validationErrors.name ?? "Public category label"}
+              onChange={(event) => onChangeField("name", event.target.value)}
+              translationField={buildTranslationField({
+                fieldPath: "name",
+                fieldLabel: "Name",
+                sourceValue: formState.name ?? "",
+                valueKind: "text"
+              })}
+            />
             <TextField label="Path Preview" size="small" value={pathPreview} InputProps={{ readOnly: true }} helperText="Computed from the category name and parent." />
             <TextField
               select
@@ -766,7 +788,20 @@ export function CategoryFormDrawer({
               </TextField>
               <TextField label="Sort Order" size="small" type="number" value={formState.sortOrder ?? 0} onChange={(event) => onChangeField("sortOrder", Number.parseInt(event.target.value || "0", 10) || 0)} fullWidth />
             </Stack>
-            <TextField label="Description" size="small" multiline minRows={4} value={formState.description ?? ""} onChange={(event) => onChangeField("description", event.target.value)} />
+            <TranslatableMultilineTextField
+              label="Description"
+              size="small"
+              value={formState.description ?? ""}
+              fieldId="description"
+              onChangeField={onChangeField}
+              minRows={4}
+              translationField={buildTranslationField({
+                fieldPath: "description",
+                fieldLabel: "Description",
+                sourceValue: formState.description ?? "",
+                valueKind: "rich-text"
+              })}
+            />
           </Stack>
         </Paper>
 
@@ -795,6 +830,12 @@ export function CategoryFormDrawer({
 }
 
 export function TagFormDrawer({ open, formState, validationErrors, onClose, onChangeField, onDelete, onSubmit }) {
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "blog-tags",
+    entityId: formState.itemId ?? null,
+    entityLabel: formState.name ?? "Tag",
+    sourceLocale: formState.locale ?? "en-US"
+  });
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
       <Stack sx={{ width: { xs: "100vw", sm: 460 }, p: 2.5 }} spacing={2}>
@@ -808,15 +849,65 @@ export function TagFormDrawer({ open, formState, validationErrors, onClose, onCh
 
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Stack spacing={1.5}>
-            <TextField label="Name" size="small" value={formState.name ?? ""} error={Boolean(validationErrors.name)} helperText={validationErrors.name ?? "Public tag label"} onChange={(event) => onChangeField("name", event.target.value)} />
+            <TranslatableTextField
+              label="Name"
+              size="small"
+              value={formState.name ?? ""}
+              error={Boolean(validationErrors.name)}
+              helperText={validationErrors.name ?? "Public tag label"}
+              onChange={(event) => onChangeField("name", event.target.value)}
+              translationField={buildTranslationField({
+                fieldPath: "name",
+                fieldLabel: "Name",
+                sourceValue: formState.name ?? "",
+                valueKind: "text"
+              })}
+            />
             <TextField label="Color" size="small" value={formState.color ?? ""} error={Boolean(validationErrors.color)} helperText={validationErrors.color ?? "Optional tag color such as #0f766e"} onChange={(event) => onChangeField("color", event.target.value)} />
             <TextField select label="Visibility" size="small" value={formState.visibility ?? "public"} onChange={(event) => onChangeField("visibility", event.target.value)}>
               <MenuItem value="public">Public</MenuItem>
               <MenuItem value="internal">Internal</MenuItem>
             </TextField>
-            <TextField label="Description" size="small" multiline minRows={3} value={formState.description ?? ""} onChange={(event) => onChangeField("description", event.target.value)} />
-            <TextField label="SEO Title" size="small" value={formState.seoTitle ?? ""} onChange={(event) => onChangeField("seoTitle", event.target.value)} />
-            <TextField label="SEO Description" size="small" multiline minRows={3} value={formState.seoDescription ?? ""} onChange={(event) => onChangeField("seoDescription", event.target.value)} />
+            <TranslatableMultilineTextField
+              label="Description"
+              size="small"
+              value={formState.description ?? ""}
+              fieldId="description"
+              onChangeField={onChangeField}
+              minRows={3}
+              translationField={buildTranslationField({
+                fieldPath: "description",
+                fieldLabel: "Description",
+                sourceValue: formState.description ?? "",
+                valueKind: "rich-text"
+              })}
+            />
+            <TranslatableTextField
+              label="SEO Title"
+              size="small"
+              value={formState.seoTitle ?? ""}
+              onChange={(event) => onChangeField("seoTitle", event.target.value)}
+              translationField={buildTranslationField({
+                fieldPath: "seoTitle",
+                fieldLabel: "SEO Title",
+                sourceValue: formState.seoTitle ?? "",
+                valueKind: "text"
+              })}
+            />
+            <TranslatableMultilineTextField
+              label="SEO Description"
+              size="small"
+              value={formState.seoDescription ?? ""}
+              fieldId="seoDescription"
+              onChangeField={onChangeField}
+              minRows={3}
+              translationField={buildTranslationField({
+                fieldPath: "seoDescription",
+                fieldLabel: "SEO Description",
+                sourceValue: formState.seoDescription ?? "",
+                valueKind: "rich-text"
+              })}
+            />
           </Stack>
         </Paper>
 

@@ -15,6 +15,9 @@ import {
   Typography
 } from "@mui/material";
 import { useMemo } from "react";
+import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
+import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
+import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
 import {
   buildMediaArtifactUrls,
   resolveMediaRemoteSyncState,
@@ -435,11 +438,18 @@ export function MediaRemoteProcedureFeedback({ remoteTarget, procedureState }) {
 }
 
 export function MetadataEditor({
+  selectedItem,
   metadataState,
   onChangeField,
   onSave
 }) {
   const selectedUsageLabels = metadataState.draft.usageLabels ?? [];
+  const buildTranslationField = useTranslationFieldSupport({
+    entityType: "media-items",
+    entityId: selectedItem?.id ?? null,
+    entityLabel: metadataState.draft.displayName ?? "Media",
+    sourceLocale: metadataState.draft.locale ?? "en-US"
+  });
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -453,25 +463,43 @@ export function MetadataEditor({
         {metadataState.errorMessage ? (
           <Alert severity="error">{metadataState.errorMessage}</Alert>
         ) : null}
-        <TextField
+        <TranslatableTextField
           label="Display name"
           value={metadataState.draft.displayName}
           onChange={(event) => onChangeField("displayName", event.target.value)}
           size="small"
+          translationField={buildTranslationField({
+            fieldPath: "displayName",
+            fieldLabel: "Display Name",
+            sourceValue: metadataState.draft.displayName ?? "",
+            valueKind: "text"
+          })}
         />
-        <TextField
+        <TranslatableTextField
           label="Alt text"
           value={metadataState.draft.altText}
           onChange={(event) => onChangeField("altText", event.target.value)}
           size="small"
+          translationField={buildTranslationField({
+            fieldPath: "altText",
+            fieldLabel: "Alt Text",
+            sourceValue: metadataState.draft.altText ?? "",
+            valueKind: "text"
+          })}
         />
-        <TextField
+        <TranslatableMultilineTextField
           label="Description"
           value={metadataState.draft.description}
-          onChange={(event) => onChangeField("description", event.target.value)}
           size="small"
-          multiline
+          fieldId="description"
+          onChangeField={onChangeField}
           minRows={3}
+          translationField={buildTranslationField({
+            fieldPath: "description",
+            fieldLabel: "Description",
+            sourceValue: metadataState.draft.description ?? "",
+            valueKind: "rich-text"
+          })}
         />
         <TextField
           select

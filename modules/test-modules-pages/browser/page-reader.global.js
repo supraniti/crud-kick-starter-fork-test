@@ -77,6 +77,159 @@
     return value ? support.formatDateTime(value) : "";
   }
 
+  function cloneJsonValue(value) {
+    if (value === null || value === undefined) {
+      return value == null ? null : value;
+    }
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function normalizeLocaleCode(value, fallback) {
+    var normalized = toText(value, "");
+    return normalized || toText(fallback, "en-US") || "en-US";
+  }
+
+  function listSupportedLocales(state) {
+    var locales =
+      state &&
+      state.contract &&
+      Array.isArray(state.contract.supportedTranslationLocales)
+        ? state.contract.supportedTranslationLocales
+        : [];
+    if (!locales.length) {
+      return [
+        { code: "en-US", label: "English (US)" },
+        { code: "fr-FR", label: "French" },
+        { code: "he-IL", label: "Hebrew" },
+        { code: "es-ES", label: "Spanish" },
+        { code: "de-DE", label: "German" }
+      ];
+    }
+    return locales.map(function (entry) {
+      return {
+        code: normalizeLocaleCode(entry && entry.code, "en-US"),
+        label: toText(entry && entry.label, normalizeLocaleCode(entry && entry.code, "en-US"))
+      };
+    });
+  }
+
+  function deriveSourceLocaleFromDocument(bootstrapDocument, state) {
+    if (bootstrapDocument && bootstrapDocument.sourceLocale) {
+      return normalizeLocaleCode(bootstrapDocument.sourceLocale, "en-US");
+    }
+    var model = bootstrapDocument && bootstrapDocument.model ? bootstrapDocument.model : null;
+    if (model && model.kind === "post-detail" && model.post) {
+      return normalizeLocaleCode(model.post.locale, state && state.contract ? state.contract.translationDefaultLocale : "en-US");
+    }
+    if (model && model.kind === "category-detail" && model.category) {
+      return normalizeLocaleCode(model.category.locale, state && state.contract ? state.contract.translationDefaultLocale : "en-US");
+    }
+    return normalizeLocaleCode(
+      state && state.contract ? state.contract.translationDefaultLocale : "en-US",
+      "en-US"
+    );
+  }
+
+  function buildLocaleQueryValue(localeCode, sourceLocale) {
+    var normalizedLocale = normalizeLocaleCode(localeCode, sourceLocale);
+    var normalizedSourceLocale = normalizeLocaleCode(sourceLocale, "en-US");
+    return normalizedLocale === normalizedSourceLocale ? "" : normalizedLocale;
+  }
+
+  function buildLocalizedPageUrl(targetGlobal, pagePath, localeCode, sourceLocale) {
+    var nextUrl = new URL(pagePath, targetGlobal.location.origin);
+    var localeQueryValue = buildLocaleQueryValue(localeCode, sourceLocale);
+    if (localeQueryValue) {
+      nextUrl.searchParams.set("locale", localeQueryValue);
+    } else {
+      nextUrl.searchParams.delete("locale");
+    }
+    return nextUrl.pathname + nextUrl.search + nextUrl.hash;
+  }
+
+  function readRequestedLocale(targetGlobal, sourceLocale) {
+    try {
+      var params = new URLSearchParams(targetGlobal.location.search || "");
+      return normalizeLocaleCode(params.get("locale"), sourceLocale);
+    } catch (_error) {
+      return normalizeLocaleCode(sourceLocale, "en-US");
+    }
+  }
+
+  function updateLocaleUrl(targetGlobal, state, mode) {
+    if (!targetGlobal || !targetGlobal.history) {
+      return;
+    }
+    var pagePath = readCurrentPagePath(targetGlobal, state);
+    var nextUrl = buildLocalizedPageUrl(targetGlobal, pagePath, state.activeLocale, state.sourceLocale);
+    if (mode === "push") {
+      targetGlobal.history.pushState({ pagePath: pagePath, locale: state.activeLocale }, "", nextUrl);
+      return;
+    }
+    targetGlobal.history.replaceState({ pagePath: pagePath, locale: state.activeLocale }, "", nextUrl);
+  }
+
+  function buildTranslationCacheKey(pagePath, localeCode) {
+    return normalizePagePathValue(pagePath) + "::" + normalizeLocaleCode(localeCode, "en-US");
+  }
+
+  function parsePatchPath(pathValue) {
+    return String(pathValue || "")
+      .split(".")
+      .map(function (entry) { return entry.trim(); })
+      .filter(Boolean)
+      .flatMap(function (entry) {
+        var segments = [];
+        entry.replace(/([^[.\]]+)|\[(\d+)\]/g, function (_match, objectKey, arrayIndex) {
+          segments.push(objectKey !== undefined ? objectKey : Number.parseInt(arrayIndex, 10));
+          return "";
+        });
+        return segments;
+      });
+  }
+
+  function writeJsonValueAtPath(rootValue, pathValue, nextValue) {
+    var segments = parsePatchPath(pathValue);
+    if (!segments.length) {
+      return cloneJsonValue(nextValue);
+    }
+    var clonedRoot =
+      Array.isArray(rootValue)
+        ? rootValue.slice()
+        : rootValue && typeof rootValue === "object"
+          ? { ...rootValue }
+          : {};
+    var cursor = clonedRoot;
+    for (var index = 0; index < segments.length - 1; index += 1) {
+      var segment = segments[index];
+      var nextSegment = segments[index + 1];
+      var existing = cursor[segment];
+      var replacement =
+        Array.isArray(existing)
+          ? existing.slice()
+          : existing && typeof existing === "object"
+            ? { ...existing }
+            : typeof nextSegment === "number"
+              ? []
+              : {};
+      cursor[segment] = replacement;
+      cursor = replacement;
+    }
+    cursor[segments[segments.length - 1]] = cloneJsonValue(nextValue);
+    return clonedRoot;
+  }
+
+  function applyOverlayPatches(documentValue, patches) {
+    var nextDocument = cloneJsonValue(documentValue);
+    normalizeArray(patches).forEach(function (patch) {
+      if (!patch || !patch.path) {
+        return;
+      }
+      nextDocument = writeJsonValueAtPath(nextDocument, patch.path, patch.value);
+    });
+    return nextDocument;
+  }
+
   function shouldUseIndexArtifact(delivery, href) {
     var accessMode = toText(delivery && delivery.accessMode, "");
     if (accessMode !== "custom-domain") {
@@ -118,20 +271,44 @@
     }
   }
 
+  function appendActiveLocaleToHref(href) {
+    var candidate = toText(href, "");
+    if (!candidate) {
+      return "";
+    }
+    var activeLocale = normalizeLocaleCode(
+      window.__CRUD_PAGE_APPLICATION_ACTIVE_LOCALE__,
+      window.__CRUD_PAGE_APPLICATION_SOURCE_LOCALE__ || "en-US"
+    );
+    var sourceLocale = normalizeLocaleCode(window.__CRUD_PAGE_APPLICATION_SOURCE_LOCALE__, "en-US");
+    if (!activeLocale || activeLocale === sourceLocale) {
+      return candidate;
+    }
+    try {
+      var parsed = new URL(candidate, window.location.origin);
+      parsed.searchParams.set("locale", activeLocale);
+      return parsed.toString();
+    } catch (_error) {
+      return candidate;
+    }
+  }
+
   function normalizeLinkHref(link, delivery) {
     if (!link || typeof link !== "object") {
       return "";
     }
     var publicUrl = toText(link.publicUrl, "");
     if (publicUrl) {
-      return shouldUseIndexArtifact(delivery, publicUrl) ? appendIndexArtifact(publicUrl) : publicUrl;
+      return appendActiveLocaleToHref(
+        shouldUseIndexArtifact(delivery, publicUrl) ? appendIndexArtifact(publicUrl) : publicUrl
+      );
     }
     var path = toText(link.path, "");
     var deliveryOrigin = toText(delivery && delivery.publicOrigin, "");
     if (path && deliveryOrigin) {
-      return buildFallbackPublicUrl(deliveryOrigin, path, delivery);
+      return appendActiveLocaleToHref(buildFallbackPublicUrl(deliveryOrigin, path, delivery));
     }
-    return path;
+    return appendActiveLocaleToHref(path);
   }
 
   function buildFallbackMediaSummary(media) {
@@ -916,6 +1093,10 @@
       "#page-shell{min-height:100vh;}",
       "#page-app.page-app-root{display:grid;gap:24px;max-width:1200px;margin:0 auto;padding:32px 20px 80px;box-sizing:border-box;}",
       ".page-app-hero{display:grid;gap:20px;padding:24px;border:1px solid var(--page-line);border-radius:28px;background:var(--page-card);box-shadow:var(--page-shadow);}",
+      ".page-app-hero-top{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;}",
+      ".page-app-locale-menu{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}",
+      ".page-app-locale-menu label{font:600 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--page-muted);}",
+      ".page-app-locale-menu select{min-width:160px;border:1px solid var(--page-line);border-radius:999px;padding:9px 14px;background:var(--page-card);color:var(--page-ink);font:500 13px/1.3 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}",
       ".page-app-hero-media{overflow:hidden;border-radius:22px;border:1px solid var(--page-line);background:var(--page-card);}",
       ".page-app-hero-media img,.page-app-gallery-item img,.page-app-card img{display:block;width:100%;height:auto;}",
       ".page-app-eyebrow{font:600 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--page-accent);margin:0 0 10px;}",
@@ -1111,13 +1292,51 @@
     return nav;
   }
 
-  function renderHero(documentObject, model, support, delivery) {
+  function renderLocaleMenu(documentObject, state) {
+    var locales = listSupportedLocales(state);
+    if (!locales.length) {
+      return null;
+    }
+    var container = createNode(documentObject, "div", { className: "page-app-locale-menu" });
+    var label = createNode(documentObject, "label", { text: "Locale" });
+    var select = createNode(documentObject, "select", {
+      attributes: {
+        "aria-label": "Locale"
+      }
+    });
+    locales.forEach(function (entry) {
+      var option = createNode(documentObject, "option", {
+        attributes: {
+          value: entry.code
+        },
+        text: entry.label
+      });
+      if (entry.code === state.activeLocale) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    select.addEventListener("change", function (event) {
+      handleLocaleSelection(window, state, event.target.value).catch(function (error) {
+        console.error(error);
+      });
+    });
+    label.appendChild(select);
+    container.appendChild(label);
+    return container;
+  }
+
+  function renderHero(documentObject, model, support, delivery, state) {
     var hero = createNode(documentObject, "header", { className: "page-app-hero" });
     var copy = createNode(documentObject, "div", { className: "page-app-hero-copy" });
+    var heroTop = createNode(documentObject, "div", { className: "page-app-hero-top" });
     var breadcrumbs = null;
     if (model.kind === "post-detail") {
       breadcrumbs = renderBreadcrumbs(documentObject, model.navigation && model.navigation.breadcrumbs, delivery);
-      if (breadcrumbs) { copy.appendChild(breadcrumbs); }
+      if (breadcrumbs) { heroTop.appendChild(breadcrumbs); }
+      var localeMenu = renderLocaleMenu(documentObject, state);
+      if (localeMenu) { heroTop.appendChild(localeMenu); }
+      if (heroTop.childNodes.length) { copy.appendChild(heroTop); }
       copy.appendChild(createNode(documentObject, "p", { className: "page-app-eyebrow", text: "Blog Post" }));
       copy.appendChild(createNode(documentObject, "h1", { className: "page-app-title", text: model.post.title }));
       if (model.post.subtitle || model.post.excerpt) {
@@ -1128,7 +1347,10 @@
       copy.appendChild(postMeta);
     } else if (model.kind === "category-detail") {
       breadcrumbs = renderBreadcrumbs(documentObject, model.navigation && model.navigation.breadcrumbs, delivery);
-      if (breadcrumbs) { copy.appendChild(breadcrumbs); }
+      if (breadcrumbs) { heroTop.appendChild(breadcrumbs); }
+      var categoryLocaleMenu = renderLocaleMenu(documentObject, state);
+      if (categoryLocaleMenu) { heroTop.appendChild(categoryLocaleMenu); }
+      if (heroTop.childNodes.length) { copy.appendChild(heroTop); }
       copy.appendChild(createNode(documentObject, "p", { className: "page-app-eyebrow", text: "Category" }));
       copy.appendChild(createNode(documentObject, "h1", { className: "page-app-title", text: model.category.name }));
       if (model.category.description) { copy.appendChild(createNode(documentObject, "p", { className: "page-app-subtitle", text: model.category.description })); }
@@ -1136,6 +1358,11 @@
       [model.category.treePath || "", Number.isFinite(Number(model.category.depth)) ? "Depth " + model.category.depth : ""].filter(Boolean).forEach(function (entry) { categoryMeta.appendChild(createNode(documentObject, "span", { text: entry })); });
       copy.appendChild(categoryMeta);
     } else {
+      var genericLocaleMenu = renderLocaleMenu(documentObject, state);
+      if (genericLocaleMenu) {
+        heroTop.appendChild(genericLocaleMenu);
+        copy.appendChild(heroTop);
+      }
       copy.appendChild(createNode(documentObject, "p", { className: "page-app-eyebrow", text: "Page" }));
       copy.appendChild(createNode(documentObject, "h1", { className: "page-app-title", text: model.title || "Page" }));
       if (model.description) { copy.appendChild(createNode(documentObject, "p", { className: "page-app-subtitle", text: model.description })); }
@@ -1305,10 +1532,11 @@
     }
   }
 
-  function mergeReaderDeferredIntoState(state, deferredDocument) {
+  function mergeReaderDeferredIntoState(state, deferredDocument, options) {
     if (!deferredDocument || typeof deferredDocument !== "object" || !deferredDocument.deferred) {
       return;
     }
+    var shouldStoreBase = !options || options.storeAsBase !== false;
     if (state.model && state.model.kind === "post-detail") {
       state.model = {
         ...state.model,
@@ -1341,12 +1569,16 @@
         deferredResolvedAt: deferredDocument.resolvedAt || null
       }
     };
+    if (shouldStoreBase) {
+      state.baseDeferredDocument = cloneJsonValue(deferredDocument);
+    }
   }
 
-  function mergeReaderBootstrapIntoState(targetGlobal, state, bootstrapDocument, pagePath) {
+  function mergeReaderBootstrapIntoState(targetGlobal, state, bootstrapDocument, pagePath, options) {
     if (!bootstrapDocument || typeof bootstrapDocument !== "object" || !bootstrapDocument.model) {
       return;
     }
+    var shouldStoreBase = !options || options.storeAsBase !== false;
     var primaryRecordId = derivePrimaryRecordId(bootstrapDocument.model);
     var primaryRecordSlug = derivePrimaryRecordSlug(bootstrapDocument.model);
     var publicUrl = deriveCurrentPublicUrl(targetGlobal, pagePath, bootstrapDocument);
@@ -1474,6 +1706,14 @@
         }
       };
     }
+    if (shouldStoreBase) {
+      state.baseBootstrapDocument = cloneJsonValue(bootstrapDocument);
+      state.sourceLocale = deriveSourceLocaleFromDocument(bootstrapDocument, state);
+      state.activeLocale = readRequestedLocale(targetGlobal, state.sourceLocale);
+      state.translationOverlayDocument = null;
+    }
+    targetGlobal.__CRUD_PAGE_APPLICATION_SOURCE_LOCALE__ = state.sourceLocale;
+    targetGlobal.__CRUD_PAGE_APPLICATION_ACTIVE_LOCALE__ = state.activeLocale;
     state.commentsApproved = [];
     state.commentsPending = [];
     state.deferredLoaded = false;
@@ -1506,6 +1746,98 @@
       );
     }
     return unwrapReaderDocument(result.data);
+  }
+
+  async function queryReaderTranslationOverlay(targetGlobal, state, pagePath, localeCode) {
+    var normalizedLocale = normalizeLocaleCode(localeCode, state.sourceLocale);
+    if (normalizedLocale === state.sourceLocale) {
+      return null;
+    }
+    return queryReaderDocument(
+      targetGlobal,
+      "readerTranslations",
+      "byPathAndLocale",
+      {
+        path: pagePath,
+        locale: normalizedLocale,
+        cacheKey: buildTranslationCacheKey(pagePath, normalizedLocale),
+        filters: {
+          cacheKey: buildTranslationCacheKey(pagePath, normalizedLocale)
+        },
+        pageSize: 1
+      }
+    );
+  }
+
+  function applyLocalizedDocumentsToState(targetGlobal, state, pagePath, bootstrapDocument, deferredDocument) {
+    mergeReaderBootstrapIntoState(targetGlobal, state, bootstrapDocument, pagePath, {
+      storeAsBase: false
+    });
+    if (deferredDocument) {
+      mergeReaderDeferredIntoState(state, deferredDocument, {
+        storeAsBase: false
+      });
+      state.deferredLoaded = true;
+    } else {
+      state.deferredLoaded = false;
+    }
+    renderApplication(targetGlobal, state);
+  }
+
+  async function applyActiveLocaleToState(targetGlobal, state, pagePathOverride) {
+    var pagePath = normalizePagePathValue(pagePathOverride || readCurrentPagePath(targetGlobal, state));
+    if (!state.baseBootstrapDocument) {
+      return;
+    }
+
+    if (state.activeLocale === state.sourceLocale) {
+      state.translationOverlayDocument = null;
+      applyLocalizedDocumentsToState(
+        targetGlobal,
+        state,
+        pagePath,
+        cloneJsonValue(state.baseBootstrapDocument),
+        state.baseDeferredDocument ? cloneJsonValue(state.baseDeferredDocument) : null
+      );
+      updateLocaleUrl(targetGlobal, state, "replace");
+      return;
+    }
+
+    var overlayDocument = null;
+    try {
+      overlayDocument = await queryReaderTranslationOverlay(targetGlobal, state, pagePath, state.activeLocale);
+    } catch (error) {
+      console.warn(error);
+      overlayDocument = null;
+    }
+    state.translationOverlayDocument = overlayDocument || null;
+
+    var localizedBootstrap = overlayDocument
+      ? applyOverlayPatches(
+          cloneJsonValue(state.baseBootstrapDocument),
+          overlayDocument.bootstrapPatches
+        )
+      : cloneJsonValue(state.baseBootstrapDocument);
+    var localizedDeferred =
+      state.baseDeferredDocument
+        ? overlayDocument
+          ? applyOverlayPatches(
+              cloneJsonValue(state.baseDeferredDocument),
+              overlayDocument.deferredPatches
+            )
+          : cloneJsonValue(state.baseDeferredDocument)
+        : null;
+
+    applyLocalizedDocumentsToState(targetGlobal, state, pagePath, localizedBootstrap, localizedDeferred);
+    updateLocaleUrl(targetGlobal, state, "replace");
+  }
+
+  async function handleLocaleSelection(targetGlobal, state, localeCode) {
+    state.activeLocale = normalizeLocaleCode(localeCode, state.sourceLocale);
+    await applyActiveLocaleToState(targetGlobal, state);
+    if (state.model.kind === "post-detail" && state.model.comments && state.model.comments.enabled) {
+      await refreshComments(targetGlobal, state);
+    }
   }
 
   async function queryReaderRouteManifest(targetGlobal) {
@@ -1643,13 +1975,21 @@
     state.routeLoadPending = true;
     try {
       await loadReaderPageByPath(targetGlobal, state, nextPath);
-      renderApplication(targetGlobal, state);
-      if (historyMode === "push") {
-        targetGlobal.history.pushState({ pagePath: nextPath }, "", nextPath);
-      } else if (historyMode === "replace") {
-        targetGlobal.history.replaceState({ pagePath: nextPath }, "", nextPath);
-      }
       await hydrateDeferredReaderData(targetGlobal, state, nextPath);
+      await applyActiveLocaleToState(targetGlobal, state, nextPath);
+      if (historyMode === "push") {
+        targetGlobal.history.pushState(
+          { pagePath: nextPath, locale: state.activeLocale },
+          "",
+          buildLocalizedPageUrl(targetGlobal, nextPath, state.activeLocale, state.sourceLocale)
+        );
+      } else if (historyMode === "replace") {
+        targetGlobal.history.replaceState(
+          { pagePath: nextPath, locale: state.activeLocale },
+          "",
+          buildLocalizedPageUrl(targetGlobal, nextPath, state.activeLocale, state.sourceLocale)
+        );
+      }
       if (state.model.kind === "post-detail" && state.model.comments && state.model.comments.enabled) {
         await refreshComments(targetGlobal, state);
       }
@@ -1695,6 +2035,7 @@
     };
     targetGlobal.document.addEventListener("click", state.navigationHandler, true);
     targetGlobal.addEventListener("popstate", function () {
+      state.activeLocale = readRequestedLocale(targetGlobal, state.sourceLocale);
       navigateToPage(targetGlobal, state, readCurrentPagePath(targetGlobal, state), "replace").catch(function (error) {
         console.error(error);
       });
@@ -2359,17 +2700,30 @@
     return block;
   }
 
+  function renderWidgetizedUtilityBar(documentObject) {
+    return createNode(documentObject, "div", {
+      className: "page-app-widget-utility-bar",
+      style: "display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:0 0 12px;"
+    });
+  }
+
   function renderWidgetizedPage(documentObject, state) {
     var contract = readWidgetRenderContract(state);
     if (!contract) {
       return false;
     }
+    var localeMenu = renderLocaleMenu(documentObject, state);
+    var utilityBar = localeMenu ? renderWidgetizedUtilityBar(documentObject) : null;
     var root = renderWidgetLayoutNode(documentObject, state, contract, contract.rootId);
     if (!root) {
       return false;
     }
     root.className = joinClassNames(["page-app-widget-layout", root.className]);
     root.style.cssText = buildContainerStyle(contract.nodes[contract.rootId]);
+    if (utilityBar) {
+      utilityBar.appendChild(localeMenu);
+      state.mount.appendChild(utilityBar);
+    }
     state.mount.appendChild(root);
     if (state.model.kind === "post-detail" && state.model.comments && state.model.comments.enabled) {
       state.commentsSection = createCommentsSection(documentObject);
@@ -2463,7 +2817,7 @@
   function renderPostPage(documentObject, state, main, side) {
     var model = state.model;
     var delivery = state && state.payload ? state.payload.delivery : null;
-    state.mount.appendChild(renderHero(documentObject, model, state.support, delivery));
+    state.mount.appendChild(renderHero(documentObject, model, state.support, delivery, state));
     var storyCard = createNode(documentObject, "article", { className: "page-app-card" });
     storyCard.appendChild(createNode(documentObject, "h2", { text: "Story" }));
     storyCard.appendChild(createNode(documentObject, "div", { className: "page-app-body", html: model.post.body || "<p>No story body was delivered for this page.</p>" }));
@@ -2495,7 +2849,7 @@
   function renderCategoryPage(documentObject, state, main, side) {
     var model = state.model;
     var delivery = state && state.payload ? state.payload.delivery : null;
-    state.mount.appendChild(renderHero(documentObject, model, state.support, delivery));
+    state.mount.appendChild(renderHero(documentObject, model, state.support, delivery, state));
     var postsCard = createNode(documentObject, "section", { className: "page-app-card" });
     postsCard.appendChild(createNode(documentObject, "h2", { text: "Stories In This Category" }));
     if (!normalizeArray(model.posts).length) { postsCard.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: state.deferredLoaded ? "No stories are currently attached to this category." : "Loading stories in this category..." })); }
@@ -2515,7 +2869,7 @@
   }
 
   function renderGenericPage(documentObject, state, main) {
-    state.mount.appendChild(renderHero(documentObject, state.model, state.support, state && state.payload ? state.payload.delivery : null));
+    state.mount.appendChild(renderHero(documentObject, state.model, state.support, state && state.payload ? state.payload.delivery : null, state));
     var card = createNode(documentObject, "section", { className: "page-app-card" });
     card.appendChild(createNode(documentObject, "h2", { text: "Page" }));
     card.appendChild(createNode(documentObject, "div", { className: "page-app-body", html: state.model.body || "<p>No renderable body was delivered for this page.</p>" }));
@@ -2711,6 +3065,20 @@
       deferredLoaded: false,
       routeLoadPending: false,
       navigationBound: false,
+      sourceLocale: normalizeLocaleCode(
+        normalizedTesterContract.translationDefaultLocale,
+        "en-US"
+      ),
+      activeLocale: normalizeLocaleCode(
+        readRequestedLocale(
+          targetGlobal,
+          normalizeLocaleCode(normalizedTesterContract.translationDefaultLocale, "en-US")
+        ),
+        "en-US"
+      ),
+      baseBootstrapDocument: null,
+      baseDeferredDocument: null,
+      translationOverlayDocument: null,
       commentsApproved: [],
       commentsPending: []
     };
@@ -2723,10 +3091,14 @@
       state.deferredLoaded = true;
     }
 
-    renderApplication(targetGlobal, state);
+    await applyActiveLocaleToState(targetGlobal, state);
+    if (!state.baseBootstrapDocument) {
+      renderApplication(targetGlobal, state);
+    }
     bindClientNavigation(targetGlobal, state);
     try {
       await hydrateDeferredReaderData(targetGlobal, state, readCurrentPagePath(targetGlobal, state));
+      await applyActiveLocaleToState(targetGlobal, state);
     } catch (error) {
       state.deferredLoaded = true;
       console.warn(error);

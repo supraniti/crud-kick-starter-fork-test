@@ -15,6 +15,7 @@ import {
   resolveSimulatedFirestoreRoot,
   resolveSimulatedStorageRoot
 } from "./remote-ops-root.mjs";
+import { buildPublicTranslationsProjectionMap } from "../../test-modules-translations/server/public-translations-runtime.mjs";
 
 const AUTHORS_COLLECTION_ID = "blog-authors";
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
@@ -495,6 +496,9 @@ export async function buildFirestoreProjectionMap(collectionHandlerRegistry, tar
   }
   if (projectionScope === "public-blog-tags") {
     return buildPublicTagsProjectionMap(collectionHandlerRegistry, targetProfile);
+  }
+  if (projectionScope === "public-translations") {
+    return buildPublicTranslationsProjectionMap(collectionHandlerRegistry, targetProfile);
   }
   return buildPublishedPostProjectionMap(collectionHandlerRegistry, targetProfile);
 }
