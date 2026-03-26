@@ -162,6 +162,9 @@ function createReaderRouteManifestDatasetDefinition() {
 function buildRuntimeContext(payload = {}) {
   const application = readCurrentApplication(payload);
   const model = readCurrentModel(payload);
+  const theme = application && application.theme && typeof application.theme === "object"
+    ? application.theme
+    : null;
   const commentsEnabled = Boolean(
     model &&
       model.kind === "post-detail" &&
@@ -172,6 +175,8 @@ function buildRuntimeContext(payload = {}) {
     pagePayloadScriptId: "page-data",
     pageId: payload?.page?.id ?? null,
     pagePath: payload?.page?.path ?? application?.path ?? "/",
+    themeKey: theme?.themeKey ?? null,
+    themeSource: theme?.source ?? null,
     primaryRecordId: readCurrentPrimaryRecordId(payload),
     primarySourceType: payload?.page?.primarySourceType ?? application?.primarySourceType ?? "none",
     routeManifest:

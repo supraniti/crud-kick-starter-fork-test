@@ -595,6 +595,22 @@ test("pages create standalone records and resolve deterministic delivery payload
           pageId: postPage.body.item.id,
           pageKind: "post-detail",
           primarySourceType: "blog-post",
+          theme: expect.objectContaining({
+            source: "global",
+            themeKey: "editorial-default",
+            title: "Editorial Default",
+            document: expect.objectContaining({
+              themeKey: "editorial-default",
+              resolved: expect.objectContaining({
+                variables: expect.objectContaining({
+                  base: expect.objectContaining({
+                    "--page-bg": expect.any(String),
+                    "--page-heading-font": expect.any(String)
+                  })
+                })
+              })
+            })
+          }),
           layout: expect.objectContaining({
             pageId: postPage.body.item.id,
             layoutKey: "story-shell"

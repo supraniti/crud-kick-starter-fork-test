@@ -2333,3 +2333,94 @@
     - no second HTML document during the verified post-to-post transition
 - Important boundary:
   - the page now matches the authored structure much more closely, but widget-level visual polish is still mostly hardcoded inside the reader stylesheet rather than authored in the layout system itself
+### 2026-03-26 - Themes Module Introduced Global And Per-Page Theme Control
+- Tasks:
+  - wrote the Themes feature ticket and implementation plan:
+    - `docs/research/themes-module-implementation-ticket-2026-03-26.md`
+    - `docs/research/themes-module-implementation-plan-2026-03-26.md`
+  - introduced new module `test-modules-themes` with:
+    - predefined five-theme catalog
+    - one global default
+    - authoring for fonts, palette, responsive typography, spacing, and preview
+  - wired page delivery/runtime to resolve theme selection in this order:
+    - explicit page override
+    - global default theme
+    - built-in fallback theme record
+  - applied resolved theme documents in the deployed/public reader runtime through CSS variables and font stylesheets
+  - exposed theme selection in the current Pages drawer path and added an `Open Themes` jump from page authoring
+  - fixed the product-shell route mismatch so `/app/themes` resolves a real screen instead of `FRONTEND_VIEW_REGISTRATION_MISSING`
+  - fixed Pages support loading so the page theme picker still shows the seeded five-theme catalog when no persisted `page-themes` records exist yet
+- Verified locally:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `/app/themes`
+    - Theme Library route renders
+    - live preview renders
+    - typography, color, and responsive controls render
+  - `/app/pages?pageMode=create&pageCreateStage=basics&pageCreatePreset=post-detail-template`
+    - page basics now shows `Theme`
+    - helper text resolves `Editorial Default`
+    - theme picker exposes:
+      - `Use Global Default`
+      - `Editorial Default`
+      - `Newsprint Morning`
+      - `Coastal Notes`
+      - `Midnight Journal`
+      - `Signal Grid`
+- Important boundary:
+  - initial release review exposed one reader stylesheet ordering bug:
+    - theme styles were created before the base reader stylesheet, so shared CSS variables such as `--page-bg` and `--page-card` were being overwritten on live pages
+  - that ordering bug is now fixed by:
+    - making the base stylesheet structural and theme-neutral
+    - re-appending theme style nodes so they stay authoritative after the base stylesheet exists
+### 2026-03-26 - Themes Module Delivered End To End
+- Tasks:
+  - verified the authoring module itself in the browser:
+    - `/app/themes` renders the seeded five-theme library
+    - global default labeling is stable
+    - responsive typography tabs are visible
+    - switching a font source to `Custom CSS URL` reveals explicit family + stylesheet URL fields
+  - verified the Pages authoring seam in the browser:
+    - `/app/pages?pageMode=create&pageCreateStage=basics&pageCreatePreset=post-detail-template`
+    - shows `Theme`
+    - helper text resolves the inherited global theme
+    - exposes the page-level override picker and `Open Themes`
+  - rebuilt the shipped runtime and reran the live bundles sequentially to avoid shared-object metadata collisions:
+    - `pagedepl-140` `Post Release Bundle`
+    - `pagedepl-141` `Journal Release Bundle`
+    - `pagedepl-142` `Category Release Bundle`
+  - verified live theme manifestation on `fastcart.dev`:
+    - default route:
+      - `https://fastcart.dev/post/first-cup-on-the-table?cb=theme-final-20260326b`
+      - resolved `editorial-default`
+      - applied:
+        - `--page-bg: #f6efe3`
+        - `--page-heading-font: 'Fraunces', serif`
+        - `--page-body-font: 'Source Serif 4', serif`
+    - page override route:
+      - `https://fastcart.dev/journal/first-cup-on-the-table?cb=theme-final-20260326b`
+      - resolved `midnight-journal`
+      - applied:
+        - `--page-bg: #0b1120`
+        - `--page-heading-font: 'Libre Baskerville', serif`
+        - `--page-body-font: 'DM Sans', sans-serif`
+  - verified same-app reader navigation swaps the active theme contract on route-family changes without fetching a second HTML document:
+    - journal post -> category
+    - category moved back onto the default global palette and fonts
+- Verified locally:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/themes`
+  - `http://localhost:3000/app/pages?pageMode=create&pageCreateStage=basics&pageCreatePreset=post-detail-template`
+  - `https://fastcart.dev/post/first-cup-on-the-table?cb=theme-final-20260326b`
+  - `https://fastcart.dev/journal/first-cup-on-the-table?cb=theme-final-20260326b`
+  - `https://fastcart.dev/category/home-corners`
+- Important boundary:
+  - release bundles touching shared deployment assets must be rerun sequentially; parallel bundle release can fail with object metadata edit conflicts even when the feature itself is correct

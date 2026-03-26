@@ -17,6 +17,7 @@ import {
 } from "./page-widget-render-contract-runtime.mjs";
 import { resolvePageContextManifest } from "./page-context-manifest-runtime.mjs";
 import { resolvePublishedFirestoreCollectionDescriptor } from "./page-firestore-publication-runtime.mjs";
+import { resolvePageThemeSelection } from "./page-theme-runtime.mjs";
 import {
   buildReaderRouteManifestVersionToken,
   resolveReaderRouteManifestAssetUrl
@@ -809,6 +810,7 @@ async function buildReaderRouteManifest(payload = {}, collectionHandlerRegistry,
         resolveSettingsRepository,
         primarySourceType: page?.primarySourceType ?? "none"
       });
+      const resolvedTheme = await resolvePageThemeSelection(collectionHandlerRegistry, page);
 
       return {
         pageId: page?.id ?? null,
@@ -832,6 +834,7 @@ async function buildReaderRouteManifest(payload = {}, collectionHandlerRegistry,
           bindings: cloneJsonValue(page?.bindings ?? {}),
           widgetRenderContract: cloneJsonValue(renderState?.widgetRenderContract ?? null)
         },
+        theme: cloneJsonValue(resolvedTheme),
         pageContextManifest: cloneJsonValue(manifest ?? null)
       };
     })
@@ -846,6 +849,7 @@ async function buildReaderRouteManifest(payload = {}, collectionHandlerRegistry,
 
 function buildRouteIndexEntry(entry = {}, options = {}) {
   const includeLayout = options.includeLayout === true;
+  const includeTheme = options.includeTheme === true;
   const baseEntry = {
     pageId: entry?.pageId ?? null,
     title: entry?.title ?? null,
@@ -863,12 +867,13 @@ function buildRouteIndexEntry(entry = {}, options = {}) {
         }
       : null
   };
-  if (!includeLayout) {
+  if (!includeLayout && !includeTheme) {
     return baseEntry;
   }
   return {
     ...baseEntry,
-    layout: cloneJsonValue(entry?.layout ?? null),
+    ...(includeLayout ? { layout: cloneJsonValue(entry?.layout ?? null) } : {}),
+    ...(includeTheme ? { theme: cloneJsonValue(entry?.theme ?? null) } : {}),
     pageContextManifest: cloneJsonValue(entry?.pageContextManifest ?? null)
   };
 }
@@ -876,7 +881,8 @@ function buildRouteIndexEntry(entry = {}, options = {}) {
 function buildInlineRouteManifest(routeManifest = null, payload = {}, versionToken = null) {
   const entries = toArray(routeManifest?.entries).map((entry) =>
     buildRouteIndexEntry(entry, {
-      includeLayout: entry?.pageId === (payload?.page?.id ?? null)
+      includeLayout: entry?.pageId === (payload?.page?.id ?? null),
+      includeTheme: entry?.pageId === (payload?.page?.id ?? null)
     })
   );
   return {
@@ -932,6 +938,7 @@ function buildReaderPageBootstrapDocument(payload = {}, model = null, routeManif
     head: payload?.head ?? {},
     delivery: payload?.delivery ?? {},
     layout: buildReaderLayoutDocument(payload),
+    theme: cloneJsonValue(options.resolvedTheme ?? payload?.application?.theme ?? payload?.pageTheme ?? null),
     routeManifest: inlineRouteManifest,
     model,
     review: buildApplicationReviewModel(payload),
@@ -1005,11 +1012,13 @@ export async function buildPublicApplicationViewPayload(payload = {}, options = 
   const model = await buildApplicationModel(payload, collectionHandlerRegistry, {
     includeDeferred: true
   });
+  const resolvedTheme = await resolvePageThemeSelection(collectionHandlerRegistry, payload?.page ?? {});
   const applicationPayload = await attachPageWidgetRenderContract(
     {
       ...payload,
       application: {
-        model
+        model,
+        theme: resolvedTheme
       }
     },
     {
@@ -1029,6 +1038,7 @@ export async function buildPublicApplicationViewPayload(payload = {}, options = 
     head: payload?.head ?? {},
     delivery: payload?.delivery ?? {},
     model,
+    theme: resolvedTheme,
     layout: applicationPayload?.application?.layout ?? null,
     review: buildApplicationReviewModel(payload),
     resolvedAt: payload?.resolvedAt ?? null
@@ -1040,6 +1050,7 @@ export async function buildReaderPageBootstrapPayload(payload = {}, options = {}
   const model = await buildApplicationModel(payload, collectionHandlerRegistry, {
     includeDeferred: false
   });
+  const resolvedTheme = await resolvePageThemeSelection(collectionHandlerRegistry, payload?.page ?? {});
   const routeManifest = await buildReaderRouteManifest(
     payload,
     collectionHandlerRegistry,
@@ -1049,7 +1060,8 @@ export async function buildReaderPageBootstrapPayload(payload = {}, options = {}
     {
       ...payload,
       application: {
-        model
+        model,
+        theme: resolvedTheme
       }
     },
     {
@@ -1057,7 +1069,9 @@ export async function buildReaderPageBootstrapPayload(payload = {}, options = {}
       enforceCompatibility: false
     }
   );
-  return buildReaderPageBootstrapDocument(applicationPayload, model, routeManifest);
+  return buildReaderPageBootstrapDocument(applicationPayload, model, routeManifest, {
+    resolvedTheme
+  });
 }
 
 export async function buildReaderDeferredPayload(payload = {}, options = {}) {
@@ -1082,6 +1096,7 @@ export async function attachPageApplicationPayload(payload = {}, options = {}) {
       cause: error
     });
   }
+  const resolvedTheme = await resolvePageThemeSelection(collectionHandlerRegistry, payload?.page ?? {});
   const routeManifest =
     options.routeManifestDocument ??
     (await buildReaderRouteManifest(
@@ -1094,8 +1109,10 @@ export async function attachPageApplicationPayload(payload = {}, options = {}) {
     buildReaderRouteManifestVersionToken(routeManifest);
   const applicationAwarePayload = {
     ...payload,
+    pageTheme: resolvedTheme,
     application: buildReaderPageBootstrapDocument(payload, model, routeManifest, {
-      routeManifestVersionToken
+      routeManifestVersionToken,
+      resolvedTheme
     })
   };
   return attachPageWidgetRenderContract(applicationAwarePayload, {

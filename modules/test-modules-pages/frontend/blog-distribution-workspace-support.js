@@ -7,6 +7,7 @@ import {
   updateReferenceCollectionItem
 } from "../../../frontend/src/api/reference.js";
 import { PAGE_DEPLOYMENT_BUNDLE_RELEASE_MISSION_ID } from "../shared/deployment-bundle-release-shared.mjs";
+import { buildPredefinedThemeRecords } from "../../test-modules-themes/shared/theme-document.mjs";
 import { buildPageMutationPayload, createSupportState, toArray } from "./page-workspace-support.js";
 
 const MODULE_ID = "test-modules-pages";
@@ -18,6 +19,19 @@ const AUTHORS_COLLECTION_ID = "blog-authors";
 const CATEGORIES_COLLECTION_ID = "blog-categories";
 const TAGS_COLLECTION_ID = "blog-tags";
 const MEDIA_COLLECTION_ID = "media-items";
+const THEMES_COLLECTION_ID = "page-themes";
+
+function buildSeedThemeItems() {
+  return buildPredefinedThemeRecords().map((record, index) => ({
+    id: `theme-predefined-${index + 1}`,
+    title: record.title,
+    themeKey: record.themeKey,
+    summary: record.summary,
+    status: record.status,
+    isGlobalDefault: record.isGlobalDefault === true,
+    themeDocumentJson: record.themeDocumentJson
+  }));
+}
 
 async function readJsonPayload(response) {
   if (typeof response?.text === "function") {
@@ -60,11 +74,22 @@ async function loadSupportData() {
     return toArray(pagesPayload?.items);
   });
 
-  const [pages, redirectsPayload, layoutsPayload, postsPayload, authorsPayload, categoriesPayload, tagsPayload, mediaPayload] =
+  const [
+    pages,
+    redirectsPayload,
+    layoutsPayload,
+    themesPayload,
+    postsPayload,
+    authorsPayload,
+    categoriesPayload,
+    tagsPayload,
+    mediaPayload
+  ] =
     await Promise.all([
       pagesPromise,
       fetchReferenceCollectionItems({ collectionId: REDIRECTS_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: LAYOUTS_COLLECTION_ID, limit: 200 }),
+      fetchReferenceCollectionItems({ collectionId: THEMES_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: POSTS_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: AUTHORS_COLLECTION_ID, limit: 200 }),
       fetchReferenceCollectionItems({ collectionId: CATEGORIES_COLLECTION_ID, limit: 200 }),
@@ -76,6 +101,7 @@ async function loadSupportData() {
     pages,
     redirects: toArray(redirectsPayload?.items),
     layouts: toArray(layoutsPayload?.items),
+    themes: toArray(themesPayload?.items).length > 0 ? toArray(themesPayload?.items) : buildSeedThemeItems(),
     posts: toArray(postsPayload?.items),
     authors: toArray(authorsPayload?.items),
     categories: toArray(categoriesPayload?.items),
@@ -294,6 +320,7 @@ export function useSupportData() {
         pages: [],
         redirects: [],
         layouts: [],
+        themes: [],
         posts: [],
         authors: [],
         categories: [],

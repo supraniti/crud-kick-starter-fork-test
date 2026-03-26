@@ -57,7 +57,7 @@ const SOURCE_COLLECTION_BY_TYPE = Object.freeze({
 const DEFAULT_LAYOUT_MODEL = Object.freeze({
   templateKey: "page-shell",
   heroVariant: "standard",
-  themeKey: "editorial-default",
+  themeKey: null,
   heroBinding: "primary",
   bodyBinding: "primary",
   supportingBinding: "supporting",

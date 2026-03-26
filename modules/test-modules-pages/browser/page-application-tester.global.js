@@ -764,6 +764,7 @@
         )
       },
       layout: routeEntry && routeEntry.layout ? JSON.parse(JSON.stringify(routeEntry.layout)) : null,
+      theme: routeEntry && routeEntry.theme ? JSON.parse(JSON.stringify(routeEntry.theme)) : null,
       routeManifest: resolvedRouteManifest,
       model: model,
       review: {
@@ -873,9 +874,224 @@
     }
     var style = documentObject.createElement("style");
     style.id = "page-application-style";
-    style.textContent = ":root{color-scheme:light;--page-bg:#f6f1e8;--page-card:#fffdf8;--page-line:rgba(69,52,36,0.14);--page-ink:#2d2116;--page-muted:#6f604f;--page-accent:#9b4d19;--page-accent-soft:#f3dcc7;--page-shadow:0 24px 60px rgba(69,52,36,0.12);font-family:Georgia,'Times New Roman',serif;}body{margin:0;background:radial-gradient(circle at top,#fff7ec 0,#f6f1e8 50%,#efe5d7 100%);color:var(--page-ink);}#page-shell{min-height:100vh;}#page-app.page-app-root{display:grid;gap:24px;max-width:1200px;margin:0 auto;padding:32px 20px 80px;box-sizing:border-box;}.page-app-hero{display:grid;gap:20px;padding:24px;border:1px solid var(--page-line);border-radius:28px;background:linear-gradient(180deg,rgba(255,253,248,0.98),rgba(249,242,233,0.96));box-shadow:var(--page-shadow);}.page-app-hero-media{overflow:hidden;border-radius:22px;border:1px solid var(--page-line);background:#efe5d7;}.page-app-hero-media img,.page-app-gallery-item img,.page-app-card img{display:block;width:100%;height:auto;}.page-app-eyebrow{font:600 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--page-accent);margin:0 0 10px;}.page-app-title{margin:0;font-size:clamp(2.3rem,5vw,4.2rem);line-height:.98;}.page-app-subtitle{margin:0;font-size:1.15rem;line-height:1.55;color:var(--page-muted);max-width:70ch;}.page-app-meta,.page-app-chip-row,.page-app-link-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}.page-app-meta{font:500 14px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}.page-app-chip,.page-app-link-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--page-line);background:rgba(255,255,255,.72);font:500 13px/1.3 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-ink);text-decoration:none;}.page-app-link-chip{background:var(--page-accent-soft);color:var(--page-accent);}.page-app-layout{display:grid;gap:24px;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);align-items:start;}.page-app-layout.single-column{grid-template-columns:minmax(0,1fr);}.page-app-main,.page-app-side{display:grid;gap:20px;}.page-app-card{padding:22px;border:1px solid var(--page-line);border-radius:24px;background:var(--page-card);box-shadow:var(--page-shadow);overflow:hidden;}.page-app-card h2,.page-app-card h3,.page-app-card p{margin-top:0;}.page-app-card h2{margin-bottom:14px;font-size:1.5rem;}.page-app-card h3{margin-bottom:10px;font-size:1.1rem;}.page-app-body{font-size:1.1rem;line-height:1.8;color:var(--page-ink);}.page-app-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}.page-app-gallery{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}.page-app-gallery-item{border-radius:18px;overflow:hidden;border:1px solid var(--page-line);background:#f7efe4;}.page-app-gallery-caption{padding:10px 12px;font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}.page-app-author{display:grid;gap:14px;grid-template-columns:80px minmax(0,1fr);align-items:start;}.page-app-avatar{width:80px;height:80px;border-radius:24px;overflow:hidden;background:#efe5d7;border:1px solid var(--page-line);}.page-app-stat{font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}.page-app-nav{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}.page-app-nav a,.page-app-post-list a{text-decoration:none;color:inherit;}.page-app-nav-card{padding:18px;border-radius:20px;border:1px solid var(--page-line);background:rgba(255,255,255,.74);display:grid;gap:8px;min-height:112px;}.page-app-nav-card strong{font:600 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--page-accent);}.page-app-post-list{display:grid;gap:14px;}.page-app-post-card{display:grid;gap:12px;padding:18px;border:1px solid var(--page-line);border-radius:20px;background:rgba(255,255,255,.74);}.page-app-comments-list{display:grid;gap:12px;}.page-app-comment{padding:14px;border:1px solid var(--page-line);border-radius:18px;background:rgba(255,255,255,.74);}.page-app-comment-head{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}.page-app-comment.pending{border-style:dashed;background:#fff7ed;}.page-app-form{display:grid;gap:12px;}.page-app-form-row{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr));}.page-app-form label{display:grid;gap:6px;font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}.page-app-form input,.page-app-form textarea{width:100%;box-sizing:border-box;border:1px solid var(--page-line);border-radius:14px;padding:11px 12px;font:inherit;background:#fff;}.page-app-form textarea{min-height:140px;resize:vertical;}.page-app-actions{display:flex;gap:10px;flex-wrap:wrap;}.page-app-button{appearance:none;border:0;border-radius:999px;padding:11px 16px;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--page-accent);color:#fff;cursor:pointer;}.page-app-button.alt{background:#3f3a34;}.page-app-button:disabled{opacity:.6;cursor:default;}.page-app-note{font:500 13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}.page-app-empty{padding:18px;border:1px dashed var(--page-line);border-radius:18px;color:var(--page-muted);font:500 14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}.page-app-review{position:fixed;right:16px;top:16px;z-index:2147483000;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;padding:16px;border-radius:22px;border:1px solid rgba(45,33,22,.18);background:rgba(255,253,248,.96);box-shadow:0 18px 42px rgba(45,33,22,.2);font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-ink);display:grid;gap:12px;}.page-app-review h2,.page-app-review h3,.page-app-review p,.page-app-review pre{margin:0;}.page-app-review pre{padding:12px;border-radius:14px;background:#1f2937;color:#e5eef7;white-space:pre-wrap;word-break:break-word;overflow:auto;font:12px/1.45 Consolas,monospace;}.page-app-review details{border-top:1px solid var(--page-line);padding-top:10px;}.page-app-review summary{cursor:pointer;font-weight:600;}@media (min-width:960px){.page-app-hero{grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);align-items:start;}}@media (max-width:900px){.page-app-layout{grid-template-columns:minmax(0,1fr);} .page-app-form-row{grid-template-columns:minmax(0,1fr);} .page-app-review{position:static;width:auto;max-height:none;margin:0 20px 24px;}}";
-    style.textContent += "#page-app.page-app-root{max-width:1280px;padding:40px 24px 96px;gap:32px;}.page-app-widget-layout{display:grid;gap:32px;}.page-app-container{min-width:0;}.page-app-container--flex{display:flex;}.page-app-container--grid{display:grid;}.page-app-container--label-hero-row,.page-app-container--label-support-row{align-items:flex-start;}.page-app-block{min-width:0;display:grid;gap:16px;align-content:start;}.page-app-block--surface-plain{padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;}.page-app-block--surface-soft{padding:20px;border:1px solid var(--page-line);border-radius:24px;background:rgba(255,253,248,.82);box-shadow:0 18px 42px rgba(69,52,36,.08);overflow:hidden;}.page-app-block--surface-card,.page-app-block--surface-strong{padding:24px;border:1px solid var(--page-line);border-radius:28px;background:var(--page-card);box-shadow:var(--page-shadow);overflow:hidden;}.page-app-block--surface-strong{background:linear-gradient(180deg,rgba(255,253,248,.98),rgba(249,242,233,.96));}.page-app-block--label-breadcrumbs,.page-app-block--label-story-title,.page-app-block--label-story-body,.page-app-block--widget-post-rich-text,.page-app-block--widget-category-chips,.page-app-block--widget-related-posts{padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;}.page-app-block--widget-post-title .page-app-title{font-size:clamp(3rem,7vw,5.6rem);line-height:.92;letter-spacing:-.045em;max-width:12ch;text-wrap:balance;}.page-app-block--widget-breadcrumbs .page-app-link-row{gap:8px;}.page-app-block--widget-breadcrumbs .page-app-link-chip,.page-app-block--widget-category-chips .page-app-link-chip{background:rgba(255,253,248,.72);}.page-app-block--widget-media-image figure{margin:0;border-radius:30px;border:1px solid rgba(69,52,36,.12);background:#eadfce;box-shadow:0 26px 60px rgba(69,52,36,.12);overflow:hidden;}.page-app-block--label-static-library-media figure{border-radius:22px;box-shadow:0 16px 34px rgba(69,52,36,.08);}.page-app-block--widget-post-rich-text .page-app-body{max-width:74ch;font-size:1.12rem;line-height:1.95;}.page-app-block--widget-post-rich-text .page-app-body p:first-child{font-size:1.22rem;line-height:1.9;color:#433327;}.page-app-block--widget-author-card{padding:22px;border:1px solid var(--page-line);border-radius:24px;background:rgba(255,253,248,.84);box-shadow:0 16px 34px rgba(69,52,36,.08);}.page-app-block--widget-author-card .page-app-link-chip{justify-self:start;}.page-app-block--widget-tabs .page-app-chip,.page-app-block--widget-tabs .page-app-link-chip{cursor:pointer;}.page-app-block--widget-post-navigation .page-app-nav{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}.page-app-block--widget-related-posts .page-app-post-list{grid-template-columns:repeat(auto-fit,minmax(260px,1fr));}.page-app-block--widget-related-posts .page-app-post-list>*{min-width:0;}.page-app-block--widget-related-posts .page-app-post-card{height:100%;}.page-app-block--widget-post-navigation h2,.page-app-block--widget-related-posts h2{margin:0;font-size:1.35rem;}.page-app-container--label-story-sidebar{position:relative;}.page-app-container--label-story-sidebar>.page-app-block{height:fit-content;}@media (max-width:980px){#page-app.page-app-root{padding:28px 18px 72px;}.page-app-container--label-hero-row,.page-app-container--label-support-row{flex-direction:column!important;}.page-app-container--label-hero-row>.page-app-block,.page-app-container--label-support-row>.page-app-block{flex-basis:100%!important;}}";
+    style.textContent = [
+      ":root{",
+      "color-scheme:light;",
+      "--page-bg:#f6efe3;",
+      "--page-card:#fffaf2;",
+      "--page-line:rgba(69,52,36,0.14);",
+      "--page-ink:#2d2116;",
+      "--page-muted:#6f604f;",
+      "--page-accent:#9b4d19;",
+      "--page-accent-soft:#f3dcc7;",
+      "--page-shadow:0 24px 60px rgba(69,52,36,0.12);",
+      "--page-primary:#8a4b22;",
+      "--page-secondary:#325c74;",
+      "--page-heading-font:Georgia,'Times New Roman',serif;",
+      "--page-body-font:Georgia,'Times New Roman',serif;",
+      "--page-h1-size:clamp(2.9rem,7vw,5.4rem);",
+      "--page-h1-line-height:0.94;",
+      "--page-h1-weight:700;",
+      "--page-h1-letter-spacing:-0.04em;",
+      "--page-h2-size:2rem;",
+      "--page-h2-line-height:1.04;",
+      "--page-h2-weight:700;",
+      "--page-h2-letter-spacing:-0.02em;",
+      "--page-h3-size:1.35rem;",
+      "--page-h3-line-height:1.18;",
+      "--page-h3-weight:700;",
+      "--page-h3-letter-spacing:-0.01em;",
+      "--page-body-size:1.05rem;",
+      "--page-body-line-height:1.8;",
+      "--page-body-weight:400;",
+      "--page-caption-size:0.92rem;",
+      "--page-caption-line-height:1.45;",
+      "--page-caption-weight:500;",
+      "--page-gutter:24px;",
+      "--page-section-gap:32px;",
+      "--page-block-gap:16px;",
+      "--page-radius:28px;",
+      "}",
+      "body{margin:0;font-family:var(--page-body-font);background:var(--page-bg);color:var(--page-ink);}",
+      "#page-shell{min-height:100vh;}",
+      "#page-app.page-app-root{display:grid;gap:24px;max-width:1200px;margin:0 auto;padding:32px 20px 80px;box-sizing:border-box;}",
+      ".page-app-hero{display:grid;gap:20px;padding:24px;border:1px solid var(--page-line);border-radius:28px;background:var(--page-card);box-shadow:var(--page-shadow);}",
+      ".page-app-hero-media{overflow:hidden;border-radius:22px;border:1px solid var(--page-line);background:var(--page-card);}",
+      ".page-app-hero-media img,.page-app-gallery-item img,.page-app-card img{display:block;width:100%;height:auto;}",
+      ".page-app-eyebrow{font:600 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--page-accent);margin:0 0 10px;}",
+      ".page-app-title{margin:0;font-size:clamp(2.3rem,5vw,4.2rem);line-height:.98;}",
+      ".page-app-subtitle{margin:0;font-size:1.15rem;line-height:1.55;color:var(--page-muted);max-width:70ch;}",
+      ".page-app-meta,.page-app-chip-row,.page-app-link-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}",
+      ".page-app-meta{font:500 14px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}",
+      ".page-app-chip,.page-app-link-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--page-line);background:var(--page-card);font:500 13px/1.3 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-ink);text-decoration:none;}",
+      ".page-app-link-chip{background:var(--page-accent-soft);color:var(--page-accent);}",
+      ".page-app-layout{display:grid;gap:24px;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);align-items:start;}",
+      ".page-app-layout.single-column{grid-template-columns:minmax(0,1fr);}",
+      ".page-app-main,.page-app-side{display:grid;gap:20px;}",
+      ".page-app-card{padding:22px;border:1px solid var(--page-line);border-radius:24px;background:var(--page-card);box-shadow:var(--page-shadow);overflow:hidden;}",
+      ".page-app-card h2,.page-app-card h3,.page-app-card p{margin-top:0;}",
+      ".page-app-card h2{margin-bottom:14px;font-size:1.5rem;}",
+      ".page-app-card h3{margin-bottom:10px;font-size:1.1rem;}",
+      ".page-app-body{font-size:1.1rem;line-height:1.8;color:var(--page-ink);}",
+      ".page-app-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}",
+      ".page-app-gallery{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}",
+      ".page-app-gallery-item{border-radius:18px;overflow:hidden;border:1px solid var(--page-line);background:var(--page-card);}",
+      ".page-app-gallery-caption{padding:10px 12px;font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}",
+      ".page-app-author{display:grid;gap:14px;grid-template-columns:80px minmax(0,1fr);align-items:start;}",
+      ".page-app-avatar{width:80px;height:80px;border-radius:24px;overflow:hidden;background:var(--page-card);border:1px solid var(--page-line);}",
+      ".page-app-stat{font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}",
+      ".page-app-nav{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}",
+      ".page-app-nav a,.page-app-post-list a{text-decoration:none;color:inherit;}",
+      ".page-app-nav-card{padding:18px;border-radius:20px;border:1px solid var(--page-line);background:var(--page-card);display:grid;gap:8px;min-height:112px;}",
+      ".page-app-nav-card strong{font:600 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--page-accent);}",
+      ".page-app-post-list{display:grid;gap:14px;}",
+      ".page-app-post-card{display:grid;gap:12px;padding:18px;border:1px solid var(--page-line);border-radius:20px;background:var(--page-card);}",
+      ".page-app-comments-list{display:grid;gap:12px;}",
+      ".page-app-comment{padding:14px;border:1px solid var(--page-line);border-radius:18px;background:var(--page-card);}",
+      ".page-app-comment-head{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}",
+      ".page-app-comment.pending{border-style:dashed;background:var(--page-accent-soft);}",
+      ".page-app-form{display:grid;gap:12px;}",
+      ".page-app-form-row{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr));}",
+      ".page-app-form label{display:grid;gap:6px;font:500 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}",
+      ".page-app-form input,.page-app-form textarea{width:100%;box-sizing:border-box;border:1px solid var(--page-line);border-radius:14px;padding:11px 12px;font:inherit;background:var(--page-card);color:var(--page-ink);}",
+      ".page-app-form textarea{min-height:140px;resize:vertical;}",
+      ".page-app-actions{display:flex;gap:10px;flex-wrap:wrap;}",
+      ".page-app-button{appearance:none;border:0;border-radius:999px;padding:11px 16px;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--page-accent);color:#fff;cursor:pointer;}",
+      ".page-app-button.alt{background:var(--page-secondary);}",
+      ".page-app-button:disabled{opacity:.6;cursor:default;}",
+      ".page-app-note{font:500 13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-muted);}",
+      ".page-app-empty{padding:18px;border:1px dashed var(--page-line);border-radius:18px;color:var(--page-muted);font:500 14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}",
+      ".page-app-review{position:fixed;right:16px;top:16px;z-index:2147483000;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;padding:16px;border-radius:22px;border:1px solid var(--page-line);background:var(--page-card);box-shadow:var(--page-shadow);font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--page-ink);display:grid;gap:12px;}",
+      ".page-app-review h2,.page-app-review h3,.page-app-review p,.page-app-review pre{margin:0;}",
+      ".page-app-review pre{padding:12px;border-radius:14px;background:#1f2937;color:#e5eef7;white-space:pre-wrap;word-break:break-word;overflow:auto;font:12px/1.45 Consolas,monospace;}",
+      ".page-app-review details{border-top:1px solid var(--page-line);padding-top:10px;}",
+      ".page-app-review summary{cursor:pointer;font-weight:600;}",
+      "#page-app.page-app-root{max-width:1280px;padding:40px 24px 96px;gap:32px;}",
+      ".page-app-widget-layout{display:grid;gap:32px;}",
+      ".page-app-container{min-width:0;}",
+      ".page-app-container--flex{display:flex;}",
+      ".page-app-container--grid{display:grid;}",
+      ".page-app-container--label-hero-row,.page-app-container--label-support-row{align-items:flex-start;}",
+      ".page-app-block{min-width:0;display:grid;gap:16px;align-content:start;}",
+      ".page-app-block--surface-plain{padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;}",
+      ".page-app-block--surface-soft{padding:20px;border:1px solid var(--page-line);border-radius:24px;background:var(--page-card);box-shadow:var(--page-shadow);overflow:hidden;}",
+      ".page-app-block--surface-card,.page-app-block--surface-strong{padding:24px;border:1px solid var(--page-line);border-radius:28px;background:var(--page-card);box-shadow:var(--page-shadow);overflow:hidden;}",
+      ".page-app-block--surface-strong{background:var(--page-card);}",
+      ".page-app-block--label-breadcrumbs,.page-app-block--label-story-title,.page-app-block--label-story-body,.page-app-block--widget-post-rich-text,.page-app-block--widget-category-chips,.page-app-block--widget-related-posts{padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;}",
+      ".page-app-block--widget-post-title .page-app-title{font-size:clamp(3rem,7vw,5.6rem);line-height:.92;letter-spacing:-.045em;max-width:12ch;text-wrap:balance;}",
+      ".page-app-block--widget-breadcrumbs .page-app-link-row{gap:8px;}",
+      ".page-app-block--widget-breadcrumbs .page-app-link-chip,.page-app-block--widget-category-chips .page-app-link-chip{background:var(--page-card);}",
+      ".page-app-block--widget-media-image figure{margin:0;border-radius:30px;border:1px solid var(--page-line);background:var(--page-card);box-shadow:var(--page-shadow);overflow:hidden;}",
+      ".page-app-block--label-static-library-media figure{border-radius:22px;box-shadow:var(--page-shadow);}",
+      ".page-app-block--widget-post-rich-text .page-app-body{max-width:74ch;font-size:1.12rem;line-height:1.95;}",
+      ".page-app-block--widget-post-rich-text .page-app-body p:first-child{font-size:1.22rem;line-height:1.9;color:var(--page-primary);}",
+      ".page-app-block--widget-author-card{padding:22px;border:1px solid var(--page-line);border-radius:24px;background:var(--page-card);box-shadow:var(--page-shadow);}",
+      ".page-app-block--widget-author-card .page-app-link-chip{justify-self:start;}",
+      ".page-app-block--widget-tabs .page-app-chip,.page-app-block--widget-tabs .page-app-link-chip{cursor:pointer;}",
+      ".page-app-block--widget-post-navigation .page-app-nav{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}",
+      ".page-app-block--widget-related-posts .page-app-post-list{grid-template-columns:repeat(auto-fit,minmax(260px,1fr));}",
+      ".page-app-block--widget-related-posts .page-app-post-list>*{min-width:0;}",
+      ".page-app-block--widget-related-posts .page-app-post-card{height:100%;}",
+      ".page-app-block--widget-post-navigation h2,.page-app-block--widget-related-posts h2{margin:0;font-size:1.35rem;}",
+      ".page-app-container--label-story-sidebar{position:relative;}",
+      ".page-app-container--label-story-sidebar>.page-app-block{height:fit-content;}",
+      "@media (min-width:960px){.page-app-hero{grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);align-items:start;}}",
+      "@media (max-width:980px){#page-app.page-app-root{padding:28px 18px 72px;}.page-app-container--label-hero-row,.page-app-container--label-support-row{flex-direction:column!important;}.page-app-container--label-hero-row>.page-app-block,.page-app-container--label-support-row>.page-app-block{flex-basis:100%!important;}}",
+      "@media (max-width:900px){.page-app-layout{grid-template-columns:minmax(0,1fr);} .page-app-form-row{grid-template-columns:minmax(0,1fr);} .page-app-review{position:static;width:auto;max-height:none;margin:0 20px 24px;}}"
+    ].join("");
     documentObject.head.appendChild(style);
+  }
+
+  function readResolvedThemeDocument(state) {
+    return state && state.payload && state.payload.application && state.payload.application.theme
+      ? state.payload.application.theme
+      : null;
+  }
+
+  function ensureThemeStyleNodes(documentObject) {
+    var fontStyle = documentObject.getElementById("page-application-theme-fonts");
+    if (!fontStyle) {
+      fontStyle = documentObject.createElement("style");
+      fontStyle.id = "page-application-theme-fonts";
+      documentObject.head.appendChild(fontStyle);
+    }
+    var themeStyle = documentObject.getElementById("page-application-theme-style");
+    if (!themeStyle) {
+      themeStyle = documentObject.createElement("style");
+      themeStyle.id = "page-application-theme-style";
+      documentObject.head.appendChild(themeStyle);
+    }
+    return {
+      fontStyle: fontStyle,
+      themeStyle: themeStyle
+    };
+  }
+
+  function buildCssVariableBlock(selector, variables) {
+    var entries = variables && typeof variables === "object" ? Object.entries(variables) : [];
+    if (!entries.length) {
+      return "";
+    }
+    return selector + "{" + entries.map(function (entry) {
+      return entry[0] + ":" + String(entry[1]) + ";";
+    }).join("") + "}";
+  }
+
+  function buildThemeFontStylesheet(themeDocument) {
+    var urls =
+      themeDocument &&
+      themeDocument.document &&
+      themeDocument.document.resolved &&
+      Array.isArray(themeDocument.document.resolved.stylesheetUrls)
+        ? themeDocument.document.resolved.stylesheetUrls
+        : [];
+    return urls.map(function (url) {
+      return "@import url('" + String(url).replace(/'/g, "\\'") + "');";
+    }).join("\n");
+  }
+
+  function buildThemeStylesheet(themeDocument) {
+    var variables =
+      themeDocument &&
+      themeDocument.document &&
+      themeDocument.document.resolved &&
+      themeDocument.document.resolved.variables &&
+      typeof themeDocument.document.resolved.variables === "object"
+        ? themeDocument.document.resolved.variables
+        : {};
+    var baseVariables = variables.base || {};
+    var tabletVariables = variables.tablet || {};
+    var mobileVariables = variables.mobile || {};
+    return [
+      buildCssVariableBlock(":root", baseVariables),
+      "body{font-family:var(--page-body-font);background:var(--page-bg);color:var(--page-ink);}",
+      "#page-app.page-app-root{gap:var(--page-section-gap);padding:calc(var(--page-section-gap) + 8px) var(--page-gutter) calc(var(--page-section-gap) * 3);}",
+      ".page-app-widget-layout,.page-app-layout,.page-app-main,.page-app-side{gap:var(--page-section-gap);}",
+      ".page-app-block,.page-app-grid,.page-app-gallery,.page-app-post-list,.page-app-comments-list,.page-app-nav{gap:var(--page-block-gap);}",
+      ".page-app-card,.page-app-hero,.page-app-block--surface-card,.page-app-block--surface-strong,.page-app-block--surface-soft,.page-app-nav-card,.page-app-post-card,.page-app-comment{border-radius:var(--page-radius);}",
+      ".page-app-title,.page-app-card h2,.page-app-card h3{font-family:var(--page-heading-font);}",
+      ".page-app-title{font-size:var(--page-h1-size);line-height:var(--page-h1-line-height);font-weight:var(--page-h1-weight);letter-spacing:var(--page-h1-letter-spacing);}",
+      ".page-app-card h2,.page-app-block--widget-post-navigation h2,.page-app-block--widget-related-posts h2{font-size:var(--page-h2-size);line-height:var(--page-h2-line-height);font-weight:var(--page-h2-weight);letter-spacing:var(--page-h2-letter-spacing);}",
+      ".page-app-card h3{font-size:var(--page-h3-size);line-height:var(--page-h3-line-height);font-weight:var(--page-h3-weight);letter-spacing:var(--page-h3-letter-spacing);}",
+      ".page-app-body,.page-app-subtitle,.page-app-post-card,.page-app-form input,.page-app-form textarea{font-family:var(--page-body-font);font-size:var(--page-body-size);line-height:var(--page-body-line-height);font-weight:var(--page-body-weight);}",
+      ".page-app-meta,.page-app-chip,.page-app-link-chip,.page-app-note,.page-app-empty,.page-app-review,.page-app-comment-head,.page-app-form label,.page-app-button,.page-app-gallery-caption,.page-app-stat{font-family:var(--page-body-font);}",
+      ".page-app-meta,.page-app-note,.page-app-empty,.page-app-gallery-caption,.page-app-stat,.page-app-comment-head,.page-app-form label{font-size:var(--page-caption-size);line-height:var(--page-caption-line-height);font-weight:var(--page-caption-weight);}",
+      "@media (max-width:960px){" + buildCssVariableBlock(":root", tabletVariables) + "}",
+      "@media (max-width:640px){" + buildCssVariableBlock(":root", mobileVariables) + "}"
+    ].join("");
+  }
+
+  function applyResolvedTheme(documentObject, themeDocument) {
+    var nodes = ensureThemeStyleNodes(documentObject);
+    documentObject.head.appendChild(nodes.fontStyle);
+    documentObject.head.appendChild(nodes.themeStyle);
+    if (!themeDocument || typeof themeDocument !== "object") {
+      nodes.fontStyle.textContent = "";
+      nodes.themeStyle.textContent = "";
+      return;
+    }
+    nodes.fontStyle.textContent = buildThemeFontStylesheet(themeDocument);
+    nodes.themeStyle.textContent = buildThemeStylesheet(themeDocument);
   }
 
   function renderBreadcrumbs(documentObject, items, delivery) {
@@ -1174,6 +1390,7 @@
       application: bootstrapDocument,
       resolvedAt: bootstrapDocument.resolvedAt || null
     };
+    applyResolvedTheme(targetGlobal.document, readResolvedThemeDocument(state));
     state.contract = {
       ...((state.contract && typeof state.contract === "object") ? state.contract : {}),
       pagePath: pagePath,
@@ -1207,6 +1424,10 @@
           primaryRecordId: primaryRecordId,
           pageId: pageId || null,
           primarySourceType: primarySourceType || null,
+          themeKey:
+            bootstrapDocument && bootstrapDocument.theme && bootstrapDocument.theme.themeKey
+              ? bootstrapDocument.theme.themeKey
+              : null,
           commentsEnabled: commentsEnabled,
           publicUrl: publicUrl || null,
           routeManifest:
@@ -1240,6 +1461,10 @@
           primaryRecordId: state.contract.primaryRecordId,
           pageId: pageId || null,
           primarySourceType: primarySourceType || null,
+          themeKey:
+            bootstrapDocument && bootstrapDocument.theme && bootstrapDocument.theme.themeKey
+              ? bootstrapDocument.theme.themeKey
+              : null,
           commentsEnabled: commentsEnabled,
           publicUrl: publicUrl || null,
           routeManifest:
@@ -2298,7 +2523,7 @@
   }
 
   function renderApplication(targetGlobal, state) {
-    var documentObject = targetGlobal.document; ensureStyles(documentObject); state.mount.replaceChildren(); state.mount.className = "page-app-root";
+    var documentObject = targetGlobal.document; ensureStyles(documentObject); applyResolvedTheme(documentObject, readResolvedThemeDocument(state)); state.mount.replaceChildren(); state.mount.className = "page-app-root";
     state.commentsSection = null;
     if (renderWidgetizedPage(documentObject, state)) {
       renderReviewOverlay(targetGlobal, state);
@@ -2489,6 +2714,7 @@
       commentsApproved: [],
       commentsPending: []
     };
+    applyResolvedTheme(targetGlobal.document, readResolvedThemeDocument(state));
 
     try {
       await loadCurrentReaderPage(targetGlobal, state, readCurrentPagePath(targetGlobal, state));

@@ -593,6 +593,11 @@ function PageBasicsTab({ workspace, isCreateMode }) {
   const safeLayoutId = workspace.layoutOptions.some((option) => option.id === workspace.pageDraft.layoutId)
     ? workspace.pageDraft.layoutId
     : "";
+  const currentThemeOption = workspace.themeOptions.find(
+    (option) => option.themeKey === workspace.pageDraft.themeKey
+  );
+  const safeThemeKey = currentThemeOption?.themeKey ?? (workspace.pageDraft.themeKey || "");
+  const defaultGlobalThemeLabel = workspace.defaultGlobalTheme?.title ?? "the global default theme";
 
   return (
     <Stack spacing={2}>
@@ -691,6 +696,42 @@ function PageBasicsTab({ workspace, isCreateMode }) {
               This page uses a reusable layout record. The layout now owns widget structure and default bindings.
             </Alert>
           ) : null}
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={2}>
+          <Stack spacing={0.35}>
+            <Typography variant="h6">Theme</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Pick whether this page inherits the global theme or intentionally overrides it with a page-specific choice.
+            </Typography>
+          </Stack>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "flex-start" }}>
+            <TextField
+              select
+              label="Theme"
+              value={safeThemeKey}
+              onChange={(event) => workspace.changePageField("themeKey", event.target.value)}
+              sx={{ minWidth: 260, flex: 1 }}
+              helperText={
+                safeThemeKey
+                  ? "This page overrides the global default theme."
+                  : `This page currently inherits ${defaultGlobalThemeLabel}.`
+              }
+            >
+              <MenuItem value="">Use Global Default</MenuItem>
+              {workspace.themeOptions.map((option) => (
+                <MenuItem key={option.themeKey} value={option.themeKey}>
+                  {option.label}
+                  {option.isGlobalDefault ? " (Global Default)" : ""}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button variant="outlined" onClick={workspace.openThemesLibrary}>
+              Open Themes
+            </Button>
+          </Stack>
         </Stack>
       </Paper>
 
@@ -1439,6 +1480,18 @@ export function BlogDistributionView({
     );
   }, [navigate, workspace.pageDraft.layoutId, workspace.selectedPage?.layoutId, workspace.selectedPageId]);
 
+  const openThemesLibrary = useCallback(() => {
+    if (typeof navigate !== "function") {
+      return;
+    }
+    navigate(
+      {
+        moduleId: "themes"
+      },
+      { replace: false }
+    );
+  }, [navigate]);
+
   const saveModuleSettings = useCallback(async () => {
     if (!moduleSettingsDomain || typeof moduleSettingsDomain.handleSaveModuleSettings !== "function") {
       return;
@@ -1618,6 +1671,7 @@ export function BlogDistributionView({
     ...workspace,
     moduleSettingsDomain,
     openLayoutBuilder,
+    openThemesLibrary,
     saveModuleSettings,
     remoteOpsSupport,
     remoteDeploymentTargets,

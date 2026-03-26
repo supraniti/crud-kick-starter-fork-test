@@ -1,0 +1,126 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-themes",
+  "version": "0.1.0",
+  "name": "Test Modules Themes",
+  "capabilities": [
+    "crud.collection",
+    "schema",
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-themes.install",
+    "uninstall": "test-modules-themes.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Themes",
+      "icon": "palette",
+      "order": 512,
+      "routeSegment": "themes"
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "collections": [
+    {
+      "id": "page-themes",
+      "label": "Themes",
+      "entitySingular": "theme",
+      "primaryField": "title",
+      "description": "Reusable page themes with global default and per-page override support.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Theme Title",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 180
+        },
+        {
+          "id": "themeKey",
+          "label": "Theme Key",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 120
+        },
+        {
+          "id": "summary",
+          "label": "Summary",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "draft",
+            "ready",
+            "archived"
+          ],
+          "defaultValue": "draft"
+        },
+        {
+          "id": "isGlobalDefault",
+          "label": "Global Default",
+          "type": "boolean",
+          "required": true,
+          "defaultValue": false
+        },
+        {
+          "id": "themeDocumentJson",
+          "label": "Theme Document JSON",
+          "type": "text",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 200000
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof",
+    "ticket": "themes-module-introduction"
+  }
+}

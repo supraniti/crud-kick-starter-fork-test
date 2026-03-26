@@ -4,6 +4,7 @@ import { LayoutsView } from "../../../../modules/test-modules-layouts/frontend/L
 import { MediaManagerView } from "../../../../modules/test-modules-media-manager/frontend/MediaManagerView.jsx";
 import { BlogDistributionView } from "../../../../modules/test-modules-pages/frontend/BlogDistributionView.jsx";
 import { BlogTaxonomyView } from "../../../../modules/test-modules-taxonomy/frontend/BlogTaxonomyView.jsx";
+import { ThemesView } from "../../../../modules/test-modules-themes/frontend/ThemesView.jsx";
 import { ProductDeploymentsView } from "./ProductDeploymentsView.jsx";
 import { ProductDomainsView } from "./ProductDomainsView.jsx";
 import { ProductEditorialView } from "./ProductEditorialView.jsx";
@@ -12,6 +13,13 @@ import { ProductRemotesView } from "./ProductRemotesView.jsx";
 import { ProductSystemSettingsView } from "./ProductSystemSettingsView.jsx";
 
 export const PRODUCT_VIEW_DESCRIPTORS = Object.freeze([
+  {
+    moduleId: "themes",
+    usesCollectionsDomain: false,
+    requiredDomains: [],
+    routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
+    render: (context) => <ThemesView activeModuleLabel={context.activeModuleLabel} />
+  },
   {
     moduleId: "system-settings",
     usesCollectionsDomain: false,
@@ -110,6 +118,13 @@ export const PRODUCT_VIEW_DESCRIPTORS = Object.freeze([
         collectionsDomain={context.collectionsDomain}
       />
     )
+  },
+  {
+    moduleId: "test-modules-themes",
+    usesCollectionsDomain: false,
+    requiredDomains: [],
+    routeStateAdapter: COLLECTIONS_ROUTE_STATE_ADAPTER,
+    render: (context) => <ThemesView activeModuleLabel={context.activeModuleLabel} />
   },
   {
     moduleId: "test-modules-layouts",

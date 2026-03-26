@@ -16,6 +16,11 @@ function PagePresentationSection({ workspace }) {
   const safeLayoutId = workspace.layoutOptions.some((option) => option.id === workspace.pageDraft.layoutId)
     ? workspace.pageDraft.layoutId
     : "";
+  const currentThemeOption = workspace.themeOptions.find(
+    (option) => option.themeKey === workspace.pageDraft.themeKey
+  );
+  const safeThemeKey = currentThemeOption?.themeKey ?? (workspace.pageDraft.themeKey || "");
+  const defaultGlobalThemeLabel = workspace.defaultGlobalTheme?.title ?? "the global default theme";
 
   return (
     <Stack spacing={2}>
@@ -45,6 +50,28 @@ function PagePresentationSection({ workspace }) {
             </Alert>
           ) : null}
         </Stack>
+      </Stack>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+        <TextField
+          select
+          label="Theme"
+          value={safeThemeKey}
+          onChange={(event) => workspace.changePageField("themeKey", event.target.value)}
+          sx={{ minWidth: 240 }}
+          helperText={
+            safeThemeKey
+              ? "This page overrides the global default theme."
+              : `This page currently inherits ${defaultGlobalThemeLabel}.`
+          }
+        >
+          <MenuItem value="">Use Global Default</MenuItem>
+          {workspace.themeOptions.map((option) => (
+            <MenuItem key={option.themeKey} value={option.themeKey}>
+              {option.label}
+              {option.isGlobalDefault ? " (Global Default)" : ""}
+            </MenuItem>
+          ))}
+        </TextField>
       </Stack>
       {!usingReusableLayout ? (
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -79,11 +106,6 @@ function PagePresentationSection({ workspace }) {
               </MenuItem>
             ))}
           </TextField>
-          <TextField
-            label="Theme Key"
-            value={workspace.pageDraft.themeKey}
-            onChange={(event) => workspace.changePageField("themeKey", event.target.value)}
-          />
         </Stack>
       ) : null}
     </Stack>

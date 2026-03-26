@@ -3181,3 +3181,55 @@
   - for widgetized reader regressions, inspect both the rendered DOM tree and actual element geometry before assuming the data contract is wrong
   - flex placement in authored layout systems must be axis-aware; stored `basis` means width in row layouts but cannot be applied blindly in column layouts
   - public layout review should always include a fresh-browser verification path so asset-cache reuse does not fake a failed redeploy
+### 2026-03-26 - Theme Delivery Needed The Same Default Catalog On Both Authoring And Runtime Paths
+- Tasks:
+  - introduced the new `Themes` module with a predefined five-theme catalog, global default, editor surface, and live preview
+  - wired Pages server delivery/runtime so page payloads and reader bootstraps carry resolved theme selection and the deployed reader applies the theme document as CSS variables + font imports
+  - found that `/app/themes` initially failed with `FRONTEND_VIEW_REGISTRATION_MISSING` because the active route resolved as synthetic `themes` while only the real module id `test-modules-themes` had been registered
+  - fixed that by wiring the Presentation workflow route and matching product view descriptors
+  - found that the current Pages drawer path was not using the older presentation section where the theme selector had first been added
+  - moved the theme selector into the active `PageBasicsTab` flow and added an `Open Themes` jump
+  - found that Pages only showed `Use Global Default` because the client support loader got an empty `page-themes` collection before any persisted seed records existed
+  - fixed that by synthesizing the same predefined five-theme catalog client-side when the collection is empty
+  - found and fixed a hidden server break while validating:
+    - `themes-shared-runtime.mjs` imported `normalizeThemeKey` but `theme-document.mjs` had not exported it
+- Easy:
+  - server conformance already gave a clean place to assert the resolved theme contract inside page delivery payloads
+  - once the route id mismatch was clear, the correct fix was direct: register the actual visible route instead of trying to force discovery assumptions
+- Hard:
+  - the first Pages UI patch landed in an older presentation component that is no longer the active drawer path, so the feature looked present in code but absent in the real product
+  - the predefined-theme requirement has two execution surfaces:
+    - persisted/server collection behavior
+    - client-side authoring support when the collection is still empty
+    both needed to agree or the product would feel half-seeded
+- Improve:
+  - when a new module uses a friendly route segment, verify the actual runtime route id in the browser before assuming module-id registration is enough
+  - for seeded authoring features, define one shared “built-in catalog” source and reuse it from server delivery and client support loaders so empty-state behavior stays coherent
+  - frontend build alone is not enough for server-only shared modules; missing exports in mixed shared/server files need at least one server proof
+### 2026-03-26 - Theme Delivery Required Style Node Ordering Discipline On The Deployed Reader
+- Tasks:
+  - reviewed the live theme proof on `fastcart.dev` after the first Journal bundle release
+  - found that the payload carried the right theme document, and a dedicated theme stylesheet node existed, but the live page still showed the warm fallback palette
+  - inspected the live `<head>` order and found:
+    - `page-application-theme-style`
+    - then `page-application-style`
+    meaning the base stylesheet was overriding shared CSS variables like `--page-bg` and `--page-card`
+  - corrected the reader on both public and tester paths by:
+    - making the base stylesheet structural and theme-neutral
+    - re-appending the theme font/style nodes so they always stay last and authoritative
+  - reran the post, journal, and category bundles sequentially because parallel release runs collided on shared deployment object metadata
+- Easy:
+  - the live page made the failure measurable:
+    - payload theme key was correct
+    - computed CSS variables were wrong
+  - once the `<head>` order was inspected directly, the mismatch stopped being ambiguous
+- Hard:
+  - the first patch made the base stylesheet much cleaner, but still left the fundamental ordering bug in place because existing theme style nodes were not moved after the base style was appended
+  - parallel release runs looked like feature regressions at first, but the real cause was shared-object metadata contention on the deployment target
+- Improve:
+  - when theming is CSS-variable based, inspect both:
+    - the payload theme document
+    - the final `<head>` node order
+    before assuming the resolver is wrong
+  - if a runtime uses multiple style nodes, make the precedence explicit in code rather than relying on creation timing
+  - bundle releases that write shared public assets should be treated as sequential operations unless the deployment runtime is made concurrency-safe

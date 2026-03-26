@@ -5,6 +5,7 @@ const NORTH_STAR_MODULE_SET = new Set([
   "test-modules-engagement",
   "test-modules-pages",
   "test-modules-layouts",
+  "test-modules-themes",
   "test-modules-media-manager",
   "test-modules-remote-ops"
 ]);
@@ -107,8 +108,20 @@ const PRODUCT_NAVIGATION_SPECS = Object.freeze([
     stageId: "presentation",
     stageLabel: "Presentation",
     purpose: "Define reusable visual structure that pages can bind to posts, categories, and future content types.",
-    nextRouteId: "test-modules-pages",
+    nextRouteId: "themes",
     order: 180
+  },
+  {
+    id: "themes",
+    kind: "synthetic",
+    dependencyModuleId: "test-modules-themes",
+    label: "Themes",
+    icon: "palette",
+    stageId: "presentation",
+    stageLabel: "Presentation",
+    purpose: "Configure global and page-level theme systems covering fonts, colors, and responsive typography before publishing pages.",
+    nextRouteId: "test-modules-pages",
+    order: 185
   },
   {
     id: "test-modules-pages",

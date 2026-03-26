@@ -635,6 +635,20 @@ export function useBlogDistributionWorkspace() {
     () => resolveActorOptions(support.supportState.authors),
     [support.supportState.authors]
   );
+  const themeOptions = useMemo(
+    () =>
+      support.supportState.themes.map((item) => ({
+        id: item.id,
+        themeKey: item.themeKey,
+        label: item.title ?? item.themeKey ?? item.id,
+        isGlobalDefault: item.isGlobalDefault === true
+      })),
+    [support.supportState.themes]
+  );
+  const defaultGlobalTheme = useMemo(
+    () => support.supportState.themes.find((item) => item.isGlobalDefault === true) ?? null,
+    [support.supportState.themes]
+  );
 
   useEffect(() => {
     if (!selectedActorId && actorOptions[0]?.id) {
@@ -732,6 +746,8 @@ export function useBlogDistributionWorkspace() {
       tags: support.supportState.tags
     }),
     layoutOptions: support.supportState.layouts.map(toOption),
+    themeOptions,
+    defaultGlobalTheme,
     mediaOptions: support.supportState.media.map(toOption),
     actorOptions,
     selectedActorId,
