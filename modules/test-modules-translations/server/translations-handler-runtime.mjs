@@ -92,13 +92,14 @@ export function wrapTranslationsHandler(handler) {
     },
     update: async ({ body, item, reply }) => {
       const preparedValue = buildPreparedTranslationUnitValue(body, item);
+      const persistedBody = buildPersistedTranslationUnitBody(preparedValue);
       const conflicts = await collectTranslationUnitConflicts(handler, preparedValue, item);
       if (conflicts.length > 0) {
         return validationFailure(reply, conflicts);
       }
       const result = await handler.update({
-        body: buildPersistedTranslationUnitBody(preparedValue),
-        value: preparedValue,
+        body: persistedBody,
+        value: persistedBody,
         item,
         reply
       });
