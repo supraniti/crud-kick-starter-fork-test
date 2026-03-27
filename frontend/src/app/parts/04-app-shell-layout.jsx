@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -7,8 +8,10 @@ import {
   Divider,
   Paper,
   Stack,
-  Typography
+  Typography,
+  useMediaQuery
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   StatusChip,
   DeployPanel,
@@ -17,6 +20,7 @@ import {
 } from "../../ui/ShellViews.jsx";
 import { RuntimeSettingsDialog } from "../../ui/RuntimeSettingsDialog.jsx";
 import { APP_VERSION } from "./01-app-config.js";
+import { APP_SIDEBAR_STORAGE_KEY } from "./00-app-theme.js";
 import { GlobalDeploymentFab } from "../product-shell/GlobalDeploymentFab.jsx";
 import { useGlobalDeploymentCommandCenter } from "../product-shell/useGlobalDeploymentCommandCenter.js";
 
@@ -42,8 +46,36 @@ function AppShellLayout({
   activeModuleView
 }) {
   const deploymentCommandCenter = useGlobalDeploymentCommandCenter();
+  const theme = useTheme();
+  const preferCollapsedSidebar = useMediaQuery(theme.breakpoints.down("lg"));
   const immersiveShell =
     activeViewRegistration?.shell?.mode === "immersive";
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return false;
+    }
+    return window.localStorage.getItem(APP_SIDEBAR_STORAGE_KEY) === "1";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return;
+    }
+    const persistedValue = window.localStorage.getItem(APP_SIDEBAR_STORAGE_KEY);
+    if (persistedValue === null && preferCollapsedSidebar) {
+      setSidebarCollapsed(true);
+    }
+  }, [preferCollapsedSidebar]);
+
+  const handleToggleSidebarCollapsed = useCallback(() => {
+    setSidebarCollapsed((previous) => {
+      const nextValue = !previous;
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(APP_SIDEBAR_STORAGE_KEY, nextValue ? "1" : "0");
+      }
+      return nextValue;
+    });
+  }, []);
 
   return (
     <Box
@@ -58,6 +90,8 @@ function AppShellLayout({
           modules={moduleState.items}
           activeModuleId={route.moduleId}
           onSelectModule={handleSelectModule}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={handleToggleSidebarCollapsed}
         />
       ) : null}
 
@@ -67,13 +101,13 @@ function AppShellLayout({
           sx={{
             borderBottom: 1,
             borderColor: "divider",
-            px: 2,
-            py: 1.5
+            px: 1.5,
+            py: 1
           }}
         >
           <Stack
             direction={{ xs: "column", sm: "row" }}
-            spacing={1}
+            spacing={0.75}
             alignItems={{ xs: "flex-start", sm: "center" }}
             justifyContent="space-between"
           >
@@ -131,7 +165,7 @@ function AppShellLayout({
 
         <Box
           sx={{
-            p: immersiveShell ? 0 : 2,
+            p: immersiveShell ? 0 : 1.25,
             overflow: immersiveShell ? "hidden" : "auto",
             flex: 1,
             minWidth: 0,
@@ -167,7 +201,7 @@ function AppShellLayout({
             />
           ) : null}
 
-          {!immersiveShell ? <Divider sx={{ mb: 2 }} /> : null}
+          {!immersiveShell ? <Divider sx={{ mb: 1.5 }} /> : null}
 
           {activeModuleView}
         </Box>

@@ -5,6 +5,7 @@ import {
   buildProductNavigationItems,
   resolveProductRouteGuide
 } from "../../app/product-shell/product-shell-catalog.js";
+import { APP_SIDEBAR_STORAGE_KEY } from "../../app/parts/00-app-theme.js";
 
 vi.mock("../../app/product-shell/useGlobalDeploymentCommandCenter.js", () => ({
   useGlobalDeploymentCommandCenter: () => ({
@@ -23,6 +24,7 @@ vi.mock("../../app/product-shell/useGlobalDeploymentCommandCenter.js", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  window.localStorage.clear();
 });
 
 function createNorthStarModules() {
@@ -138,4 +140,51 @@ test("layouts route keeps the workflow sidebar when immersive mode is not explic
   expect(screen.getByRole("button", { name: "Layouts" })).toBeInTheDocument();
   expect(screen.getByText("Layouts Surface")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Sync/i })).toBeInTheDocument();
+});
+
+test("sidebar can collapse to icon-only mode and keeps route discovery via button labels", () => {
+  const moduleState = {
+    loading: false,
+    errorMessage: null,
+    items: buildProductNavigationItems(createNorthStarModules())
+  };
+
+  render(
+    <AppShellLayout
+      moduleState={moduleState}
+      route={{ moduleId: "test-modules-content" }}
+      activeRouteGuide={resolveProductRouteGuide(moduleState.items, "test-modules-content")}
+      handleSelectModule={() => {}}
+      routeUrl="/app/posts"
+      connectivityMode="connected"
+      runConnectivityCheck={() => {}}
+      handleSignOut={() => {}}
+      viewActions={[]}
+      handleRunViewAction={() => {}}
+      requiredDomains={new Set()}
+      remotesDeployDomain={{
+        deployState: { deploy: {}, latestJob: null, starting: false },
+        remotesState: { items: [] },
+        selectedRemoteId: "",
+        setSelectedRemoteId: () => {},
+        handleDeployNow: () => {},
+        moduleRuntimeState: { items: [] },
+        handleRunModuleAction: () => {}
+      }}
+      activeViewRegistration={{}}
+      runtimeSettingsOpen={false}
+      handleOpenRuntimeSettings={() => {}}
+      handleCloseRuntimeSettings={() => {}}
+      handleOpenRemotes={() => {}}
+      developerModeEnabled={false}
+      activeModuleView={<div>Posts Surface</div>}
+    />
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+
+  expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Posts" })).toBeInTheDocument();
+  expect(window.localStorage.getItem(APP_SIDEBAR_STORAGE_KEY)).toBe("1");
+  expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
 });

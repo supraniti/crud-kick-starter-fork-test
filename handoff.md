@@ -2554,3 +2554,23 @@
     - `Already Synced Category Release Bundle`
     - `Already Synced Journal Release Bundle`
     - `Already Synced Post Release Bundle`
+### 2026-03-27 - App Shell Density And Sidebar Tightening
+- Tasks:
+  - introduced a compact shell theme so common MUI controls default smaller across the application
+  - replaced the fixed wide sidebar with a narrower sidebar that can collapse to icon-only mode
+  - persisted the sidebar preference locally and defaulted new tighter-width sessions toward collapsed mode
+  - tightened shell header/content spacing so the workspace gains visible room before any desk-specific rewrites
+- Verified locally:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/posts`
+  - `http://localhost:3000/app/layouts?layoutId=pagelayo-002`
+  - `http://localhost:3000/app/media`
+  - `http://localhost:3000/app/deployments`
+  - confirmed:
+    - sidebar collapse/expand works
+    - collapsed navigation keeps discovery through tooltips and accessible labels
+    - shell chrome is visibly denser on major routes

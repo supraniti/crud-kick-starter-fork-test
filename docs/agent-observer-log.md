@@ -3308,3 +3308,17 @@
 - Improve:
   - any global posture feature should consume the same evaluated desk endpoints the module workspace uses, not a raw collection list that may carry lagging summaries
   - do not call a deployment UX slice done until the browser menu after a real sync shows clean bundles as disabled, not runnable
+### 2026-03-27 - Density Work Needed A Theme Layer First, Not Random Small Props
+- Tasks:
+  - reviewed the shell structure and confirmed the app did not already have a global MUI density theme
+  - added a compact shell theme and then tightened the shell chrome rather than scattering one-off `size=\"small\"` edits across every screen
+  - added a collapsible sidebar with persisted state and verified it on the main routes in the browser
+- Easy:
+  - the shell had a single clear sidebar component and a single shell layout wrapper, so the structural part of the work had a good leverage point
+  - many screens were already close to compact; once the shell and defaults tightened, the whole app looked lighter immediately
+- Hard:
+  - the real space waste was not only control size; it was accumulated header padding, content padding, and sidebar width
+  - accessibility snapshots still expose collapsed button names through labels, so browser review had to look at actual shell behavior, not only DOM text
+- Improve:
+  - for future UI tightening passes, start with shared theme/defaults and shell proportions before auditing desk-specific panels
+  - a collapsed sidebar still needs strong active state and tooltips, otherwise density gains become a discoverability regression

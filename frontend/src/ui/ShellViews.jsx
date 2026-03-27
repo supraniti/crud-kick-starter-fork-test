@@ -6,11 +6,13 @@ import {
   CardContent,
   Chip,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Paper,
   Select,
   Stack,
+  Tooltip,
   Typography
 } from "@mui/material";
 
@@ -109,7 +111,7 @@ function DeployPanel({
   const selectedRemote = remotes.find((item) => item.id === selectedRemoteId) ?? null;
 
   return (
-    <Paper variant="outlined" sx={{ mb: 2, p: 1.5 }}>
+    <Paper variant="outlined" sx={{ mb: 1.5, p: 1.25 }}>
       <Stack spacing={1}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -235,7 +237,13 @@ function LoginView({ onSignIn }) {
   );
 }
 
-function ModuleSidebar({ modules, activeModuleId, onSelectModule }) {
+function ModuleSidebar({
+  modules,
+  activeModuleId,
+  onSelectModule,
+  collapsed = false,
+  onToggleCollapsed = null
+}) {
   const hasProductStages = modules.some(
     (moduleItem) =>
       typeof moduleItem?.productStageLabel === "string" && moduleItem.productStageLabel.length > 0
@@ -265,18 +273,51 @@ function ModuleSidebar({ modules, activeModuleId, onSelectModule }) {
       component="aside"
       square
       sx={{
-        width: 240,
+        width: collapsed ? 76 : 196,
         borderRight: 1,
         borderColor: "divider",
-        p: 1.5,
+        px: 1,
+        py: 1,
         display: "flex",
         flexDirection: "column",
-        gap: 1
+        gap: 0.5,
+        overflow: "hidden",
+        transition: (theme) =>
+          theme.transitions.create("width", {
+            duration: theme.transitions.duration.shorter
+          })
       }}
     >
-      <Typography variant="subtitle2" color="text.secondary" sx={{ px: 1 }}>
-        {hasProductStages ? "Workflow" : "Modules"}
-      </Typography>
+      <Stack
+        direction={collapsed ? "column" : "row"}
+        spacing={0.5}
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ px: collapsed ? 0 : 0.5, pb: 0.5 }}
+      >
+        {!collapsed ? (
+          <Typography variant="subtitle2" color="text.secondary" sx={{ px: 0.5 }}>
+            {hasProductStages ? "Workflow" : "Modules"}
+          </Typography>
+        ) : (
+          <Tooltip title={hasProductStages ? "Workflow" : "Modules"} placement="right">
+            <Typography variant="subtitle2" color="text.secondary">
+              {hasProductStages ? "WF" : "MD"}
+            </Typography>
+          </Tooltip>
+        )}
+        {typeof onToggleCollapsed === "function" ? (
+          <Tooltip title={collapsed ? "Expand sidebar" : "Collapse sidebar"} placement="right">
+            <IconButton
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              onClick={onToggleCollapsed}
+              size="small"
+            >
+              {collapsed ? "»" : "«"}
+            </IconButton>
+          </Tooltip>
+        ) : null}
+      </Stack>
       {modules.map((moduleItem, index) => {
         const active = moduleItem.id === activeModuleId;
         const moduleState = resolveModuleStateLabel(moduleItem);
@@ -284,52 +325,81 @@ function ModuleSidebar({ modules, activeModuleId, onSelectModule }) {
         const currentStage = moduleItem.productStageLabel ?? "";
         const previousStage =
           index > 0 ? modules[index - 1]?.productStageLabel ?? "" : "";
+        const buttonContent = (
+          <Stack
+            direction="row"
+            spacing={collapsed ? 0 : 0.75}
+            alignItems="center"
+            justifyContent={collapsed ? "center" : "flex-start"}
+            useFlexGap
+            sx={{ width: "100%" }}
+          >
+            <Box
+              component="span"
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                display: "inline-grid",
+                placeItems: "center",
+                fontSize: 12,
+                bgcolor: active ? "rgba(255,255,255,0.18)" : "action.hover",
+                flexShrink: 0
+              }}
+            >
+              {resolveModuleGlyph(moduleItem.icon)}
+            </Box>
+            {!collapsed ? <span>{moduleItem.label}</span> : null}
+            {!collapsed && moduleState !== "enabled" ? (
+              <Chip
+                size="small"
+                color={routeAvailable ? "warning" : "default"}
+                label={moduleState}
+              />
+            ) : null}
+          </Stack>
+        );
         return (
           <Stack key={moduleItem.id} spacing={0.75}>
-            {hasProductStages && currentStage && currentStage !== previousStage ? (
+            {hasProductStages && currentStage && currentStage !== previousStage && !collapsed ? (
               <Typography
                 variant="overline"
                 color="text.secondary"
-                sx={{ px: 1, pt: index === 0 ? 0.5 : 1.25 }}
+                sx={{ px: 1, pt: index === 0 ? 0.25 : 0.75 }}
               >
                 {currentStage}
               </Typography>
             ) : null}
-            <Button
-              variant={active ? "contained" : "text"}
-              color={active ? "primary" : "inherit"}
-              onClick={() => onSelectModule(moduleItem.id)}
-              aria-label={moduleItem.label}
-              data-module-id={moduleItem.id}
-              data-module-state={moduleState}
-              data-route-available={routeAvailable ? "true" : "false"}
-              sx={{ justifyContent: "flex-start" }}
-            >
-              <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap>
-                <Box
-                  component="span"
-                  sx={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    display: "inline-grid",
-                    placeItems: "center",
-                    fontSize: 12,
-                    bgcolor: active ? "rgba(255,255,255,0.18)" : "action.hover"
-                  }}
+            {hasProductStages && currentStage && currentStage !== previousStage && collapsed ? (
+              <Tooltip title={currentStage} placement="right">
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ textAlign: "center", pt: index === 0 ? 0.25 : 0.75 }}
                 >
-                  {resolveModuleGlyph(moduleItem.icon)}
-                </Box>
-                <span>{moduleItem.label}</span>
-                {moduleState !== "enabled" ? (
-                  <Chip
-                    size="small"
-                    color={routeAvailable ? "warning" : "default"}
-                    label={moduleState}
-                  />
-                ) : null}
-              </Stack>
-            </Button>
+                  {currentStage.slice(0, 1)}
+                </Typography>
+              </Tooltip>
+            ) : null}
+            <Tooltip title={collapsed ? moduleItem.label : ""} placement="right">
+              <Button
+                variant={active ? "contained" : "text"}
+                color={active ? "primary" : "inherit"}
+                onClick={() => onSelectModule(moduleItem.id)}
+                aria-label={moduleItem.label}
+                data-module-id={moduleItem.id}
+                data-module-state={moduleState}
+                data-route-available={routeAvailable ? "true" : "false"}
+                sx={{
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  minWidth: 0,
+                  px: collapsed ? 0.75 : 1.25,
+                  py: 0.5
+                }}
+              >
+                {buttonContent}
+              </Button>
+            </Tooltip>
           </Stack>
         );
       })}
@@ -343,7 +413,7 @@ function ModuleQuickActions({ actions, onRunAction }) {
   }
 
   return (
-    <Paper variant="outlined" sx={{ mb: 2, p: 1.5 }}>
+    <Paper variant="outlined" sx={{ mb: 1.5, p: 1.25 }}>
       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
         <Typography variant="subtitle2" color="text.secondary">
           View shortcuts
