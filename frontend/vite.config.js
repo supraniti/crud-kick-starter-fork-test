@@ -19,6 +19,9 @@ const emotionReactAliasRoot = fileURLToPath(
 const emotionStyledAliasRoot = fileURLToPath(
   new URL("./node_modules/@emotion/styled", import.meta.url)
 );
+const gridstackAliasRoot = fileURLToPath(
+  new URL("./node_modules/gridstack", import.meta.url)
+);
 const reactJsxRuntimeAlias = fileURLToPath(
   new URL("./node_modules/react/jsx-runtime.js", import.meta.url)
 );
@@ -39,7 +42,8 @@ export default defineConfig({
       "@dnd-kit/utilities": dndKitUtilitiesAliasRoot,
       "@mui/material": muiAliasRoot,
       "@emotion/react": emotionReactAliasRoot,
-      "@emotion/styled": emotionStyledAliasRoot
+      "@emotion/styled": emotionStyledAliasRoot,
+      gridstack: gridstackAliasRoot
     }
   },
   server: {

@@ -36,7 +36,8 @@ function createNorthStarModules() {
     { id: "test-modules-editorial", label: "Editorial", icon: "group", state: "enabled" },
     { id: "test-modules-engagement", label: "Engagement", icon: "forum", state: "enabled" },
     { id: "test-modules-layouts", label: "Layouts", icon: "dashboard_customize", state: "enabled" },
-    { id: "test-modules-pages", label: "Pages", icon: "web", state: "enabled" }
+    { id: "test-modules-pages", label: "Pages", icon: "web", state: "enabled" },
+    { id: "test-modules-page-studio", label: "Page Studio", icon: "space_dashboard", state: "enabled" }
   ];
 }
 
@@ -187,4 +188,50 @@ test("sidebar can collapse to icon-only mode and keeps route discovery via butto
   expect(screen.getByRole("button", { name: "Posts" })).toBeInTheDocument();
   expect(window.localStorage.getItem(APP_SIDEBAR_STORAGE_KEY)).toBe("1");
   expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+});
+
+test("page studio route remains immersive while still exposing top-level route guidance", () => {
+  const moduleState = {
+    loading: false,
+    errorMessage: null,
+    items: buildProductNavigationItems(createNorthStarModules())
+  };
+
+  render(
+    <AppShellLayout
+      moduleState={moduleState}
+      route={{ moduleId: "test-modules-page-studio", studioMode: "infra" }}
+      activeRouteGuide={resolveProductRouteGuide(moduleState.items, "test-modules-page-studio")}
+      handleSelectModule={() => {}}
+      routeUrl="/app/page-studio?studioMode=infra"
+      connectivityMode="connected"
+      runConnectivityCheck={() => {}}
+      handleSignOut={() => {}}
+      viewActions={[]}
+      handleRunViewAction={() => {}}
+      requiredDomains={new Set()}
+      remotesDeployDomain={{
+        deployState: { deploy: {}, latestJob: null, starting: false },
+        remotesState: { items: [] },
+        selectedRemoteId: "",
+        setSelectedRemoteId: () => {},
+        handleDeployNow: () => {},
+        moduleRuntimeState: { items: [] },
+        handleRunModuleAction: () => {}
+      }}
+      activeViewRegistration={{ shell: { mode: "immersive" } }}
+      runtimeSettingsOpen={false}
+      handleOpenRuntimeSettings={() => {}}
+      handleCloseRuntimeSettings={() => {}}
+      handleOpenRemotes={() => {}}
+      developerModeEnabled={false}
+      activeModuleView={<div>Page Studio Surface</div>}
+    />
+  );
+
+  expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
+  expect(screen.getByText(/Page Studio:/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Next: Deployments" })).toBeInTheDocument();
+  expect(screen.getByText("Page Studio Surface")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Sync/i })).not.toBeInTheDocument();
 });

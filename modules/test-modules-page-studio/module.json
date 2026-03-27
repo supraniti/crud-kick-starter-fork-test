@@ -1,0 +1,30 @@
+{
+  "contractVersion": 1,
+  "id": "test-modules-page-studio",
+  "version": "0.1.0",
+  "name": "Test Modules Page Studio",
+  "capabilities": [
+    "ui.route"
+  ],
+  "lifecycle": {
+    "install": "test-modules-page-studio.install",
+    "uninstall": "test-modules-page-studio.uninstall"
+  },
+  "ui": {
+    "navigation": {
+      "label": "Page Studio",
+      "icon": "space_dashboard",
+      "order": 518,
+      "routeSegment": "page-studio"
+    },
+    "routeView": {
+      "kind": "custom",
+      "entrypoint": "./frontend/view-entrypoint.jsx"
+    }
+  },
+  "metadata": {
+    "owner": "reference-domain-runtime",
+    "maturity": "proof",
+    "ticket": "page-studio-mui-parity"
+  }
+}

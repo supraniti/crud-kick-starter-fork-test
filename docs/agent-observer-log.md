@@ -3322,3 +3322,169 @@
 - Improve:
   - for future UI tightening passes, start with shared theme/defaults and shell proportions before auditing desk-specific panels
   - a collapsed sidebar still needs strong active state and tooltips, otherwise density gains become a discoverability regression
+### 2026-03-27 - Page Studio Needed Real Browser Validation Before It Could Count As A Foundation Slice
+- Tasks:
+  - created the new `test-modules-page-studio` route scaffold and then validated it in the real app instead of trusting only the shell test
+  - found three real route failures that isolated tests did not catch:
+    - custom entrypoint imported the shared registration barrel and triggered a `DEFAULT_ROUTE_STATE_ADAPTER` initialization cycle
+    - the module manifest was rejected by backend discovery because lifecycle hook ids were missing
+    - the registry validator accepted `shell.mode`, but `createViewRegistry(...)` silently dropped it, so the route never became immersive in the live app
+  - fixed all three, then used the verified route to start the next slice:
+    - editable persisted Infra draft
+    - shared breakpoint constants
+    - serialized block ids
+    - editor-grid to runtime-layout transform contract
+- Easy:
+  - once the module was admitted to runtime discovery, the navigation/catalog wiring behaved predictably
+  - the transform contract itself was straightforward once the planning pass settled the rules: 12-column breakpoints, explicit inheritance, CSS-Grid-oriented runtime output
+- Hard:
+  - the route looked "implemented" at the file level while still being unreachable in the product because discovery rejected the manifest
+  - the immersive-shell bug was subtle because the descriptor test passed; the value was lost later in registry creation, not validation
+  - Chrome DevTools fill behavior appends to existing controlled text field values, so browser proof of persistence had to be interpreted carefully rather than treated as exact authoring UX proof
+- Improve:
+  - for every new custom route module, prove three things in the real app before moving on:
+    - backend discovery includes it
+    - frontend registry resolves it
+    - shell mode behaves as declared
+  - when adding descriptor fields such as `shell`, test the whole registry pipeline, not only validation
+  - keep the dedicated layout-transform planning pass as a hard gate before any Gridstack geometry implementation; it already prevented us from mixing editor math and runtime contract concerns
+### 2026-03-27 - Gridstack Integration Exposed Package-Boundary And Workspace-Boundary Failures
+- Tasks:
+  - added `gridstack` to the frontend workspace and used it to replace the `Layout` placeholder in `Page Studio` with a real editor
+  - created a shared `page-studio-layout-editing` helper so breakpoint inheritance math stayed outside the React/Gridstack glue code
+  - browser-validated the new route repeatedly while fixing the issues that only showed up end-to-end
+- Easy:
+  - the transform contract from the earlier planning pass was strong enough that the editor could plug into it without changing runtime shape
+  - once the route loaded correctly, `Add Block` and breakpoint switching were enough to prove that the editor was writing real studio state, not just local component state
+- Hard:
+  - installing `gridstack` inside `frontend` was not sufficient on its own because `PageStudioLayoutMode.jsx` lives outside the `frontend` package root; Vite could not resolve the package from that file path until the frontend alias map explicitly included `gridstack`
+  - the live app route used module id `page-studio`, while the new module entrypoint only registered `test-modules-page-studio`; the route therefore showed `FRONTEND_VIEW_REGISTRATION_MISSING` even though the module existed and tests were passing
+  - after the dependency change, the review backend would no longer start because the workspace symlink for `server/node_modules/fastify` pointed into a missing root `.pnpm` target; `pnpm install` had to relink the workspace before browser proof could resume
+  - Gridstack's default render path writes widget `content` as text for safety, so the first browser pass showed literal HTML instead of rendered block chrome; the content had to be injected into `.grid-stack-item-content` manually after widget creation
+- Improve:
+  - any dependency used by custom module files outside the `frontend` package root must either be aliased in `frontend/vite.config.js` or promoted to a shared resolution layer before it counts as integrated
+  - for public route segments backed by custom module ids, register both the runtime module id and the route alias if the shell can address either one
+  - after workspace dependency changes, do not trust a previously healthy review env; verify the backend still resolves its package symlinks before browser testing UI work
+  - Gridstack editor proof should not stop at “the route loads”; verify actual authored state changes like block count, breakpoint swaps, and persisted geometry before calling the slice real
+### 2026-03-27 - Page Studio Layout Usability Needed Scenario-First Authoring, Not Better Geometry Controls
+- Tasks:
+  - reviewed the rejected layout pass against the intent and against real page-building behavior in the live route
+  - found that the main failure was not missing geometry features; it was that the route still behaved like a grid demo:
+    - anonymous seed blocks
+    - too much explanatory chrome
+    - no recognizable editorial/page archetypes to start from
+  - added four scenario presets and made them the first-class entry point to layout authoring
+  - added smaller but important practical controls:
+    - rename selected block
+    - reset current breakpoint overrides
+    - persist/infer selected scenario across reloads
+- Easy:
+  - the existing transform-safe model was already good enough to host real scenarios once block sets and editor-grid presets were formalized
+  - once the route opened into `Story Stack` instead of generic seeds, the whole mode became easier to reason about immediately
+- Hard:
+  - older saved drafts had no scenario identity, so the repaired route could still reopen with a mismatched heading and canvas after reload
+  - that required backward inference from saved block summaries, not just forward persistence of a new `scenarioKey`
+  - Chrome DevTools accessibility snapshots duplicate Gridstack content heavily, so the real proof had to come from observed state transitions, selected-block metadata, and screenshots, not from the raw snapshot text alone
+- Improve:
+  - for canvas/builders, do not start from empty or generic seed geometry if the product intent is real-world authoring; start from recognizable scenarios and let the user refine from there
+  - if a repair introduces new authored state such as `scenarioKey`, add both forward persistence and backward inference for older local drafts before calling the UX fixed
+  - a layout-builder slice should only count as usable after multiple concrete page shapes have been exercised in the live route, not after a single block-add proof
+### 2026-03-27 - Grid Reconciliation During Drag Was The Wrong Abstraction Boundary
+- Tasks:
+  - investigated the reported ghost traces after move/resize and found that the editor was still reconciling saved state during the interaction window
+  - changed the layout editor so Gridstack owns movement while dragging/resizing, and the studio document only reconciles on `dragstop` / `resizestop`
+  - moved selected-block highlighting into its own DOM update path so selection changes stop triggering a full `removeAll + addWidget` rebuild
+  - added explicit fit-zoom UX to the shared canvas shell and made Page Studio use it by default
+- Easy:
+  - once the interaction boundary was corrected, the rest of the fix was mostly removing over-eager rebuild paths rather than inventing new layout math
+  - auto-fit was already conceptually present in the intent; it only needed to become explicit in the zoom controller
+- Hard:
+  - the old behavior only showed its worst symptoms during live interaction, not in static canvas screenshots
+  - Chrome accessibility snapshots duplicate Gridstack content heavily, so visual proof had to come from screenshots and DOM-driven geometry updates, not raw snapshot text
+- Improve:
+  - never rebuild a drag-managed canvas from external state while the drag library still owns the active interaction
+  - fit-to-screen should be a first-class mode in any builder that can open viewports larger than the operator's actual screen; manual zoom alone is not enough
+### 2026-03-27 - Visual Ghosting Was Really A DOM Duplication Bug, And The Browser Had To Prove It
+- Tasks:
+  - investigated the follow-up report that a moved block still appeared in its old location “like a clone”
+  - used the live Page Studio route plus DOM inspection to count actual `.grid-stack-item` nodes instead of trusting the accessibility snapshot
+  - found that the canvas had `14` DOM items for `7` engine nodes: the stale copies had lost `gridstackNode` ownership but were still in the DOM
+  - fixed the cleanup and sync boundaries so the grid root is explicitly cleared before re-adding the authoritative widget set
+  - also fixed the immersive-route FAB collision by suppressing the global deployment FAB whenever the route declares `shell.mode = immersive`
+- Easy:
+  - once the DOM count made the bug concrete, the repair was local: stop relying on Gridstack’s partial DOM cleanup and hard-clear the grid root before rebuilding
+  - the FAB collision fix belonged in the shell, not in the Page Studio module
+- Hard:
+  - screenshots alone were misleading because the accessibility snapshot duplicated visible text even when the DOM bug changed between passes
+  - the first cleanup patch introduced a real regression by calling `replaceChildren()` after `destroy(false)` had already nulled the Gridstack element reference
+- Improve:
+  - for drag/canvas bugs, inspect both engine-node count and DOM-node count; if they diverge, the issue is structural, not visual polish
+  - immersive surfaces should not compete with app-global FABs; shell-level gating is the right abstraction boundary for that rule
+### 2026-03-27 - Preview Must Be Real, Not A Summary Card
+- Tasks:
+  - continued the Page Studio program from `Widgets` into `Preview`
+  - replaced the placeholder preview copy with a real MUI runtime over the authored runtime layout contract and widget assignments
+  - built a local preview data resolver for post-detail scenarios using the actual collections:
+    - posts
+    - authors
+    - categories
+    - tags
+    - media
+    - themes
+  - added preview param editing and verified that changing `slug` swaps the rendered record instead of just changing copy around the edge of the page
+  - fixed legacy local-storage migration so older drafts no longer poison Preview with stale `/untitled` infra defaults
+  - seeded the default reset flow with a widgetized story stack so Preview immediately renders something useful
+- Easy:
+  - the repo already had the right contracts in place:
+    - `context.*` binding resolution
+    - theme document normalization
+    - runtime layout transform
+  - once those were composed directly, Preview became a product surface instead of another planning placeholder
+- Hard:
+  - older persisted Page Studio drafts carried pre-intent infra defaults (`/untitled`, `param1`, no query manifest), which made the first browser proof look broken even though the new preview path itself was sound
+  - a preview route with empty geometry or empty widget assignment is technically correct but product-useless; the default experience had to be seeded with a meaningful starter state before the slice counted as usable
+  - focused frontend Vitest still needs the existing out-of-sandbox rerun on this Windows machine because Vite config load can hit `spawn EPERM`
+- Improve:
+  - for a builder program, do not call a mode delivered if it only explains what it will do later; every mode must do the job implied by its title on the real route
+  - legacy local-storage migration needs to be treated as part of the product, not a cleanup footnote, because otherwise old drafts make new capabilities appear broken
+  - default reset states should land on a realistic authored example when the product intent is parity and usability, not on empty scaffolding
+### 2026-03-27 - Page Studio Needed Screenshot-Led Review To Separate Real Defects From Configuration Illusions
+- Tasks:
+  - reran the Page Studio pass from the browser first after product feedback that preview still looked misleading and non-delivery-grade
+  - captured before/after screenshots for:
+    - layout
+    - widgets
+    - preview desktop
+    - preview mobile
+    - preview lower-page inspection
+  - used the screenshots plus DOM/scroll inspection to identify the actual causes rather than keep arguing from code structure
+- Easy:
+  - the screenshots made two defects obvious immediately:
+    - the rounded page boundary was lying about what the canvas represents
+    - the preview route was easy to misconfigure into `desktop breakpoint + mobile viewport`, which looked like a layout bug even before real overflow problems were considered
+- Hard:
+  - preview had a second, real problem underneath the configuration mismatch: the media widget still respected width-driven aspect ratio more than the authored block contract, so it visually exploded beyond its block
+  - old local-storage story-stack drafts kept reopening into outdated, too-shallow geometry and made new fixes appear ineffective until draft migration was added
+  - nested scaled page scrolling is inherently awkward, so “it does scroll” was not enough; the preview needed an explicit page-scroll control to become inspectable
+- Improve:
+  - for Page Studio, screenshots are not optional proof material; every pass should capture the authored screen and the resulting preview at the same stage
+  - if the preview allows a screen-size choice, it must not silently keep rendering another breakpoint; otherwise the product teaches the wrong lesson
+  - default scenario geometry must be proven against real content, not only against empty block shells, before a scenario counts as usable
+
+### 2026-03-27 - Screenshot-Led Replan Exposed Why Page Studio Still Felt Broken
+- I reviewed the previously captured Layout / Widgets / Preview screenshots and compared them against the live routes before making more code changes.
+- The evidence was clear: the product was not failing because Preview could not technically render; it was failing because the studio shell still spent too much height on stacked control panels, the right rail only appeared at oversized widths, and some scenario drafts still opened with zero widget assignments.
+- I corrected the product at that level instead of adding another cosmetic pass:
+  - moved Layout / Widgets / Preview into a canvas-plus-right-rail structure
+  - seeded `story-stack` and `story-sidebar` with real starter widgets
+  - migrated widgetless scenario drafts so Preview no longer opened as a blank warning screen
+  - lowered the rail breakpoint from `xl` to `lg`
+  - reduced fit-zoom offsets and canvas padding so the page is readable on a normal desktop
+  - removed rounded builder framing from the Page Studio authoring surfaces
+- I then re-ran a real browser flow and captured new evidence:
+  - layout review screenshot
+  - widgets review screenshot
+  - preview desktop screenshot
+  - preview mobile bottom-scroll screenshot
+  - reset-draft recovery screenshot
+- This pass is the one that finally aligned the implementation method with the user's explicit instruction: inspect the screenshots, investigate what they prove, then change the product.

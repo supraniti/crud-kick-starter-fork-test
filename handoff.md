@@ -2574,3 +2574,258 @@
     - sidebar collapse/expand works
     - collapsed navigation keeps discovery through tooltips and accessible labels
     - shell chrome is visibly denser on major routes
+### 2026-03-27 - Page Studio Foundation + Transform Planning Pass
+- Tasks:
+  - created a new decoupled `test-modules-page-studio` module and wired it into product navigation as `Page Studio`
+  - fixed the real route bugs exposed by browser review:
+    - removed the route-state adapter import cycle in the custom entrypoint
+    - added missing lifecycle hook ids so backend discovery would admit the module
+    - fixed the view registry to preserve `shell.mode = immersive`
+  - saved the intent-mandated planning pass for Gridstack-to-MUI transformation:
+    - `docs/research/page-studio-layout-transform-design-2026-03-27.md`
+  - started the next execution slice immediately after planning:
+    - added shared breakpoint constants
+    - added serialized block id allocation
+    - added editor-grid -> runtime-layout transform contract
+    - upgraded `Infra` mode from static copy to an editable locally-persisted studio draft
+    - upgraded `Layout` mode to show real transform summaries instead of placeholder prose
+- Verified locally:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/page-studio?studioMode=infra`
+  - `http://localhost:3000/app/page-studio?studioMode=layout`
+  - confirmed:
+    - the module is discoverable in `/api/reference/modules`
+    - the Page Studio route loads without console errors
+    - immersive shell mode hides the workflow sidebar on the studio route
+    - legacy exits back to `Pages` / `Layouts` work
+    - Infra edits persist locally across reloads
+    - Layout mode reflects the runtime transform contract and breakpoint inheritance summary
+- Important boundary:
+  - the dedicated Gridstack editor and MUI live-preview runtime are still not implemented; this slice established the decoupled route, the transform authority, and the first real editable state surface before geometry work
+### 2026-03-27 - Page Studio Layout Mode Now Uses A Real Gridstack Editor
+- Tasks:
+  - added `gridstack` as an editor-only frontend dependency for the new Page Studio route
+  - implemented shared layout-editing helpers so breakpoint persistence stays testable outside React:
+    - explicit item derivation for inherited breakpoints
+    - next block placement allocation
+    - block removal across all breakpoint definitions
+  - replaced the old Layout summary card in `Page Studio` with a real Gridstack canvas:
+    - breakpoint switcher
+    - canvas width / gap / padding / row-height controls
+    - add/remove block controls
+    - ruler + viewport shell + zoom controls
+    - serialized block cards rendered inside Gridstack with per-block color tone
+  - fixed the live route to register for both:
+    - `test-modules-page-studio`
+    - `page-studio`
+    because the shell routed by the public `page-studio` segment alias
+  - repaired the local review environment after the Gridstack install:
+    - the backend failed because workspace symlinks to `fastify` were broken
+    - running `pnpm --store-dir C:\\Users\\cmsin\\AppData\\Local\\pnpm\\store\\v10 install` restored the workspace links
+- Verified locally:
+  - `pnpm --filter frontend test -- src/tests/core/page-studio-layout-transform.core.test.jsx src/tests/core/page-studio-layout-editing.core.test.jsx src/tests/core/view-registry.descriptor.core.test.jsx`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:start`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/page-studio?studioMode=layout`
+  - confirmed:
+    - the route now loads through the public `/app/page-studio` segment instead of falling back to `Module view unavailable`
+    - immersive shell still hides the workflow sidebar on the studio route
+    - `Layout` mode renders a real Gridstack-backed canvas, not the old summary placeholder
+    - `Add Block` grows runtime block count from `3` to `4` and persists `B-0004` into the local studio draft
+    - switching to `Mobile` swaps the canvas chrome to the mobile viewport and mobile runtime metadata
+- Important boundary:
+  - the layout canvas is now real, but `Widgets` and `Preview === Live` are still the next major passes
+  - geometry persistence is committed from live Gridstack events; same-app proof of drag/resize used the Gridstack runtime path because Chrome DevTools exposes the blocks poorly through the accessibility tree
+### 2026-03-27 - Page Studio Layout Mode Reworked Around Real Scenarios After A Usability Rejection
+- Tasks:
+  - treated the initial layout-mode slice as rejected after live review showed it was still a geometry sandbox with too much foundation chrome and not enough recognizable page-building affordance
+  - added scenario presets for real page shapes:
+    - `Story Stack`
+    - `Story + Sidebar`
+    - `Category Grid`
+    - `Feature Landing`
+  - changed the studio bootstrap so first-load and legacy seed drafts land on a real scenario instead of anonymous `Hero/Body/Support` seed blocks
+  - added layout-mode affordances that make breakpoint work more practical:
+    - scenario quick-start chooser
+    - apply-scenario action
+    - selected block rename field
+    - reset current breakpoint to inherited geometry
+  - reduced header/layout noise so the canvas gets more of the route surface
+  - fixed scenario persistence/reload consistency by storing `layout.scenarioKey` and inferring it from old saved block summaries when the field is missing
+- Verified locally:
+  - `pnpm --filter frontend test -- src/tests/core/page-studio-layout-transform.core.test.jsx src/tests/core/page-studio-layout-editing.core.test.jsx src/tests/core/view-registry.descriptor.core.test.jsx`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/page-studio?studioMode=layout`
+  - confirmed:
+    - the route now opens into a real scenario-first layout surface instead of the old generic seed stack
+    - applying `Story + Sidebar` changes the canvas and selected-block metadata to the sidebar editorial shape
+    - applying `Category Grid` yields the expected 7-block listing layout
+    - applying `Feature Landing` yields the expected 7-block promo layout
+    - switching the breakpoint to `Mobile` shows the stacked mobile geometry for the applied scenario
+    - reloading the route keeps the scenario card and the canvas in sync
+- Proof artifacts:
+  - `.codex-runtime/page-studio-category-grid.png`
+  - `.codex-runtime/page-studio-feature-landing-mobile.png`
+  - `.codex-runtime/page-studio-layout-scenarios-final.png`
+- Important boundary:
+  - this makes `Layout` mode practically usable for real page-shape authoring
+  - `Widgets` mode, `Infra` popups, and `Preview === Live` MUI parity are still the remaining program passes
+### 2026-03-27 - Page Studio Layout Interaction And Fit-Zoom Defects Repaired
+- Tasks:
+  - fixed the layout editor so drag/resize no longer reconciles the whole Gridstack DOM mid-interaction
+  - moved state commit to interaction stop instead of live drag ticks
+  - split selection highlighting from full grid rebuild so clicking a block does not force a remove/re-add cycle
+  - enabled motion on Gridstack items and styled the placeholder more clearly
+  - removed the blur-heavy block surface treatment that was contributing to dirty repaint/ghosting during movement
+  - added fit-zoom support to the shared canvas shell:
+    - explicit `Fit` button
+    - `Zoom XX% · Fit` indicator
+    - lower minimum zoom so large viewports can actually fit smaller screens
+  - set Page Studio layout mode to auto-fit by default and when switching breakpoint/preset
+- Verified locally:
+  - `pnpm --filter frontend test -- src/tests/core/page-studio-layout-transform.core.test.jsx src/tests/core/page-studio-layout-editing.core.test.jsx src/tests/core/view-registry.descriptor.core.test.jsx`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/page-studio?studioMode=layout`
+  - confirmed:
+    - desktop viewport preset now opens at `Zoom 62% · Fit` instead of overflowing the available workspace
+    - a forced block move/resize through the Gridstack runtime redraws cleanly in the canvas capture instead of leaving stale paint
+- Proof artifact:
+  - `.codex-runtime/page-studio-desktop-fit-and-move.png`
+### 2026-03-27 - Page Studio Grid DOM Duplication And FAB Collision Repaired
+- Tasks:
+  - investigated the report that moved blocks still appeared in their old location and verified it with live DOM inspection instead of relying on screenshots
+  - found that the route also had a separate UX flaw: the immersive studio FAB and the global deployment FAB were both eligible for the bottom-right corner at the same time
+  - suppressed the global deployment FAB on immersive-shell routes so `Page Studio` owns the only persistent FAB on that surface
+  - fixed two Gridstack cleanup/reconcile boundaries:
+    - cleanup was calling `replaceChildren()` on `grid.el` after `destroy(false)` had already invalidated the reference
+    - widget sync removed Gridstack ownership but left old DOM items behind, then added the new ones on top
+- Verified locally:
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/page-studio?studioMode=layout`
+  - confirmed:
+    - no `Sync` deployment FAB/actions are present on the immersive studio route
+    - the Page Studio mode switcher FAB is still present
+    - Gridstack DOM item count now matches engine node count exactly (`7` and `7` on the reviewed scenario)
+    - every reviewed DOM block is Gridstack-managed; the earlier unmanaged duplicate nodes are gone
+- Proof artifacts:
+  - `.codex-runtime/page-studio-fab-no-collision.png`
+  - `.codex-runtime/page-studio-fab-collision-fixed.png`
+### 2026-03-27 - Page Studio Preview Mode Became A Real MUI Runtime
+- Tasks:
+  - added `Preview` mode to `Page Studio` as a real MUI render path instead of the earlier placeholder prose panel
+  - built a front-end preview data resolver for the current decoupled studio document:
+    - route params -> preview record lookup
+    - post-detail model assembly
+    - theme resolution
+    - local media URLs
+  - rendered the authored runtime layout contract with real MUI components for the current supported widget set
+  - added preview URL param editing so changing `slug` swaps the rendered story without leaving the studio route
+  - migrated older saved studio drafts away from legacy `/untitled` infra defaults and empty preview params
+  - pre-seeded the default `Story Stack` reset flow with a useful starter widget set so preview opens into a meaningful authored state
+- Verified locally:
+  - `pnpm --filter frontend test -- src/tests/core/page-studio-document.core.test.jsx src/tests/core/page-studio-layout-transform.core.test.jsx src/tests/core/page-studio-layout-editing.core.test.jsx src/tests/core/page-studio-preview-data.core.test.jsx src/tests/core/view-registry.descriptor.core.test.jsx` (rerun outside sandbox because of the known Windows `spawn EPERM` Vite/Vitest boundary)
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/page-studio?studioMode=preview&cb=preview-slice-verify`
+  - confirmed:
+    - preview loads on the immersive Page Studio route with no console errors
+    - `Reset Draft` now lands on a widgetized `Story Stack` starter instead of an empty geometry-only canvas
+    - preview shows real MUI output for the authored widgets:
+      - title
+      - featured image
+      - body
+      - author card
+      - related area
+    - changing `Story slug` from `first-cup-on-the-table` to `park-bench-weather-log` updates the rendered preview record in place
+- Proof artifact:
+  - `.codex-runtime/page-studio-preview-mode-live.png`
+- Remaining boundary for the overall program:
+  - preview is now real MUI post-detail runtime, but the deployed live reader still needs the later migration onto this same runtime before `PREVIEW === LIVE` is fully true
+### 2026-03-27 - Page Studio Quality Recovery Pass Tightened Preview Truthfulness
+- Trigger:
+  - direct product feedback that the canvas still looked misleading and that preview felt broken:
+    - rounded page corners
+    - broken/awkward preview visibility
+    - image overflow beyond the assigned block area
+    - insufficient screenshot-led validation discipline
+- Executed as a screenshot-first pass and recorded in:
+  - [page-studio-quality-recovery-pass-2026-03-27.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/page-studio-quality-recovery-pass-2026-03-27.md)
+- Delivered in the worktree:
+  - square page boundary in the shared canvas shell
+  - explicit page scrolling inside the page viewport
+  - preview preset -> breakpoint synchronization on Layout / Widgets / Preview
+  - more realistic default story scenario heights
+  - migration for old default story-stack drafts that still carried undersized geometry
+  - preview page-scroll controls:
+    - `Top`
+    - `Mid`
+    - `Bottom`
+    - slider
+  - media/widget containment so preview no longer bursts across adjacent blocks
+- Main files:
+  - [LayoutBuilderCanvasShell.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-layouts/frontend/LayoutBuilderCanvasShell.jsx)
+  - [PageStudioPreviewMode.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioPreviewMode.jsx)
+  - [PageStudioLayoutMode.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioLayoutMode.jsx)
+  - [PageStudioWidgetsMode.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioWidgetsMode.jsx)
+  - [PageStudioView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioView.jsx)
+  - [page-studio-layout-scenarios.mjs](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/shared/page-studio-layout-scenarios.mjs)
+- Browser proof captured:
+  - [page-studio-preview-before-fix.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-preview-before-fix.png)
+  - [page-studio-preview-after-fix-desktop.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-preview-after-fix-desktop.png)
+  - [page-studio-preview-after-fix-mobile.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-preview-after-fix-mobile.png)
+  - [page-studio-preview-after-fix-mobile-bottom.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-preview-after-fix-mobile-bottom.png)
+  - [page-studio-layout-story-stack-mobile-final.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-layout-story-stack-mobile-final.png)
+  - [page-studio-layout-story-sidebar-desktop-final.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-layout-story-sidebar-desktop-final.png)
+  - [page-studio-widgets-story-sidebar-final.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-widgets-story-sidebar-final.png)
+  - [page-studio-widget-picker-final.png](C:/Users/cmsin/2026/crud-kick-starter-fork-test/.codex-runtime/page-studio-widget-picker-final.png)
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter frontend test -- src/tests/core/page-studio-document.core.test.jsx src/tests/core/page-studio-layout-transform.core.test.jsx src/tests/core/page-studio-layout-editing.core.test.jsx src/tests/core/page-studio-preview-data.core.test.jsx src/tests/core/view-registry.descriptor.core.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Important remaining boundary:
+  - this pass materially improved local Page Studio quality and inspectability
+  - the larger program boundary remains unchanged:
+    - deployed live still needs to migrate onto the same MUI runtime before `PREVIEW === LIVE` is fully true
+
+### 2026-03-27 - Page Studio Usability Replan Pass Made Layout, Widgets, and Preview Actually Inspectable
+- Re-read `intent-file.md` and the earlier recovery doc before touching code again.
+- Re-opened rejected screenshots and live routes to confirm the real failures were structural: too much top chrome, widgetless scenario drafts, rounded builder framing, and preview scaled down too aggressively.
+- Added scenario widget seeds for `story-stack` and `story-sidebar`, then migrated widgetless scenario drafts so Preview would stop opening as a blank warning page.
+- Rebuilt `Layout`, `Widgets`, and `Preview` into a canvas-plus-right-rail shell so the page remains the dominant surface on a normal desktop width.
+- Lowered the two-column breakpoint from `xl` to `lg`, reduced fit-zoom offsets, and reduced canvas padding so the page renders much larger and more truthfully in the studio.
+- Removed rounded framing from Gridstack shells and block visuals in the builder path.
+- Browser-proved routes:
+  - `/app/page-studio?studioMode=layout`
+  - `/app/page-studio?studioMode=widgets`
+  - `/app/page-studio?studioMode=preview`
+- Browser-proved interactions:
+  - preview desktop visible with content
+  - preview mobile switch
+  - bottom page scroll in preview
+  - `Reset Draft` returns to a usable populated story configuration
+- Saved artifacts:
+  - `.codex-runtime/page-studio-layout-final-review.png`
+  - `.codex-runtime/page-studio-widgets-replan-pass-2.png`
+  - `.codex-runtime/page-studio-preview-replan-pass-2.png`
+  - `.codex-runtime/page-studio-preview-mobile-bottom-final.png`
+  - `.codex-runtime/page-studio-preview-reset-draft-proof.png`
+- Pass record:
+  - `docs/research/page-studio-usability-replan-pass-2026-03-27.md`

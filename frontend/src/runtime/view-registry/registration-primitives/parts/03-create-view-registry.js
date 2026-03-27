@@ -22,6 +22,7 @@ function createViewRegistry(descriptors) {
       usesCollectionsDomain,
       routeStateAdapter,
       requiredDomains,
+      shell,
       runAction
     } =
       validated.value;
@@ -41,6 +42,7 @@ function createViewRegistry(descriptors) {
       usesCollectionsDomain,
       routeStateAdapter,
       requiredDomains,
+      ...(shell ? { shell } : {}),
       quickActions: dedupeRouteViewQuickActions(validated.value.quickActions),
       actions: dedupeRouteViewActions(validated.value.actions),
       runAction

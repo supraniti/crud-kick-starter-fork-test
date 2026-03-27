@@ -1,4 +1,4 @@
-import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import {
   createRulerMarks,
   detectViewportPreset,
@@ -8,7 +8,7 @@ import {
 } from "./layout-builder-viewport.js";
 
 const RULER_SIZE = 36;
-const CANVAS_PADDING = 40;
+const CANVAS_PADDING = 24;
 
 function ViewportStepper({ label, value, onDecrease, onIncrease }) {
   return (
@@ -29,35 +29,50 @@ function ViewportStepper({ label, value, onDecrease, onIncrease }) {
   );
 }
 
-function ZoomStepper({ zoomLevel, onZoomOut, onZoomIn }) {
+function ZoomStepper({ zoomLabel, onZoomOut, onZoomIn, onFitZoom = null, fitActive = false }) {
   return (
     <Stack direction="row" spacing={0.75} alignItems="center">
       <Button size="small" variant="outlined" onClick={onZoomOut} aria-label="Zoom out">
         -
       </Button>
-      <Chip size="small" label={formatZoomLabel(zoomLevel)} />
+      <Chip size="small" color={fitActive ? "primary" : "default"} variant={fitActive ? "filled" : "outlined"} label={zoomLabel} />
       <Button size="small" variant="outlined" onClick={onZoomIn} aria-label="Zoom in">
         +
       </Button>
+      {typeof onFitZoom === "function" ? (
+        <Button size="small" variant={fitActive ? "contained" : "outlined"} onClick={onFitZoom}>
+          Fit
+        </Button>
+      ) : null}
     </Stack>
   );
 }
 
-function ViewportToolbar({ viewport, zoomLevel, onWidthStep, onHeightStep, onSelectPreset, onZoomStep }) {
+function ViewportToolbar({
+  viewport,
+  zoomLevel,
+  zoomLabel,
+  fitZoomActive = false,
+  onFitZoom = null,
+  onWidthStep,
+  onHeightStep,
+  onSelectPreset,
+  onZoomStep
+}) {
   const activePreset = detectViewportPreset(viewport);
 
   return (
-    <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+    <Stack spacing={0.75} sx={{ minWidth: 0 }}>
       <Stack
         direction={{ xs: "column", lg: "row" }}
-        spacing={1.25}
+        spacing={0.75}
         alignItems={{ xs: "flex-start", lg: "center" }}
         justifyContent="space-between"
         sx={{ minWidth: 0 }}
       >
-        <Stack spacing={0.35}>
-          <Typography variant="h6">Canvas Workspace</Typography>
-          <Typography variant="body2" color="text.secondary">
+        <Stack spacing={0.1}>
+          <Typography variant="subtitle2">Canvas</Typography>
+          <Typography variant="caption" color="text.secondary">
             {formatViewportLabel(viewport)}
           </Typography>
         </Stack>
@@ -75,9 +90,11 @@ function ViewportToolbar({ viewport, zoomLevel, onWidthStep, onHeightStep, onSel
             onIncrease={() => onHeightStep(40)}
           />
           <ZoomStepper
-            zoomLevel={zoomLevel}
+            zoomLabel={zoomLabel ?? formatZoomLabel(zoomLevel)}
             onZoomOut={() => onZoomStep(-10)}
             onZoomIn={() => onZoomStep(10)}
+            onFitZoom={onFitZoom}
+            fitActive={fitZoomActive}
           />
         </Stack>
       </Stack>
@@ -208,13 +225,14 @@ function PageBoundaryLabel({ viewport }) {
         left: 16,
         zIndex: 2,
         backgroundColor: "rgba(15,23,42,0.82)",
-        color: "common.white"
+        color: "common.white",
+        borderRadius: 0
       }}
     />
   );
 }
 
-function PageChrome({ viewport, zoomLevel, children }) {
+function PageChrome({ viewport, zoomLevel, pageViewportRef = null, children }) {
   const scaleRatio = zoomLevel / 100;
   const scaledWidth = Math.round(viewport.width * scaleRatio);
   const scaledHeight = Math.round(viewport.height * scaleRatio);
@@ -237,9 +255,11 @@ function PageChrome({ viewport, zoomLevel, children }) {
             display: "grid",
             gridTemplateColumns: `${RULER_SIZE}px ${scaledWidth}px`,
             gridTemplateRows: `${RULER_SIZE}px ${scaledHeight}px`,
-            boxShadow: "0 24px 48px rgba(15,23,42,0.18)",
-            borderRadius: 4,
-            overflow: "hidden"
+            border: "1px solid rgba(148,163,184,0.45)",
+            boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
+            borderRadius: 0,
+            overflow: "hidden",
+            backgroundColor: "#ffffff"
           }}
         >
           <CanvasCorner />
@@ -276,11 +296,14 @@ function PageChrome({ viewport, zoomLevel, children }) {
               }}
             >
               <Box
+                ref={pageViewportRef}
                 sx={{
                   width: viewport.width,
                   height: viewport.height,
                   backgroundColor: "#ffffff",
-                  overflow: "auto"
+                  overflowX: "hidden",
+                  overflowY: "auto",
+                  overscrollBehavior: "contain"
                 }}
               >
                 {children}
@@ -296,24 +319,30 @@ function PageChrome({ viewport, zoomLevel, children }) {
 export function LayoutBuilderCanvasShell({
   viewport,
   zoomLevel,
+  zoomLabel = null,
+  fitZoomActive = false,
+  onFitZoom = null,
   onWidthStep,
   onHeightStep,
   onSelectPreset,
   onZoomStep,
+  pageViewportRef = null,
   children
 }) {
   return (
-    <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0, width: "100%", maxWidth: "100%", height: "100%", overflow: "hidden" }}>
+    <Stack spacing={0.75} sx={{ minHeight: 0, minWidth: 0, width: "100%", maxWidth: "100%", height: "100%", overflow: "hidden" }}>
       <ViewportToolbar
         viewport={viewport}
         zoomLevel={zoomLevel}
+        zoomLabel={zoomLabel ?? formatZoomLabel(zoomLevel)}
+        fitZoomActive={fitZoomActive}
+        onFitZoom={onFitZoom}
         onWidthStep={onWidthStep}
         onHeightStep={onHeightStep}
         onSelectPreset={onSelectPreset}
         onZoomStep={onZoomStep}
       />
-      <Divider />
-      <PageChrome viewport={viewport} zoomLevel={zoomLevel}>
+      <PageChrome viewport={viewport} zoomLevel={zoomLevel} pageViewportRef={pageViewportRef}>
         {children}
       </PageChrome>
     </Stack>

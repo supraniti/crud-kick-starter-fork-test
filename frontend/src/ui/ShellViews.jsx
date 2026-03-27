@@ -45,6 +45,9 @@ function resolveModuleGlyph(icon) {
   if (normalized === "dashboard_customize") {
     return "▥";
   }
+  if (normalized === "space_dashboard") {
+    return "▦";
+  }
   if (normalized === "web") {
     return "◫";
   }

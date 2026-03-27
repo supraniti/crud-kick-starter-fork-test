@@ -216,10 +216,12 @@ function AppShellLayout({
         />
       ) : null}
 
-      <GlobalDeploymentFab
-        commandCenter={deploymentCommandCenter}
-        onOpenDeployments={() => handleSelectModule("deployments")}
-      />
+      {!immersiveShell ? (
+        <GlobalDeploymentFab
+          commandCenter={deploymentCommandCenter}
+          onOpenDeployments={() => handleSelectModule("deployments")}
+        />
+      ) : null}
     </Box>
   );
 }

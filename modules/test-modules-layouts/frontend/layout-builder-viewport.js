@@ -37,7 +37,7 @@ export function clampViewportHeight(value) {
 }
 
 export function clampZoomLevel(value) {
-  return Math.max(50, Math.min(150, Math.round(Number(value) || DEFAULT_ZOOM_LEVEL)));
+  return Math.max(20, Math.min(150, Math.round(Number(value) || DEFAULT_ZOOM_LEVEL)));
 }
 
 export function formatViewportLabel(viewport) {

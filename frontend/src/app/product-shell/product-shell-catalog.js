@@ -4,6 +4,7 @@ const NORTH_STAR_MODULE_SET = new Set([
   "test-modules-content",
   "test-modules-engagement",
   "test-modules-pages",
+  "test-modules-page-studio",
   "test-modules-layouts",
   "test-modules-themes",
   "test-modules-translations",
@@ -143,8 +144,20 @@ const PRODUCT_NAVIGATION_SPECS = Object.freeze([
     stageId: "presentation",
     stageLabel: "Presentation",
     purpose: "Turn content into deployable HTML by defining standalone pages and per-record page templates.",
-    nextRouteId: "deployments",
+    nextRouteId: "test-modules-page-studio",
     order: 190
+  },
+  {
+    id: "test-modules-page-studio",
+    kind: "module",
+    label: "Page Studio",
+    icon: "space_dashboard",
+    stageId: "presentation",
+    stageLabel: "Presentation",
+    purpose:
+      "Author route infra, responsive layout, widgets, and preview in one decoupled canvas-first studio while legacy Pages and Layouts stay available.",
+    nextRouteId: "deployments",
+    order: 195
   },
   {
     id: "deployments",

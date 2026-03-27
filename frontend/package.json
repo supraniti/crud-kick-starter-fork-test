@@ -15,6 +15,7 @@
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
     "@mui/material": "latest",
+    "gridstack": "^12.4.2",
     "react": "latest",
     "react-dom": "latest"
   },

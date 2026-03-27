@@ -51,6 +51,27 @@ describe("frontend view registry descriptor core contract", () => {
     );
   });
 
+  test("preserves immersive shell metadata in the resolved registration", () => {
+    const { registrations, diagnostics } = createViewRegistry([
+      {
+        moduleId: "page-studio",
+        render: () => null,
+        shell: {
+          mode: "immersive"
+        }
+      }
+    ]);
+
+    expect(diagnostics).toEqual([]);
+    expect(registrations.get("page-studio")).toEqual(
+      expect.objectContaining({
+        shell: {
+          mode: "immersive"
+        }
+      })
+    );
+  });
+
   test("rejects invalid route-state adapters with deterministic diagnostics", () => {
     const result = validateViewDescriptor(
       {

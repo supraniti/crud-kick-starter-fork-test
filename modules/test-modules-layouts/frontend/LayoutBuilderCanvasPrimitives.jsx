@@ -339,7 +339,7 @@ export function ContainerEmptyState({ isRoot, onAddLayoutPreset, onAddBlockType 
         justifySelf: "stretch",
         gridColumn: "1 / -1",
         minHeight: isRoot ? 420 : 180,
-        borderRadius: 3,
+        borderRadius: 0,
         border: "2px dashed rgba(15,23,42,0.12)",
         backgroundColor: "rgba(255,255,255,0.82)",
         px: isRoot ? 4 : 2.5,
@@ -427,7 +427,7 @@ export function BlockVisual({ node, parentMode, isSelected }) {
           minWidth: 0,
           height: parentMode === "grid" ? "100%" : "auto",
           minHeight: useMeasuredMinHeight ? `${node.props?.minHeight ?? 160}px` : 0,
-          borderRadius: 2.5,
+          borderRadius: 0,
           border: "1px solid rgba(37,99,235,0.24)",
           background: "linear-gradient(180deg, rgba(239,246,255,0.98), rgba(219,234,254,0.94))",
           position: "relative",
@@ -477,7 +477,7 @@ export function BlockVisual({ node, parentMode, isSelected }) {
               <Box
                 sx={{
                   height: 120,
-                  borderRadius: 2,
+                  borderRadius: 0,
                   border: "1px solid rgba(2,132,199,0.18)",
                   background: "linear-gradient(135deg, rgba(186,230,253,0.9), rgba(125,211,252,0.48))"
                 }}
@@ -495,7 +495,7 @@ export function BlockVisual({ node, parentMode, isSelected }) {
                   sx={{
                     width: 44,
                     height: 44,
-                    borderRadius: 2,
+                    borderRadius: 0,
                     backgroundColor: "rgba(148,163,184,0.24)"
                   }}
                 />
@@ -531,7 +531,7 @@ export function BlockVisual({ node, parentMode, isSelected }) {
         minWidth: 0,
         height: parentMode === "grid" ? "100%" : "auto",
         minHeight: useMeasuredMinHeight ? `${node.props?.minHeight ?? 160}px` : 0,
-        borderRadius: 2.5,
+        borderRadius: 0,
         border: `1px solid ${palette.border}`,
         background: palette.background,
         position: "relative",
@@ -586,7 +586,7 @@ function SampleCard({ title, body }) {
       spacing={0.75}
       sx={{
         p: 1.25,
-        borderRadius: 2,
+        borderRadius: 0,
         bgcolor: "rgba(255,255,255,0.62)",
         border: "1px solid rgba(15,23,42,0.08)"
       }}
@@ -619,7 +619,7 @@ function renderPlaceholderSample(type, isSelected) {
             sx={{
               width: 110,
               minWidth: 110,
-              borderRadius: 2,
+              borderRadius: 0,
               bgcolor: "rgba(255,255,255,0.56)",
               border: "1px solid rgba(15,23,42,0.1)"
             }}
@@ -635,7 +635,7 @@ function renderPlaceholderSample(type, isSelected) {
           sx={{
             width: "100%",
             minHeight: 150,
-            borderRadius: 2,
+            borderRadius: 0,
             bgcolor: "rgba(255,255,255,0.52)",
             border: "1px solid rgba(15,23,42,0.08)"
           }}
