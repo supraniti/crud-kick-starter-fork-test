@@ -17,6 +17,7 @@ import {
   Typography
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SyncPostureChip } from "../../../frontend/src/ui/SyncPostureChip.jsx";
 import {
   DeliveryPreviewPanel,
   DeploymentInstancesPanel,
@@ -63,6 +64,7 @@ import {
   resolvePageStoryType
 } from "./pages-desk-model.js";
 import { resolvePagePublicOutput } from "./page-public-link-support.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
 
 const REDIRECTS_COLLECTION_ID = "blog-redirect-rules";
 const PAGE_SIZE = 8;
@@ -246,6 +248,16 @@ function StateChip({ label, tone = "default", variant = "outlined" }) {
   return <Chip size="small" label={label} color={color} variant={variant} />;
 }
 
+function resolvePageSyncPosture(page, posture) {
+  if (page?.status !== "published") {
+    return { label: "Local Only", tone: "default", variant: "outlined" };
+  }
+  if (posture.label === "Live") {
+    return { label: "Synced", tone: "success", variant: "filled" };
+  }
+  return { label: "Needs Sync", tone: "warning", variant: "outlined" };
+}
+
 function resolveRosterExampleSource(page, sourceOptionsByType) {
   const options = Array.isArray(sourceOptionsByType?.[page?.primarySourceType])
     ? sourceOptionsByType[page.primarySourceType]
@@ -306,6 +318,7 @@ function PageRosterTable({
             {rows.map((page) => {
               const storyType = resolvePageStoryType(page);
               const posture = resolveOutputPosture(page);
+              const syncPosture = resolvePageSyncPosture(page, posture);
               const readinessIssues = readinessMap.get(page.id) ?? [];
               const exampleSource = resolveRosterExampleSource(page, sourceOptionsByType);
               const liveOutput = resolvePagePublicOutput({
@@ -351,9 +364,9 @@ function PageRosterTable({
                   <TableCell sx={{ minWidth: { xs: 120, md: 170 }, ...cellTextSx }}>
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                       <StateChip
-                        label={posture.label}
-                        tone={posture.tone}
-                        variant={posture.tone === "success" ? "filled" : "outlined"}
+                        label={syncPosture.label}
+                        tone={syncPosture.tone}
+                        variant={syncPosture.variant}
                       />
                       <StateChip label={posture.summary} />
                       {readinessIssues.length > 0 ? (
@@ -436,7 +449,11 @@ function PageStudioSummaryCard({
         </Stack>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           <StateChip label={storyType.label} tone="default" />
-          <StateChip label={posture.label} tone={posture.tone} variant={posture.tone === "success" ? "filled" : "outlined"} />
+          <SyncPostureChip
+            label={resolvePageSyncPosture(page, posture).label}
+            tone={resolvePageSyncPosture(page, posture).tone}
+            variant={resolvePageSyncPosture(page, posture).variant}
+          />
           <StateChip label={posture.summary} />
         </Stack>
         <Stack spacing={0.5}>
@@ -1315,6 +1332,18 @@ export function BlogDistributionView({
     }
     setLocalRoute(route);
   }, [navigate, route]);
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void workspace.reloadSupportData();
+      void remoteOpsSupport.reload();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [remoteOpsSupport, workspace.reloadSupportData]);
 
   const syncRoute = useCallback((patch, replace = true) => {
     if (typeof navigate === "function") {

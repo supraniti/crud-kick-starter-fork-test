@@ -37,6 +37,7 @@ import {
   resolveContentDeskRouteState
 } from "./blog-content-desk-model.js";
 import { buildPostMutationPayload, normalizeDraftFromSources } from "./publication-support.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
 
 const POSTS_COLLECTION_ID = "blog-posts";
 const PAGE_SIZE = 8;
@@ -557,6 +558,19 @@ export function BlogContentView({
   useEffect(() => {
     setSelectedPostIds((previous) => previous.filter((postId) => workspace.posts.some((post) => post.id === postId)));
   }, [workspace.posts]);
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void collectionsDomain.reloadCollectionItems();
+      void workspace.reloadDeploymentAwareness();
+      void remoteOpsSupport.reload();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [collectionsDomain, remoteOpsSupport, workspace.reloadDeploymentAwareness]);
 
   const openPagesDesk = useCallback(
     (pageId = workspace.deploymentAwareness.summary.primaryPageId) => {

@@ -246,6 +246,13 @@ export async function executeLiveFirestoreTarget({
     connectionProfile,
     collectionHandlerRegistry
   });
+  if (compareResult.diff.isClean) {
+    return {
+      summary: compareResult.summary,
+      runSummary: buildRunSummaryFromDiff(compareResult.diff),
+      message: "Firestore projection already matches local state"
+    };
+  }
   const { accessToken } = await getServiceAccountAccessToken(connectionProfile);
   const projectId = normalizeOptionalText(connectionProfile.projectId);
   const collectionPath =

@@ -264,6 +264,14 @@ export async function compareLiveStorageTarget({ targetProfile, connectionProfil
 
 export async function executeLiveStorageTarget({ targetProfile, connectionProfile }) {
   const compareResult = await compareLiveStorageTarget({ targetProfile, connectionProfile });
+  if (compareResult.diff.isClean) {
+    const noun = targetProfile.targetKind === "deployment-storage" ? "Deployment target" : "Media target";
+    return {
+      summary: compareResult.summary,
+      runSummary: buildRunSummaryFromDiff(compareResult.diff),
+      message: `${noun} already matches local state`
+    };
+  }
   const { accessToken } = await getServiceAccountAccessToken(connectionProfile);
   const config = buildStorageTargetConfig(targetProfile);
   const bucketName = normalizeOptionalText(config.bucketName);

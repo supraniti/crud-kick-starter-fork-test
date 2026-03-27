@@ -8,7 +8,8 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { readReferenceModuleSettings } from "../../../frontend/src/api/reference.js";
 import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 
 const TAGS_COLLECTION_ID = "blog-tags";
@@ -34,6 +35,15 @@ function resolveProjectionDescriptor(activeCollectionId) {
     emptyMessage: "Select and save a Firestore target for the public categories projection.",
     inclusionMessage: "Only categories with visibility set to public are included in this projection."
   };
+}
+
+function readSelectedTargetId(settingsState, fieldId) {
+  const draftValue = settingsState?.draftValues?.[fieldId];
+  if (typeof draftValue === "string" && draftValue.trim().length > 0) {
+    return draftValue.trim();
+  }
+  const savedValue = settingsState?.values?.[fieldId];
+  return typeof savedValue === "string" ? savedValue.trim() : "";
 }
 
 function RemoteProjectionSummary({ latestRun, target }) {
@@ -85,7 +95,12 @@ export function BlogTaxonomyRemoteProjectionPanel({
   const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
   const descriptor = resolveProjectionDescriptor(activeCollectionId);
   const settingsState = moduleSettingsDomain?.moduleSettingsState ?? null;
-  const selectedTargetId = settingsState?.draftValues?.[descriptor.settingsFieldId] ?? "";
+  const [savedSettingsValues, setSavedSettingsValues] = useState({});
+  const selectedTargetId =
+    readSelectedTargetId(settingsState, descriptor.settingsFieldId) ||
+    (typeof savedSettingsValues?.[descriptor.settingsFieldId] === "string"
+      ? savedSettingsValues[descriptor.settingsFieldId].trim()
+      : "");
   const projectionTargets = remoteOpsSupport
     .getTargetsByKind("firestore-projection")
     .filter((target) => target?.config?.projectionScope === descriptor.scope);
@@ -108,6 +123,25 @@ export function BlogTaxonomyRemoteProjectionPanel({
     remoteOpsSupport.procedureState.processing &&
     remoteOpsSupport.procedureState.targetId === selectedTarget?.id;
 
+  useEffect(() => {
+    async function loadSavedSettings() {
+      try {
+        const payload = await readReferenceModuleSettings({
+          moduleId: "test-modules-taxonomy"
+        });
+        setSavedSettingsValues(
+          payload?.settings && typeof payload.settings.values === "object" && payload.settings.values
+            ? payload.settings.values
+            : {}
+        );
+      } catch {
+        setSavedSettingsValues({});
+      }
+    }
+
+    void loadSavedSettings();
+  }, []);
+
   const openRemoteOps = () => {
     if (typeof navigate !== "function") {
       return;
@@ -127,6 +161,14 @@ export function BlogTaxonomyRemoteProjectionPanel({
       return;
     }
     await moduleSettingsDomain.handleSaveModuleSettings();
+    try {
+      const payload = await readReferenceModuleSettings({
+        moduleId: "test-modules-taxonomy"
+      });
+      setSavedSettingsValues(payload?.settings?.values ?? {});
+    } catch {
+      setSavedSettingsValues({});
+    }
     await remoteOpsSupport.reload();
   };
 

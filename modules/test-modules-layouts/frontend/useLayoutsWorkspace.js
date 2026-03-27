@@ -5,6 +5,7 @@ import {
   fetchReferenceCollectionItems,
   updateReferenceCollectionItem
 } from "../../../frontend/src/api/reference.js";
+import { fetchDeskPages } from "../../test-modules-pages/frontend/blog-distribution-workspace-support.js";
 import {
   addNodeToLayout,
   buildNodePath,
@@ -38,7 +39,6 @@ import { createSelectionActions } from "./layouts-workspace-selection-actions.js
 import { resolvePageContextManifest } from "../../test-modules-pages/server/page-context-manifest-runtime.mjs";
 
 const LAYOUTS_COLLECTION_ID = "page-layouts";
-const PAGES_COLLECTION_ID = "blog-pages";
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 
 function createActionState() {
@@ -51,15 +51,12 @@ function createActionState() {
 }
 
 async function loadSupportData() {
-  const [layoutsPayload, pagesPayload, mediaPayload] = await Promise.all([
+  const [layoutsPayload, pages, mediaPayload] = await Promise.all([
     fetchReferenceCollectionItems({
       collectionId: LAYOUTS_COLLECTION_ID,
       limit: 200
     }),
-    fetchReferenceCollectionItems({
-      collectionId: PAGES_COLLECTION_ID,
-      limit: 500
-    }),
+    fetchDeskPages(),
     fetchReferenceCollectionItems({
       collectionId: MEDIA_ITEMS_COLLECTION_ID,
       limit: 500
@@ -68,7 +65,7 @@ async function loadSupportData() {
 
   return {
     layouts: Array.isArray(layoutsPayload?.items) ? layoutsPayload.items : [],
-    pages: Array.isArray(pagesPayload?.items) ? pagesPayload.items : [],
+    pages: Array.isArray(pages) ? pages : [],
     media: Array.isArray(mediaPayload?.items) ? mediaPayload.items : []
   };
 }
@@ -689,6 +686,7 @@ function useLayoutsWorkspaceInternal({ navigate = null, route = {} } = {}) {
 
   return {
     supportState,
+    reloadSupportData: reload,
     layouts,
     usageCountByLayoutId,
     selectedLayoutDeploymentImpact,

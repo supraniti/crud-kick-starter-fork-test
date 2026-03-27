@@ -17,6 +17,7 @@ import {
   Typography
 } from "@mui/material";
 import { memo, useMemo } from "react";
+import { SyncPostureChip } from "../../../frontend/src/ui/SyncPostureChip.jsx";
 
 const ISSUE_LABELS = {
   seo: "Missing SEO",
@@ -303,6 +304,26 @@ function formatStatusCaption(post) {
   return "Working draft";
 }
 
+function resolvePostSyncPosture(deploymentState) {
+  if (!deploymentState) {
+    return { label: "Unknown", tone: "default", variant: "outlined" };
+  }
+  if (deploymentState.label === "Deployed") {
+    return { label: "Synced", tone: "success", variant: "filled" };
+  }
+  if (deploymentState.label === "Needs Deployment" || deploymentState.label === "Missing Outputs") {
+    return { label: "Needs Sync", tone: "warning", variant: "outlined" };
+  }
+  if (deploymentState.label === "Local Only" || deploymentState.label === "No Page") {
+    return { label: deploymentState.label, tone: deploymentState.tone === "warning" ? "warning" : "default", variant: "outlined" };
+  }
+  return {
+    label: deploymentState.label,
+    tone: deploymentState.tone === "success" ? "success" : deploymentState.tone === "warning" ? "warning" : "default",
+    variant: deploymentState.tone === "success" ? "filled" : "outlined"
+  };
+}
+
 export const PostRosterTable = memo(function PostRosterTable({
   rows,
   page,
@@ -340,6 +361,7 @@ export const PostRosterTable = memo(function PostRosterTable({
               const selected = selectedPostIds.includes(post.id);
               const issueIds = postHealthMap.get(post.id) ?? [];
               const deploymentState = postDeploymentStateMap.get(post.id) ?? null;
+              const syncPosture = resolvePostSyncPosture(deploymentState);
               const publicationState = postPublicationMap.get(post.id) ?? null;
               const primaryAuthorLabel = authorLabelMap.get(post.primaryAuthorId) ?? "No author";
               const primaryCategoryLabel =
@@ -422,10 +444,10 @@ export const PostRosterTable = memo(function PostRosterTable({
                   <TableCell>
                     <Stack spacing={0.5}>
                       {deploymentState ? (
-                        <StatusChip
-                          label={deploymentState.label}
-                          tone={deploymentState.tone === "success" ? "success" : deploymentState.tone === "warning" ? "warning" : "default"}
-                          variant={deploymentState.tone === "success" ? "filled" : "outlined"}
+                        <SyncPostureChip
+                          label={syncPosture.label}
+                          tone={syncPosture.tone}
+                          variant={syncPosture.variant}
                         />
                       ) : (
                         <Typography variant="body2">-</Typography>

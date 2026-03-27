@@ -27,6 +27,7 @@ import {
 } from "@mui/material";
 import { DeskSplitLayout } from "../../../frontend/src/ui/DeskSplitLayout.jsx";
 import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
+import { SyncPostureChip } from "../../../frontend/src/ui/SyncPostureChip.jsx";
 import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
 import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
 import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
@@ -153,7 +154,7 @@ export function CategoryToolbar({ routeState, onChangeFilter, onOpenCreate, onEx
   );
 }
 
-function CategoryTreeRow({ row, selected, isExpanded, onToggleExpanded, onSelect }) {
+function CategoryTreeRow({ row, selected, isExpanded, onToggleExpanded, onSelect, deploymentState }) {
   return (
     <Box
       sx={{
@@ -196,6 +197,13 @@ function CategoryTreeRow({ row, selected, isExpanded, onToggleExpanded, onSelect
           <Typography variant="subtitle2">{row.name}</Typography>
           <Chip size="small" label={`${row.referenceCount} posts`} color={row.referenceCount > 0 ? "primary" : "default"} />
           <Chip size="small" label={row.visibility ?? "public"} variant="outlined" />
+          {deploymentState ? (
+            <SyncPostureChip
+              label={deploymentState.label}
+              tone={deploymentState.tone}
+              variant={deploymentState.tone === "success" ? "filled" : "outlined"}
+            />
+          ) : null}
           {row.featuredMediaId ? <Chip size="small" label="featured image" color="secondary" /> : null}
           {row.childCount > 0 ? <Chip size="small" label={`${row.childCount} children`} variant="outlined" /> : null}
         </Stack>
@@ -212,7 +220,8 @@ export function CategoryTreeBrowser({
   selectedCategoryId,
   expandedCategoryIds,
   onToggleExpanded,
-  onSelect
+  onSelect,
+  deploymentStateById
 }) {
   const hasNestedRows = rows.some((row) => row.treeDepth > 0);
   const childrenByParent = new Map();
@@ -233,6 +242,7 @@ export function CategoryTreeBrowser({
           isExpanded={expandedCategoryIds.has(row.id)}
           onToggleExpanded={onToggleExpanded}
           onSelect={onSelect}
+          deploymentState={deploymentStateById?.get(row.id) ?? null}
         />
         {expandedCategoryIds.has(row.id) && (childrenByParent.get(row.id) ?? []).length > 0 ? (
           <Box
@@ -575,7 +585,17 @@ export function TagsToolbar({ routeState, selectedCount, onChangeFilter, onOpenC
   );
 }
 
-export function TagRosterTable({ rows, page, pageSize, totalCount, selectedTagIds, onToggleSelection, onEdit, onChangePage }) {
+export function TagRosterTable({
+  rows,
+  page,
+  pageSize,
+  totalCount,
+  selectedTagIds,
+  deploymentStateById,
+  onToggleSelection,
+  onEdit,
+  onChangePage
+}) {
   return (
     <Paper variant="outlined" sx={{ overflow: "hidden" }}>
       <TableContainer>
@@ -586,6 +606,7 @@ export function TagRosterTable({ rows, page, pageSize, totalCount, selectedTagId
               <TableCell>Tag</TableCell>
               <TableCell>Color</TableCell>
               <TableCell>Visibility</TableCell>
+              <TableCell>Sync</TableCell>
               <TableCell align="center">Posts</TableCell>
               <TableCell>Updated</TableCell>
               <TableCell align="right">Actions</TableCell>
@@ -594,6 +615,7 @@ export function TagRosterTable({ rows, page, pageSize, totalCount, selectedTagId
           <TableBody>
             {rows.map((row) => {
               const selected = selectedTagIds.includes(row.id);
+              const deploymentState = deploymentStateById?.get(row.id) ?? null;
               return (
                 <TableRow key={row.id} hover selected={selected} sx={{ cursor: "pointer" }} onClick={() => onEdit(row)}>
                   <TableCell padding="checkbox" onClick={(event) => event.stopPropagation()}>
@@ -617,6 +639,17 @@ export function TagRosterTable({ rows, page, pageSize, totalCount, selectedTagId
                   <TableCell>
                     <Chip size="small" label={row.visibility ?? "public"} variant="outlined" />
                   </TableCell>
+                  <TableCell>
+                    {deploymentState ? (
+                      <SyncPostureChip
+                        label={deploymentState.label}
+                        tone={deploymentState.tone}
+                        variant={deploymentState.tone === "success" ? "filled" : "outlined"}
+                      />
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell align="center">{row.referenceCount}</TableCell>
                   <TableCell>{row.updatedOn || row.createdOn || "-"}</TableCell>
                   <TableCell align="right">
@@ -630,7 +663,7 @@ export function TagRosterTable({ rows, page, pageSize, totalCount, selectedTagId
             })}
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                     No tags match the current roster filters.
                   </Typography>

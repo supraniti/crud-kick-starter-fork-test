@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  readReferenceModuleSettings,
   createReferenceCollectionItem,
   deleteReferenceCollectionItem,
   fetchReferenceCollectionItems
@@ -48,6 +49,16 @@ function normalizeSlug(value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
+}
+
+function readModuleSettingValue(moduleSettingsDomain, fieldId) {
+  const state = moduleSettingsDomain?.moduleSettingsState ?? null;
+  const draftValue = state?.draftValues?.[fieldId];
+  if (typeof draftValue === "string" && draftValue.trim().length > 0) {
+    return draftValue.trim();
+  }
+  const savedValue = state?.values?.[fieldId];
+  return typeof savedValue === "string" ? savedValue.trim() : "";
 }
 
 function createSnackbarState() {
@@ -298,6 +309,7 @@ export function useTaxonomyDeskWorkspace({
   navigate = null,
   route = {}
 }) {
+  const [savedSettingsValues, setSavedSettingsValues] = useState({});
   const routeState = useMemo(() => resolveTaxonomyRouteState(route), [route]);
   const activeBranch =
     routeState.branch === TAG_BRANCH
@@ -500,7 +512,11 @@ export function useTaxonomyDeskWorkspace({
   const projectionTargetFieldId = activeBranch === CATEGORY_BRANCH
     ? "remoteCategoriesProjectionTargetProfileId"
     : "remoteTagsProjectionTargetProfileId";
-  const projectionTargetId = moduleSettingsDomain?.moduleSettingsState?.draftValues?.[projectionTargetFieldId] ?? "";
+  const projectionTargetId =
+    readModuleSettingValue(moduleSettingsDomain, projectionTargetFieldId) ||
+    (typeof savedSettingsValues?.[projectionTargetFieldId] === "string"
+      ? savedSettingsValues[projectionTargetFieldId].trim()
+      : "");
   const projectionTarget = remoteOpsSupport.getTargetById(projectionTargetId);
   const projectionLatestRun = remoteOpsSupport.getLatestRunForTarget(projectionTargetId);
   const publicationState = useMemo(
@@ -549,6 +565,25 @@ export function useTaxonomyDeskWorkspace({
     selectedCategory,
     usageAwareness.usageState.pages
   ]);
+
+  useEffect(() => {
+    async function loadSavedSettings() {
+      try {
+        const payload = await readReferenceModuleSettings({
+          moduleId: "test-modules-taxonomy"
+        });
+        setSavedSettingsValues(
+          payload?.settings && typeof payload.settings.values === "object" && payload.settings.values
+            ? payload.settings.values
+            : {}
+        );
+      } catch {
+        setSavedSettingsValues({});
+      }
+    }
+
+    void loadSavedSettings();
+  }, []);
 
   const handleSelectBranch = useCallback((nextBranch) => {
     updateRouteState(
@@ -743,6 +778,14 @@ export function useTaxonomyDeskWorkspace({
   const reloadAll = useCallback(async () => {
     await collectionsDomain.reloadCollectionItems();
     await usageAwareness.reload();
+    try {
+      const payload = await readReferenceModuleSettings({
+        moduleId: "test-modules-taxonomy"
+      });
+      setSavedSettingsValues(payload?.settings?.values ?? {});
+    } catch {
+      setSavedSettingsValues({});
+    }
   }, [collectionsDomain, usageAwareness]);
 
   const handleSubmitCategory = useCallback(async () => {
@@ -985,6 +1028,7 @@ export function useTaxonomyDeskWorkspace({
     openPages: () => navigate?.({ moduleId: "pages" }, { replace: false }),
     loadingTerms: toBoolean(collectionsDomain.collectionItemsState.loading),
     termsErrorMessage: collectionsDomain.collectionItemsState.errorMessage,
+    reloadAll,
     publicationScope: routeState.publicationScope,
     handleTagPageChange: (_event, nextPageIndex) => {
       updateRouteState(

@@ -29,6 +29,7 @@ import {
 import { TranslatableMultilineTextField } from "../../test-modules-translations/frontend/TranslatableMultilineTextField.jsx";
 import { TranslatableTextField } from "../../test-modules-translations/frontend/TranslatableTextField.jsx";
 import { useTranslationFieldSupport } from "../../test-modules-translations/frontend/useTranslationFieldSupport.js";
+import { SyncPostureChip } from "../../../frontend/src/ui/SyncPostureChip.jsx";
 import { SORT_OPTIONS } from "./author-desk-model.js";
 
 function SummaryCard({ label, value, tone = "default", caption = "" }) {
@@ -268,6 +269,7 @@ export function AuthorRosterTable({
               <TableCell align="center">Posts</TableCell>
               <TableCell align="center">Published</TableCell>
               <TableCell align="center">Drafts</TableCell>
+              <TableCell>Deployment</TableCell>
               <TableCell>Profile</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -319,6 +321,12 @@ export function AuthorRosterTable({
                   <TableCell align="center">{row.publishedPosts}</TableCell>
                   <TableCell align="center">{row.draftPosts}</TableCell>
                   <TableCell>
+                    <SyncPostureChip
+                      label={row.deploymentState?.label ?? "Unknown"}
+                      tone={row.deploymentState?.tone ?? "default"}
+                    />
+                  </TableCell>
+                  <TableCell>
                     <ProfileGapChips profileGaps={row.profileGaps} />
                   </TableCell>
                   <TableCell align="right">
@@ -349,7 +357,7 @@ export function AuthorRosterTable({
             })}
             {!loading && rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10}>
+                <TableCell colSpan={11}>
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                     No authors match the current roster filters.
                   </Typography>

@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { LAYOUT_STARTER_PRESETS } from "./layout-builder-palette.js";
+import { resolveLayoutDeploymentState } from "./layout-deployment-state.js";
 
 const STARTER_SECTION_LABELS = Object.freeze({
   oneColumn: "Story band",
@@ -110,25 +111,36 @@ function LayoutsPanel({ workspace }) {
       </Stack>
       <List dense disablePadding sx={{ maxHeight: 320, overflow: "auto" }}>
         {workspace.layouts.map((layout) => (
-          <ListItemButton
-            key={layout.id}
-            selected={!workspace.isCreatingNewLayout && workspace.selectedLayoutId === layout.id}
-            onClick={() => workspace.selectLayout(layout.id)}
-            alignItems="flex-start"
-            sx={{ borderRadius: 1, mb: 0.75 }}
-          >
-            <ListItemText
-              primary={
-                <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {layout.title}
-                  </Typography>
-                  <Chip size="small" label={layout.status} />
-                </Stack>
-              }
-              secondary={`${layout.layoutKey} • ${workspace.usageCountByLayoutId.get(layout.id) ?? 0} pages`}
-            />
-          </ListItemButton>
+          (() => {
+            const deploymentState = resolveLayoutDeploymentState(layout, workspace.supportState.pages);
+            return (
+              <ListItemButton
+                key={layout.id}
+                selected={!workspace.isCreatingNewLayout && workspace.selectedLayoutId === layout.id}
+                onClick={() => workspace.selectLayout(layout.id)}
+                alignItems="flex-start"
+                sx={{ borderRadius: 1, mb: 0.75 }}
+              >
+                <ListItemText
+                  primary={
+                    <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {layout.title}
+                      </Typography>
+                      <Chip size="small" label={layout.status} />
+                      <Chip
+                        size="small"
+                        label={deploymentState.label}
+                        color={deploymentState.tone === "success" ? "success" : deploymentState.tone === "warning" ? "warning" : "default"}
+                        variant={deploymentState.tone === "success" ? "filled" : "outlined"}
+                      />
+                    </Stack>
+                  }
+                  secondary={`${layout.layoutKey} • ${workspace.usageCountByLayoutId.get(layout.id) ?? 0} pages`}
+                />
+              </ListItemButton>
+            );
+          })()
         ))}
       </List>
     </Stack>

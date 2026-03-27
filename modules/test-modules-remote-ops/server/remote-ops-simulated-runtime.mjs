@@ -310,6 +310,13 @@ export async function executeRemoteTarget({ targetProfile, collectionHandlerRegi
     targetProfile: target,
     collectionHandlerRegistry
   });
+  if (compareResult.diff.isClean) {
+    return {
+      summary: compareResult.summary,
+      runSummary: buildRunSummaryFromDiff(compareResult.diff),
+      message: "Target already matches local state"
+    };
+  }
   const warnings = [];
 
   switch (normalizeTargetKind(target.targetKind)) {

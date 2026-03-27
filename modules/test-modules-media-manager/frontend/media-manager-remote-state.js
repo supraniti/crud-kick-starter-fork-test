@@ -104,7 +104,7 @@ export function resolveMediaRemoteSyncState({ item, mediaTarget = null, runs = [
   if (mediaTarget?.targetStatus !== "validated") {
     return {
       state: "target-unvalidated",
-      label: "Target Unvalidated",
+      label: "No Remote",
       tone: "warning",
       detail: "Validate the linked media target before relying on remote sync state."
     };
@@ -118,7 +118,7 @@ export function resolveMediaRemoteSyncState({ item, mediaTarget = null, runs = [
   if (!lastExecuteRun) {
     return {
       state: "not-synced",
-      label: "Not Synced",
+      label: "Needs Sync",
       tone: "warning",
       detail: "This item has not been covered by a successful remote sync yet."
     };
@@ -129,7 +129,7 @@ export function resolveMediaRemoteSyncState({ item, mediaTarget = null, runs = [
   if (itemTime > syncTime) {
     return {
       state: "changed-locally",
-      label: "Changed Locally",
+      label: "Needs Sync",
       tone: "warning",
       detail: "The item changed after the last successful remote sync."
     };

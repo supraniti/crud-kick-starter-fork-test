@@ -3259,3 +3259,52 @@
   - for reader features that affect both widgetized and fallback routes, prove both route families in the browser before calling the slice done
   - when same-app navigation depends on URL-derived state, pass the intended next path explicitly rather than reading `window.location` too early
   - treat live DevTools verification as mandatory for deployed-reader work; local route checks alone would have missed all three bugs
+### 2026-03-26 - Deployment Command Center Needed One Truth Source For Per-Item Sync Posture
+- Tasks:
+  - built a global deployment FAB and command-center state instead of forcing users through the Deployments route for every release action
+  - surfaced per-item sync posture across the working desks with one shared chip component
+  - reviewed the product in the browser instead of trusting state helpers in isolation
+- Easy:
+  - the existing bundle release mission was already the right orchestration boundary, so the new UX could call that instead of inventing new deployment mutations
+  - a single event emitted on successful sync was enough to make multiple desks refresh their own posture without tight coupling
+- Hard:
+  - the first browser pass looked almost done, but taxonomy still showed `No Remote` even though releases had succeeded; the failure was not in remote ops or release state, it was in how that desk resolved its saved target id
+  - authors and themes were easy to forget because they deploy indirectly through page/post releases, but the user requirement was about content-item truth, not about direct projection collections only
+  - live browser review exposed a temporary React hook-order crash after hot reload on taxonomy; only a hard reload proved the actual code path was sound and the crash was HMR-only
+- Improve:
+  - when a custom desk depends on module settings for posture only, do not rely solely on the route-scoped settings domain; read persisted settings directly as a fallback
+  - deployment visibility needs to follow publication consequences, not module boundaries; indirect content like authors/themes still needs posture if local changes affect live output
+  - for long-running sync UX, always test a real bundle run from the FAB so progress copy and terminal success state are proven, not assumed
+### 2026-03-26 - Deployment UX Needed Background Semantics, Not Modal Semantics
+- Tasks:
+  - reviewed the first command-center pass in the browser after a real FAB-triggered bundle run
+  - confirmed the modal-style progress surface still made deployment feel blocking even though the server mission was already asynchronous
+  - replaced the modal with a floating panel, then persisted the active bundle queue and mission job id so reload could resume tracking
+  - browser-tested three key cases:
+    - keep working on another desk while sync runs
+    - hide the panel without interrupting work
+    - reload during sync and recover the in-flight mission state
+- Easy:
+  - the server mission model already had the right boundary; the missing piece was client-side tracking, not server orchestration
+  - once queue state was persisted, route changes and hard reloads became recoverable without inventing a second release path
+- Hard:
+  - the first panel-hide patch still reopened itself because live status updates forced `open: true` back into state on every poll tick
+  - already-synced gating could not rely on page state alone; it needed target compare posture too, or the FAB would keep acting like a blind rerun menu
+- Improve:
+  - for any async workflow that is already server-backed, default to background UI semantics and persisted client tracking instead of modal ownership
+  - if a user intentionally hides a progress surface, polling updates must never silently reopen it
+  - a global sync action should only look runnable when the underlying bundle posture says there is actual work left
+### 2026-03-26 - Global Sync Gating Must Use The Same Live Page Source As The Deployments Desk
+- Tasks:
+  - investigated why `Journal Release Bundle` still appeared runnable after a successful sync
+  - compared the generic `blog-pages` collection list with the Pages `desk-items` route and confirmed they disagreed on deployment posture
+  - switched the command center to use the same live page desk source already trusted by the Deployments workspace
+- Easy:
+  - the correct source already existed; the fix was wiring, not new deployment logic
+  - once the page source matched the real evaluator, the FAB menu immediately stopped advertising clean bundles as stale
+- Hard:
+  - the generic collection list looked plausible enough to hide the bug until the browser menu was checked against the direct deployment evaluation route
+  - the earlier `0/3` and long translations step noise made it easy to misread this as another progress bug instead of a stale source-of-truth issue
+- Improve:
+  - any global posture feature should consume the same evaluated desk endpoints the module workspace uses, not a raw collection list that may carry lagging summaries
+  - do not call a deployment UX slice done until the browser menu after a real sync shows clean bundles as disabled, not runnable

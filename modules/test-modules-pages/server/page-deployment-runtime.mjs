@@ -202,6 +202,7 @@ async function removeUnsyncedArtifactRecords(context, syncedSourceItemIds) {
 }
 
 async function syncPerRecordPageDeployment({
+  handler,
   page,
   collectionHandlerRegistry,
   resolveSettingsRepository,
@@ -237,12 +238,46 @@ async function syncPerRecordPageDeployment({
 
   await removeUnsyncedArtifactRecords(context, syncedSourceItemIds);
 
-  return evaluatePageDeploymentState({
+  const evaluation = await evaluatePageDeploymentState({
     page,
     collectionHandlerRegistry,
     resolveSettingsRepository,
     settingsDefinition
   });
+
+  if (handler && evaluation?.page) {
+    const internalReply = {
+      code() {
+        return internalReply;
+      }
+    };
+    await handler.update({
+      body: {
+        deploymentArtifactPath: evaluation.page.deploymentArtifactPath ?? null,
+        deploymentStatus: evaluation.page.deploymentStatus ?? "missing",
+        deploymentTargetCount: evaluation.page.deploymentTargetCount ?? 0,
+        deploymentSyncedCount: evaluation.page.deploymentSyncedCount ?? 0,
+        deploymentStaleCount: evaluation.page.deploymentStaleCount ?? 0,
+        deploymentMissingCount: evaluation.page.deploymentMissingCount ?? 0,
+        deploymentSyncedOn: evaluation.page.deploymentSyncedOn ?? null,
+        deploymentLastRunOn: evaluation.page.deploymentLastRunOn ?? null
+      },
+      value: {
+        deploymentArtifactPath: evaluation.page.deploymentArtifactPath ?? null,
+        deploymentStatus: evaluation.page.deploymentStatus ?? "missing",
+        deploymentTargetCount: evaluation.page.deploymentTargetCount ?? 0,
+        deploymentSyncedCount: evaluation.page.deploymentSyncedCount ?? 0,
+        deploymentStaleCount: evaluation.page.deploymentStaleCount ?? 0,
+        deploymentMissingCount: evaluation.page.deploymentMissingCount ?? 0,
+        deploymentSyncedOn: evaluation.page.deploymentSyncedOn ?? null,
+        deploymentLastRunOn: evaluation.page.deploymentLastRunOn ?? null
+      },
+      item: page,
+      reply: internalReply
+    });
+  }
+
+  return evaluation;
 }
 
 export async function runExplicitPageDeploymentSync({
@@ -263,6 +298,7 @@ export async function runExplicitPageDeploymentSync({
 
   if (isPerRecordDeploymentMode(page.deploymentMode)) {
     return syncPerRecordPageDeployment({
+      handler,
       page,
       collectionHandlerRegistry,
       resolveSettingsRepository,

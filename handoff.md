@@ -2469,3 +2469,88 @@
   - switching locale to `fr-FR` on `first-cup-on-the-table` fetches `/translations?...` and updates the `h1` to `Premiere tasse sur la table`
   - post-to-post navigation keeps `locale=fr-FR`, avoids a second HTML document, and preserves translated adjacent links
   - post-to-category navigation keeps `locale=fr-FR`, avoids a second HTML document, and fetches category translations through the data layer
+### 2026-03-26 - Deployment Command Center Simplified Sync Visibility Across Desks
+- Tasks:
+  - introduced a global bottom-right deployment FAB with:
+    - `Sync All`
+    - per-bundle sync options
+    - modal progress reporting with live phase text, bundle results, success state, and recovery guidance hooks
+  - wired command-center completion events so desks reload their deployment posture after a successful sync
+  - added shared `SyncPostureChip` and surfaced deployment truth directly on:
+    - Posts
+    - Media
+    - Pages
+    - Layouts
+    - Taxonomies
+    - Translations
+    - Authors
+    - Themes
+  - kept the command center bundle-driven instead of inventing a second deployment path, so the new UX still drives the existing proven release pipeline
+  - self-reviewed with Chrome DevTools and ran a real FAB-triggered bundle sync to verify progress and terminal success UI
+- Key fixes during self-review:
+  - extended bundle mission wait from `60s` to `300s` because real release runs are materially longer
+  - changed Posts and Layouts to trust live page desk items for page-deployment posture instead of stale generic page collection fields
+  - hardened taxonomy target resolution so sync posture reads saved module settings even when the module-settings domain is not active on that custom desk
+  - added author/theme posture models so deployment visibility covers content that deploys indirectly through page/post releases rather than only directly-projected collections
+  - verified taxonomy `No Remote` was a desk-resolution bug, not a failed release, and corrected it at the shared settings-read boundary
+- Verified locally:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - `http://localhost:3000/app/posts`
+  - `http://localhost:3000/app/media`
+  - `http://localhost:3000/app/taxonomies?taxonomyBranch=categories&cb=deploy-check-4`
+  - `http://localhost:3000/app/authors`
+  - `http://localhost:3000/app/themes`
+  - `http://localhost:3000/app/translations`
+  - `http://localhost:3000/app/pages?cb=deploy-check-2`
+  - FAB menu showed:
+    - `Sync All`
+    - `Sync Category Release Bundle`
+    - `Sync Journal Release Bundle`
+    - `Sync Post Release Bundle`
+  - real FAB-run `Sync Post Release Bundle` completed with:
+    - `Deployment progress`
+    - `1/1`
+    - `Sync finished.`
+    - `Post Release Bundle synced successfully.`
+- Important boundary:
+  - the command center now removes workflow friction and exposes deployment truth clearly, but the underlying bundle pipeline is still sequential and can take minutes because shared publication work is repeated per bundle; that is an optimization opportunity, not a usability blocker for this slice
+### 2026-03-26 - Deployment Command Center UX Hardening
+- Tasks:
+  - replaced the blocking sync dialog with a floating background progress panel
+  - persisted active sync queue state and mission job ids in browser storage so reload resumes tracking
+  - added hide/reopen behavior so operators can keep using the app while sync runs
+  - gated FAB actions using bundle/page/target sync posture so already-current bundles stop presenting as normal sync work
+- Verified locally:
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx`
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - started sync from `/app/posts`
+  - navigated to `/app/authors` while sync continued
+  - hid the panel and confirmed the background run kept going
+  - reloaded the app and confirmed active sync tracking resumed from stored mission state
+  - confirmed terminal success remained reopenable after completion
+### 2026-03-26 - Deployment Command Center Now Reads Live Page Sync Posture
+- Tasks:
+  - traced the last false-positive bundle state to the wrong page data source in the global command center
+  - switched command-center page loading from the generic `blog-pages` collection list to the live Pages `desk-items` endpoint
+  - kept translation/storage/firestore execute fast-paths so clean compares skip no-op work
+- Verified locally:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter frontend exec vitest run src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Verified in browser:
+  - opened `http://localhost:3000/app/posts`
+  - opened the deployment FAB menu after completed sync runs
+  - confirmed the menu now shows:
+    - `Everything Already Synced`
+    - `Already Synced Category Release Bundle`
+    - `Already Synced Journal Release Bundle`
+    - `Already Synced Post Release Bundle`

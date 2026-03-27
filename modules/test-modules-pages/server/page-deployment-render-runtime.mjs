@@ -320,6 +320,8 @@ function hashValue(value) {
 
 function buildPageVersionToken(page = {}) {
   const {
+    createdOn,
+    updatedOn,
     deploymentArtifactPath,
     deploymentStatus,
     deploymentTargetCount,

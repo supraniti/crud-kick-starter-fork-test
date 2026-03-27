@@ -319,10 +319,15 @@ async function runRemoteBindingCompare(routeContext, binding, runController) {
     })
   );
   binding.targetProfile = procedure.item ?? binding.targetProfile;
+  binding.compareResult = procedure.summary ?? null;
 }
 
 async function runRemoteBindingExecute(routeContext, binding, runController) {
   if (!binding) {
+    return;
+  }
+  if (binding.compareResult?.state === "clean") {
+    await runController.markSuccess(binding.executeKey, "Already synced; execute skipped.");
     return;
   }
   const procedure = await executeBoundStep(runController, binding.executeKey, () =>

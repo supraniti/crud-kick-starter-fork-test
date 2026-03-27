@@ -16,13 +16,16 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createReferenceCollectionItem,
   deleteReferenceCollectionItem,
   fetchReferenceCollectionItems,
   updateReferenceCollectionItem
 } from "../../../frontend/src/api/reference.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
+import { SyncPostureChip } from "../../../frontend/src/ui/SyncPostureChip.jsx";
+import { fetchDeskPages } from "../../test-modules-pages/frontend/blog-distribution-workspace-support.js";
 import {
   GOOGLE_FONT_OPTIONS,
   PREDEFINED_THEME_DOCUMENTS,
@@ -30,6 +33,7 @@ import {
   resolveThemeDocumentForPreview,
   serializeThemeDocument
 } from "../shared/theme-document.mjs";
+import { resolveThemeDeploymentState } from "./theme-deployment-state.js";
 
 const THEMES_COLLECTION_ID = "page-themes";
 
@@ -508,14 +512,35 @@ function ThemePreview({ draft, screenProfile }) {
 
 export function ThemesView({ activeModuleLabel }) {
   const [items, setItems] = useState([]);
+  const [deploymentPages, setDeploymentPages] = useState([]);
   const [selectedThemeId, setSelectedThemeId] = useState(null);
   const [draft, setDraft] = useState(createEmptyThemeDraft);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [deploymentErrorMessage, setDeploymentErrorMessage] = useState(null);
   const [screenProfile, setScreenProfile] = useState("desktop");
   const selectedTheme = items.find((item) => item.id === selectedThemeId) ?? null;
+  const globalDefaultThemeKey = items.find((item) => item?.isGlobalDefault === true)?.themeKey ?? "";
+  const deploymentAwareItems = useMemo(
+    () =>
+      items.map((item) => ({
+        ...item,
+        deploymentState: resolveThemeDeploymentState(item, deploymentPages, globalDefaultThemeKey)
+      })),
+    [deploymentPages, globalDefaultThemeKey, items]
+  );
+
+  const loadDeploymentPages = useCallback(async () => {
+    try {
+      setDeploymentErrorMessage(null);
+      setDeploymentPages(await fetchDeskPages());
+    } catch (error) {
+      setDeploymentPages([]);
+      setDeploymentErrorMessage(error?.message ?? "Failed to load theme deployment posture");
+    }
+  }, []);
 
   const loadThemes = async (preferredThemeId = null) => {
     setLoading(true);
@@ -552,6 +577,21 @@ export function ThemesView({ activeModuleLabel }) {
   useEffect(() => {
     void loadThemes();
   }, []);
+
+  useEffect(() => {
+    void loadDeploymentPages();
+  }, [loadDeploymentPages]);
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void loadDeploymentPages();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [loadDeploymentPages]);
 
   const selectTheme = (item) => {
     setSelectedThemeId(item?.id ?? null);
@@ -657,7 +697,7 @@ export function ThemesView({ activeModuleLabel }) {
           New Theme
         </Button>
         {loading ? <Alert severity="info">Loading themes...</Alert> : null}
-        {items.map((item) => (
+        {deploymentAwareItems.map((item) => (
           <Paper
             key={item.id}
             variant={selectedThemeId === item.id ? "elevation" : "outlined"}
@@ -672,10 +712,21 @@ export function ThemesView({ activeModuleLabel }) {
             <Stack spacing={0.75}>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
                 <Typography fontWeight={700}>{item.title}</Typography>
-                <Chip size="small" label={readThemeSourceLabel(item)} color={item.isGlobalDefault ? "success" : "default"} />
+                <Chip
+                  size="small"
+                  label={readThemeSourceLabel(item)}
+                  color={item.isGlobalDefault ? "success" : "default"}
+                />
+                <SyncPostureChip
+                  label={item.deploymentState?.label ?? "Unknown"}
+                  tone={item.deploymentState?.tone ?? "default"}
+                />
               </Stack>
               <Typography variant="body2" color="text.secondary">
                 {item.summary || item.themeKey}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {item.deploymentState?.detail ?? ""}
               </Typography>
             </Stack>
           </Paper>
@@ -710,6 +761,7 @@ export function ThemesView({ activeModuleLabel }) {
           </Stack>
           {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
           {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
+          {deploymentErrorMessage ? <Alert severity="warning">{deploymentErrorMessage}</Alert> : null}
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <TextField

@@ -6,6 +6,20 @@ import {
   resolveProductRouteGuide
 } from "../../app/product-shell/product-shell-catalog.js";
 
+vi.mock("../../app/product-shell/useGlobalDeploymentCommandCenter.js", () => ({
+  useGlobalDeploymentCommandCenter: () => ({
+    state: { loading: false, errorMessage: null },
+    bundleOptions: [],
+    bundleSyncState: { canSyncAny: false, entries: [], byBundleId: new Map() },
+    runState: { open: false, processing: false, bundleResults: [], completedCount: 0, totalCount: 0, progressPercent: 0, errorMessage: null, guidance: "", successMessage: null, mode: "", activeBundleTitle: "" },
+    reload: vi.fn(),
+    closeRunState: vi.fn(),
+    openRunState: vi.fn(),
+    runSyncAll: vi.fn(),
+    runSyncBundle: vi.fn()
+  })
+}));
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -69,6 +83,7 @@ test("app shell layout groups north-star workflow stages and exposes next-step g
   expect(screen.getByText("Content")).toBeInTheDocument();
   expect(screen.getByText("Presentation")).toBeInTheDocument();
   expect(screen.getByText("Release")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Sync/i })).toBeInTheDocument();
   expect(
     screen.getByText(
       /Posts: Create and revise posts with their media, taxonomy, and author references in one authoring flow\./i
@@ -122,4 +137,5 @@ test("layouts route keeps the workflow sidebar when immersive mode is not explic
   expect(screen.getByText("Workflow")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Layouts" })).toBeInTheDocument();
   expect(screen.getByText("Layouts Surface")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Sync/i })).toBeInTheDocument();
 });

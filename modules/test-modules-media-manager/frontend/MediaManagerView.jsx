@@ -43,6 +43,7 @@ import {
   sortMediaItemsForDesk
 } from "./media-desk-model.js";
 import { useMediaUsageAwareness } from "./useMediaUsageAwareness.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
 
 function MediaSummaryCard({ label, value, tone = "default" }) {
   return (
@@ -161,6 +162,18 @@ export function MediaManagerView({
     const visibleIds = new Set(visibleItems.map((item) => item.id));
     setSelectedMediaIds((previous) => previous.filter((itemId) => visibleIds.has(itemId)));
   }, [visibleItems]);
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void collectionsDomain.reloadCollectionItems();
+      void remoteOpsSupport.reload();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [collectionsDomain, remoteOpsSupport]);
 
   useEffect(() => {
     if (!usesRouteState) {

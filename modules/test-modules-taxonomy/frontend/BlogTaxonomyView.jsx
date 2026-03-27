@@ -1,5 +1,5 @@
 import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DeskTabsCard } from "../../../frontend/src/ui/DeskTabsCard.jsx";
 import { BlogTaxonomyRemoteProjectionPanel } from "./BlogTaxonomyRemoteProjectionPanel.jsx";
 import {
@@ -24,6 +24,8 @@ import {
 } from "./TaxonomyDeskPanels.jsx";
 import { useTaxonomyDeskWorkspace } from "./useTaxonomyDeskWorkspace.js";
 import { buildTagBatchCandidates } from "./taxonomy-desk-model.js";
+import { resolveTaxonomyDeploymentState } from "./taxonomy-deployment-state.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
 
 const CATEGORIES_COLLECTION_ID = "blog-categories";
 const TAGS_COLLECTION_ID = "blog-tags";
@@ -52,6 +54,37 @@ export function BlogTaxonomyView({
       id: row.id,
       label: `${"— ".repeat(row.treeDepth)}${row.name}`
     }));
+  const categoryDeploymentStateById = useMemo(
+    () =>
+      new Map(
+        workspace.fullCategoryRows.map((row) => [
+          row.id,
+          resolveTaxonomyDeploymentState(row, workspace.projectionLatestRun, workspace.projectionTarget)
+        ])
+      ),
+    [workspace.fullCategoryRows, workspace.projectionLatestRun, workspace.projectionTarget]
+  );
+  const tagDeploymentStateById = useMemo(
+    () =>
+      new Map(
+        workspace.tagRows.map((row) => [
+          row.id,
+          resolveTaxonomyDeploymentState(row, workspace.projectionLatestRun, workspace.projectionTarget)
+        ])
+      ),
+    [workspace.projectionLatestRun, workspace.projectionTarget, workspace.tagRows]
+  );
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void workspace.reloadAll?.();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [workspace.reloadAll]);
 
   return (
     <Stack spacing={2}>
@@ -80,6 +113,7 @@ export function BlogTaxonomyView({
               expandedCategoryIds={new Set(workspace.routeState.categorySearch ? workspace.categoryRows.map((row) => row.id) : workspace.routeState.categoryExpanded.length > 0 ? workspace.routeState.categoryExpanded : workspace.categoryRows.filter((row) => row.treeDepth === 0).map((row) => row.id))}
               onToggleExpanded={workspace.handleToggleExpanded}
               onSelect={workspace.handleOpenEditCategory}
+              deploymentStateById={categoryDeploymentStateById}
             />
           }
           toolbar={
@@ -152,6 +186,7 @@ export function BlogTaxonomyView({
                 pageSize={workspace.pagedTagRows.pageSize}
                 totalCount={workspace.tagRows.length}
                 selectedTagIds={workspace.selectedTagIds}
+                deploymentStateById={tagDeploymentStateById}
                 onToggleSelection={workspace.handleToggleTagSelection}
                 onEdit={workspace.handleOpenEditTag}
                 onChangePage={workspace.handleTagPageChange}

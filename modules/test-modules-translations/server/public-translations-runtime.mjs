@@ -1,4 +1,8 @@
-import { normalizeTargetConfig } from "../../test-modules-remote-ops/server/remote-ops-shared-runtime.mjs";
+import { createHash } from "node:crypto";
+import {
+  normalizeTargetConfig,
+  stringifyCanonicalJson
+} from "../../test-modules-remote-ops/server/remote-ops-shared-runtime.mjs";
 import {
   listEligiblePrimarySourceRecords,
   resolvePageDeliveryPayload
@@ -11,8 +15,7 @@ import {
   isPagePublished,
   isPerRecordDeploymentMode,
   cloneJsonValue,
-  normalizeOptionalText,
-  toTimestamp
+  normalizeOptionalText
 } from "../../test-modules-pages/server/distribution-shared-runtime.mjs";
 import {
   buildReaderDeferredPayload,
@@ -425,9 +428,12 @@ function buildTranslationOverlayDocument({
     locale: normalizedLocale,
     sourceLocale: normalizeLocaleCode(sourceLocale, DEFAULT_SOURCE_LOCALE),
     bootstrapPatches,
-    deferredPatches,
-    updatedOn: toTimestamp()
+    deferredPatches
   };
+}
+
+function hashProjectionContent(content) {
+  return createHash("sha1").update(content).digest("hex");
 }
 
 async function buildLocalizedReaderDocuments({
@@ -682,12 +688,12 @@ export async function buildPublicTranslationsProjectionMap(
         payload?.page?.path ?? "/",
         localeCode
       );
-      const content = Buffer.from(JSON.stringify(document, null, 2), "utf8");
+      const content = Buffer.from(stringifyCanonicalJson(document), "utf8");
       projectionMap.set(`${collectionPath}/${documentId}.json`, {
         relativePath: `${collectionPath}/${documentId}.json`,
         absolutePath: null,
         sizeBytes: content.length,
-        hash: content.toString("base64"),
+        hash: hashProjectionContent(content),
         content,
         documentData: document
       });

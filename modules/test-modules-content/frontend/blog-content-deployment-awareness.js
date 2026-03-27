@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchReferenceCollectionItems } from "../../../frontend/src/api/reference.js";
-
-const PAGES_COLLECTION_ID = "blog-pages";
+import { fetchDeskPages } from "../../test-modules-pages/frontend/blog-distribution-workspace-support.js";
 
 function createDeploymentAwarenessState() {
   return {
@@ -34,14 +32,10 @@ export function useContentDeploymentAwareness({ selectedPost }) {
     }));
 
     try {
-      const payload = await fetchReferenceCollectionItems({
-        collectionId: PAGES_COLLECTION_ID,
-        limit: 200
-      });
       setState({
         loading: false,
         errorMessage: null,
-        pages: Array.isArray(payload?.items) ? payload.items : []
+        pages: await fetchDeskPages()
       });
     } catch (error) {
       setState({

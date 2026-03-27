@@ -15,6 +15,8 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { fetchReferenceCollectionItems } from "../../../frontend/src/api/reference.js";
+import { SyncPostureChip } from "../../../frontend/src/ui/SyncPostureChip.jsx";
+import { useEmbeddedRemoteOpsSupport } from "../../test-modules-remote-ops/frontend/useEmbeddedRemoteOpsSupport.js";
 import {
   buildTranslationUnitKey
 } from "../shared/translation-entry.mjs";
@@ -30,6 +32,8 @@ import {
 } from "../shared/translation-locale-catalog.mjs";
 import { fetchTranslationUnits } from "./api.js";
 import { TranslationDialog } from "./TranslationDialog.jsx";
+import { resolveTranslationDeploymentState } from "./translation-deployment-state.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
 
 function toArray(value) {
   return Array.isArray(value) ? value : [];
@@ -157,6 +161,7 @@ function createTranslationFieldFromRow(row) {
 }
 
 export function TranslationsView({ activeModuleLabel }) {
+  const remoteOpsSupport = useEmbeddedRemoteOpsSupport();
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -184,6 +189,29 @@ export function TranslationsView({ activeModuleLabel }) {
   useEffect(() => {
     void loadInventory();
   }, []);
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void loadInventory();
+      void remoteOpsSupport.reload();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [remoteOpsSupport]);
+
+  const translationProjectionTarget = useMemo(
+    () =>
+      (remoteOpsSupport.supportState.targets ?? []).find(
+        (target) => target?.productBindingKey === "translations-projection"
+      ) ?? null,
+    [remoteOpsSupport.supportState.targets]
+  );
+  const translationProjectionLatestRun = remoteOpsSupport.getLatestRunForTarget(
+    translationProjectionTarget?.id ?? ""
+  );
 
   const inventoryRows = useMemo(() => {
     const rows = [];
@@ -306,6 +334,11 @@ export function TranslationsView({ activeModuleLabel }) {
             <Chip label={`${summary.stale} stale`} color="warning" variant="outlined" />
             <Chip label={`${summary.orphaned} orphaned`} color="error" variant="outlined" />
             <Chip label={`${summary.total} total`} variant="outlined" />
+            <Chip
+              label={translationProjectionTarget ? "Remote projection ready" : "No remote projection"}
+              color={translationProjectionTarget ? "success" : "warning"}
+              variant="outlined"
+            />
           </Stack>
 
           {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
@@ -322,63 +355,78 @@ export function TranslationsView({ activeModuleLabel }) {
               <TableCell>Field</TableCell>
               <TableCell>Source Value</TableCell>
               <TableCell>Translation</TableCell>
+              <TableCell>Sync</TableCell>
               <TableCell>Updated</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredRows.map((row) => (
-              <TableRow
-                key={row.id}
-                hover
-                sx={{ cursor: "pointer" }}
-                onClick={() => setSelectedRow(row)}
-              >
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={row.status}
-                    color={readStatusColor(row.status)}
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Stack spacing={0.25}>
-                    <Typography variant="body2" fontWeight={600}>
-                      {row.entityLabel}
+            {filteredRows.map((row) => {
+              const deploymentState = resolveTranslationDeploymentState(
+                row,
+                translationProjectionLatestRun,
+                translationProjectionTarget
+              );
+              return (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{ cursor: "pointer" }}
+                  onClick={() => setSelectedRow(row)}
+                >
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={row.status}
+                      color={readStatusColor(row.status)}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Stack spacing={0.25}>
+                      <Typography variant="body2" fontWeight={600}>
+                        {row.entityLabel}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {buildEntityTypeLabel(row.entityType)}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Stack spacing={0.25}>
+                      <Typography variant="body2">{row.fieldLabel}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {row.fieldPath}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 340 }}>
+                    <Typography variant="body2" noWrap title={row.sourceValue}>
+                      {normalizeText(row.sourceValue, "—")}
                     </Typography>
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 340 }}>
+                    <Typography variant="body2" noWrap title={row.translatedValue}>
+                      {normalizeText(row.translatedValue, "—")}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <SyncPostureChip
+                      label={deploymentState.label}
+                      tone={deploymentState.tone}
+                      variant={deploymentState.tone === "success" ? "filled" : "outlined"}
+                    />
+                  </TableCell>
+                  <TableCell>
                     <Typography variant="caption" color="text.secondary">
-                      {buildEntityTypeLabel(row.entityType)}
+                      {normalizeText(row.updatedOn, "—")}
                     </Typography>
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <Stack spacing={0.25}>
-                    <Typography variant="body2">{row.fieldLabel}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {row.fieldPath}
-                    </Typography>
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ maxWidth: 340 }}>
-                  <Typography variant="body2" noWrap title={row.sourceValue}>
-                    {normalizeText(row.sourceValue, "—")}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ maxWidth: 340 }}>
-                  <Typography variant="body2" noWrap title={row.translatedValue}>
-                    {normalizeText(row.translatedValue, "—")}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="caption" color="text.secondary">
-                    {normalizeText(row.updatedOn, "—")}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {!loading && filteredRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <Alert severity="info">No translation rows matched the current filters.</Alert>
                 </TableCell>
               </TableRow>

@@ -3,7 +3,10 @@ import {
   deleteReferenceCollectionItem,
   fetchReferenceCollectionItems
 } from "../../../frontend/src/api/reference.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
 import { buildMediaContentUrl, uploadMediaAsset } from "../../test-modules-media-manager/frontend/media-manager-api.js";
+import { fetchDeskPages } from "../../test-modules-pages/frontend/blog-distribution-workspace-support.js";
+import { resolveAuthorDeploymentState } from "./author-deployment-state.js";
 import { useEditorialOverview } from "./useEditorialOverview.js";
 import {
   buildAuthorAssignmentRows,
@@ -227,6 +230,11 @@ export function useAuthorDeskWorkspace({ collectionsDomain, route = {}, navigate
   const routeState = useMemo(() => resolveAuthorRouteState(route), [route]);
   const [selectedAuthorIds, setSelectedAuthorIds] = useState([]);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [deploymentPagesState, setDeploymentPagesState] = useState({
+    loading: false,
+    errorMessage: null,
+    items: []
+  });
   const { snackbarState, handleCloseSnackbar, showSnackbar } = useSnackbarState(
     collectionsDomain.collectionFormState
   );
@@ -236,13 +244,25 @@ export function useAuthorDeskWorkspace({ collectionsDomain, route = {}, navigate
     () => buildAuthorAssignmentRows(overview.authors, overview.queueState.items),
     [overview.authors, overview.queueState.items]
   );
+  const deploymentAwareRows = useMemo(
+    () =>
+      assignmentRows.map((row) => ({
+        ...row,
+        deploymentState: resolveAuthorDeploymentState(
+          row,
+          overview.queueState.items,
+          deploymentPagesState.items
+        )
+      })),
+    [assignmentRows, deploymentPagesState.items, overview.queueState.items]
+  );
   const summary = useMemo(
-    () => buildAuthorSummary(overview.authors, assignmentRows),
-    [overview.authors, assignmentRows]
+    () => buildAuthorSummary(overview.authors, deploymentAwareRows),
+    [overview.authors, deploymentAwareRows]
   );
   const visibleRows = useMemo(
-    () => buildVisibleAuthorRows(assignmentRows, routeState),
-    [assignmentRows, routeState]
+    () => buildVisibleAuthorRows(deploymentAwareRows, routeState),
+    [deploymentAwareRows, routeState]
   );
   const pagedRows = useMemo(
     () => paginateAuthorRows(visibleRows, routeState.page),
@@ -264,6 +284,27 @@ export function useAuthorDeskWorkspace({ collectionsDomain, route = {}, navigate
     [mediaGallery.mediaItems]
   );
   const selectedAvatarItem = mediaItemsById.get(collectionsDomain.collectionFormState.avatarMediaId) ?? null;
+
+  const reloadDeploymentPages = useCallback(async () => {
+    setDeploymentPagesState((previous) => ({
+      ...previous,
+      loading: true,
+      errorMessage: null
+    }));
+    try {
+      setDeploymentPagesState({
+        loading: false,
+        errorMessage: null,
+        items: await fetchDeskPages()
+      });
+    } catch (error) {
+      setDeploymentPagesState({
+        loading: false,
+        errorMessage: error?.message ?? "Failed to load author deployment posture",
+        items: []
+      });
+    }
+  }, []);
 
   const updateRouteState = useCallback(
     (patch = {}, replace = true) => {
@@ -292,6 +333,22 @@ export function useAuthorDeskWorkspace({ collectionsDomain, route = {}, navigate
     collectionsDomain.collectionFilterState.search,
     routeState.search
   ]);
+
+  useEffect(() => {
+    void reloadDeploymentPages();
+  }, [reloadDeploymentPages]);
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void reloadDeploymentPages();
+      void overview.reloadQueue();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [overview.reloadQueue, reloadDeploymentPages]);
 
   useEffect(() => {
     const routeAuthorId = routeState.authorId;
@@ -583,6 +640,7 @@ export function useAuthorDeskWorkspace({ collectionsDomain, route = {}, navigate
   return {
     authors: overview.authors,
     queueState: overview.queueState,
+    deploymentPagesState,
     summary,
     routeState,
     pagedRows,

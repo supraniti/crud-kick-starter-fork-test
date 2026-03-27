@@ -9,13 +9,14 @@ import {
   useMediaQuery,
   useTheme
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LayoutBuilderCanvas } from "./LayoutBuilderCanvas.jsx";
 import { LayoutBuilderInspector } from "./LayoutBuilderInspector.jsx";
 import { LayoutBuilderLeftRail } from "./LayoutBuilderLeftRail.jsx";
 import { LayoutBuilderNodeDialog } from "./LayoutBuilderNodeDialog.jsx";
 import { useLayoutsWorkspace } from "./useLayoutsWorkspace.js";
 import { findParentContainerId } from "./layout-builder-model.js";
+import { DEPLOYMENT_SYNC_COMPLETED_EVENT } from "../../../frontend/src/app/product-shell/deployment-command-center-events.js";
 
 function BuilderHeader({ activeModuleLabel, workspace, activeSupportTab, onToggleSupportTab }) {
   const title = workspace.isCreatingNewLayout
@@ -275,6 +276,17 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
         findParentContainerId(workspace.draft.layoutDocument, workspace.selectedNodeId) ?? ""
       ] ?? null
     : null;
+
+  useEffect(() => {
+    function handleDeploymentSyncCompleted() {
+      void workspace.reloadSupportData?.();
+    }
+
+    window.addEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    return () => {
+      window.removeEventListener(DEPLOYMENT_SYNC_COMPLETED_EVENT, handleDeploymentSyncCompleted);
+    };
+  }, [workspace.reloadSupportData]);
 
   return (
     <Box

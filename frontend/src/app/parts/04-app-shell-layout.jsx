@@ -17,6 +17,8 @@ import {
 } from "../../ui/ShellViews.jsx";
 import { RuntimeSettingsDialog } from "../../ui/RuntimeSettingsDialog.jsx";
 import { APP_VERSION } from "./01-app-config.js";
+import { GlobalDeploymentFab } from "../product-shell/GlobalDeploymentFab.jsx";
+import { useGlobalDeploymentCommandCenter } from "../product-shell/useGlobalDeploymentCommandCenter.js";
 
 function AppShellLayout({
   moduleState,
@@ -39,6 +41,7 @@ function AppShellLayout({
   developerModeEnabled = false,
   activeModuleView
 }) {
+  const deploymentCommandCenter = useGlobalDeploymentCommandCenter();
   const immersiveShell =
     activeViewRegistration?.shell?.mode === "immersive";
 
@@ -178,6 +181,11 @@ function AppShellLayout({
           onRunModuleAction={remotesDeployDomain.handleRunModuleAction}
         />
       ) : null}
+
+      <GlobalDeploymentFab
+        commandCenter={deploymentCommandCenter}
+        onOpenDeployments={() => handleSelectModule("deployments")}
+      />
     </Box>
   );
 }

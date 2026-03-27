@@ -36,6 +36,11 @@ export function AuthorDeskView({ navigate = null, route = {}, collectionsDomain 
           Post assignment counts could not be refreshed. The roster remains editable, but linked post totals may be incomplete.
         </Alert>
       ) : null}
+      {workspace.deploymentPagesState.errorMessage ? (
+        <Alert severity="warning">
+          Deployment posture could not be refreshed. Author sync badges may be incomplete until page state reloads.
+        </Alert>
+      ) : null}
 
       <AuthorRosterTable
         loading={workspace.loadingAuthors}

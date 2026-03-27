@@ -219,13 +219,21 @@ async function submitDeploymentBundleReleaseMission(bundleId) {
   return submitted.job.id;
 }
 
-async function waitForDeploymentBundleReleaseMission(jobId) {
+async function waitForDeploymentBundleReleaseMission(jobId, options = {}) {
+  const timeoutMs =
+    Number.isFinite(options?.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : 300_000;
+  const onStatus = typeof options?.onStatus === "function" ? options.onStatus : null;
   const startedAt = Date.now();
-  while (Date.now() - startedAt < 60_000) {
+  while (Date.now() - startedAt < timeoutMs) {
     const payload = await readReferenceMissionJob({
       jobId
     });
     const status = payload?.job?.status ?? "";
+    onStatus?.({
+      jobId,
+      status,
+      job: payload?.job ?? null
+    });
     if (status === "succeeded") {
       return buildReleaseMissionSuccessPayload(payload);
     }
@@ -242,9 +250,12 @@ async function waitForDeploymentBundleReleaseMission(jobId) {
   throw new Error("Timed out waiting for deployment bundle release mission");
 }
 
-export async function runDeploymentBundleRelease({ bundleId }) {
+export async function runDeploymentBundleRelease({ bundleId, timeoutMs, onStatus } = {}) {
   const jobId = await submitDeploymentBundleReleaseMission(bundleId);
-  return waitForDeploymentBundleReleaseMission(jobId);
+  return waitForDeploymentBundleReleaseMission(jobId, {
+    timeoutMs,
+    onStatus
+  });
 }
 
 export async function persistPageMutation({ pageId, draft }) {
