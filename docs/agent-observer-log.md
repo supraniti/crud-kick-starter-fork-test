@@ -3747,3 +3747,64 @@
 - Completion conclusion:
   - Page Studio is now complete against the original intent authority
   - remaining work after this point is refinement rather than a missing intent requirement
+
+## 2026-03-29 Widget Builder UX Planning
+- Reviewed current widget chooser/configurator on local Page Studio routes.
+- Compared against editorial references: The Guardian World, AP News, The Verge.
+- Findings: current system is viable for detail pages, not yet viable for multi-section editorial fronts or reusable custom-widget workflows.
+- Output docs written and awaiting operator approval before implementation.
+## 2026-03-29 Widget Builder UX Execution
+- Continued from the approved widget-builder UX plan rather than the earlier planning-only checkpoint.
+- Added DB-backed `page-custom-widgets` support to `test-modules-page-studio`:
+  - custom widget handler/runtime
+  - persistence plugins
+  - composition/document/library shared contracts
+- Upgraded the shared widget schema and picker experience:
+  - icon/title tile grid
+  - categories and search
+  - explicit editorial widget metadata
+  - explicit hidden `custom-widget` runtime descriptor
+- Reworked the shared widget inspector into staged tabs:
+  - `Overview`
+  - `Content`
+  - `Display`
+  - `Behavior`
+  - `Review`
+- Fixed a UX defect in the shared inspector:
+  - empty blocks no longer hide the widget library
+  - assignment guidance remains visible before a widget is chosen
+- Page Studio `Widgets` now supports:
+  - `Save Canvas As Custom Widget`
+  - selecting saved composition widgets from the picker
+  - persisting either composition custom widgets or template widgets
+- Legacy `Layouts` now loads `page-custom-widgets` and surfaces them inside the node dialog chooser.
+- Extended the MUI/widget runtime to render custom widgets recursively in:
+  - local Page Studio preview/runtime
+  - deployed MUI reader
+- Fixed compatibility/save path for pages that reference saved custom widgets:
+  - page-definition validation now resolves referenced custom widgets before checking widget compatibility
+- Reproduced the remaining live blocker on `https://fastcart.dev/journal/first-cup-on-the-table`:
+  - deployed page still loaded the old fallback path
+  - runtime error was `process is not defined`
+  - the standalone `page-mui-reader.global.js` bundle had browser-unsafe `process.env.NODE_ENV` handling
+- Fixed the standalone bundle build in `frontend/scripts/build-page-mui-reader.mjs` using a production define.
+- Rebuilt the frontend + standalone MUI reader bundle and reran the journal release pipeline:
+  - bundle `pagedepl-003`
+  - completed run `pagedepl-182`
+- Browser proof after rerun:
+  - local Page Studio Preview shows the saved custom widget composition (`CUSTOM_WIDGET_PRESENT 1`)
+  - local legacy Layouts dialog shows `Custom Widgets` and `Widget Templates` sections with reusable saved composed widgets
+  - live journal page no longer shows the unsupported-widget warning
+  - live journal page now visibly renders the duplicated story/author block introduced by the saved custom widget composition
+- Evidence:
+  - `.codex-runtime/live-journal-custom-widget-proof.png`
+  - `.codex-runtime/page-studio-custom-widget-proof.cjs`
+  - `.codex-runtime/layouts-custom-widget-selection-proof.cjs`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `frontend\\node_modules\\.bin\\vitest.CMD run frontend/src/tests/core/page-studio-custom-widget-document.core.test.jsx`
+  - `server\\node_modules\\.bin\\vitest.CMD run server/test/core/page-studio-custom-widget-document.core.test.js server/test/core/page-widget-render-contract.custom-widget.core.test.js`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+

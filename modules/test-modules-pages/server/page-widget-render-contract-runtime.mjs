@@ -2,6 +2,8 @@ import {
   DEFAULT_WIDGET_COMPONENT_REGISTRY
 } from "../../test-modules-layouts/shared/widget-component-schema.mjs";
 import { normalizeLayoutDocument } from "../../test-modules-layouts/shared/layout-document.mjs";
+import { buildExposedCustomWidgetItem } from "../../test-modules-page-studio/shared/page-studio-custom-widget-document.mjs";
+import { CUSTOM_WIDGETS_COLLECTION_ID } from "../../test-modules-page-studio/server/page-studio-shared-runtime.mjs";
 import { resolvePageWidgetCompatibility } from "../shared/page-widget-compatibility.mjs";
 import { attachPageContextManifest } from "./page-context-manifest-runtime.mjs";
 
@@ -170,6 +172,83 @@ function buildCompiledWidget(instance = null, descriptor = null) {
   };
 }
 
+function readStaticBindingValue(binding) {
+  return binding?.mode === "static" ? binding.value ?? null : null;
+}
+
+function readStaticCustomWidgetId(instance = null) {
+  return normalizeOptionalText(readStaticBindingValue(instance?.props?.customWidgetId));
+}
+
+function collectReferencedCustomWidgetIdsFromInstances(instances = [], target = new Set()) {
+  toArray(instances).forEach((instance) => {
+    const customWidgetId = readStaticCustomWidgetId(instance);
+    if (instance?.componentKey === "custom-widget" && customWidgetId) {
+      target.add(customWidgetId);
+    }
+  });
+  return target;
+}
+
+function collectReferencedCustomWidgetIds(layoutDocument = null, target = new Set()) {
+  const nodes = layoutDocument?.nodes ?? {};
+  Object.values(nodes).forEach((node) => {
+    if (node?.kind !== "block" || !node.componentInstance) {
+      return;
+    }
+    collectReferencedCustomWidgetIdsFromInstances([node.componentInstance], target);
+  });
+  return target;
+}
+
+async function listCustomWidgets(collectionHandlerRegistry) {
+  const handler = collectionHandlerRegistry?.get?.(CUSTOM_WIDGETS_COLLECTION_ID);
+  if (!handler || typeof handler.list !== "function") {
+    return [];
+  }
+  const payload = await handler.list({
+    limit: 5000,
+    offset: 0
+  });
+  return toArray(payload?.items).map((item) => buildExposedCustomWidgetItem(item)).filter(Boolean);
+}
+
+async function resolveReferencedCustomWidgets(layoutDocument = null, collectionHandlerRegistry = null) {
+  const referencedIds = collectReferencedCustomWidgetIds(layoutDocument);
+  if (referencedIds.size === 0) {
+    return {};
+  }
+
+  const allCustomWidgets = await listCustomWidgets(collectionHandlerRegistry);
+  const allById = new Map(allCustomWidgets.map((item) => [item.id, item]));
+  const resolved = new Map();
+  const queue = [...referencedIds];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || resolved.has(currentId)) {
+      continue;
+    }
+    const currentWidget = allById.get(currentId);
+    if (!currentWidget) {
+      continue;
+    }
+    resolved.set(currentId, currentWidget);
+    const nestedBlocks = toArray(currentWidget?.composition?.blocks);
+    const nestedInstances = nestedBlocks
+      .map((block) => block?.componentInstance ?? null)
+      .filter(Boolean);
+    const nestedReferencedIds = collectReferencedCustomWidgetIdsFromInstances(nestedInstances);
+    nestedReferencedIds.forEach((nestedId) => {
+      if (!resolved.has(nestedId)) {
+        queue.push(nestedId);
+      }
+    });
+  }
+
+  return Object.fromEntries([...resolved.entries()]);
+}
+
 function buildCompiledNodes(layoutDocument = null, registry = DEFAULT_WIDGET_COMPONENT_REGISTRY) {
   const nodes = layoutDocument?.nodes ?? {};
   return Object.fromEntries(
@@ -223,10 +302,15 @@ export async function buildPageWidgetRenderState({
   delivery = {},
   mediaResolver = null,
   registry = DEFAULT_WIDGET_COMPONENT_REGISTRY,
-  enforceCompatibility = false
+  enforceCompatibility = false,
+  collectionHandlerRegistry = null
 } = {}) {
   const normalizedLayoutDocument = normalizeLayoutDocument(layoutDocument);
   const libraryMediaMetadataById = collectLibraryMediaBindingMetadata(normalizedLayoutDocument);
+  const customWidgetsById = await resolveReferencedCustomWidgets(
+    normalizedLayoutDocument,
+    collectionHandlerRegistry
+  );
   const libraryMediaById = await resolveLibraryMediaSummaries(
     libraryMediaMetadataById,
     mediaResolver,
@@ -238,7 +322,8 @@ export async function buildPageWidgetRenderState({
     pageKind,
     primarySourceType,
     mediaItems: Object.values(libraryMediaById),
-    registry
+    registry,
+    customWidgets: Object.values(customWidgetsById)
   });
 
   if (
@@ -267,7 +352,8 @@ export async function buildPageWidgetRenderState({
       },
       nodes: buildCompiledNodes(normalizedLayoutDocument, registry),
       libraries: {
-        mediaById: libraryMediaById
+        mediaById: libraryMediaById,
+        customWidgetsById
       },
       modelKind: model?.kind ?? "generic-page"
     }
@@ -312,6 +398,10 @@ export async function resolvePageWidgetCompatibilityForPageDefinition({
 } = {}) {
   const manifestAwarePayload = attachPageContextManifest(createManifestPayloadForPage(page ?? {}));
   const mediaItems = await listMediaItems(collectionHandlerRegistry);
+  const customWidgetsById = await resolveReferencedCustomWidgets(
+    normalizeLayoutDocument(layoutDocument),
+    collectionHandlerRegistry
+  );
   return resolvePageWidgetCompatibility({
     layoutDocument: normalizeLayoutDocument(layoutDocument),
     pageContextManifest: manifestAwarePayload?.pageContextManifest ?? null,
@@ -324,7 +414,8 @@ export async function resolvePageWidgetCompatibilityForPageDefinition({
       page?.primarySourceType ??
       null,
     mediaItems,
-    registry
+    registry,
+    customWidgets: Object.values(customWidgetsById)
   });
 }
 
@@ -346,6 +437,7 @@ export async function attachPageWidgetRenderContract(payload = {}, options = {})
       manifestAwarePayload?.page?.pageKind ??
       null,
     delivery: manifestAwarePayload?.delivery ?? {},
+    collectionHandlerRegistry,
     mediaResolver:
       mediaHandler && typeof mediaHandler.findById === "function"
         ? async (itemId) => mediaHandler.findById(itemId)

@@ -115,10 +115,14 @@ function buildChildPlacementSx(parentNode, childNode) {
   };
 }
 
-function createReaderLibraries(widgetRenderContract = null) {
+function createReaderLibraries(widgetRenderContract = null, runtimeBreakpoint = "desktop") {
   const mediaById = widgetRenderContract?.libraries?.mediaById ?? {};
+  const customWidgetsById = widgetRenderContract?.libraries?.customWidgetsById ?? {};
   return {
-    mediaById: new Map(Object.entries(mediaById))
+    mediaById: new Map(Object.entries(mediaById)),
+    customWidgetsById: new Map(Object.entries(customWidgetsById)),
+    runtimeBreakpoint,
+    customWidgetStack: []
   };
 }
 
@@ -370,8 +374,8 @@ export function PageMuiReaderApp({
     [application, model]
   );
   const libraries = useMemo(
-    () => createReaderLibraries(widgetRenderContract),
-    [widgetRenderContract]
+    () => createReaderLibraries(widgetRenderContract, breakpoint),
+    [breakpoint, widgetRenderContract]
   );
 
   return (

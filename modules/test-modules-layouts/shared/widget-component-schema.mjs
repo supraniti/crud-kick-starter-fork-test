@@ -15,6 +15,7 @@ const COMPONENT_VALUE_KIND_SET = new Set([
 ]);
 const COMPONENT_BINDING_MODE_SET = new Set(["static", "dynamic"]);
 const COMPONENT_DYNAMIC_SOURCE_SET = new Set(["context", "library", "item"]);
+const COMPONENT_COMPLEXITY_SET = new Set(["basic", "guided", "advanced"]);
 
 function normalizeText(value, fallback = "") {
   if (typeof value !== "string") {
@@ -27,6 +28,12 @@ function normalizeText(value, fallback = "") {
 function normalizeOptionalText(value) {
   const normalized = normalizeText(value);
   return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeStringArray(value = []) {
+  return Array.isArray(value)
+    ? [...new Set(value.map((entry) => normalizeText(entry)).filter(Boolean))]
+    : [];
 }
 
 function normalizeEnum(value, allowedValues, fallback) {
@@ -175,7 +182,11 @@ function normalizeComponentDefinitionMap(rawValue = {}, kind = "prop") {
           options: Array.isArray(source.options)
             ? source.options.map((entry) => normalizeText(entry)).filter(Boolean)
             : [],
-          pageOverrideable: source.pageOverrideable === true
+          pageOverrideable: source.pageOverrideable === true,
+          editorSection: normalizeText(source.editorSection, kind === "content" ? "content" : "display"),
+          themeKey: normalizeOptionalText(source.themeKey),
+          supportsThemeInheritance: kind === "prop" ? source.supportsThemeInheritance !== false : false,
+          helpText: normalizeOptionalText(source.helpText)
         }
       ];
     })
@@ -221,7 +232,12 @@ export function normalizeWidgetComponentDescriptor(rawValue = {}) {
     componentKey: normalizeText(source.componentKey, "component"),
     displayName: normalizeOptionalText(source.displayName) ?? normalizeText(source.componentKey, "Component"),
     group: normalizeOptionalText(source.group) ?? "General",
+    icon: normalizeOptionalText(source.icon) ?? "widgets",
+    libraryCategory: normalizeOptionalText(source.libraryCategory) ?? normalizeOptionalText(source.group) ?? "General",
     description: normalizeOptionalText(source.description),
+    useCase: normalizeOptionalText(source.useCase) ?? normalizeOptionalText(source.description),
+    complexity: normalizeEnum(source.complexity, COMPONENT_COMPLEXITY_SET, "basic"),
+    keywords: normalizeStringArray(source.keywords),
     wrapperKind: normalizeEnum(source.wrapperKind, COMPONENT_WRAPPER_KIND_SET, "primitive"),
     supportedPageKinds: Array.isArray(source.supportedPageKinds)
       ? [...new Set(source.supportedPageKinds.map((entry) => normalizeText(entry)).filter(Boolean))]
@@ -239,7 +255,9 @@ export function normalizeWidgetComponentDescriptor(rawValue = {}) {
     actionDefinitions: normalizeActionDefinitions(source.actionDefinitions),
     defaultBindings: normalizeBindingTree(source.defaultBindings ?? {}),
     defaultProps: normalizeBindingTree(source.defaultProps ?? {}),
-    previewHints: isPlainObject(source.previewHints) ? cloneJsonValue(source.previewHints) : {}
+    previewHints: isPlainObject(source.previewHints) ? cloneJsonValue(source.previewHints) : {},
+    supportsCustomTemplate: source.supportsCustomTemplate !== false,
+    hiddenInLibrary: source.hiddenInLibrary === true
   };
 }
 
@@ -335,7 +353,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "post-title",
     displayName: "Post Title",
     group: "Text",
+    libraryCategory: "Text",
+    icon: "title",
     description: "Single heading for a post title.",
+    useCase: "Hero or section headline bound to the current post title.",
+    complexity: "basic",
+    keywords: ["headline", "title", "hero", "heading"],
     wrapperKind: "primitive",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -352,7 +375,10 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
         valueKind: "enum",
         options: ["h1", "h2", "h3"],
         defaultValue: "h1",
-        pageOverrideable: true
+        pageOverrideable: true,
+        themeKey: "typography.heading",
+        supportsThemeInheritance: true,
+        helpText: "Choose the semantic heading level. Theme remains the default unless you pin this widget."
       }
     },
     defaultBindings: {
@@ -373,7 +399,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "post-rich-text",
     displayName: "Rich Text",
     group: "Text",
+    libraryCategory: "Text",
+    icon: "article",
     description: "Long-form content block for post body or excerpt.",
+    useCase: "Article body, excerpt, or any multi-paragraph editorial copy.",
+    complexity: "basic",
+    keywords: ["body", "copy", "story", "article"],
     wrapperKind: "primitive",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -396,7 +427,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "media-image",
     displayName: "Image",
     group: "Media",
+    libraryCategory: "Media",
+    icon: "image",
     description: "Single media display bound to library or page context.",
+    useCase: "Featured image, inline story image, or promo visual.",
+    complexity: "basic",
+    keywords: ["photo", "media", "featured image"],
     wrapperKind: "primitive",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -413,7 +449,10 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
         valueKind: "enum",
         options: ["cover", "contain"],
         defaultValue: "cover",
-        pageOverrideable: true
+        pageOverrideable: true,
+        themeKey: "media.fit",
+        supportsThemeInheritance: false,
+        helpText: "Cover fills the frame. Contain preserves the whole image inside the frame."
       }
     },
     defaultBindings: {
@@ -434,7 +473,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "category-chips",
     displayName: "Category Chips",
     group: "Taxonomy",
+    libraryCategory: "Taxonomy",
+    icon: "sell",
     description: "Chip list of the current post categories.",
+    useCase: "Compact topical labels above or below a story.",
+    complexity: "guided",
+    keywords: ["taxonomy", "chips", "labels", "categories"],
     wrapperKind: "composite",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -464,7 +508,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "author-card",
     displayName: "Author Card",
     group: "People",
+    libraryCategory: "People",
+    icon: "badge",
     description: "Composite author summary card for the current post author.",
+    useCase: "Sidebar author bio, byline profile, or contributor module.",
+    complexity: "guided",
+    keywords: ["author", "bio", "profile", "byline"],
     wrapperKind: "composite",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -494,7 +543,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "breadcrumbs",
     displayName: "Breadcrumbs",
     group: "Navigation",
+    libraryCategory: "Navigation",
+    icon: "more_horiz",
     description: "Reader breadcrumb trail for the current post route.",
+    useCase: "Small route trail above article or section content.",
+    complexity: "basic",
+    keywords: ["breadcrumbs", "trail", "navigation"],
     wrapperKind: "composite",
     supportedPageKinds: ["post-detail", "category-detail"],
     supportedPrimarySourceTypes: ["blog-post", "blog-category"],
@@ -506,7 +560,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "post-navigation",
     displayName: "Previous / Next Navigation",
     group: "Navigation",
+    libraryCategory: "Navigation",
+    icon: "swap_horiz",
     description: "Adjacent story navigation for the current post route.",
+    useCase: "End-of-article keep-reading navigation.",
+    complexity: "guided",
+    keywords: ["previous", "next", "adjacent", "navigation"],
     wrapperKind: "composite",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -527,7 +586,10 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     propDefinitions: {
       heading: {
         valueKind: "text",
-        defaultValue: "Keep Reading"
+        defaultValue: "Keep Reading",
+        themeKey: "typography.sectionHeading",
+        supportsThemeInheritance: true,
+        helpText: "Section label shown above the adjacent story cards."
       }
     },
     defaultProps: {
@@ -541,7 +603,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "related-posts",
     displayName: "Related Stories",
     group: "Navigation",
+    libraryCategory: "Collection",
+    icon: "view_stream",
     description: "Curated related story cards for the current post route.",
+    useCase: "A related or more-like-this section under a story.",
+    complexity: "guided",
+    keywords: ["related", "collection", "story cards"],
     wrapperKind: "composite",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -558,7 +625,9 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
       heading: {
         valueKind: "text",
         defaultValue: "Related Stories",
-        pageOverrideable: true
+        pageOverrideable: true,
+        themeKey: "typography.sectionHeading",
+        supportsThemeInheritance: true
       },
       source: {
         valueKind: "enum",
@@ -591,7 +660,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "tabs",
     displayName: "Tabs",
     group: "Composite",
+    libraryCategory: "Composite",
+    icon: "tab",
     description: "Mixed static and dynamic tab headers and body content.",
+    useCase: "Switch between overview panels, author context, or structured story extras.",
+    complexity: "advanced",
+    keywords: ["tabs", "switcher", "panels"],
     wrapperKind: "composite",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
@@ -633,7 +707,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "category-title",
     displayName: "Category Title",
     group: "Text",
+    libraryCategory: "Text",
+    icon: "format_size",
     description: "Heading for the current category page.",
+    useCase: "Primary heading for a category or section page.",
+    complexity: "basic",
+    keywords: ["category", "title", "section heading"],
     wrapperKind: "primitive",
     supportedPageKinds: ["category-detail"],
     supportedPrimarySourceTypes: ["blog-category"],
@@ -650,7 +729,9 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
         valueKind: "enum",
         options: ["h1", "h2", "h3"],
         defaultValue: "h1",
-        pageOverrideable: true
+        pageOverrideable: true,
+        themeKey: "typography.heading",
+        supportsThemeInheritance: true
       }
     },
     defaultBindings: {
@@ -671,7 +752,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "category-description",
     displayName: "Category Description",
     group: "Text",
+    libraryCategory: "Text",
+    icon: "subject",
     description: "Long-form category description.",
+    useCase: "Intro or context block for a category page.",
+    complexity: "basic",
+    keywords: ["category", "description", "intro"],
     wrapperKind: "primitive",
     supportedPageKinds: ["category-detail"],
     supportedPrimarySourceTypes: ["blog-category"],
@@ -694,7 +780,12 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     componentKey: "post-list",
     displayName: "Post List",
     group: "Collection",
+    libraryCategory: "Collection",
+    icon: "grid_view",
     description: "Grid of post cards from a bound post collection.",
+    useCase: "Section listings, archive grids, and homepage content rails.",
+    complexity: "guided",
+    keywords: ["post list", "listing", "cards", "grid"],
     wrapperKind: "composite",
     supportedPageKinds: ["category-detail"],
     supportedPrimarySourceTypes: ["blog-category"],
@@ -717,12 +808,21 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
       heading: {
         valueKind: "text",
         defaultValue: "Stories",
-        pageOverrideable: true
+        pageOverrideable: true,
+        themeKey: "typography.sectionHeading",
+        supportsThemeInheritance: true
       },
       limit: {
         valueKind: "number",
         defaultValue: 6,
         pageOverrideable: true
+      },
+      variant: {
+        valueKind: "enum",
+        options: ["cards", "compact", "hero-list"],
+        defaultValue: "cards",
+        pageOverrideable: true,
+        helpText: "Cards is balanced. Compact is list-heavy. Hero list leads with a larger first story."
       }
     },
     defaultBindings: {
@@ -740,6 +840,431 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
       limit: {
         mode: "static",
         value: 6
+      },
+      variant: {
+        mode: "static",
+        value: "cards"
+      }
+    }
+  },
+  {
+    componentKey: "section-heading",
+    displayName: "Section Heading",
+    group: "Text",
+    libraryCategory: "Editorial",
+    icon: "subtitles",
+    description: "Compact section title with optional kicker and supporting copy.",
+    useCase: "Homepage section titles, rail headings, and grouped content labels.",
+    complexity: "basic",
+    keywords: ["section", "heading", "kicker", "editorial"],
+    wrapperKind: "primitive",
+    pageOverridePolicy: "safe-page-overrides",
+    contentBindings: {
+      kicker: {
+        valueKind: "text",
+        required: false,
+        allowedSources: ["static", "context"]
+      },
+      text: {
+        valueKind: "text",
+        required: true,
+        allowedSources: ["static", "context"]
+      },
+      supportingText: {
+        valueKind: "text",
+        required: false,
+        allowedSources: ["static", "context"]
+      }
+    },
+    propDefinitions: {
+      tag: {
+        valueKind: "enum",
+        options: ["h2", "h3", "h4"],
+        defaultValue: "h2",
+        pageOverrideable: true,
+        themeKey: "typography.sectionHeading",
+        supportsThemeInheritance: true
+      }
+    },
+    defaultBindings: {
+      kicker: {
+        mode: "static",
+        value: "Section"
+      },
+      text: {
+        mode: "static",
+        value: "Latest Stories"
+      },
+      supportingText: {
+        mode: "static",
+        value: ""
+      }
+    },
+    defaultProps: {
+      tag: {
+        mode: "static",
+        value: "h2"
+      }
+    }
+  },
+  {
+    componentKey: "button-cta",
+    displayName: "Button CTA",
+    group: "Actions",
+    libraryCategory: "Actions",
+    icon: "smart_button",
+    description: "Single call-to-action button with label and bounded behavior.",
+    useCase: "See all links, subscribe actions, and promo calls to action.",
+    complexity: "guided",
+    keywords: ["button", "cta", "action", "navigate"],
+    wrapperKind: "primitive",
+    pageOverridePolicy: "safe-page-overrides",
+    actionDefinitions: {
+      primary: {
+        label: "Primary Action",
+        description: "Navigate or emit when the reader clicks the button.",
+        targetKind: "route"
+      }
+    },
+    contentBindings: {
+      text: {
+        valueKind: "text",
+        required: true,
+        allowedSources: ["static", "context"]
+      }
+    },
+    propDefinitions: {
+      variant: {
+        valueKind: "enum",
+        options: ["contained", "outlined", "text"],
+        defaultValue: "contained",
+        pageOverrideable: true,
+        helpText: "Prefer contained for primary calls to action."
+      },
+      color: {
+        valueKind: "enum",
+        options: ["primary", "secondary", "inherit"],
+        defaultValue: "primary",
+        pageOverrideable: true,
+        themeKey: "palette.primary",
+        supportsThemeInheritance: true
+      }
+    },
+    defaultBindings: {
+      text: {
+        mode: "static",
+        value: "See all stories"
+      }
+    },
+    defaultProps: {
+      variant: {
+        mode: "static",
+        value: "contained"
+      },
+      color: {
+        mode: "static",
+        value: "primary"
+      }
+    }
+  },
+  {
+    componentKey: "hero-story",
+    displayName: "Hero Story",
+    group: "Editorial",
+    libraryCategory: "Editorial",
+    icon: "newspaper",
+    description: "Large lead story block with visual, eyebrow, headline, summary, and primary navigation.",
+    useCase: "Top story areas, hero rails, and large lead cards on editorial landing pages.",
+    complexity: "guided",
+    keywords: ["hero", "lead story", "top story", "editorial"],
+    wrapperKind: "composite",
+    pageOverridePolicy: "safe-page-overrides",
+    actionDefinitions: {
+      openRecord: {
+        label: "Open Story",
+        description: "Navigate to the bound hero story record.",
+        targetKind: "bound-record"
+      }
+    },
+    contentBindings: {
+      record: {
+        valueKind: "record",
+        required: true,
+        allowedSources: ["context", "item"]
+      }
+    },
+    propDefinitions: {
+      showExcerpt: {
+        valueKind: "boolean",
+        defaultValue: true,
+        pageOverrideable: true
+      }
+    },
+    defaultBindings: {
+      record: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.post"
+      }
+    },
+    defaultProps: {
+      showExcerpt: {
+        mode: "static",
+        value: true
+      }
+    }
+  },
+  {
+    componentKey: "metadata-strip",
+    displayName: "Metadata Strip",
+    group: "Editorial",
+    libraryCategory: "Editorial",
+    icon: "view_headline",
+    description: "Compact strip for author/byline and category labels.",
+    useCase: "Above-headline context, teaser metadata, or subhead support.",
+    complexity: "basic",
+    keywords: ["metadata", "byline", "categories", "eyebrow"],
+    wrapperKind: "composite",
+    pageOverridePolicy: "safe-page-overrides",
+    contentBindings: {
+      author: {
+        valueKind: "record",
+        required: false,
+        allowedSources: ["context"]
+      },
+      categories: {
+        valueKind: "collection",
+        required: false,
+        allowedSources: ["context"]
+      }
+    },
+    propDefinitions: {
+      emphasizeCategories: {
+        valueKind: "boolean",
+        defaultValue: true,
+        pageOverrideable: true
+      }
+    },
+    defaultBindings: {
+      author: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.author"
+      },
+      categories: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.categories"
+      }
+    },
+    defaultProps: {
+      emphasizeCategories: {
+        mode: "static",
+        value: true
+      }
+    }
+  },
+  {
+    componentKey: "promo-panel",
+    displayName: "Promo Panel",
+    group: "Actions",
+    libraryCategory: "Editorial",
+    icon: "campaign",
+    description: "Self-contained promo or newsletter block with copy and a primary action.",
+    useCase: "Subscription callouts, newsletter signups, and campaign blocks.",
+    complexity: "guided",
+    keywords: ["promo", "newsletter", "campaign", "cta"],
+    wrapperKind: "composite",
+    pageOverridePolicy: "safe-page-overrides",
+    actionDefinitions: {
+      primary: {
+        label: "Primary Action",
+        description: "Navigate or emit from the promo block.",
+        targetKind: "route"
+      }
+    },
+    contentBindings: {
+      kicker: {
+        valueKind: "text",
+        required: false,
+        allowedSources: ["static", "context"]
+      },
+      title: {
+        valueKind: "text",
+        required: true,
+        allowedSources: ["static", "context"]
+      },
+      body: {
+        valueKind: "text",
+        required: false,
+        allowedSources: ["static", "context"]
+      },
+      ctaText: {
+        valueKind: "text",
+        required: true,
+        allowedSources: ["static", "context"]
+      }
+    },
+    propDefinitions: {
+      tone: {
+        valueKind: "enum",
+        options: ["default", "soft", "strong"],
+        defaultValue: "soft",
+        pageOverrideable: true
+      }
+    },
+    defaultBindings: {
+      kicker: {
+        mode: "static",
+        value: "Subscriber note"
+      },
+      title: {
+        mode: "static",
+        value: "Stay close to the next story"
+      },
+      body: {
+        mode: "static",
+        value: "Use this block for newsletter, event, or campaign messaging."
+      },
+      ctaText: {
+        mode: "static",
+        value: "Learn more"
+      }
+    },
+    defaultProps: {
+      tone: {
+        mode: "static",
+        value: "soft"
+      }
+    }
+  },
+  {
+    componentKey: "divider-rule",
+    displayName: "Divider Rule",
+    group: "Layout",
+    libraryCategory: "Layout",
+    icon: "horizontal_rule",
+    description: "Simple section divider with optional label.",
+    useCase: "Separate editorial sections without inventing fake content blocks.",
+    complexity: "basic",
+    keywords: ["divider", "rule", "separator"],
+    wrapperKind: "primitive",
+    pageOverridePolicy: "safe-page-overrides",
+    contentBindings: {
+      label: {
+        valueKind: "text",
+        required: false,
+        allowedSources: ["static", "context"]
+      }
+    },
+    propDefinitions: {
+      thickness: {
+        valueKind: "number",
+        defaultValue: 1,
+        pageOverrideable: true
+      }
+    },
+    defaultBindings: {
+      label: {
+        mode: "static",
+        value: ""
+      }
+    },
+    defaultProps: {
+      thickness: {
+        mode: "static",
+        value: 1
+      }
+    }
+  },
+  {
+    componentKey: "story-card",
+    displayName: "Story Card",
+    group: "Editorial",
+    libraryCategory: "Editorial",
+    icon: "article",
+    description: "Reusable teaser card for one story record with image, metadata, title, and summary.",
+    useCase: "Homepage promos, section heroes, or secondary teaser cards.",
+    complexity: "guided",
+    keywords: ["teaser", "card", "story", "promo"],
+    wrapperKind: "composite",
+    pageOverridePolicy: "safe-page-overrides",
+    actionDefinitions: {
+      openRecord: {
+        label: "Open Story",
+        description: "Navigate to the bound story record.",
+        targetKind: "bound-record"
+      }
+    },
+    contentBindings: {
+      record: {
+        valueKind: "record",
+        required: true,
+        allowedSources: ["context"]
+      }
+    },
+    propDefinitions: {
+      emphasizeImage: {
+        valueKind: "boolean",
+        defaultValue: true,
+        pageOverrideable: true
+      }
+    },
+    defaultBindings: {
+      record: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.post"
+      }
+    },
+    defaultProps: {
+      emphasizeImage: {
+        mode: "static",
+        value: true
+      }
+    }
+  },
+  {
+    componentKey: "custom-widget",
+    displayName: "Custom Widget",
+    group: "Custom",
+    libraryCategory: "Custom",
+    icon: "view_quilt",
+    description: "Reusable composed widget definition saved from Page Studio.",
+    useCase: "Reference a saved custom widget document and render it through the shared MUI runtime.",
+    complexity: "advanced",
+    keywords: ["custom", "composed", "reusable"],
+    wrapperKind: "composite",
+    pageOverridePolicy: "safe-page-overrides",
+    hiddenInLibrary: true,
+    supportsCustomTemplate: false,
+    propDefinitions: {
+      customWidgetId: {
+        valueKind: "text",
+        required: true,
+        defaultValue: "",
+        pageOverrideable: false,
+        editorSection: "overview",
+        helpText: "Stable custom widget document id."
+      },
+      customWidgetLabel: {
+        valueKind: "text",
+        required: false,
+        defaultValue: "",
+        pageOverrideable: false,
+        editorSection: "overview",
+        helpText: "Display label for the selected custom widget."
+      }
+    },
+    defaultBindings: {},
+    defaultProps: {
+      customWidgetId: {
+        mode: "static",
+        value: ""
+      },
+      customWidgetLabel: {
+        mode: "static",
+        value: ""
       }
     }
   }
@@ -750,6 +1275,7 @@ const DEFAULT_WIDGET_COMPONENT_REGISTRY = buildWidgetComponentRegistry(DEFAULT_W
 export {
   COMPONENT_BINDING_MODE_SET,
   COMPONENT_DYNAMIC_SOURCE_SET,
+  COMPONENT_COMPLEXITY_SET,
   COMPONENT_OVERRIDE_POLICY_SET,
   COMPONENT_VALUE_KIND_SET,
   COMPONENT_WRAPPER_KIND_SET,

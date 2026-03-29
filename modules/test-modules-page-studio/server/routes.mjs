@@ -10,6 +10,7 @@ const CATEGORIES_COLLECTION_ID = "blog-categories";
 const TAGS_COLLECTION_ID = "blog-tags";
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 const THEMES_COLLECTION_ID = "page-themes";
+const CUSTOM_WIDGETS_COLLECTION_ID = "page-custom-widgets";
 
 function buildPayload(payload) {
   return {
@@ -46,7 +47,8 @@ export function createPageStudioPreviewRouteContext({ manifest, moduleRegistry, 
     categoriesHandler: collectionHandlerRegistry.get(CATEGORIES_COLLECTION_ID),
     tagsHandler: collectionHandlerRegistry.get(TAGS_COLLECTION_ID),
     mediaHandler: collectionHandlerRegistry.get(MEDIA_ITEMS_COLLECTION_ID),
-    themesHandler: collectionHandlerRegistry.get(THEMES_COLLECTION_ID)
+    themesHandler: collectionHandlerRegistry.get(THEMES_COLLECTION_ID),
+    customWidgetsHandler: collectionHandlerRegistry.get(CUSTOM_WIDGETS_COLLECTION_ID)
   };
 }
 
@@ -78,13 +80,14 @@ export function createPageStudioPreviewBootstrapHandler(routeContext) {
     const studioDocument = normalizePageStudioDocument(pickPreviewStudioDocument(request.body ?? {}));
     const previewParams = studioDocument.preview?.urlParams ?? {};
 
-    const [posts, authors, categories, tags, mediaItems, themes] = await Promise.all([
+    const [posts, authors, categories, tags, mediaItems, themes, customWidgets] = await Promise.all([
       listHandlerItems(routeContext.postsHandler),
       listHandlerItems(routeContext.authorsHandler),
       listHandlerItems(routeContext.categoriesHandler),
       listHandlerItems(routeContext.tagsHandler),
       listHandlerItems(routeContext.mediaHandler),
-      listHandlerItems(routeContext.themesHandler)
+      listHandlerItems(routeContext.themesHandler),
+      listHandlerItems(routeContext.customWidgetsHandler)
     ]);
 
     const collections = {
@@ -93,7 +96,8 @@ export function createPageStudioPreviewBootstrapHandler(routeContext) {
       categories,
       tags,
       mediaItems,
-      themes
+      themes,
+      customWidgets
     };
     const previewModelState = buildPageStudioPreviewModel({
       studioDocument,

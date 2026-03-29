@@ -76,8 +76,11 @@ export function PageStudioRuntimeCanvas({
     [previewState.model, previewState.page]
   );
   const libraries = useMemo(
-    () => createPageStudioPreviewLibraries(previewState.collections),
-    [previewState.collections]
+    () => ({
+      ...createPageStudioPreviewLibraries(previewState.collections),
+      runtimeBreakpoint: activeBreakpoint
+    }),
+    [activeBreakpoint, previewState.collections]
   );
   const blockById = useMemo(
     () => new Map(studioDocument.widgets.blocks.map((block) => [block.id, block])),

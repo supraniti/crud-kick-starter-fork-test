@@ -48,6 +48,7 @@ const CATEGORIES_COLLECTION_ID = "blog-categories";
 const TAGS_COLLECTION_ID = "blog-tags";
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 const THEMES_COLLECTION_ID = "page-themes";
+const CUSTOM_WIDGETS_COLLECTION_ID = "page-custom-widgets";
 
 const CANVAS_FIT_WIDTH_OFFSET = 96;
 const CANVAS_FIT_HEIGHT_OFFSET = 120;
@@ -432,15 +433,17 @@ async function loadPreviewContentCollections() {
       fetchCollection(AUTHORS_COLLECTION_ID),
       fetchCollection(CATEGORIES_COLLECTION_ID),
       fetchCollection(TAGS_COLLECTION_ID),
-      fetchCollection(MEDIA_ITEMS_COLLECTION_ID)
+      fetchCollection(MEDIA_ITEMS_COLLECTION_ID),
+      fetchCollection(CUSTOM_WIDGETS_COLLECTION_ID)
     ])
-      .then(([posts, authors, categories, tags, mediaItems]) => {
+      .then(([posts, authors, categories, tags, mediaItems, customWidgets]) => {
         previewContentCollectionsCache = {
           posts,
           authors,
           categories,
           tags,
-          mediaItems
+          mediaItems,
+          customWidgets
         };
         previewContentCollectionsCachedAt = Date.now();
         writeStoredPreviewCache(PREVIEW_CONTENT_CACHE_STORAGE_KEY, previewContentCollectionsCache);
@@ -518,7 +521,8 @@ export function PageStudioPreviewMode({
       categories: [],
       tags: [],
       mediaItems: [],
-      themes: []
+      themes: [],
+      customWidgets: []
     }
   });
   const dataState = previewResources ?? localDataState;

@@ -3152,3 +3152,60 @@
 - Truthful conclusion:
   - the original Page Studio intent in `intent-file.md` is now complete
   - remaining work after this point would be product refinement, not missing intent functionality
+
+## 2026-03-29 Widget Builder UX Planning
+- Saved intent authority: docs/research/widget-builder-ux-intent-file-2026-03-29.md
+- Wrote current-state assessment: docs/research/widget-builder-current-state-assessment-2026-03-29.md
+- Wrote implementation ticket: docs/research/widget-builder-ux-evolution-ticket-2026-03-29.md
+- Wrote implementation plan: docs/research/widget-builder-ux-evolution-plan-2026-03-29.md
+- Scope remains planning only until operator approval.
+### 2026-03-29 - Widget Builder UX Evolution Execution Reached Live Custom-Widget Parity
+- Resumed the approved widget-builder UX evolution plan and implemented the missing persistence, library, runtime, and remote parity pieces.
+- Added first-class DB-backed custom widget documents under `test-modules-page-studio`:
+  - handler/runtime registration
+  - persistence plugins
+  - composition/document contracts
+  - custom widget library helpers
+- Upgraded the shared widget schema and chooser flow:
+  - tile/grid widget library
+  - categories/search/use-case metadata
+  - stronger editorial widget vocabulary
+  - explicit custom-widget entry type
+- Reworked the shared widget configurator into an understandable staged editor:
+  - `Overview`
+  - `Content`
+  - `Display`
+  - `Behavior`
+  - `Review`
+- Integrated custom widgets into both authoring surfaces:
+  - Page Studio `Widgets`
+  - legacy `Layouts` block dialog
+- Added `Save Canvas As Custom Widget` in Page Studio and kept per-widget save as template mode.
+- Extended the local Preview/runtime and deployed MUI reader to recursively render saved custom widget compositions.
+- Fixed page-definition compatibility so pages that reference saved custom widgets can persist and release cleanly.
+- Live blocker found and fixed:
+  - deployed journal page still fell back to the old reader because `page-mui-reader.global.js` crashed before registering the bridge
+  - root cause was a browser-unsafe standalone bundle reference to `process.env.NODE_ENV`
+  - fixed in `frontend/scripts/build-page-mui-reader.mjs` with an explicit production define
+- Rebuilt the standalone MUI reader asset and reran the journal bundle release:
+  - bundle: `pagedepl-003`
+  - run: `pagedepl-182`
+- Browser proof results after the rerun:
+  - local Page Studio Preview renders the saved custom widget composition
+  - legacy Layouts chooser shows both `Custom Widgets` and `Widget Templates`
+  - live journal route no longer shows `Widget 'custom-widget' is not supported by the reader yet.`
+  - live journal route now renders the injected custom widget composition below the main story content
+- Evidence:
+  - `.codex-runtime/live-journal-custom-widget-proof.png`
+  - `.codex-runtime/page-studio-custom-widget-proof.cjs`
+  - `.codex-runtime/layouts-custom-widget-selection-proof.cjs`
+- Pass record:
+  - `docs/research/widget-builder-ux-execution-pass-2026-03-29.md`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `frontend\\node_modules\\.bin\\vitest.CMD run frontend/src/tests/core/page-studio-custom-widget-document.core.test.jsx`
+  - `server\\node_modules\\.bin\\vitest.CMD run server/test/core/page-studio-custom-widget-document.core.test.js server/test/core/page-widget-render-contract.custom-widget.core.test.js`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+

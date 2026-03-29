@@ -4,9 +4,11 @@ import {
   Avatar,
   Box,
   Breadcrumbs,
+  Button,
   Card,
   CardContent,
   Chip,
+  Divider,
   Link,
   Paper,
   Stack,
@@ -42,6 +44,10 @@ function uniqueById(items = []) {
     seen.add(itemId);
     return true;
   });
+}
+
+function pickStoryRecord(record = null) {
+  return record && typeof record === "object" ? record : null;
 }
 
 function resolveBindingTree(rawValue, context, libraries) {
@@ -129,7 +135,9 @@ function runWidgetAction({ action, context, record = null, fallbackHref = null, 
   }
 
   let href = fallbackHref;
-  if (action.targetKind === "previousPost") {
+  if (action.targetKind === "route") {
+    href = action.targetHref ?? href;
+  } else if (action.targetKind === "previousPost") {
     href = context.navigation?.previousPost?.publicUrl ?? context.navigation?.previousPost?.path ?? href;
   } else if (action.targetKind === "nextPost") {
     href = context.navigation?.nextPost?.publicUrl ?? context.navigation?.nextPost?.path ?? href;
@@ -180,17 +188,134 @@ export function createPageStudioPreviewLibraries(collections = {}) {
             `/api/reference/modules/test-modules-media-manager/media-items/${encodeURIComponent(item.id)}/content`
         }
       ])
-    )
+    ),
+    customWidgetsById: new Map(
+      toArray(collections.customWidgets).map((item) => [item.id, item])
+    ),
+    runtimeBreakpoint: "desktop",
+    customWidgetStack: []
   };
 }
 
-export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigate }) {
+function renderCustomWidgetComposition({
+  customWidget,
+  context,
+  libraries,
+  onNavigate,
+  customWidgetDepth
+}) {
+  const breakpointKey = normalizeText(libraries?.runtimeBreakpoint, "desktop");
+  const runtimeBreakpoint =
+    customWidget?.composition?.runtimeLayoutContract?.breakpoints?.[breakpointKey] ??
+    customWidget?.composition?.runtimeLayoutContract?.breakpoints?.desktop ??
+    null;
+  const blocksById = new Map(
+    toArray(customWidget?.composition?.blocks).map((block) => [block.id, block])
+  );
+
+  if (!runtimeBreakpoint || blocksById.size === 0) {
+    return <Alert severity="info">This custom widget has no composed body yet.</Alert>;
+  }
+
+  return (
+    <Box
+      sx={{
+        width: "100%",
+        minHeight: "100%",
+        display: "grid",
+        gridTemplateColumns: `repeat(${Math.max(Number(runtimeBreakpoint.columns ?? 1), 1)}, minmax(0, 1fr))`,
+        gridAutoRows: `${Math.max(Number(runtimeBreakpoint.rowHeight ?? 24), 12)}px`,
+        gap: `${Math.max(Number(runtimeBreakpoint.gap ?? 0), 0) * 8}px`,
+        p: `${Math.max(Number(runtimeBreakpoint.padding ?? 0), 0) * 8}px`,
+        boxSizing: "border-box",
+        alignContent: "start"
+      }}
+    >
+      {toArray(runtimeBreakpoint.items).map((item) => {
+        const block = blocksById.get(item.blockId) ?? null;
+        return (
+          <Box
+            key={item.blockId}
+            sx={{
+              gridColumn: `${item.colStart} / span ${item.colSpan}`,
+              gridRow: `${item.rowStart} / span ${item.rowSpan}`,
+              minWidth: 0,
+              minHeight: 0,
+              overflow: "hidden"
+            }}
+          >
+            <Box sx={{ width: "100%", height: "100%", minHeight: 0, overflow: "auto" }}>
+              {block?.componentInstance ? (
+                <PageStudioWidgetRenderer
+                  widget={block.componentInstance}
+                  context={context}
+                  libraries={{
+                    ...libraries,
+                    customWidgetStack: [
+                      ...toArray(libraries?.customWidgetStack),
+                      customWidget?.id ?? customWidget?.widgetKey ?? customWidget?.title ?? "custom-widget"
+                    ]
+                  }}
+                  onNavigate={onNavigate}
+                  customWidgetDepth={customWidgetDepth + 1}
+                />
+              ) : (
+                <Alert severity="info">This custom widget block has no assigned widget yet.</Alert>
+              )}
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigate, customWidgetDepth = 0 }) {
   const descriptor = widget?.componentKey ? DEFAULT_WIDGET_COMPONENT_REGISTRY.get(widget.componentKey) ?? null : null;
   const content = resolveBindingTree(widget?.content ?? {}, context, libraries);
   const props = resolveBindingTree(widget?.props ?? {}, context, libraries);
 
   if (!descriptor) {
     return <Alert severity="warning">Unsupported widget.</Alert>;
+  }
+
+  if (widget.componentKey === "custom-widget") {
+    const customWidgetId = normalizeText(props?.customWidgetId, "");
+    const customWidget = customWidgetId ? libraries?.customWidgetsById?.get?.(customWidgetId) ?? null : null;
+    const stack = toArray(libraries?.customWidgetStack);
+    if (!customWidgetId) {
+      return <Alert severity="warning">Custom widget id is missing.</Alert>;
+    }
+    if (!customWidget) {
+      return <Alert severity="warning">{`Custom widget '${customWidgetId}' is not available in this runtime.`}</Alert>;
+    }
+    if (stack.includes(customWidgetId) || customWidgetDepth > 6) {
+      return <Alert severity="warning">Custom widget recursion was blocked for safety.</Alert>;
+    }
+    if (customWidget?.composition?.blocks?.length > 0) {
+      return renderCustomWidgetComposition({
+        customWidget,
+        context,
+        libraries,
+        onNavigate,
+        customWidgetDepth
+      });
+    }
+    if (customWidget?.templateInstance?.componentKey) {
+      return (
+        <PageStudioWidgetRenderer
+          widget={customWidget.templateInstance}
+          context={context}
+          libraries={{
+            ...libraries,
+            customWidgetStack: [...stack, customWidgetId]
+          }}
+          onNavigate={onNavigate}
+          customWidgetDepth={customWidgetDepth + 1}
+        />
+      );
+    }
+    return <Alert severity="info">This custom widget does not have a renderable body yet.</Alert>;
   }
 
   if (widget.componentKey === "post-title") {
@@ -270,6 +395,241 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
           }}
         />
       </Box>
+    );
+  }
+
+  if (widget.componentKey === "section-heading") {
+    const tag = normalizeText(props?.tag, "h2");
+    return (
+      <Stack spacing={0.75} sx={{ minHeight: 0 }}>
+        {normalizeText(content?.kicker, "").length > 0 ? (
+          <Typography variant="caption" color="text.secondary" textTransform="uppercase" letterSpacing="0.08em">
+            {content.kicker}
+          </Typography>
+        ) : null}
+        <Typography component={tag} variant={tag}>
+          {normalizeText(content?.text, "Section Heading")}
+        </Typography>
+        {normalizeText(content?.supportingText, "").length > 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {content.supportingText}
+          </Typography>
+        ) : null}
+      </Stack>
+    );
+  }
+
+  if (widget.componentKey === "button-cta") {
+    const action = resolveWidgetAction(widget, descriptor, "primary");
+    return (
+      <Button
+        variant={normalizeText(props?.variant, "contained")}
+        color={normalizeText(props?.color, "primary")}
+        onClick={() =>
+          runWidgetAction({
+            action,
+            context,
+            fallbackHref: typeof action?.targetHref === "string" ? action.targetHref : null,
+            onNavigate
+          })
+        }
+        sx={{ alignSelf: "flex-start" }}
+      >
+        {normalizeText(content?.text, "Call To Action")}
+      </Button>
+    );
+  }
+
+  if (widget.componentKey === "hero-story") {
+    const record = pickStoryRecord(content?.record);
+    const action = resolveWidgetAction(widget, descriptor, "openRecord");
+    if (!record) {
+      return <Alert severity="info">No lead story is available for this block yet.</Alert>;
+    }
+    return (
+      <Card variant="outlined" square sx={{ height: "100%" }}>
+        <CardContent sx={{ display: "grid", gap: 1.5, height: "100%" }}>
+          {record.featuredMedia?.preferredUrl ? (
+            <Box
+              component="img"
+              src={record.featuredMedia.preferredUrl}
+              alt={normalizeText(record.featuredMedia.altText, normalizeText(record.title, "Story"))}
+              sx={{
+                width: "100%",
+                height: 280,
+                objectFit: "cover",
+                border: "1px solid",
+                borderColor: "divider"
+              }}
+            />
+          ) : null}
+          <Stack spacing={1}>
+            {normalizeText(record.primaryCategory?.name, "").length > 0 ? (
+              <Typography variant="caption" color="text.secondary" textTransform="uppercase" letterSpacing="0.08em">
+                {record.primaryCategory.name}
+              </Typography>
+            ) : null}
+            <Link
+              href={record.publicUrl ?? record.path}
+              underline="hover"
+              color="inherit"
+              onClick={(event) => {
+                event.preventDefault();
+                runWidgetAction({
+                  action,
+                  context,
+                  record,
+                  fallbackHref: record.publicUrl ?? record.path,
+                  onNavigate
+                });
+              }}
+            >
+              <Typography variant="h2" sx={{ textWrap: "balance" }}>
+                {normalizeText(record.title, "Untitled story")}
+              </Typography>
+            </Link>
+            {props?.showExcerpt !== false && record.excerpt ? (
+              <Typography variant="body1" color="text.secondary">
+                {record.excerpt}
+              </Typography>
+            ) : null}
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (widget.componentKey === "metadata-strip") {
+    const author = content?.author;
+    const categories = uniqueById(content?.categories);
+    return (
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+        {normalizeText(author?.displayName, "").length > 0 ? (
+          <Chip size="small" variant="outlined" label={author.displayName} />
+        ) : null}
+        {categories.map((item) => (
+          <Chip
+            key={item.id ?? item.name}
+            size="small"
+            color={props?.emphasizeCategories !== false ? "primary" : "default"}
+            variant={props?.emphasizeCategories !== false ? "filled" : "outlined"}
+            label={normalizeText(item?.name, "Category")}
+          />
+        ))}
+        {!author && categories.length === 0 ? (
+          <Alert severity="info">No metadata is available for this block yet.</Alert>
+        ) : null}
+      </Stack>
+    );
+  }
+
+  if (widget.componentKey === "promo-panel") {
+    const action = resolveWidgetAction(widget, descriptor, "primary");
+    const tone = normalizeText(props?.tone, "soft");
+    const toneStyles =
+      tone === "strong"
+        ? { backgroundColor: "primary.main", color: "primary.contrastText" }
+        : tone === "default"
+          ? { backgroundColor: "background.paper", color: "text.primary" }
+          : { backgroundColor: "action.hover", color: "text.primary" };
+    return (
+      <Paper variant="outlined" square sx={{ p: 2, ...toneStyles }}>
+        <Stack spacing={1.25}>
+          {normalizeText(content?.kicker, "").length > 0 ? (
+            <Typography variant="caption" sx={{ opacity: 0.84, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              {content.kicker}
+            </Typography>
+          ) : null}
+          <Typography variant="h3">{normalizeText(content?.title, "Promo title")}</Typography>
+          {normalizeText(content?.body, "").length > 0 ? (
+            <Typography variant="body2" sx={{ opacity: 0.92 }}>
+              {content.body}
+            </Typography>
+          ) : null}
+          <Button
+            variant={tone === "strong" ? "contained" : "outlined"}
+            color={tone === "strong" ? "inherit" : "primary"}
+            onClick={() =>
+              runWidgetAction({
+                action,
+                context,
+                fallbackHref: typeof action?.targetHref === "string" ? action.targetHref : null,
+                onNavigate
+              })
+            }
+            sx={{ alignSelf: "flex-start" }}
+          >
+            {normalizeText(content?.ctaText, "Learn more")}
+          </Button>
+        </Stack>
+      </Paper>
+    );
+  }
+
+  if (widget.componentKey === "divider-rule") {
+    const label = normalizeText(content?.label, "");
+    return (
+      <Stack spacing={1}>
+        {label ? (
+          <Typography variant="caption" color="text.secondary" textTransform="uppercase" letterSpacing="0.08em">
+            {label}
+          </Typography>
+        ) : null}
+        <Divider sx={{ borderBottomWidth: Number(props?.thickness) || 1 }} />
+      </Stack>
+    );
+  }
+
+  if (widget.componentKey === "story-card") {
+    const record = pickStoryRecord(content?.record);
+    const action = resolveWidgetAction(widget, descriptor, "openRecord");
+    if (!record) {
+      return <Alert severity="info">No story record is available for this card yet.</Alert>;
+    }
+    return (
+      <Card variant="outlined" square sx={{ height: "100%" }}>
+        <CardContent sx={{ display: "grid", gap: 1.25, height: "100%" }}>
+          {props?.emphasizeImage !== false && record.featuredMedia?.preferredUrl ? (
+            <Box
+              component="img"
+              src={record.featuredMedia.preferredUrl}
+              alt={normalizeText(record.featuredMedia.altText, normalizeText(record.title, "Story"))}
+              sx={{
+                width: "100%",
+                height: 180,
+                objectFit: "cover",
+                border: "1px solid",
+                borderColor: "divider"
+              }}
+            />
+          ) : null}
+          <Stack spacing={0.75}>
+            {normalizeText(record.author?.displayName, "").length > 0 ? (
+              <Typography variant="caption" color="text.secondary">
+                {record.author.displayName}
+              </Typography>
+            ) : null}
+            <Link
+              href={record.publicUrl ?? record.path}
+              underline="hover"
+              color="inherit"
+              onClick={(event) => {
+                event.preventDefault();
+                runWidgetAction({
+                  action,
+                  context,
+                  record,
+                  fallbackHref: record.publicUrl ?? record.path,
+                  onNavigate
+                });
+              }}
+            >
+              <Typography variant="h3">{normalizeText(record.title, "Untitled story")}</Typography>
+            </Link>
+            {record.excerpt ? <Typography variant="body2">{record.excerpt}</Typography> : null}
+          </Stack>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -493,6 +853,7 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
   if (widget.componentKey === "post-list") {
     const heading = normalizeText(props?.heading, "Stories");
     const limit = Number(props?.limit);
+    const variant = normalizeText(props?.variant, "cards");
     const maxItems = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 6;
     const items = toArray(content?.items).slice(0, maxItems);
     const action = resolveWidgetAction(widget, descriptor, "openRecord");
@@ -500,54 +861,133 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
       <Stack spacing={2} sx={{ height: "100%", minHeight: 0 }}>
         <Typography variant="h2">{heading}</Typography>
         {items.length > 0 ? (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
-              gap: 2,
-              overflow: "auto",
-              pr: 0.5
-            }}
-          >
-            {items.map((item) => (
-              <Card key={item.id ?? item.title} variant="outlined" square sx={{ height: "100%" }}>
-                <CardContent sx={{ display: "grid", gap: 1.25 }}>
-                  {item.featuredMedia?.preferredUrl ? (
-                    <Box
-                      component="img"
-                      src={item.featuredMedia.preferredUrl}
-                      alt={normalizeText(item.featuredMedia.altText, normalizeText(item.title, "Story"))}
-                      sx={{
-                        width: "100%",
-                        height: 120,
-                        objectFit: "cover",
-                        border: "1px solid",
-                        borderColor: "divider"
+          variant === "compact" ? (
+            <Stack spacing={1.5} sx={{ overflow: "auto", pr: 0.5 }}>
+              {items.map((item) => (
+                <Paper key={item.id ?? item.title} variant="outlined" square sx={{ p: 1.5 }}>
+                  <Stack spacing={0.75}>
+                    <Link
+                      href={item.publicUrl ?? item.path}
+                      underline="hover"
+                      color="inherit"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        runWidgetAction({
+                          action,
+                          context,
+                          record: item,
+                          fallbackHref: item.publicUrl ?? item.path,
+                          onNavigate
+                        });
                       }}
-                    />
-                  ) : null}
-                  <Link
-                    href={item.publicUrl ?? item.path}
-                    underline="hover"
-                    color="inherit"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      runWidgetAction({
-                        action,
-                        context,
-                        record: item,
-                        fallbackHref: item.publicUrl ?? item.path,
-                        onNavigate
-                      });
-                    }}
-                  >
-                    <Typography variant="h3">{normalizeText(item.title, "Untitled story")}</Typography>
-                  </Link>
-                  {item.excerpt ? <Typography variant="body2">{item.excerpt}</Typography> : null}
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
+                    >
+                      <Typography variant="subtitle1">{normalizeText(item.title, "Untitled story")}</Typography>
+                    </Link>
+                    {item.excerpt ? <Typography variant="body2" color="text.secondary">{item.excerpt}</Typography> : null}
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          ) : variant === "hero-list" ? (
+            <Stack spacing={2} sx={{ overflow: "auto", pr: 0.5 }}>
+              <PageStudioWidgetRenderer
+                widget={{
+                  componentKey: "story-card",
+                  content: {
+                    record: {
+                      mode: "static",
+                      value: items[0]
+                    }
+                  },
+                  props: {
+                    emphasizeImage: {
+                      mode: "static",
+                      value: true
+                    }
+                  },
+                  actions: widget?.actions ?? []
+                }}
+                context={context}
+                libraries={libraries}
+                onNavigate={onNavigate}
+                customWidgetDepth={customWidgetDepth}
+              />
+              {items.slice(1).length > 0 ? (
+                <Stack spacing={1.25}>
+                  {items.slice(1).map((item) => (
+                    <Paper key={item.id ?? item.title} variant="outlined" square sx={{ p: 1.25 }}>
+                      <Link
+                        href={item.publicUrl ?? item.path}
+                        underline="hover"
+                        color="inherit"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          runWidgetAction({
+                            action,
+                            context,
+                            record: item,
+                            fallbackHref: item.publicUrl ?? item.path,
+                            onNavigate
+                          });
+                        }}
+                      >
+                        <Typography variant="subtitle1">{normalizeText(item.title, "Untitled story")}</Typography>
+                      </Link>
+                    </Paper>
+                  ))}
+                </Stack>
+              ) : null}
+            </Stack>
+          ) : (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+                gap: 2,
+                overflow: "auto",
+                pr: 0.5
+              }}
+            >
+              {items.map((item) => (
+                <Card key={item.id ?? item.title} variant="outlined" square sx={{ height: "100%" }}>
+                  <CardContent sx={{ display: "grid", gap: 1.25 }}>
+                    {item.featuredMedia?.preferredUrl ? (
+                      <Box
+                        component="img"
+                        src={item.featuredMedia.preferredUrl}
+                        alt={normalizeText(item.featuredMedia.altText, normalizeText(item.title, "Story"))}
+                        sx={{
+                          width: "100%",
+                          height: 120,
+                          objectFit: "cover",
+                          border: "1px solid",
+                          borderColor: "divider"
+                        }}
+                      />
+                    ) : null}
+                    <Link
+                      href={item.publicUrl ?? item.path}
+                      underline="hover"
+                      color="inherit"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        runWidgetAction({
+                          action,
+                          context,
+                          record: item,
+                          fallbackHref: item.publicUrl ?? item.path,
+                          onNavigate
+                        });
+                      }}
+                    >
+                      <Typography variant="h3">{normalizeText(item.title, "Untitled story")}</Typography>
+                    </Link>
+                    {item.excerpt ? <Typography variant="body2">{item.excerpt}</Typography> : null}
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          )
         ) : (
           <Alert severity="info">No posts are available for this category yet.</Alert>
         )}

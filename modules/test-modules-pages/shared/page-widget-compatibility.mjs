@@ -2,6 +2,7 @@ import {
   DEFAULT_WIDGET_COMPONENT_REGISTRY,
   validateWidgetBindingDescriptor
 } from "../../test-modules-layouts/shared/widget-component-schema.mjs";
+import { buildExposedCustomWidgetItem } from "../../test-modules-page-studio/shared/page-studio-custom-widget-document.mjs";
 import { normalizeCanonicalBindingPath } from "./widget-binding-namespace.mjs";
 
 function toArray(value) {
@@ -108,6 +109,73 @@ function enumerateLayoutNodeWidgets(layoutDocument = null) {
       nodeLabel: toText(node.label, node.id),
       componentInstance: node.componentInstance ?? null
     }));
+}
+
+function readStaticBindingValue(binding) {
+  return binding?.mode === "static" ? binding.value ?? null : null;
+}
+
+function readCustomWidgetId(componentInstance = null) {
+  return toText(readStaticBindingValue(componentInstance?.props?.customWidgetId), "");
+}
+
+function createLayoutDocumentFromCustomWidget(customWidget = null) {
+  const composition = customWidget?.composition ?? null;
+  if (Array.isArray(composition?.blocks) && composition.blocks.length > 0) {
+    const nodes = {
+      root: {
+        id: "root",
+        kind: "container",
+        label: customWidget?.title ?? "Custom Widget",
+        layoutMode: "grid",
+        children: composition.blocks.map((block) => block.id)
+      }
+    };
+    composition.blocks.forEach((block) => {
+      nodes[block.id] = {
+        id: block.id,
+        kind: "block",
+        label: block.summary ?? block.id,
+        componentInstance: cloneJsonValue(block.componentInstance ?? null)
+      };
+    });
+    return {
+      rootId: "root",
+      nodes
+    };
+  }
+
+  if (customWidget?.templateInstance?.componentKey) {
+    return {
+      rootId: "root",
+      nodes: {
+        root: {
+          id: "root",
+          kind: "container",
+          label: customWidget?.title ?? "Custom Widget",
+          layoutMode: "grid",
+          children: ["custom-widget-template"]
+        },
+        "custom-widget-template": {
+          id: "custom-widget-template",
+          kind: "block",
+          label: customWidget?.title ?? "Custom Widget",
+          componentInstance: cloneJsonValue(customWidget.templateInstance)
+        }
+      }
+    };
+  }
+
+  return null;
+}
+
+function normalizeCustomWidgetLibraryEntries(customWidgets = []) {
+  return new Map(
+    toArray(customWidgets)
+      .map((entry) => buildExposedCustomWidgetItem(entry))
+      .filter((entry) => entry?.id)
+      .map((entry) => [entry.id, entry])
+  );
 }
 
 function enumerateBindingDescriptors(rawValue, entries = [], pathPrefix = "") {
@@ -276,6 +344,20 @@ export function summarizeWidgetInstance(componentInstance = null, registry = DEF
     };
   }
 
+  if (componentInstance.componentKey === "custom-widget") {
+    const customWidgetLabel =
+      componentInstance?.props?.customWidgetLabel?.mode === "static"
+        ? toText(componentInstance.props.customWidgetLabel.value, "")
+        : "";
+    return {
+      displayName: customWidgetLabel || descriptor.displayName,
+      detail:
+        componentInstance?.props?.customWidgetId?.mode === "static"
+          ? `Custom widget · ${toText(componentInstance.props.customWidgetId.value, "")}`
+          : descriptor.description ?? "Reusable custom widget"
+    };
+  }
+
   const contentEntries = enumerateBindingDescriptors(componentInstance.content)
     .filter((entry) => entry.binding?.mode === "dynamic")
     .map((entry) => entry.binding.path || `${entry.binding.source}:${entry.binding.itemId ?? "value"}`);
@@ -295,10 +377,13 @@ export function resolvePageWidgetCompatibility({
   pageKind = null,
   primarySourceType = null,
   mediaItems = [],
-  registry = DEFAULT_WIDGET_COMPONENT_REGISTRY
+  registry = DEFAULT_WIDGET_COMPONENT_REGISTRY,
+  customWidgets = [],
+  recursionStack = []
 } = {}) {
   const normalizedPageKind = normalizeWidgetPageKind(pageKind);
   const mediaById = new Map(toArray(mediaItems).map((item) => [item.id, item]));
+  const customWidgetById = normalizeCustomWidgetLibraryEntries(customWidgets);
   const inventory = enumerateLayoutNodeWidgets(layoutDocument).map((entry) => {
     const componentInstance = entry.componentInstance;
     const descriptor = componentInstance?.componentKey ? registry.get(componentInstance.componentKey) ?? null : null;
@@ -376,6 +461,55 @@ export function resolvePageWidgetCompatibility({
           componentKey: descriptor.componentKey
         })
       );
+
+      if (descriptor.componentKey === "custom-widget") {
+        const customWidgetId = readCustomWidgetId(componentInstance);
+        const customWidget = customWidgetById.get(customWidgetId) ?? null;
+        if (!customWidgetId) {
+          addIssue(
+            issues,
+            "blocking",
+            "CUSTOM_WIDGET_ID_REQUIRED",
+            "Custom widget instance requires a custom widget id.",
+            { nodeId: entry.nodeId, componentKey: descriptor.componentKey }
+          );
+        } else if (!customWidget) {
+          addIssue(
+            issues,
+            "blocking",
+            "CUSTOM_WIDGET_NOT_FOUND",
+            `Custom widget '${customWidgetId}' is not available.`,
+            { nodeId: entry.nodeId, componentKey: descriptor.componentKey, customWidgetId }
+          );
+        } else if (recursionStack.includes(customWidgetId)) {
+          addIssue(
+            issues,
+            "blocking",
+            "CUSTOM_WIDGET_RECURSION",
+            `Custom widget '${customWidget.title ?? customWidgetId}' references itself recursively.`,
+            { nodeId: entry.nodeId, componentKey: descriptor.componentKey, customWidgetId }
+          );
+        } else {
+          const nestedLayoutDocument = createLayoutDocumentFromCustomWidget(customWidget);
+          const nestedCompatibility = resolvePageWidgetCompatibility({
+            layoutDocument: nestedLayoutDocument,
+            pageContextManifest,
+            pageKind,
+            primarySourceType,
+            mediaItems,
+            registry,
+            customWidgets: [...customWidgetById.values()],
+            recursionStack: [...recursionStack, customWidgetId]
+          });
+          nestedCompatibility.issues.forEach((nestedIssue) => {
+            issues.push({
+              ...nestedIssue,
+              code: `CUSTOM_WIDGET_${nestedIssue.code}`,
+              message: `In custom widget '${customWidget.title ?? customWidgetId}': ${nestedIssue.message}`
+            });
+          });
+        }
+      }
     }
 
     return {

@@ -4,11 +4,18 @@
   "version": "0.1.0",
   "name": "Test Modules Page Studio",
   "capabilities": [
+    "crud.collection",
+    "schema",
     "ui.route"
   ],
   "lifecycle": {
     "install": "test-modules-page-studio.install",
     "uninstall": "test-modules-page-studio.uninstall"
+  },
+  "runtime": {
+    "collectionHandlers": "./server/collection-handlers.mjs",
+    "persistence": "./server/persistence-plugins.mjs",
+    "routes": "./server/routes.mjs"
   },
   "ui": {
     "navigation": {
@@ -22,6 +29,148 @@
       "entrypoint": "./frontend/view-entrypoint.jsx"
     }
   },
+  "collections": [
+    {
+      "id": "page-custom-widgets",
+      "label": "Custom Widgets",
+      "entitySingular": "custom-widget",
+      "primaryField": "title",
+      "description": "Reusable widget templates authored for Page Studio and later reused in the widget library.",
+      "capabilities": {
+        "list": true,
+        "read": true,
+        "create": true,
+        "update": true,
+        "delete": true
+      },
+      "fields": [
+        {
+          "id": "title",
+          "label": "Widget Title",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 180
+        },
+        {
+          "id": "widgetKey",
+          "label": "Widget Key",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 120
+        },
+        {
+          "id": "iconKey",
+          "label": "Icon Key",
+          "type": "text",
+          "required": true,
+          "minLength": 3,
+          "maxLength": 80
+        },
+        {
+          "id": "categoryKey",
+          "label": "Category",
+          "type": "text",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 80
+        },
+        {
+          "id": "description",
+          "label": "Description",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 500
+        },
+        {
+          "id": "summary",
+          "label": "Summary",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 250
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "draft",
+            "ready",
+            "archived"
+          ],
+          "defaultValue": "draft"
+        },
+        {
+          "id": "templateMode",
+          "label": "Template Mode",
+          "type": "enum",
+          "required": true,
+          "options": [
+            "template",
+            "composition"
+          ],
+          "defaultValue": "template"
+        },
+        {
+          "id": "sourceComponentKey",
+          "label": "Source Component Key",
+          "type": "text",
+          "required": false,
+          "minLength": 0,
+          "maxLength": 120
+        },
+        {
+          "id": "templateInstanceJson",
+          "label": "Template Instance JSON",
+          "type": "text",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 200000
+        },
+        {
+          "id": "compositionJson",
+          "label": "Composition JSON",
+          "type": "text",
+          "required": true,
+          "minLength": 2,
+          "maxLength": 400000
+        },
+        {
+          "id": "documentVersion",
+          "label": "Document Version",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 10
+        },
+        {
+          "id": "createdOn",
+          "label": "Created On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        },
+        {
+          "id": "updatedOn",
+          "label": "Updated On",
+          "type": "text",
+          "required": true,
+          "minLength": 10,
+          "maxLength": 40
+        }
+      ],
+      "behavior": {
+        "enforcePrimaryFieldUnique": false,
+        "enforceTitleUnique": false,
+        "requirePublishedOnWhenPublished": false
+      }
+    }
+  ],
   "metadata": {
     "owner": "reference-domain-runtime",
     "maturity": "proof",

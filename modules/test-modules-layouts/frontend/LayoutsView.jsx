@@ -372,6 +372,7 @@ export function LayoutsView({ activeModuleLabel, navigate = null, route = {} }) 
             pageContextManifest={workspace.widgetBindingManifest}
             widgetBindingManifestNote={workspace.widgetBindingManifestNote}
             mediaItems={workspace.mediaItems}
+            customWidgets={workspace.customWidgets}
             onClose={workspace.closeNodeDialog}
             onUpdateNode={(patch) => workspace.updateNode(workspace.selectedNodeId, patch)}
             onRemoveNode={workspace.removeSelectedNode}

@@ -40,6 +40,7 @@ import { resolvePageContextManifest } from "../../test-modules-pages/server/page
 
 const LAYOUTS_COLLECTION_ID = "page-layouts";
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
+const CUSTOM_WIDGETS_COLLECTION_ID = "page-custom-widgets";
 
 function createActionState() {
   return {
@@ -51,7 +52,7 @@ function createActionState() {
 }
 
 async function loadSupportData() {
-  const [layoutsPayload, pages, mediaPayload] = await Promise.all([
+  const [layoutsPayload, pages, mediaPayload, customWidgetsPayload] = await Promise.all([
     fetchReferenceCollectionItems({
       collectionId: LAYOUTS_COLLECTION_ID,
       limit: 200
@@ -60,13 +61,18 @@ async function loadSupportData() {
     fetchReferenceCollectionItems({
       collectionId: MEDIA_ITEMS_COLLECTION_ID,
       limit: 500
+    }),
+    fetchReferenceCollectionItems({
+      collectionId: CUSTOM_WIDGETS_COLLECTION_ID,
+      limit: 500
     })
   ]);
 
   return {
     layouts: Array.isArray(layoutsPayload?.items) ? layoutsPayload.items : [],
     pages: Array.isArray(pages) ? pages : [],
-    media: Array.isArray(mediaPayload?.items) ? mediaPayload.items : []
+    media: Array.isArray(mediaPayload?.items) ? mediaPayload.items : [],
+    customWidgets: Array.isArray(customWidgetsPayload?.items) ? customWidgetsPayload.items : []
   };
 }
 
@@ -76,7 +82,8 @@ function useLayoutsSupportData() {
     errorMessage: null,
     layouts: [],
     pages: [],
-    media: []
+    media: [],
+    customWidgets: []
   });
 
   const reload = useCallback(async () => {
@@ -98,7 +105,8 @@ function useLayoutsSupportData() {
         errorMessage: error?.message ?? "Failed to load layouts",
         layouts: [],
         pages: [],
-        media: []
+        media: [],
+        customWidgets: []
       });
     }
   }, []);
@@ -693,6 +701,7 @@ function useLayoutsWorkspaceInternal({ navigate = null, route = {} } = {}) {
     returnRoute,
     returnToCallingRoute,
     mediaItems: supportState.media,
+    customWidgets: supportState.customWidgets,
     widgetBindingManifest,
     widgetBindingManifestNote,
     selectedLayout,

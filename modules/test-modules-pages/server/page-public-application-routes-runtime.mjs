@@ -15,10 +15,6 @@ import {
 import { readPagesModuleSettings } from "./page-settings-runtime.mjs";
 import { normalizeTargetConfig } from "../../test-modules-remote-ops/server/remote-ops-shared-runtime.mjs";
 import { resolveLocalPublicTranslationOverlay } from "../../test-modules-translations/server/public-translations-runtime.mjs";
-import {
-  createPageStudioPreviewBootstrapHandler,
-  createPageStudioPreviewRouteContext
-} from "../../test-modules-page-studio/server/routes.mjs";
 
 function readPrimaryRecord(payload = {}) {
   const record = payload?.data?.primary?.record;
@@ -645,7 +641,6 @@ async function createComment(routeContext, body = {}, reply) {
 }
 
 export function registerPagePublicApplicationRoutes(fastify, routeContext) {
-  const pageStudioPreviewBootstrapPath = "/api/reference/modules/test-modules-page-studio/preview/bootstrap";
   const publicApplicationViewPath = `/api/reference/modules/${routeContext.moduleId}/public/application-view`;
   const publicReaderBootstrapPath = `/api/reference/modules/${routeContext.moduleId}/public/reader/bootstrap`;
   const publicReaderDeferredPath = `/api/reference/modules/${routeContext.moduleId}/public/reader/deferred`;
@@ -653,17 +648,6 @@ export function registerPagePublicApplicationRoutes(fastify, routeContext) {
   const publishedDocumentPath = `/api/reference/modules/${routeContext.moduleId}/public/published-document`;
   const commentsPath = `/api/reference/modules/${routeContext.moduleId}/public/comments`;
   const importCommentsPath = `/api/reference/modules/${routeContext.moduleId}/public/comments/import-local`;
-
-  fastify.post(
-    pageStudioPreviewBootstrapPath,
-    createPageStudioPreviewBootstrapHandler(
-      createPageStudioPreviewRouteContext({
-        manifest: { id: "test-modules-page-studio" },
-        moduleRegistry: routeContext.moduleRegistry,
-        collectionHandlerRegistry: routeContext.collectionHandlerRegistry
-      })
-    )
-  );
 
   fastify.options(publicApplicationViewPath, async function publicApplicationViewOptions(_request, reply) {
     setPublicApiCorsHeaders(reply);

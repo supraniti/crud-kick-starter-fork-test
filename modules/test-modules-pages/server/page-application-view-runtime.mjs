@@ -804,6 +804,7 @@ async function buildReaderRouteManifest(payload = {}, collectionHandlerRegistry,
         primarySourceType: page?.primarySourceType ?? null,
         pageKind: page?.pageKind ?? null,
         delivery: payload?.delivery ?? {},
+        collectionHandlerRegistry,
         mediaResolver:
           mediaHandler && typeof mediaHandler.findById === "function"
             ? async (itemId) => mediaHandler.findById(itemId)

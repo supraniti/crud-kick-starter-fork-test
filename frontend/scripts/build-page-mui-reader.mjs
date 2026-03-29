@@ -24,6 +24,9 @@ const outDir = path.resolve(workspaceRoot, "modules/test-modules-pages/dist");
 await build({
   configFile: false,
   plugins: [react()],
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production")
+  },
   resolve: {
     alias: {
       react: reactAliasRoot,

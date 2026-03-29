@@ -17,6 +17,15 @@ function buildPreviewRequest(studioDocument) {
       themeKey: normalized.infra.themeKey,
       queries: normalized.infra.queries
     },
+    layout: {
+      scenarioKey: normalized.layout?.scenarioKey,
+      activeBreakpoint: normalized.layout?.activeBreakpoint,
+      editorGrid: normalized.layout?.editorGrid,
+      runtimeLayoutMetadata: normalized.layout?.runtimeLayoutMetadata
+    },
+    widgets: {
+      blocks: normalized.widgets?.blocks
+    },
     preview: {
       urlParams: normalized.preview?.urlParams ?? {}
     }
@@ -34,7 +43,8 @@ function createEmptyCollections() {
     categories: [],
     tags: [],
     mediaItems: [],
-    themes: []
+    themes: [],
+    customWidgets: []
   };
 }
 

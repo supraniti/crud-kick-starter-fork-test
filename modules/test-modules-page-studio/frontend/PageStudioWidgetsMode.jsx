@@ -14,7 +14,10 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { fetchReferenceCollectionItems } from "../../../frontend/src/api/reference.js";
+import {
+  createReferenceCollectionItem,
+  fetchReferenceCollectionItems
+} from "../../../frontend/src/api/reference.js";
 import { LayoutBuilderCanvasShell } from "../../test-modules-layouts/frontend/LayoutBuilderCanvasShell.jsx";
 import { LayoutBuilderComponentLibrary } from "../../test-modules-layouts/frontend/LayoutBuilderComponentLibrary.jsx";
 import { LayoutBuilderWidgetInspector } from "../../test-modules-layouts/frontend/LayoutBuilderWidgetInspector.jsx";
@@ -26,13 +29,17 @@ import {
   VIEWPORT_PRESETS
 } from "../../test-modules-layouts/frontend/layout-builder-viewport.js";
 import {
-  buildDefaultWidgetActions,
   DEFAULT_WIDGET_COMPONENT_REGISTRY
 } from "../../test-modules-layouts/shared/widget-component-schema.mjs";
 import { buildWidgetContextScope } from "../../test-modules-pages/shared/page-widget-context.mjs";
 import { resolvePageContextManifest } from "../../test-modules-pages/server/page-context-manifest-runtime.mjs";
 import { summarizeWidgetInstance } from "../../test-modules-pages/shared/page-widget-compatibility.mjs";
 import { PAGE_STUDIO_BREAKPOINT_LABELS } from "../shared/page-studio-breakpoints.mjs";
+import { buildCustomWidgetCompositionFromStudioDocument } from "../shared/page-studio-custom-widget-composition.mjs";
+import {
+  buildCustomWidgetLibraryEntries,
+  createComponentInstanceFromWidgetLibraryEntry
+} from "../shared/page-studio-custom-widget-library.mjs";
 import { resolvePageStudioContextContract } from "../shared/page-studio-queries.mjs";
 import { buildPageStudioRuntimeLayoutContract } from "../shared/page-studio-layout-transform.mjs";
 import {
@@ -47,16 +54,25 @@ import {
 } from "./page-studio-preview-data.js";
 import { PageStudioRuntimeCanvas } from "./PageStudioRuntimeCanvas.jsx";
 import { getPageStudioPreviewBootstrapResources } from "./page-studio-preview-resources.js";
+import { CUSTOM_WIDGETS_COLLECTION_ID } from "../server/page-studio-shared-runtime.mjs";
 
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 const POSTS_COLLECTION_ID = "blog-posts";
 const AUTHORS_COLLECTION_ID = "blog-authors";
 const CATEGORIES_COLLECTION_ID = "blog-categories";
 const TAGS_COLLECTION_ID = "blog-tags";
+const RECENT_WIDGETS_STORAGE_KEY = "page-studio.recent-widgets.v1";
 
 const CANVAS_FIT_WIDTH_OFFSET = 96;
 const CANVAS_FIT_HEIGHT_OFFSET = 120;
 const STUDIO_RAIL_WIDTH = 336;
+
+function cloneJsonValue(value) {
+  if (value === null || value === undefined) {
+    return value ?? null;
+  }
+  return JSON.parse(JSON.stringify(value));
+}
 
 function RailSection({ title, description = null, children }) {
   return (
@@ -78,6 +94,35 @@ function RailSection({ title, description = null, children }) {
 
 function normalizeText(value, fallback = "") {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function slugifyWidgetKey(value, fallback = "custom-widget") {
+  const normalized = normalizeText(value, fallback)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized || fallback;
+}
+
+function readPersistedRecentWidgets() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return [];
+  }
+  try {
+    const rawValue = window.localStorage.getItem(RECENT_WIDGETS_STORAGE_KEY);
+    const parsed = rawValue ? JSON.parse(rawValue) : [];
+    return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWidgets(entries = []) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  window.localStorage.setItem(RECENT_WIDGETS_STORAGE_KEY, JSON.stringify(entries.slice(0, 8)));
 }
 
 function buildViewportFromBreakpoint(breakpoint) {
@@ -139,6 +184,9 @@ function readAvailableComponents(pageContextManifest = null) {
   const pageKind = pageContextManifest?.pageKind ?? "post-detail";
   const primarySourceType = pageContextManifest?.primarySourceType ?? "blog-post";
   return [...DEFAULT_WIDGET_COMPONENT_REGISTRY.values()].filter((descriptor) => {
+    if (descriptor.hiddenInLibrary === true) {
+      return false;
+    }
     const pageKindAllowed =
       !Array.isArray(descriptor.supportedPageKinds) || descriptor.supportedPageKinds.length === 0
         ? true
@@ -149,16 +197,6 @@ function readAvailableComponents(pageContextManifest = null) {
         : descriptor.supportedPrimarySourceTypes.includes(primarySourceType);
     return pageKindAllowed && sourceAllowed;
   });
-}
-
-function createInstanceFromDescriptor(descriptor) {
-  return {
-    componentKey: descriptor.componentKey,
-    variantKey: "default",
-    content: JSON.parse(JSON.stringify(descriptor.defaultBindings ?? {})),
-    props: JSON.parse(JSON.stringify(descriptor.defaultProps ?? {})),
-    actions: buildDefaultWidgetActions(descriptor)
-  };
 }
 
 function inferPlaceholderType(block = {}) {
@@ -243,6 +281,61 @@ function useMediaLibraryOptions() {
   return state;
 }
 
+function useCustomWidgetsLibrary() {
+  const [state, setState] = useState({
+    loading: true,
+    errorMessage: null,
+    items: []
+  });
+
+  const loadRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      try {
+        const payload = await fetchReferenceCollectionItems({
+          collectionId: CUSTOM_WIDGETS_COLLECTION_ID,
+          limit: 500
+        });
+        if (!active) {
+          return;
+        }
+        setState({
+          loading: false,
+          errorMessage: null,
+          items: Array.isArray(payload?.items) ? payload.items : []
+        });
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setState({
+          loading: false,
+          errorMessage: error?.message ?? "Failed to load custom widgets",
+          items: []
+        });
+      }
+    }
+
+    loadRef.current = load;
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return {
+    ...state,
+    reload: async () => {
+      if (typeof loadRef.current === "function") {
+        await loadRef.current();
+      }
+    }
+  };
+}
+
 function useWidgetRuntimePreviewCollections(enabled = true) {
   const [state, setState] = useState({
     contentLoading: enabled,
@@ -254,7 +347,8 @@ function useWidgetRuntimePreviewCollections(enabled = true) {
       categories: [],
       tags: [],
       mediaItems: [],
-      themes: []
+      themes: [],
+      customWidgets: []
     }
   });
 
@@ -271,13 +365,14 @@ function useWidgetRuntimePreviewCollections(enabled = true) {
 
     async function load() {
       try {
-        const [posts, authors, categories, tags, mediaItems, themes] = await Promise.all([
+        const [posts, authors, categories, tags, mediaItems, themes, customWidgets] = await Promise.all([
           fetchReferenceCollectionItems({ collectionId: POSTS_COLLECTION_ID, limit: 500 }),
           fetchReferenceCollectionItems({ collectionId: AUTHORS_COLLECTION_ID, limit: 500 }),
           fetchReferenceCollectionItems({ collectionId: CATEGORIES_COLLECTION_ID, limit: 500 }),
           fetchReferenceCollectionItems({ collectionId: TAGS_COLLECTION_ID, limit: 500 }),
           fetchReferenceCollectionItems({ collectionId: MEDIA_ITEMS_COLLECTION_ID, limit: 500 }),
-          fetchReferenceCollectionItems({ collectionId: "page-themes", limit: 500 })
+          fetchReferenceCollectionItems({ collectionId: "page-themes", limit: 500 }),
+          fetchReferenceCollectionItems({ collectionId: CUSTOM_WIDGETS_COLLECTION_ID, limit: 500 })
         ]);
         if (!active) {
           return;
@@ -292,7 +387,8 @@ function useWidgetRuntimePreviewCollections(enabled = true) {
             categories: Array.isArray(categories?.items) ? categories.items : [],
             tags: Array.isArray(tags?.items) ? tags.items : [],
             mediaItems: Array.isArray(mediaItems?.items) ? mediaItems.items : [],
-            themes: Array.isArray(themes?.items) ? themes.items : []
+            themes: Array.isArray(themes?.items) ? themes.items : [],
+            customWidgets: Array.isArray(customWidgets?.items) ? customWidgets.items : []
           }
         });
       } catch (error) {
@@ -309,7 +405,8 @@ function useWidgetRuntimePreviewCollections(enabled = true) {
             categories: [],
             tags: [],
             mediaItems: [],
-            themes: []
+            themes: [],
+            customWidgets: []
           }
         });
       }
@@ -324,6 +421,48 @@ function useWidgetRuntimePreviewCollections(enabled = true) {
   return state;
 }
 
+function buildBuiltInWidgetLibraryEntries(components = [], recentWidgetKeys = []) {
+  const suggestedKeys = new Set([
+    "post-title",
+    "media-image",
+    "post-rich-text",
+    "story-card",
+    "hero-story",
+    "section-heading",
+    "metadata-strip",
+    "post-list",
+    "promo-panel",
+    "divider-rule",
+    "button-cta",
+    "author-card",
+    "related-posts",
+    "post-navigation"
+  ]);
+
+  const builtInEntries = components.map((descriptor) => ({
+    libraryKey: descriptor.componentKey,
+    componentKey: descriptor.componentKey,
+    displayName: descriptor.displayName,
+    icon: descriptor.icon ?? "widgets",
+    libraryCategory: descriptor.libraryCategory ?? descriptor.group ?? "General",
+    group: descriptor.group ?? "General",
+    description: descriptor.description ?? "Reusable page widget",
+    useCase: descriptor.useCase ?? descriptor.description ?? "Reusable page widget",
+    complexity: descriptor.complexity ?? "basic",
+    keywords: descriptor.keywords ?? [],
+    originLabel: "Built-in",
+    sourceLabel: descriptor.wrapperKind ?? "primitive",
+    disabled: false,
+    disabledReason: ""
+  }));
+
+  return {
+    suggested: builtInEntries.filter((entry) => suggestedKeys.has(entry.componentKey)).slice(0, 6),
+    builtIn: builtInEntries,
+    recent: builtInEntries.filter((entry) => recentWidgetKeys.includes(entry.libraryKey))
+  };
+}
+
 export function PageStudioWidgetsMode({
   studioDocument,
   onPatchDocument,
@@ -335,6 +474,7 @@ export function PageStudioWidgetsMode({
   previewResources = null
 }) {
   const supportState = useMediaLibraryOptions();
+  const customWidgetsState = useCustomWidgetsLibrary();
   const localWidgetPreviewState = useWidgetRuntimePreviewCollections(!previewResources);
   const widgetPreviewState = previewResources ?? localWidgetPreviewState;
   const previewBootstrap = useMemo(() => getPageStudioPreviewBootstrapResources(studioDocument), [studioDocument]);
@@ -355,6 +495,7 @@ export function PageStudioWidgetsMode({
     () => readAvailableComponents(pageContextManifest),
     [pageContextManifest]
   );
+  const [recentWidgetKeys, setRecentWidgetKeys] = useState(() => readPersistedRecentWidgets());
   const runtimeLayoutContract = useMemo(
     () =>
       buildPageStudioRuntimeLayoutContract({
@@ -373,6 +514,12 @@ export function PageStudioWidgetsMode({
   const [hoveredBlockId, setHoveredBlockId] = useState(null);
   const [pickerBlockId, setPickerBlockId] = useState(null);
   const [configBlockId, setConfigBlockId] = useState(null);
+  const [saveCustomWidgetState, setSaveCustomWidgetState] = useState({
+    saving: false,
+    error: false,
+    message: ""
+  });
+  const [customWidgetDraft, setCustomWidgetDraft] = useState(null);
   const [shellBounds, setShellBounds] = useState({ width: 0, height: 0 });
   const shellHostRef = useRef(null);
 
@@ -382,6 +529,59 @@ export function PageStudioWidgetsMode({
   const selectedBlock = blockById.get(selectedBlockId) ?? null;
   const configBlock = blockById.get(configBlockId) ?? null;
   const pickerBlock = blockById.get(pickerBlockId) ?? null;
+  const builtInLibrary = useMemo(
+    () => buildBuiltInWidgetLibraryEntries(availableComponents, recentWidgetKeys),
+    [availableComponents, recentWidgetKeys]
+  );
+  const customLibraryEntries = useMemo(
+    () => buildCustomWidgetLibraryEntries(customWidgetsState.items),
+    [customWidgetsState.items]
+  );
+  const customWidgetEntries = useMemo(
+    () => customLibraryEntries.filter((entry) => entry.templateMode === "composition"),
+    [customLibraryEntries]
+  );
+  const customTemplateEntries = useMemo(
+    () => customLibraryEntries.filter((entry) => entry.templateMode !== "composition"),
+    [customLibraryEntries]
+  );
+  const pickerSections = useMemo(() => {
+    const sections = [];
+    if (builtInLibrary.suggested.length > 0) {
+      sections.push({
+        id: "suggested",
+        label: "Suggested For This Page",
+        entries: builtInLibrary.suggested
+      });
+    }
+    if (builtInLibrary.recent.length > 0) {
+      sections.push({
+        id: "recent",
+        label: "Recently Used",
+        entries: builtInLibrary.recent
+      });
+    }
+    if (customWidgetEntries.length > 0) {
+      sections.push({
+        id: "custom-widgets",
+        label: "Custom Widgets",
+        entries: customWidgetEntries
+      });
+    }
+    if (customTemplateEntries.length > 0) {
+      sections.push({
+        id: "custom-templates",
+        label: "Widget Templates",
+        entries: customTemplateEntries
+      });
+    }
+    sections.push({
+      id: "builtin",
+      label: "Built-in Widgets",
+      entries: builtInLibrary.builtIn
+    });
+    return sections;
+  }, [builtInLibrary, customTemplateEntries, customWidgetEntries]);
   const effectiveZoomLevel =
     zoomMode === "auto"
       ? computeAutoFitZoomLevel({ viewport, shellBounds })
@@ -459,6 +659,10 @@ export function PageStudioWidgetsMode({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    persistRecentWidgets(recentWidgetKeys);
+  }, [recentWidgetKeys]);
+
   function patchBlock(blockId, updater) {
     onPatchDocument((previous) => ({
       ...previous,
@@ -476,6 +680,125 @@ export function PageStudioWidgetsMode({
         })
       }
     }));
+  }
+
+  function rememberWidget(entry) {
+    const nextKey = normalizeText(entry?.libraryKey);
+    if (!nextKey) {
+      return;
+    }
+    setRecentWidgetKeys((previous) => [nextKey, ...previous.filter((entryKey) => entryKey !== nextKey)].slice(0, 8));
+  }
+
+  function handleSaveAsCustomWidget(instance, descriptor) {
+    if (!instance?.componentKey || !descriptor?.componentKey) {
+      return;
+    }
+    const title = `${descriptor.displayName} Template`;
+    setSaveCustomWidgetState({
+      saving: false,
+      error: false,
+      message: ""
+    });
+    setCustomWidgetDraft({
+      templateMode: "template",
+      title,
+      widgetKey: `${slugifyWidgetKey(descriptor.componentKey)}-${Date.now()}`,
+      iconKey: descriptor.icon ?? "view_quilt",
+      categoryKey: descriptor.libraryCategory ?? descriptor.group ?? "Custom",
+      description: descriptor.useCase ?? descriptor.description ?? "Reusable widget template",
+      summary: `Built from ${descriptor.displayName}`,
+      status: "ready",
+      sourceComponentKey: descriptor.componentKey,
+      descriptor,
+      templateInstance: cloneJsonValue(instance)
+    });
+  }
+
+  function handleSaveCanvasAsCustomWidget() {
+    const composition = buildCustomWidgetCompositionFromStudioDocument(studioDocument);
+    const widgetCount = composition?.blocks?.filter((block) => block?.componentInstance).length ?? 0;
+    setSaveCustomWidgetState({
+      saving: false,
+      error: false,
+      message: ""
+    });
+    setCustomWidgetDraft({
+      templateMode: "composition",
+      title: `${normalizeText(studioDocument?.title, "Studio Page")} Widget`,
+      widgetKey: `${slugifyWidgetKey(studioDocument?.title ?? "custom-widget")}-${Date.now()}`,
+      iconKey: "dashboard_customize",
+      categoryKey: "Custom",
+      description: "Reusable composed widget built from the current Page Studio canvas.",
+      summary: widgetCount > 0 ? `${widgetCount} nested widgets` : "Custom widget composition",
+      status: "ready",
+      sourceComponentKey: "custom-composition",
+      descriptor: {
+        displayName: "Custom Widget Composition",
+        libraryCategory: "Custom",
+        complexity: "advanced",
+        useCase: "Built from the current Page Studio layout, widget, and preview configuration."
+      },
+      composition,
+      templateInstance: null
+    });
+  }
+
+  async function submitCustomWidgetSave() {
+    if (
+      !customWidgetDraft?.templateInstance?.componentKey &&
+      !(Array.isArray(customWidgetDraft?.composition?.blocks) && customWidgetDraft.composition.blocks.length > 0)
+    ) {
+      return;
+    }
+    setSaveCustomWidgetState({
+      saving: true,
+      error: false,
+      message: ""
+    });
+    try {
+      const result = await createReferenceCollectionItem({
+        collectionId: CUSTOM_WIDGETS_COLLECTION_ID,
+        item: {
+          title: normalizeText(customWidgetDraft.title, "Custom Widget"),
+          widgetKey: slugifyWidgetKey(customWidgetDraft.widgetKey),
+          iconKey: normalizeText(customWidgetDraft.iconKey, "view_quilt"),
+          categoryKey: normalizeText(customWidgetDraft.categoryKey, "Custom"),
+          description: normalizeText(customWidgetDraft.description, "Reusable custom widget"),
+          summary: normalizeText(customWidgetDraft.summary, "Custom widget template"),
+          status: customWidgetDraft.status === "archived" ? "archived" : "ready",
+          sourceComponentKey: normalizeText(
+            customWidgetDraft.sourceComponentKey,
+            customWidgetDraft.templateInstance?.componentKey ?? "custom-composition"
+          ),
+          templateMode: customWidgetDraft.templateMode === "composition" ? "composition" : "template",
+          templateInstance: customWidgetDraft.templateInstance,
+          composition: customWidgetDraft.composition ?? null
+        }
+      });
+      if (result?.ok !== true) {
+        throw new Error(result?.error?.message ?? "Failed to save custom widget");
+      }
+      await customWidgetsState.reload?.();
+      if (result?.item?.id) {
+        rememberWidget({ libraryKey: `custom:${result.item.id}` });
+      }
+      setSaveCustomWidgetState({
+        saving: false,
+        error: false,
+        message:
+          customWidgetDraft.templateMode === "composition"
+            ? `Saved '${result?.item?.title ?? customWidgetDraft.title}' to Custom Widgets.`
+            : `Saved '${result?.item?.title ?? customWidgetDraft.title}' to Widget Templates.`
+      });
+      setCustomWidgetDraft(null);
+    } catch (error) {
+      setSaveCustomWidgetState({
+        saving: false,
+        error: true,
+        message: error?.message ?? "Failed to save custom widget"
+      });
+    }
   }
 
   function applyScenarioWidgets() {
@@ -736,6 +1059,9 @@ export function PageStudioWidgetsMode({
                 Apply Recommended Widgets
               </Button>
             ) : null}
+            <Button size="small" variant="outlined" onClick={handleSaveCanvasAsCustomWidget}>
+              Save Canvas As Custom Widget
+            </Button>
             <Alert severity={pageContextIssues.length > 0 ? "warning" : "info"}>
               {pageContextIssues.length > 0
                 ? pageContextIssues.map((issue) => issue.message).join(" ")
@@ -808,7 +1134,7 @@ export function PageStudioWidgetsMode({
         open={Boolean(pickerBlock)}
         onClose={() => setPickerBlockId(null)}
         fullWidth
-        maxWidth="md"
+        maxWidth="lg"
       >
         <DialogTitle>
           {pickerBlock ? `Choose widget for ${pickerBlock.id}` : "Choose widget"}
@@ -817,17 +1143,26 @@ export function PageStudioWidgetsMode({
           <Stack spacing={1.5}>
             {availableComponents.length > 0 ? (
               <LayoutBuilderComponentLibrary
-                components={availableComponents}
-                selectedComponentKey={pickerBlock?.componentInstance?.componentKey ?? ""}
-                onSelectComponent={(componentKey) => {
-                  const descriptor = DEFAULT_WIDGET_COMPONENT_REGISTRY.get(componentKey);
-                  if (!descriptor || !pickerBlock) {
+                sections={pickerSections}
+                selectedLibraryKey={
+                  pickerBlock?.componentInstance?.componentKey === "custom-widget" &&
+                  pickerBlock?.componentInstance?.props?.customWidgetId?.mode === "static"
+                    ? `custom:${pickerBlock.componentInstance.props.customWidgetId.value}`
+                    : pickerBlock?.componentInstance?.componentKey ?? ""
+                }
+                onSelectComponent={(entry) => {
+                  if (!pickerBlock) {
                     return;
                   }
+                  const nextInstance = createComponentInstanceFromWidgetLibraryEntry(entry);
+                  if (!nextInstance) {
+                    return;
+                  }
+                  rememberWidget(entry);
                   patchBlock(pickerBlock.id, (block) => ({
                     ...block,
-                    widgetKey: descriptor.componentKey,
-                    componentInstance: createInstanceFromDescriptor(descriptor)
+                    widgetKey: nextInstance.componentKey,
+                    componentInstance: nextInstance
                   }));
                   setPickerBlockId(null);
                   setConfigBlockId(pickerBlock.id);
@@ -887,6 +1222,10 @@ export function PageStudioWidgetsMode({
                 widgetBindingManifestNote={widgetBindingManifestNote}
                 mediaItems={supportState.items}
                 translationTarget={null}
+                showAssignmentLibrary={false}
+                onSaveAsCustomWidget={handleSaveAsCustomWidget}
+                saveCustomWidgetState={saveCustomWidgetState}
+                saveAsCustomWidgetLabel="Save As Widget Template"
                 onChangeComponentInstance={(nextInstance) =>
                   patchBlock(configBlock.id, {
                     widgetKey: nextInstance?.componentKey ?? null,
@@ -897,8 +1236,181 @@ export function PageStudioWidgetsMode({
             </Stack>
           ) : null}
         </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setConfigBlockId(null)}>Close</Button>
+      </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(customWidgetDraft)}
+        onClose={() => {
+          if (!saveCustomWidgetState.saving) {
+            setCustomWidgetDraft(null);
+          }
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {customWidgetDraft?.templateMode === "composition"
+            ? "Save Custom Widget"
+            : "Save Widget Template"}
+        </DialogTitle>
+        <DialogContent dividers>
+          {customWidgetDraft ? (
+            <Stack spacing={1.5}>
+              <Alert severity="info">
+                {customWidgetDraft.templateMode === "composition"
+                  ? (
+                    <>
+                      Save the current canvas as a reusable composed widget. It will appear in the chooser under{" "}
+                      <strong>Custom Widgets</strong> and render through the shared MUI runtime.
+                    </>
+                  )
+                  : (
+                    <>
+                      Save the current widget configuration as a reusable library entry. It will appear in the chooser under{" "}
+                      <strong>Widget Templates</strong>.
+                    </>
+                  )}
+              </Alert>
+              <TextField
+                size="small"
+                label="Title"
+                value={customWidgetDraft.title}
+                onChange={(event) =>
+                  setCustomWidgetDraft((previous) => ({
+                    ...previous,
+                    title: event.target.value
+                  }))
+                }
+              />
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.25}>
+                <TextField
+                  size="small"
+                  label="Widget Key"
+                  value={customWidgetDraft.widgetKey}
+                  onChange={(event) =>
+                    setCustomWidgetDraft((previous) => ({
+                      ...previous,
+                      widgetKey: slugifyWidgetKey(event.target.value)
+                    }))
+                  }
+                  helperText="Stable database key for this reusable widget."
+                  fullWidth
+                />
+                <TextField
+                  size="small"
+                  label="Icon"
+                  value={customWidgetDraft.iconKey}
+                  onChange={(event) =>
+                    setCustomWidgetDraft((previous) => ({
+                      ...previous,
+                      iconKey: event.target.value
+                    }))
+                  }
+                  sx={{ minWidth: { md: 180 } }}
+                />
+              </Stack>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.25}>
+                <TextField
+                  size="small"
+                  label="Category"
+                  value={customWidgetDraft.categoryKey}
+                  onChange={(event) =>
+                    setCustomWidgetDraft((previous) => ({
+                      ...previous,
+                      categoryKey: event.target.value
+                    }))
+                  }
+                  fullWidth
+                />
+                <TextField
+                  select
+                  size="small"
+                  label="Status"
+                  value={customWidgetDraft.status}
+                  onChange={(event) =>
+                    setCustomWidgetDraft((previous) => ({
+                      ...previous,
+                      status: event.target.value
+                    }))
+                  }
+                  sx={{ minWidth: { md: 180 } }}
+                >
+                  <MenuItem value="ready">Ready</MenuItem>
+                  <MenuItem value="archived">Archived</MenuItem>
+                </TextField>
+              </Stack>
+              <TextField
+                size="small"
+                label="Description"
+                value={customWidgetDraft.description}
+                onChange={(event) =>
+                  setCustomWidgetDraft((previous) => ({
+                    ...previous,
+                    description: event.target.value
+                  }))
+                }
+                multiline
+                minRows={2}
+              />
+              <TextField
+                size="small"
+                label="Summary"
+                value={customWidgetDraft.summary}
+                onChange={(event) =>
+                  setCustomWidgetDraft((previous) => ({
+                    ...previous,
+                    summary: event.target.value
+                  }))
+                }
+                helperText="Short explanation shown in the widget library."
+              />
+              <Paper variant="outlined" square sx={{ p: 1.25 }}>
+                <Stack spacing={0.75}>
+                  <Typography variant="subtitle2">Template source</Typography>
+                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                    <Chip size="small" color="primary" label={customWidgetDraft.descriptor.displayName} />
+                    <Chip size="small" variant="outlined" label={customWidgetDraft.descriptor.libraryCategory ?? "Custom"} />
+                    <Chip size="small" variant="outlined" label={customWidgetDraft.descriptor.complexity ?? "guided"} />
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={customWidgetDraft.templateMode === "composition" ? "Composition" : "Template"}
+                    />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {customWidgetDraft.descriptor.useCase ??
+                      customWidgetDraft.descriptor.description ??
+                      "Reusable widget template"}
+                  </Typography>
+                </Stack>
+              </Paper>
+              {saveCustomWidgetState.message && saveCustomWidgetState.error ? (
+                <Alert severity="warning">{saveCustomWidgetState.message}</Alert>
+              ) : null}
+            </Stack>
+          ) : null}
+        </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfigBlockId(null)}>Close</Button>
+          <Button
+            onClick={() => setCustomWidgetDraft(null)}
+            disabled={saveCustomWidgetState.saving}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitCustomWidgetSave}
+            disabled={saveCustomWidgetState.saving || !customWidgetDraft?.title || !customWidgetDraft?.widgetKey}
+          >
+            {saveCustomWidgetState.saving
+              ? "Saving..."
+              : customWidgetDraft?.templateMode === "composition"
+                ? "Save Custom Widget"
+                : "Save Widget Template"}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

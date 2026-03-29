@@ -11,7 +11,76 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import { DEFAULT_WIDGET_COMPONENT_REGISTRY } from "../shared/widget-component-schema.mjs";
+import {
+  buildCustomWidgetLibraryEntries,
+  createComponentInstanceFromWidgetLibraryEntry
+} from "../../test-modules-page-studio/shared/page-studio-custom-widget-library.mjs";
 import { LayoutBuilderWidgetInspector } from "./LayoutBuilderWidgetInspector.jsx";
+
+function normalizeText(value, fallback = "") {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function readAvailableBuiltInEntries(pageContextManifest = null) {
+  const pageKind = pageContextManifest?.pageKind ?? "post-detail";
+  const primarySourceType = pageContextManifest?.primarySourceType ?? "blog-post";
+  return [...DEFAULT_WIDGET_COMPONENT_REGISTRY.values()].filter((descriptor) => {
+    if (descriptor.hiddenInLibrary === true) {
+      return false;
+    }
+    const pageKindAllowed =
+      !Array.isArray(descriptor.supportedPageKinds) || descriptor.supportedPageKinds.length === 0
+        ? true
+        : descriptor.supportedPageKinds.includes(pageKind);
+    const sourceAllowed =
+      !Array.isArray(descriptor.supportedPrimarySourceTypes) || descriptor.supportedPrimarySourceTypes.length === 0
+        ? true
+        : descriptor.supportedPrimarySourceTypes.includes(primarySourceType);
+    return pageKindAllowed && sourceAllowed;
+  });
+}
+
+function buildLegacyWidgetLibrarySections(pageContextManifest = null, customWidgets = []) {
+  const builtInEntries = readAvailableBuiltInEntries(pageContextManifest).map((descriptor) => ({
+    libraryKey: descriptor.componentKey,
+    componentKey: descriptor.componentKey,
+    displayName: descriptor.displayName,
+    icon: descriptor.icon ?? "widgets",
+    libraryCategory: descriptor.libraryCategory ?? descriptor.group ?? "General",
+    group: descriptor.group ?? "General",
+    description: descriptor.description ?? "Reusable page widget",
+    useCase: descriptor.useCase ?? descriptor.description ?? "Reusable page widget",
+    complexity: descriptor.complexity ?? "basic",
+    keywords: descriptor.keywords ?? [],
+    originLabel: "Built-in",
+    sourceLabel: descriptor.wrapperKind ?? "primitive",
+    disabled: false,
+    disabledReason: ""
+  }));
+  const customEntries = buildCustomWidgetLibraryEntries(customWidgets);
+  const sections = [];
+  if (customEntries.some((entry) => entry.templateMode === "composition")) {
+    sections.push({
+      id: "custom-widgets",
+      label: "Custom Widgets",
+      entries: customEntries.filter((entry) => entry.templateMode === "composition")
+    });
+  }
+  if (customEntries.some((entry) => entry.templateMode !== "composition")) {
+    sections.push({
+      id: "widget-templates",
+      label: "Widget Templates",
+      entries: customEntries.filter((entry) => entry.templateMode !== "composition")
+    });
+  }
+  sections.push({
+    id: "built-in-widgets",
+    label: "Built-in Widgets",
+    entries: builtInEntries
+  });
+  return sections;
+}
 
 function NumberField({ label, value, onChange, min = 0, max = 999 }) {
   return (
@@ -332,14 +401,22 @@ function ContainerFields({ draft, node, parentNode, onUpdateNode }) {
 }
 
 function BlockFields({
+  draft,
   node,
   parentNode,
   pageContextManifest,
   widgetBindingManifestNote,
   mediaItems,
+  customWidgets,
   onUpdateNode
 }) {
   const parentMode = parentNode?.layoutMode ?? "grid";
+  const librarySections = buildLegacyWidgetLibrarySections(pageContextManifest, customWidgets);
+  const selectedLibraryKey =
+    node?.componentInstance?.componentKey === "custom-widget" &&
+    node?.componentInstance?.props?.customWidgetId?.mode === "static"
+      ? `custom:${normalizeText(node.componentInstance.props.customWidgetId.value, "")}`
+      : node?.componentInstance?.componentKey ?? "";
 
   return (
     <Stack spacing={2}>
@@ -369,6 +446,8 @@ function BlockFields({
         pageContextManifest={pageContextManifest}
         widgetBindingManifestNote={widgetBindingManifestNote}
         mediaItems={mediaItems}
+        availableLibrarySections={librarySections}
+        selectedLibraryKey={selectedLibraryKey}
         translationTarget={{
           entityType: "page-layouts",
           entityId: draft?.id ?? null,
@@ -380,6 +459,7 @@ function BlockFields({
             componentInstance
           })
         }
+        onSelectLibraryEntry={(entry) => createComponentInstanceFromWidgetLibraryEntry(entry)}
       />
     </Stack>
   );
@@ -394,6 +474,7 @@ export function LayoutBuilderNodeDialog({
   pageContextManifest,
   widgetBindingManifestNote,
   mediaItems,
+  customWidgets = [],
   onClose,
   onUpdateNode,
   onRemoveNode
@@ -432,11 +513,13 @@ export function LayoutBuilderNodeDialog({
             />
           ) : (
             <BlockFields
+              draft={draft}
               node={selectedNode}
               parentNode={parentNode}
               pageContextManifest={pageContextManifest}
               widgetBindingManifestNote={widgetBindingManifestNote}
               mediaItems={mediaItems}
+              customWidgets={customWidgets}
               onUpdateNode={onUpdateNode}
             />
           )}
