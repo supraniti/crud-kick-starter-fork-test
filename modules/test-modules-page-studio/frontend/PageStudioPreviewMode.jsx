@@ -26,7 +26,6 @@ import {
   clampViewportHeight,
   clampViewportWidth,
   clampZoomLevel,
-  DEFAULT_VIEWPORT,
   DEFAULT_ZOOM_LEVEL,
   VIEWPORT_PRESETS
 } from "../../test-modules-layouts/frontend/layout-builder-viewport.js";
@@ -39,6 +38,9 @@ import {
   buildPageStudioPreviewModel,
   resolvePageStudioPreviewTheme
 } from "./page-studio-preview-data.js";
+import { buildPageStudioCanvasFrameMetrics } from "./page-studio-canvas-frame.js";
+import { PageStudioRuntimeCanvas } from "./PageStudioRuntimeCanvas.jsx";
+import { getPageStudioPreviewBootstrapResources } from "./page-studio-preview-resources.js";
 
 const POSTS_COLLECTION_ID = "blog-posts";
 const AUTHORS_COLLECTION_ID = "blog-authors";
@@ -47,14 +49,18 @@ const TAGS_COLLECTION_ID = "blog-tags";
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
 const THEMES_COLLECTION_ID = "page-themes";
 
-const BREAKPOINT_VIEWPORT_PRESET_ID = Object.freeze({
-  desktop: "desktop",
-  tablet: "tablet",
-  mobile: "mobile"
-});
-
 const CANVAS_FIT_WIDTH_OFFSET = 96;
 const CANVAS_FIT_HEIGHT_OFFSET = 120;
+const STUDIO_RAIL_WIDTH = 336;
+const PREVIEW_COLLECTIONS_CACHE_TTL_MS = 15000;
+const PREVIEW_CONTENT_CACHE_STORAGE_KEY = "page-studio.preview.content-cache.v1";
+const PREVIEW_THEME_CACHE_STORAGE_KEY = "page-studio.preview.theme-cache.v1";
+let previewContentCollectionsCache = null;
+let previewContentCollectionsCachedAt = 0;
+let previewContentCollectionsPromise = null;
+let previewThemeCollectionsCache = null;
+let previewThemeCollectionsCachedAt = 0;
+let previewThemeCollectionsPromise = null;
 
 function RailSection({ title, description = null, children }) {
   return (
@@ -83,8 +89,13 @@ function normalizeText(value, fallback = "") {
 }
 
 function buildViewportFromBreakpoint(breakpoint) {
-  const presetId = BREAKPOINT_VIEWPORT_PRESET_ID[breakpoint] ?? "desktop";
-  return VIEWPORT_PRESETS.find((entry) => entry.id === presetId) ?? DEFAULT_VIEWPORT;
+  if (breakpoint === "mobile") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "mobile") ?? null;
+  }
+  if (breakpoint === "tablet") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "tablet") ?? null;
+  }
+  return VIEWPORT_PRESETS.find((entry) => entry.id === "desktop") ?? null;
 }
 
 function mapViewportPresetToBreakpoint(preset = null) {
@@ -241,27 +252,6 @@ function renderParagraphs(text) {
     .filter(Boolean);
 }
 
-function TabsWidget({ tabs = [] }) {
-  const [activeTab, setActiveTab] = useState(0);
-  if (!tabs.length) {
-    return <Alert severity="info">No tabs are configured for this block yet.</Alert>;
-  }
-  return (
-    <Stack spacing={2}>
-      <Tabs value={activeTab} onChange={(_event, value) => setActiveTab(value)} variant="scrollable">
-        {tabs.map((tab, index) => (
-          <Tab key={index} label={normalizeText(tab?.header, `Tab ${index + 1}`)} />
-        ))}
-      </Tabs>
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="body1">
-          {normalizeText(tabs[activeTab]?.body, "No tab content is available.")}
-        </Typography>
-      </Paper>
-    </Stack>
-  );
-}
-
 function uniqueById(items = []) {
   const seen = new Set();
   return toArray(items).filter((item) => {
@@ -272,231 +262,6 @@ function uniqueById(items = []) {
     seen.add(itemId);
     return true;
   });
-}
-
-function WidgetRenderer({ widget, context, libraries, onPreviewNavigate }) {
-  const descriptor = widget?.componentKey ? DEFAULT_WIDGET_COMPONENT_REGISTRY.get(widget.componentKey) ?? null : null;
-  const content = resolveBindingTree(widget?.content ?? {}, context, libraries);
-  const props = resolveBindingTree(widget?.props ?? {}, context, libraries);
-
-  if (!descriptor) {
-    return <Alert severity="warning">Unsupported widget.</Alert>;
-  }
-
-  if (widget.componentKey === "post-title") {
-    const tag = normalizeText(props?.tag, "h1");
-    return (
-      <Box sx={{ minHeight: 0 }}>
-        <Typography component={tag} variant={tag} sx={{ textWrap: "balance" }}>
-          {normalizeText(content?.text, "Untitled story")}
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (widget.componentKey === "post-rich-text") {
-    const paragraphs = renderParagraphs(content?.body ?? "");
-    return (
-      <Stack spacing={2}>
-        {paragraphs.length > 0 ? (
-          paragraphs.map((paragraph, index) => (
-            <Typography key={index} variant="body1">
-              {paragraph}
-            </Typography>
-          ))
-        ) : (
-          <Alert severity="info">No body content is available for this route.</Alert>
-        )}
-      </Stack>
-    );
-  }
-
-  if (widget.componentKey === "media-image") {
-    const media = content?.media;
-    if (!media?.preferredUrl) {
-      return <Alert severity="info">No media is available for this block.</Alert>;
-    }
-    return (
-      <Box sx={{ height: "100%", minHeight: 0 }}>
-        <Box
-          component="img"
-          src={media.preferredUrl}
-          alt={normalizeText(media.altText, normalizeText(media.displayName, "Media"))}
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: normalizeText(props?.fit, "cover"),
-            border: "1px solid",
-            borderColor: "divider",
-            display: "block"
-          }}
-        />
-      </Box>
-    );
-  }
-
-  if (widget.componentKey === "category-chips") {
-    const items = toArray(content?.items);
-    return items.length > 0 ? (
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ alignContent: "flex-start" }}>
-        {items.map((item) => (
-          <PreviewLink key={item.id ?? item.name} href={item.publicUrl ?? item.path} onPreviewNavigate={onPreviewNavigate}>
-            <Chip label={normalizeText(item?.name, "Category")} clickable />
-          </PreviewLink>
-        ))}
-      </Stack>
-    ) : (
-      <Alert severity="info">No categories are attached to this page yet.</Alert>
-    );
-  }
-
-  if (widget.componentKey === "author-card") {
-    const author = content?.author;
-    if (!author) {
-      return <Alert severity="info">No author is attached to this post yet.</Alert>;
-    }
-    return (
-      <Card variant="outlined" sx={{ height: "100%" }}>
-        <CardContent sx={{ height: "100%", overflow: "auto" }}>
-          <Stack direction="row" spacing={2} alignItems="flex-start">
-            <Avatar src={author.avatarMedia?.preferredUrl ?? undefined} alt={normalizeText(author.displayName, "Author")}>
-              {normalizeText(author.displayName, "A").slice(0, 1)}
-            </Avatar>
-            <Stack spacing={0.75}>
-              <PreviewLink href={author.publicUrl ?? author.path} onPreviewNavigate={onPreviewNavigate}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {normalizeText(author.displayName, "Author")}
-                </Typography>
-              </PreviewLink>
-              {author.role ? <Typography variant="caption" color="text.secondary">{author.role}</Typography> : null}
-              {author.bio ? <Typography variant="body2">{author.bio}</Typography> : null}
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (widget.componentKey === "breadcrumbs") {
-    const items = toArray(context.navigation?.breadcrumbs);
-    return items.length > 0 ? (
-      <Breadcrumbs>
-        {items.map((item) => (
-          <PreviewLink key={item.id ?? item.name} href={item.publicUrl ?? item.path} onPreviewNavigate={onPreviewNavigate}>
-            <Typography variant="caption">{normalizeText(item?.name, "Category")}</Typography>
-          </PreviewLink>
-        ))}
-      </Breadcrumbs>
-    ) : (
-      <Alert severity="info">No breadcrumb route is available for this page yet.</Alert>
-    );
-  }
-
-  if (widget.componentKey === "post-navigation") {
-    const heading = normalizeText(props?.heading, "Keep Reading");
-    const items = [
-      { label: "Previous Story", record: context.navigation?.previousPost },
-      { label: "Next Story", record: context.navigation?.nextPost }
-    ].filter((entry) => entry.record);
-    return (
-      <Stack spacing={2}>
-        <Typography variant="h2">{heading}</Typography>
-        {items.length > 0 ? (
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            {items.map((entry) => (
-              <Card key={entry.label} variant="outlined" sx={{ flex: 1 }}>
-                <CardContent>
-                  <Typography variant="caption" color="text.secondary">
-                    {entry.label}
-                  </Typography>
-                  <PreviewLink href={entry.record.publicUrl ?? entry.record.path} onPreviewNavigate={onPreviewNavigate}>
-                    <Typography variant="h3" sx={{ mt: 0.75, mb: 1 }}>
-                      {normalizeText(entry.record.title, "Untitled story")}
-                    </Typography>
-                  </PreviewLink>
-                  {entry.record.excerpt ? <Typography variant="body2">{entry.record.excerpt}</Typography> : null}
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        ) : (
-          <Alert severity="info">No adjacent stories are available for this route yet.</Alert>
-        )}
-      </Stack>
-    );
-  }
-
-  if (widget.componentKey === "related-posts") {
-    const heading = normalizeText(props?.heading, "Related Stories");
-    const source = normalizeText(props?.source, "combined");
-    const limit = Number(props?.limit);
-    const maxItems = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 3;
-    const related = context.related ?? {};
-    let selectedItems = [];
-    if (source === "moreFromAuthor") {
-      selectedItems = toArray(related.moreFromAuthor);
-    } else if (source === "byCategory") {
-      selectedItems = toArray(related.byCategory);
-    } else if (source === "byTag") {
-      selectedItems = toArray(related.byTag);
-    } else {
-      selectedItems = uniqueById([
-        ...toArray(related.moreFromAuthor),
-        ...toArray(related.byCategory),
-        ...toArray(related.byTag)
-      ]);
-    }
-    selectedItems = selectedItems.slice(0, maxItems);
-    return (
-      <Stack spacing={2} sx={{ height: "100%", minHeight: 0 }}>
-        <Typography variant="h2">{heading}</Typography>
-        {selectedItems.length > 0 ? (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
-              gap: 2,
-              overflow: "auto",
-              pr: 0.5
-            }}
-          >
-            {selectedItems.map((item) => (
-              <Card key={item.id ?? item.title} variant="outlined" sx={{ height: "100%" }}>
-                <CardContent sx={{ display: "grid", gap: 1.25 }}>
-                  {item.featuredMedia?.preferredUrl ? (
-                    <Box
-                      component="img"
-                      src={item.featuredMedia.preferredUrl}
-                      alt={normalizeText(item.featuredMedia.altText, normalizeText(item.title, "Related story"))}
-                      sx={{
-                        width: "100%",
-                        height: 120,
-                        objectFit: "cover",
-                        border: "1px solid",
-                        borderColor: "divider"
-                      }}
-                    />
-                  ) : null}
-                  <PreviewLink href={item.publicUrl ?? item.path} onPreviewNavigate={onPreviewNavigate}>
-                    <Typography variant="h3">{normalizeText(item.title, "Untitled story")}</Typography>
-                  </PreviewLink>
-                  {item.excerpt ? <Typography variant="body2">{item.excerpt}</Typography> : null}
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
-        ) : (
-          <Alert severity="info">No related stories are available for this route yet.</Alert>
-        )}
-      </Stack>
-    );
-  }
-
-  if (widget.componentKey === "tabs") {
-    return <TabsWidget tabs={toArray(content?.tabs)} />;
-  }
-
-  return <Alert severity="warning">{descriptor.displayName} is not yet previewable.</Alert>;
 }
 
 function RuntimeBlock({ item, block, context, libraries, onPreviewNavigate }) {
@@ -511,11 +276,11 @@ function RuntimeBlock({ item, block, context, libraries, onPreviewNavigate }) {
     >
       <Box sx={{ height: "100%", minHeight: 0, overflow: "auto" }}>
         {block?.componentInstance ? (
-          <WidgetRenderer
+          <PageStudioWidgetRenderer
             widget={block.componentInstance}
             context={context}
             libraries={libraries}
-            onPreviewNavigate={onPreviewNavigate}
+            onNavigate={onPreviewNavigate}
           />
         ) : (
           <Paper variant="outlined" sx={{ p: 2, minHeight: "100%", borderStyle: "dashed" }}>
@@ -538,6 +303,7 @@ function PreviewRuntime({
   previewState,
   activeBreakpoint,
   runtimeBreakpoint,
+  frameMetrics,
   viewport,
   onPreviewNavigate
 }) {
@@ -552,18 +318,7 @@ function PreviewRuntime({
     [previewState.page, previewState.model]
   );
   const libraries = useMemo(
-    () => ({
-      mediaById: new Map(toArray(previewState.collections.mediaItems).map((item) => [
-        item.id,
-        {
-          ...item,
-          preferredUrl:
-            item.preferredUrl ??
-            item.localContentUrl ??
-            `/api/reference/modules/test-modules-media-manager/media-items/${encodeURIComponent(item.id)}/content`
-        }
-      ]))
-    }),
+    () => createPageStudioPreviewLibraries(previewState.collections),
     [previewState.collections.mediaItems]
   );
   const blockById = useMemo(
@@ -582,15 +337,14 @@ function PreviewRuntime({
       >
         <Box
           sx={{
-            width: "100%",
-            maxWidth: `${runtimeBreakpoint.canvasMaxWidth}px`,
+            width: `${frameMetrics.canvasWidth}px`,
             minHeight: `${viewport.height}px`,
             mx: "auto",
             display: "grid",
             gridTemplateColumns: `repeat(${runtimeBreakpoint.columns}, minmax(0, 1fr))`,
-            gridAutoRows: `${runtimeBreakpoint.rowHeight}px`,
-            gap: `${runtimeBreakpoint.gap * 8}px`,
-            p: `${runtimeBreakpoint.padding * 8}px`,
+            gridAutoRows: `${frameMetrics.rowHeightPx}px`,
+            gap: `${frameMetrics.gapPx}px`,
+            p: `${frameMetrics.paddingPx}px`,
             alignContent: "start",
             boxSizing: "border-box"
           }}
@@ -619,7 +373,123 @@ async function fetchCollection(collectionId) {
   return toArray(payload?.items);
 }
 
-export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
+function readStoredPreviewCache(storageKey) {
+  if (typeof window === "undefined" || !window.sessionStorage) {
+    return null;
+  }
+  try {
+    const raw = window.sessionStorage.getItem(storageKey);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    if (Date.now() - Number(parsed.cachedAt ?? 0) >= PREVIEW_COLLECTIONS_CACHE_TTL_MS) {
+      return null;
+    }
+    return parsed.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredPreviewCache(storageKey, value) {
+  if (typeof window === "undefined" || !window.sessionStorage) {
+    return;
+  }
+  try {
+    window.sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        cachedAt: Date.now(),
+        value
+      })
+    );
+  } catch {
+    // ignore session storage pressure
+  }
+}
+
+async function loadPreviewContentCollections() {
+  if (!previewContentCollectionsCache) {
+    const stored = readStoredPreviewCache(PREVIEW_CONTENT_CACHE_STORAGE_KEY);
+    if (stored) {
+      previewContentCollectionsCache = stored;
+      previewContentCollectionsCachedAt = Date.now();
+    }
+  }
+  if (
+    previewContentCollectionsCache &&
+    Date.now() - previewContentCollectionsCachedAt < PREVIEW_COLLECTIONS_CACHE_TTL_MS
+  ) {
+    return previewContentCollectionsCache;
+  }
+  if (!previewContentCollectionsPromise) {
+    previewContentCollectionsPromise = Promise.all([
+      fetchCollection(POSTS_COLLECTION_ID),
+      fetchCollection(AUTHORS_COLLECTION_ID),
+      fetchCollection(CATEGORIES_COLLECTION_ID),
+      fetchCollection(TAGS_COLLECTION_ID),
+      fetchCollection(MEDIA_ITEMS_COLLECTION_ID)
+    ])
+      .then(([posts, authors, categories, tags, mediaItems]) => {
+        previewContentCollectionsCache = {
+          posts,
+          authors,
+          categories,
+          tags,
+          mediaItems
+        };
+        previewContentCollectionsCachedAt = Date.now();
+        writeStoredPreviewCache(PREVIEW_CONTENT_CACHE_STORAGE_KEY, previewContentCollectionsCache);
+        return previewContentCollectionsCache;
+      })
+      .finally(() => {
+        previewContentCollectionsPromise = null;
+      });
+  }
+  return previewContentCollectionsPromise;
+}
+
+async function loadPreviewThemeCollections() {
+  if (!previewThemeCollectionsCache) {
+    const stored = readStoredPreviewCache(PREVIEW_THEME_CACHE_STORAGE_KEY);
+    if (stored) {
+      previewThemeCollectionsCache = stored;
+      previewThemeCollectionsCachedAt = Date.now();
+    }
+  }
+  if (
+    previewThemeCollectionsCache &&
+    Date.now() - previewThemeCollectionsCachedAt < PREVIEW_COLLECTIONS_CACHE_TTL_MS
+  ) {
+    return previewThemeCollectionsCache;
+  }
+  if (!previewThemeCollectionsPromise) {
+    previewThemeCollectionsPromise = fetchCollection(THEMES_COLLECTION_ID)
+      .then((themes) => {
+        previewThemeCollectionsCache = themes;
+        previewThemeCollectionsCachedAt = Date.now();
+        writeStoredPreviewCache(PREVIEW_THEME_CACHE_STORAGE_KEY, previewThemeCollectionsCache);
+        return previewThemeCollectionsCache;
+      })
+      .finally(() => {
+        previewThemeCollectionsPromise = null;
+      });
+  }
+  return previewThemeCollectionsPromise;
+}
+
+export function PageStudioPreviewMode({
+  studioDocument,
+  onPatchDocument,
+  canvasState,
+  onPatchCanvasState,
+  railOpen = false,
+  previewResources = null
+}) {
   const activeBreakpoint = studioDocument.layout.activeBreakpoint;
   const runtimeLayoutContract = useMemo(
     () =>
@@ -630,16 +500,17 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
     [studioDocument.layout.editorGrid, studioDocument.layout.runtimeLayoutMetadata]
   );
   const runtimeBreakpoint = runtimeLayoutContract.breakpoints[activeBreakpoint];
-  const [viewport, setViewport] = useState(() => buildViewportFromBreakpoint(activeBreakpoint));
-  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
-  const [zoomMode, setZoomMode] = useState("auto");
   const [shellBounds, setShellBounds] = useState({ width: 0, height: 0 });
   const shellHostRef = useRef(null);
+  const viewport = canvasState.viewport;
+  const zoomLevel = canvasState.zoomLevel;
+  const zoomMode = canvasState.zoomMode;
   const pageViewportRef = useRef(null);
   const previewScrollLockRef = useRef(false);
   const [previewScrollPercent, setPreviewScrollPercent] = useState(0);
-  const [dataState, setDataState] = useState({
-    loading: true,
+  const [localDataState, setLocalDataState] = useState({
+    contentLoading: true,
+    themeLoading: true,
     errorMessage: null,
     collections: {
       posts: [],
@@ -650,48 +521,121 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
       themes: []
     }
   });
+  const dataState = previewResources ?? localDataState;
+  const previewBootstrap = useMemo(
+    () => getPageStudioPreviewBootstrapResources(studioDocument),
+    [studioDocument]
+  );
+  const effectiveCollections = dataState.contentLoading && previewBootstrap.contentReady
+    ? {
+        ...dataState.collections,
+        ...previewBootstrap.collections
+      }
+    : dataState.collections;
+  const effectiveContentLoading = dataState.contentLoading && !previewBootstrap.contentReady;
 
   useEffect(() => {
+    if (previewResources) {
+      return undefined;
+    }
     let active = true;
+    const storedContentCollections = previewContentCollectionsCache ?? readStoredPreviewCache(PREVIEW_CONTENT_CACHE_STORAGE_KEY);
+    const storedThemeCollections = previewThemeCollectionsCache ?? readStoredPreviewCache(PREVIEW_THEME_CACHE_STORAGE_KEY);
+    if (storedContentCollections && !previewContentCollectionsCache) {
+      previewContentCollectionsCache = storedContentCollections;
+      previewContentCollectionsCachedAt = Date.now();
+    }
+    if (storedThemeCollections && !previewThemeCollectionsCache) {
+      previewThemeCollectionsCache = storedThemeCollections;
+      previewThemeCollectionsCachedAt = Date.now();
+    }
+    if (
+      previewContentCollectionsCache &&
+      Date.now() - previewContentCollectionsCachedAt < PREVIEW_COLLECTIONS_CACHE_TTL_MS
+    ) {
+      setLocalDataState({
+        contentLoading: false,
+        themeLoading: !(
+          previewThemeCollectionsCache &&
+          Date.now() - previewThemeCollectionsCachedAt < PREVIEW_COLLECTIONS_CACHE_TTL_MS
+        ),
+        errorMessage: null,
+        collections: {
+          ...previewContentCollectionsCache,
+          themes:
+            previewThemeCollectionsCache &&
+            Date.now() - previewThemeCollectionsCachedAt < PREVIEW_COLLECTIONS_CACHE_TTL_MS
+              ? previewThemeCollectionsCache
+              : []
+        }
+      });
+    }
+    if (
+      previewThemeCollectionsCache &&
+      Date.now() - previewThemeCollectionsCachedAt < PREVIEW_COLLECTIONS_CACHE_TTL_MS
+    ) {
+      setLocalDataState((previous) => ({
+        ...previous,
+        themeLoading: false,
+        collections: {
+          ...previous.collections,
+          themes: previewThemeCollectionsCache
+        }
+      }));
+    }
     async function load() {
       try {
-        const [posts, authors, categories, tags, mediaItems, themes] = await Promise.all([
-          fetchCollection(POSTS_COLLECTION_ID),
-          fetchCollection(AUTHORS_COLLECTION_ID),
-          fetchCollection(CATEGORIES_COLLECTION_ID),
-          fetchCollection(TAGS_COLLECTION_ID),
-          fetchCollection(MEDIA_ITEMS_COLLECTION_ID),
-          fetchCollection(THEMES_COLLECTION_ID)
-        ]);
-        if (!active) {
-          return;
+        const collections = await loadPreviewContentCollections();
+        if (active) {
+          setLocalDataState((previous) => ({
+            ...previous,
+            contentLoading: false,
+            errorMessage: null,
+            collections: {
+              ...previous.collections,
+              ...collections
+            }
+          }));
         }
-        setDataState({
-          loading: false,
-          errorMessage: null,
-          collections: { posts, authors, categories, tags, mediaItems, themes }
-        });
       } catch (error) {
         if (!active) {
           return;
         }
-        setDataState((previous) => ({
+        setLocalDataState((previous) => ({
           ...previous,
-          loading: false,
+          contentLoading: false,
           errorMessage: error?.message ?? "Failed to load preview data"
         }));
       }
     }
+    async function loadThemes() {
+      try {
+        const themes = await loadPreviewThemeCollections();
+        if (active) {
+          setLocalDataState((previous) => ({
+            ...previous,
+            themeLoading: false,
+            collections: {
+              ...previous.collections,
+              themes
+            }
+          }));
+        }
+      } catch {
+        if (active) {
+          setLocalDataState((previous) => ({
+            ...previous,
+            themeLoading: false
+          }));
+        }
+      }
+    }
     void load();
+    void loadThemes();
     return () => {
       active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    setViewport(buildViewportFromBreakpoint(activeBreakpoint));
-    setZoomMode("auto");
-  }, [activeBreakpoint]);
+  }, [previewResources]);
 
   useEffect(() => {
     const pageViewport = pageViewportRef.current;
@@ -709,7 +653,7 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
     handleScroll();
     pageViewport.addEventListener("scroll", handleScroll, { passive: true });
     return () => pageViewport.removeEventListener("scroll", handleScroll);
-  }, [viewport, dataState.loading]);
+  }, [viewport, dataState.contentLoading]);
 
   useEffect(() => {
     const pageViewport = pageViewportRef.current;
@@ -748,23 +692,43 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
     () => buildPageStudioPreviewDescriptor(studioDocument, previewParams),
     [studioDocument, previewParams]
   );
-  const previewModelState = useMemo(
+  const fallbackPreviewModelState = useMemo(
     () =>
       buildPageStudioPreviewModel({
         studioDocument,
-        collections: dataState.collections,
+        collections: effectiveCollections,
         previewParams
       }),
-    [dataState.collections, previewParams, studioDocument]
+    [effectiveCollections, previewParams, studioDocument.infra, studioDocument.preview]
   );
-  const themeDocument = useMemo(
-    () => resolvePageStudioPreviewTheme(studioDocument, dataState.collections.themes),
-    [dataState.collections.themes, studioDocument]
+  const previewModelState =
+    dataState.page || dataState.model
+      ? {
+          ok: Boolean(dataState.page && dataState.model),
+          issue: dataState.issue ?? null,
+          page: dataState.page ?? previewDescriptor,
+          model: dataState.model ?? null,
+          sourceRecordId: dataState.sourceRecordId ?? null
+        }
+      : fallbackPreviewModelState;
+  const fallbackThemeDocument = useMemo(
+    () => resolvePageStudioPreviewTheme(studioDocument, effectiveCollections.themes),
+    [effectiveCollections.themes, studioDocument]
   );
+  const themeDocument = dataState.themeDocument ?? fallbackThemeDocument;
   const effectiveZoomLevel =
     zoomMode === "auto"
       ? computeAutoFitZoomLevel({ viewport, shellBounds })
       : zoomLevel;
+  const frameMetrics = useMemo(
+    () =>
+      buildPageStudioCanvasFrameMetrics({
+        viewport,
+        runtimeBreakpoint,
+        scaleRatio: 1
+      }),
+    [runtimeBreakpoint, viewport]
+  );
   const zoomLabel =
     zoomMode === "auto"
       ? `Zoom ${effectiveZoomLevel}% · Fit`
@@ -813,9 +777,9 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
       page: previewModelState.page ?? previewDescriptor,
       model: previewModelState.model ?? null,
       themeDocument,
-      collections: dataState.collections
+      collections: effectiveCollections
     }),
-    [dataState.collections, previewDescriptor, previewModelState.model, previewModelState.page, themeDocument]
+    [effectiveCollections, previewDescriptor, previewModelState.model, previewModelState.page, themeDocument]
   );
 
   const assignedWidgetCount = studioDocument.widgets.blocks.filter((block) => block.componentInstance).length;
@@ -826,28 +790,48 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
         minHeight: 0,
         flex: 1,
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", lg: "minmax(0,1fr) 320px" },
+        gridTemplateColumns: {
+          xs: "1fr",
+          lg: railOpen ? `minmax(0,1fr) ${STUDIO_RAIL_WIDTH}px` : "minmax(0,1fr)"
+        },
         gap: 1,
         alignItems: "stretch"
       }}
     >
-      <Box ref={shellHostRef} sx={{ minHeight: 0, minWidth: 0 }}>
+      <Box
+        ref={shellHostRef}
+        sx={{
+          minHeight: 0,
+          minWidth: 0,
+          height: "100%",
+          display: "flex",
+          overflow: "hidden"
+        }}
+      >
         <LayoutBuilderCanvasShell
           viewport={viewport}
+          displayViewport={viewport}
           zoomLevel={effectiveZoomLevel}
+          contentZoom
           zoomLabel={zoomLabel}
           fitZoomActive={zoomMode === "auto"}
-          onFitZoom={() => setZoomMode("auto")}
+          onFitZoom={() => onPatchCanvasState((previous) => ({ ...previous, zoomMode: "auto" }))}
           onWidthStep={(delta) =>
-            setViewport((current) => ({
-              ...current,
-              width: clampViewportWidth(current.width + delta)
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: {
+                ...previous.viewport,
+                width: clampViewportWidth(previous.viewport.width + delta)
+              }
             }))
           }
           onHeightStep={(delta) =>
-            setViewport((current) => ({
-              ...current,
-              height: clampViewportHeight(current.height + delta)
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: {
+                ...previous.viewport,
+                height: clampViewportHeight(previous.viewport.height + delta)
+              }
             }))
           }
           onSelectPreset={(preset) => {
@@ -861,25 +845,31 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
                 }
               }));
             }
-            setViewport({ width: preset.width, height: preset.height });
-            setZoomMode("auto");
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: { width: preset.width, height: preset.height },
+              zoomMode: "auto"
+            }));
           }}
           onZoomStep={(delta) => {
-            setZoomMode("manual");
-            setZoomLevel((current) =>
-              clampZoomLevel((zoomMode === "auto" ? effectiveZoomLevel : current) + delta)
-            );
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              zoomMode: "manual",
+              zoomLevel: clampZoomLevel((previous.zoomMode === "auto" ? effectiveZoomLevel : previous.zoomLevel) + delta)
+            }));
           }}
           pageViewportRef={pageViewportRef}
         >
-          {previewModelState.ok && !dataState.loading ? (
-            <PreviewRuntime
+          {previewModelState.ok && !effectiveContentLoading ? (
+            <PageStudioRuntimeCanvas
               studioDocument={studioDocument}
               previewState={previewState}
               activeBreakpoint={activeBreakpoint}
               runtimeBreakpoint={runtimeBreakpoint}
+              frameMetrics={frameMetrics}
               viewport={viewport}
-              onPreviewNavigate={handlePreviewNavigate}
+              onNavigate={handlePreviewNavigate}
+              scaleRatio={1}
             />
           ) : (
             <Paper
@@ -895,8 +885,8 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
               <Stack spacing={1.25} alignItems="center" textAlign="center">
                 <Typography variant="h6">Preview not ready</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {dataState.loading
-                    ? "Loading preview datasets."
+                  {effectiveContentLoading
+                    ? "Loading preview content…"
                     : previewModelState.issue ?? "Adjust the studio document until a previewable page contract exists."}
                 </Typography>
               </Stack>
@@ -905,6 +895,7 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
         </LayoutBuilderCanvasShell>
       </Box>
 
+      {railOpen ? (
       <Paper variant="outlined" square sx={{ p: 1, minHeight: 0, overflow: "auto" }}>
         <Stack spacing={1}>
           <RailSection title="Preview Route" description="This is the exact route and page family the preview is simulating.">
@@ -920,15 +911,24 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
               label="Screen Size"
               size="small"
               value={activeBreakpoint}
-              onChange={(event) =>
+              onChange={(event) => {
+                const nextBreakpoint = event.target.value;
+                const nextPreset = buildViewportFromBreakpoint(nextBreakpoint);
                 onPatchDocument((previous) => ({
                   ...previous,
                   layout: {
                     ...previous.layout,
-                    activeBreakpoint: event.target.value
+                    activeBreakpoint: nextBreakpoint
                   }
-                }))
-              }
+                }));
+                if (nextPreset) {
+                  onPatchCanvasState((previous) => ({
+                    ...previous,
+                    viewport: { width: nextPreset.width, height: nextPreset.height },
+                    zoomMode: "auto"
+                  }));
+                }
+              }}
             >
               {Object.entries(PAGE_STUDIO_BREAKPOINT_LABELS).map(([breakpoint, label]) => (
                 <MenuItem key={breakpoint} value={breakpoint}>
@@ -950,7 +950,10 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
           <RailSection title="Preview Status">
             {dataState.errorMessage ? <Alert severity="error">{dataState.errorMessage}</Alert> : null}
             {!dataState.errorMessage && previewModelState.issue ? <Alert severity="warning">{previewModelState.issue}</Alert> : null}
-            {dataState.loading ? <Alert severity="info">Loading preview datasets...</Alert> : null}
+            {effectiveContentLoading ? <Alert severity="info">Loading preview content…</Alert> : null}
+            {!effectiveContentLoading && dataState.themeLoading ? (
+              <Alert severity="info">Applying theme settings…</Alert>
+            ) : null}
             <Stack spacing={0.2}>
               <Typography variant="caption" color="text.secondary">
                 Page scroll
@@ -979,6 +982,11 @@ export function PageStudioPreviewMode({ studioDocument, onPatchDocument }) {
           </RailSection>
         </Stack>
       </Paper>
+      ) : null}
     </Box>
   );
 }
+
+
+
+

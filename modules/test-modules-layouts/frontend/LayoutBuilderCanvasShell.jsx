@@ -232,10 +232,21 @@ function PageBoundaryLabel({ viewport }) {
   );
 }
 
-function PageChrome({ viewport, zoomLevel, pageViewportRef = null, children }) {
-  const scaleRatio = zoomLevel / 100;
-  const scaledWidth = Math.round(viewport.width * scaleRatio);
-  const scaledHeight = Math.round(viewport.height * scaleRatio);
+function PageChrome({
+  viewport,
+  displayViewport = viewport,
+  zoomLevel,
+  contentZoom = true,
+  pageViewportRef = null,
+  children
+}) {
+  const rulerViewport = displayViewport ?? viewport;
+  const widthRatio = rulerViewport?.width ? viewport.width / rulerViewport.width : 1;
+  const scaleRatio = contentZoom
+    ? (Number.isFinite(zoomLevel) && zoomLevel > 0 ? zoomLevel / 100 : 1)
+    : (Number.isFinite(widthRatio) && widthRatio > 0 ? widthRatio : 1);
+  const scaledWidth = contentZoom ? Math.round(viewport.width * scaleRatio) : viewport.width;
+  const scaledHeight = contentZoom ? Math.round(viewport.height * scaleRatio) : viewport.height;
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: "100%", maxWidth: "100%", overflow: "auto" }}>
@@ -263,8 +274,8 @@ function PageChrome({ viewport, zoomLevel, pageViewportRef = null, children }) {
           }}
         >
           <CanvasCorner />
-          <HorizontalRuler width={viewport.width} scaleRatio={scaleRatio} />
-          <VerticalRuler height={viewport.height} scaleRatio={scaleRatio} />
+          <HorizontalRuler width={rulerViewport.width} scaleRatio={scaleRatio} />
+          <VerticalRuler height={rulerViewport.height} scaleRatio={scaleRatio} />
           <Box
             sx={{
               position: "relative",
@@ -286,13 +297,12 @@ function PageChrome({ viewport, zoomLevel, pageViewportRef = null, children }) {
               overflow: "hidden"
             }}
           >
-            <PageBoundaryLabel viewport={viewport} />
+            <PageBoundaryLabel viewport={rulerViewport} />
             <Box
               sx={{
-                position: "absolute",
-                inset: 0,
-                transform: `scale(${scaleRatio})`,
-                transformOrigin: "top left"
+                width: scaledWidth,
+                height: scaledHeight,
+                overflow: "hidden"
               }}
             >
               <Box
@@ -300,6 +310,8 @@ function PageChrome({ viewport, zoomLevel, pageViewportRef = null, children }) {
                 sx={{
                   width: viewport.width,
                   height: viewport.height,
+                  zoom: contentZoom ? scaleRatio : 1,
+                  transformOrigin: "top left",
                   backgroundColor: "#ffffff",
                   overflowX: "hidden",
                   overflowY: "auto",
@@ -318,7 +330,9 @@ function PageChrome({ viewport, zoomLevel, pageViewportRef = null, children }) {
 
 export function LayoutBuilderCanvasShell({
   viewport,
+  displayViewport = viewport,
   zoomLevel,
+  contentZoom = true,
   zoomLabel = null,
   fitZoomActive = false,
   onFitZoom = null,
@@ -332,7 +346,7 @@ export function LayoutBuilderCanvasShell({
   return (
     <Stack spacing={0.75} sx={{ minHeight: 0, minWidth: 0, width: "100%", maxWidth: "100%", height: "100%", overflow: "hidden" }}>
       <ViewportToolbar
-        viewport={viewport}
+        viewport={displayViewport}
         zoomLevel={zoomLevel}
         zoomLabel={zoomLabel ?? formatZoomLabel(zoomLevel)}
         fitZoomActive={fitZoomActive}
@@ -342,7 +356,13 @@ export function LayoutBuilderCanvasShell({
         onSelectPreset={onSelectPreset}
         onZoomStep={onZoomStep}
       />
-      <PageChrome viewport={viewport} zoomLevel={zoomLevel} pageViewportRef={pageViewportRef}>
+      <PageChrome
+        viewport={viewport}
+        displayViewport={displayViewport}
+        zoomLevel={zoomLevel}
+        contentZoom={contentZoom}
+        pageViewportRef={pageViewportRef}
+      >
         {children}
       </PageChrome>
     </Stack>

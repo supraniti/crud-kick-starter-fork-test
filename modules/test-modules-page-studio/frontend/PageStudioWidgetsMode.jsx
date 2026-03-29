@@ -16,18 +16,17 @@ import {
 } from "@mui/material";
 import { fetchReferenceCollectionItems } from "../../../frontend/src/api/reference.js";
 import { LayoutBuilderCanvasShell } from "../../test-modules-layouts/frontend/LayoutBuilderCanvasShell.jsx";
-import { BlockVisual } from "../../test-modules-layouts/frontend/LayoutBuilderCanvasPrimitives.jsx";
 import { LayoutBuilderComponentLibrary } from "../../test-modules-layouts/frontend/LayoutBuilderComponentLibrary.jsx";
 import { LayoutBuilderWidgetInspector } from "../../test-modules-layouts/frontend/LayoutBuilderWidgetInspector.jsx";
 import {
   clampViewportHeight,
   clampViewportWidth,
   clampZoomLevel,
-  DEFAULT_VIEWPORT,
   DEFAULT_ZOOM_LEVEL,
   VIEWPORT_PRESETS
 } from "../../test-modules-layouts/frontend/layout-builder-viewport.js";
 import { DEFAULT_WIDGET_COMPONENT_REGISTRY } from "../../test-modules-layouts/shared/widget-component-schema.mjs";
+import { buildWidgetContextScope } from "../../test-modules-pages/shared/page-widget-context.mjs";
 import { resolvePageContextManifest } from "../../test-modules-pages/server/page-context-manifest-runtime.mjs";
 import { summarizeWidgetInstance } from "../../test-modules-pages/shared/page-widget-compatibility.mjs";
 import { PAGE_STUDIO_BREAKPOINT_LABELS } from "../shared/page-studio-breakpoints.mjs";
@@ -36,17 +35,24 @@ import {
   buildPageStudioScenarioWidgetSeed,
   pageStudioScenarioHasStarterWidgets
 } from "../shared/page-studio-widget-seeds.mjs";
+import { buildPageStudioCanvasFrameMetrics } from "./page-studio-canvas-frame.js";
+import {
+  buildPageStudioPreviewDescriptor,
+  buildPageStudioPreviewModel,
+  resolvePageStudioPreviewTheme
+} from "./page-studio-preview-data.js";
+import { PageStudioRuntimeCanvas } from "./PageStudioRuntimeCanvas.jsx";
+import { getPageStudioPreviewBootstrapResources } from "./page-studio-preview-resources.js";
 
 const MEDIA_ITEMS_COLLECTION_ID = "media-items";
-
-const BREAKPOINT_VIEWPORT_PRESET_ID = Object.freeze({
-  desktop: "desktop",
-  tablet: "tablet",
-  mobile: "mobile"
-});
+const POSTS_COLLECTION_ID = "blog-posts";
+const AUTHORS_COLLECTION_ID = "blog-authors";
+const CATEGORIES_COLLECTION_ID = "blog-categories";
+const TAGS_COLLECTION_ID = "blog-tags";
 
 const CANVAS_FIT_WIDTH_OFFSET = 96;
 const CANVAS_FIT_HEIGHT_OFFSET = 120;
+const STUDIO_RAIL_WIDTH = 336;
 
 function RailSection({ title, description = null, children }) {
   return (
@@ -71,8 +77,13 @@ function normalizeText(value, fallback = "") {
 }
 
 function buildViewportFromBreakpoint(breakpoint) {
-  const presetId = BREAKPOINT_VIEWPORT_PRESET_ID[breakpoint] ?? "desktop";
-  return VIEWPORT_PRESETS.find((entry) => entry.id === presetId) ?? DEFAULT_VIEWPORT;
+  if (breakpoint === "mobile") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "mobile") ?? null;
+  }
+  if (breakpoint === "tablet") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "tablet") ?? null;
+  }
+  return VIEWPORT_PRESETS.find((entry) => entry.id === "desktop") ?? null;
 }
 
 function mapViewportPresetToBreakpoint(preset = null) {
@@ -261,98 +272,108 @@ function useMediaLibraryOptions() {
   return state;
 }
 
-function WidgetBlockFrame({
-  block,
-  layoutItem,
-  selected,
-  hovered,
-  onHover,
-  onLeave,
-  onChooseWidget,
-  onConfigureWidget
-}) {
-  const widgetSummary = summarizeWidgetInstance(block.componentInstance ?? null, DEFAULT_WIDGET_COMPONENT_REGISTRY);
+function useWidgetRuntimePreviewCollections(enabled = true) {
+  const [state, setState] = useState({
+    contentLoading: enabled,
+    themeLoading: true,
+    errorMessage: null,
+    collections: {
+      posts: [],
+      authors: [],
+      categories: [],
+      tags: [],
+      mediaItems: [],
+      themes: []
+    }
+  });
 
-  return (
-    <Box
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
-      onClick={() => {
-        if (block.componentInstance) {
-          onConfigureWidget();
+  useEffect(() => {
+    if (!enabled) {
+      setState((previous) => ({
+        ...previous,
+        contentLoading: false,
+        themeLoading: false
+      }));
+      return undefined;
+    }
+    let active = true;
+
+    async function load() {
+      try {
+        const [posts, authors, categories, tags, mediaItems, themes] = await Promise.all([
+          fetchReferenceCollectionItems({ collectionId: POSTS_COLLECTION_ID, limit: 500 }),
+          fetchReferenceCollectionItems({ collectionId: AUTHORS_COLLECTION_ID, limit: 500 }),
+          fetchReferenceCollectionItems({ collectionId: CATEGORIES_COLLECTION_ID, limit: 500 }),
+          fetchReferenceCollectionItems({ collectionId: TAGS_COLLECTION_ID, limit: 500 }),
+          fetchReferenceCollectionItems({ collectionId: MEDIA_ITEMS_COLLECTION_ID, limit: 500 }),
+          fetchReferenceCollectionItems({ collectionId: "page-themes", limit: 500 })
+        ]);
+        if (!active) {
           return;
         }
-        onChooseWidget();
-      }}
-      sx={{
-        gridColumn: `${layoutItem.colStart} / span ${layoutItem.colSpan}`,
-        gridRow: `${layoutItem.rowStart} / span ${layoutItem.rowSpan}`,
-        minWidth: 0,
-        minHeight: 0,
-        position: "relative",
-        cursor: "pointer"
-      }}
-    >
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 2,
-          pointerEvents: "none",
-          opacity: hovered || selected ? 1 : 0,
-          transition: "opacity 160ms ease"
-        }}
-      >
-        <Stack
-          direction="row"
-          spacing={0.75}
-          useFlexGap
-          flexWrap="wrap"
-          sx={{ position: "absolute", top: 8, left: 8, right: 8 }}
-        >
-          <Chip size="small" color="primary" label={block.id} />
-          <Chip size="small" variant="outlined" label={block.summary || "Block"} />
-          <Chip size="small" variant="outlined" label={block.componentInstance ? widgetSummary.displayName : "No widget"} />
-        </Stack>
-        <Stack
-          direction="row"
-          spacing={0.75}
-          useFlexGap
-          sx={{ position: "absolute", right: 8, bottom: 8 }}
-        >
-          <Button
-            size="small"
-            variant={block.componentInstance ? "outlined" : "contained"}
-            sx={{ pointerEvents: "auto" }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onChooseWidget();
-            }}
-          >
-            {block.componentInstance ? "Replace" : "Choose"}
-          </Button>
-          {block.componentInstance ? (
-            <Button
-              size="small"
-              variant="contained"
-              sx={{ pointerEvents: "auto" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                onConfigureWidget();
-              }}
-            >
-              Configure
-            </Button>
-          ) : null}
-        </Stack>
-      </Box>
-      <BlockVisual node={createPreviewNode(block)} parentMode="grid" isSelected={selected || hovered} />
-    </Box>
-  );
+        setState({
+          contentLoading: false,
+          themeLoading: false,
+          errorMessage: null,
+          collections: {
+            posts: Array.isArray(posts?.items) ? posts.items : [],
+            authors: Array.isArray(authors?.items) ? authors.items : [],
+            categories: Array.isArray(categories?.items) ? categories.items : [],
+            tags: Array.isArray(tags?.items) ? tags.items : [],
+            mediaItems: Array.isArray(mediaItems?.items) ? mediaItems.items : [],
+            themes: Array.isArray(themes?.items) ? themes.items : []
+          }
+        });
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setState({
+          contentLoading: false,
+          themeLoading: false,
+          errorMessage: error?.message ?? "Failed to load widget preview data",
+          collections: {
+            posts: [],
+            authors: [],
+            categories: [],
+            tags: [],
+            mediaItems: [],
+            themes: []
+          }
+        });
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [enabled]);
+
+  return state;
 }
 
-export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
+export function PageStudioWidgetsMode({
+  studioDocument,
+  onPatchDocument,
+  canvasState,
+  onPatchCanvasState,
+  selectedBlockId,
+  onSelectBlockId,
+  railOpen = false,
+  previewResources = null
+}) {
   const supportState = useMediaLibraryOptions();
+  const localWidgetPreviewState = useWidgetRuntimePreviewCollections(!previewResources);
+  const widgetPreviewState = previewResources ?? localWidgetPreviewState;
+  const previewBootstrap = useMemo(() => getPageStudioPreviewBootstrapResources(studioDocument), [studioDocument]);
+  const effectiveCollections = widgetPreviewState.contentLoading && previewBootstrap.contentReady
+    ? {
+        ...widgetPreviewState.collections,
+        ...previewBootstrap.collections
+      }
+    : widgetPreviewState.collections;
+  const effectiveContentLoading = widgetPreviewState.contentLoading && !previewBootstrap.contentReady;
   const pageContextResolution = useMemo(
     () => resolvePageContextManifest(createStudioContextPayload(studioDocument)),
     [studioDocument]
@@ -378,16 +399,15 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
     [studioDocument.widgets.blocks]
   );
   const renderedItems = runtimeBreakpoint.items.filter((item) => blockById.has(item.blockId));
-  const [selectedBlockId, setSelectedBlockId] = useState(renderedItems[0]?.blockId ?? null);
   const [hoveredBlockId, setHoveredBlockId] = useState(null);
   const [pickerBlockId, setPickerBlockId] = useState(null);
   const [configBlockId, setConfigBlockId] = useState(null);
-  const [viewport, setViewport] = useState(() => buildViewportFromBreakpoint(activeBreakpoint));
-  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
-  const [zoomMode, setZoomMode] = useState("auto");
   const [shellBounds, setShellBounds] = useState({ width: 0, height: 0 });
   const shellHostRef = useRef(null);
 
+  const viewport = canvasState.viewport;
+  const zoomLevel = canvasState.zoomLevel;
+  const zoomMode = canvasState.zoomMode;
   const selectedBlock = blockById.get(selectedBlockId) ?? null;
   const configBlock = blockById.get(configBlockId) ?? null;
   const pickerBlock = blockById.get(pickerBlockId) ?? null;
@@ -399,17 +419,53 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
     zoomMode === "auto"
       ? `Zoom ${effectiveZoomLevel}% · Fit`
       : `Zoom ${effectiveZoomLevel}%`;
-
-  useEffect(() => {
-    setViewport(buildViewportFromBreakpoint(activeBreakpoint));
-    setZoomMode("auto");
-  }, [activeBreakpoint]);
+  const frameMetrics = useMemo(
+    () =>
+      buildPageStudioCanvasFrameMetrics({
+        viewport,
+        runtimeBreakpoint,
+        scaleRatio: 1
+      }),
+    [runtimeBreakpoint, viewport]
+  );
+  const previewParams = studioDocument.preview?.urlParams ?? {};
+  const previewDescriptor = useMemo(
+    () => buildPageStudioPreviewDescriptor(studioDocument, previewParams),
+    [previewParams, studioDocument]
+  );
+  const fallbackPreviewModelState = useMemo(
+    () =>
+      buildPageStudioPreviewModel({
+        studioDocument,
+        collections: effectiveCollections,
+        previewParams
+      }),
+    [effectiveCollections, previewParams, studioDocument.infra, studioDocument.preview]
+  );
+  const previewModelState =
+    widgetPreviewState.page || widgetPreviewState.model || previewBootstrap.page || previewBootstrap.model
+      ? {
+          ok: Boolean(
+            (widgetPreviewState.page ?? previewBootstrap.page) &&
+            (widgetPreviewState.model ?? previewBootstrap.model)
+          ),
+          issue: widgetPreviewState.issue ?? previewBootstrap.issue ?? null,
+          page: widgetPreviewState.page ?? previewBootstrap.page ?? previewDescriptor,
+          model: widgetPreviewState.model ?? previewBootstrap.model ?? null,
+          sourceRecordId: widgetPreviewState.sourceRecordId ?? previewBootstrap.sourceRecordId ?? null
+        }
+      : fallbackPreviewModelState;
+  const fallbackThemeDocument = useMemo(
+    () => resolvePageStudioPreviewTheme(studioDocument, effectiveCollections.themes),
+    [effectiveCollections.themes, studioDocument]
+  );
+  const themeDocument = widgetPreviewState.themeDocument ?? previewBootstrap.themeDocument ?? fallbackThemeDocument;
 
   useEffect(() => {
     if (!selectedBlockId || !renderedItems.some((item) => item.blockId === selectedBlockId)) {
-      setSelectedBlockId(renderedItems[0]?.blockId ?? null);
+      onSelectBlockId(renderedItems[0]?.blockId ?? null);
     }
-  }, [renderedItems, selectedBlockId]);
+  }, [onSelectBlockId, renderedItems, selectedBlockId]);
 
   useEffect(() => {
     const shellHost = shellHostRef.current;
@@ -473,28 +529,48 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
         minHeight: 0,
         flex: 1,
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", lg: "minmax(0,1fr) 340px" },
+        gridTemplateColumns: {
+          xs: "1fr",
+          lg: railOpen ? `minmax(0,1fr) ${STUDIO_RAIL_WIDTH}px` : "minmax(0,1fr)"
+        },
         gap: 1,
         alignItems: "stretch"
       }}
     >
-      <Box ref={shellHostRef} sx={{ minHeight: 0, minWidth: 0 }}>
+      <Box
+        ref={shellHostRef}
+        sx={{
+          minHeight: 0,
+          minWidth: 0,
+          height: "100%",
+          display: "flex",
+          overflow: "hidden"
+        }}
+      >
         <LayoutBuilderCanvasShell
           viewport={viewport}
+          displayViewport={viewport}
           zoomLevel={effectiveZoomLevel}
+          contentZoom
           zoomLabel={zoomLabel}
           fitZoomActive={zoomMode === "auto"}
-          onFitZoom={() => setZoomMode("auto")}
+          onFitZoom={() => onPatchCanvasState((previous) => ({ ...previous, zoomMode: "auto" }))}
           onWidthStep={(delta) =>
-            setViewport((current) => ({
-              ...current,
-              width: clampViewportWidth(current.width + delta)
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: {
+                ...previous.viewport,
+                width: clampViewportWidth(previous.viewport.width + delta)
+              }
             }))
           }
           onHeightStep={(delta) =>
-            setViewport((current) => ({
-              ...current,
-              height: clampViewportHeight(current.height + delta)
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: {
+                ...previous.viewport,
+                height: clampViewportHeight(previous.viewport.height + delta)
+              }
             }))
           }
           onSelectPreset={(preset) => {
@@ -508,62 +584,144 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
                 }
               }));
             }
-            setViewport({ width: preset.width, height: preset.height });
-            setZoomMode("auto");
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: { width: preset.width, height: preset.height },
+              zoomMode: "auto"
+            }));
           }}
           onZoomStep={(delta) => {
-            setZoomMode("manual");
-            setZoomLevel((current) =>
-              clampZoomLevel((zoomMode === "auto" ? effectiveZoomLevel : current) + delta)
-            );
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              zoomMode: "manual",
+              zoomLevel: clampZoomLevel((previous.zoomMode === "auto" ? effectiveZoomLevel : previous.zoomLevel) + delta)
+            }));
           }}
         >
-          <Box sx={{ height: "100%", minHeight: "100%", bgcolor: "#f8fafc", p: 1.25 }}>
-            <Box
-              sx={{
-                minHeight: `${Math.max(480, viewport.height - 24)}px`,
-                backgroundColor: "rgba(255,255,255,0.96)",
-                display: "grid",
-                gridTemplateColumns: `repeat(${runtimeBreakpoint.columns}, minmax(0, 1fr))`,
-                gridAutoRows: `${runtimeBreakpoint.rowHeight}px`,
-                gap: `${runtimeBreakpoint.gap * 8}px`,
-                p: `${runtimeBreakpoint.padding * 8}px`,
-                alignContent: "start"
+          {previewModelState.ok && !effectiveContentLoading ? (
+            <PageStudioRuntimeCanvas
+              studioDocument={studioDocument}
+              previewState={{
+                page: previewModelState.page,
+                model: previewModelState.model,
+                themeDocument,
+                collections: effectiveCollections
               }}
-            >
-              {renderedItems.map((item) => {
-                const block = blockById.get(item.blockId);
-                if (!block) {
-                  return null;
-                }
+              activeBreakpoint={activeBreakpoint}
+              runtimeBreakpoint={runtimeBreakpoint}
+              frameMetrics={frameMetrics}
+              viewport={viewport}
+              onNavigate={null}
+              scaleRatio={1}
+              renderBlockChrome={({ block, item }) => {
+                const widgetSummary = summarizeWidgetInstance(block?.componentInstance ?? null, DEFAULT_WIDGET_COMPONENT_REGISTRY);
+                const hovered = hoveredBlockId === item.blockId;
+                const selected = selectedBlockId === item.blockId;
                 return (
-                  <WidgetBlockFrame
-                    key={`${activeBreakpoint}-${item.blockId}`}
-                    block={block}
-                    layoutItem={item}
-                    selected={selectedBlockId === item.blockId}
-                    hovered={hoveredBlockId === item.blockId}
-                    onHover={() => {
+                  <Box
+                    onMouseEnter={() => {
                       setHoveredBlockId(item.blockId);
-                      setSelectedBlockId(item.blockId);
+                      onSelectBlockId(item.blockId);
                     }}
-                    onLeave={() => setHoveredBlockId((current) => (current === item.blockId ? null : current))}
-                    onChooseWidget={() => {
-                      setSelectedBlockId(item.blockId);
+                    onMouseLeave={() => setHoveredBlockId((current) => (current === item.blockId ? null : current))}
+                    onClick={() => {
+                      if (block?.componentInstance) {
+                        onSelectBlockId(item.blockId);
+                        setConfigBlockId(item.blockId);
+                        return;
+                      }
+                      onSelectBlockId(item.blockId);
                       setPickerBlockId(item.blockId);
                     }}
-                    onConfigureWidget={() => {
-                      setSelectedBlockId(item.blockId);
-                      setConfigBlockId(item.blockId);
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      zIndex: 2,
+                      cursor: "pointer",
+                      outline: selected ? "2px solid rgba(37,99,235,0.9)" : hovered ? "1px solid rgba(37,99,235,0.4)" : "1px solid rgba(15,23,42,0.08)",
+                      outlineOffset: "-1px",
+                      transition: "outline-color 160ms ease",
+                      backgroundColor: hovered || selected ? "rgba(255,255,255,0.02)" : "transparent"
                     }}
-                  />
+                  >
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        pointerEvents: "none",
+                        opacity: hovered || selected ? 1 : 0,
+                        transition: "opacity 160ms ease"
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={0.75}
+                        useFlexGap
+                        flexWrap="wrap"
+                        sx={{ position: "absolute", top: 8, left: 8, right: 8 }}
+                      >
+                        <Chip size="small" color="primary" label={block?.id ?? item.blockId} />
+                        <Chip size="small" variant="outlined" label={block?.summary || "Block"} />
+                        <Chip size="small" variant="outlined" label={block?.componentInstance ? widgetSummary.displayName : "No widget"} />
+                      </Stack>
+                      <Stack direction="row" spacing={0.75} useFlexGap sx={{ position: "absolute", right: 8, bottom: 8 }}>
+                        <Button
+                          size="small"
+                          variant={block?.componentInstance ? "outlined" : "contained"}
+                          sx={{ pointerEvents: "auto" }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelectBlockId(item.blockId);
+                            setPickerBlockId(item.blockId);
+                          }}
+                        >
+                          {block?.componentInstance ? "Replace" : "Choose"}
+                        </Button>
+                        {block?.componentInstance ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            sx={{ pointerEvents: "auto" }}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onSelectBlockId(item.blockId);
+                              setConfigBlockId(item.blockId);
+                            }}
+                          >
+                            Configure
+                          </Button>
+                        ) : null}
+                      </Stack>
+                    </Box>
+                  </Box>
                 );
-              })}
-            </Box>
-          </Box>
+              }}
+            />
+          ) : (
+            <Paper
+              variant="outlined"
+              square
+              sx={{
+                minHeight: `${Math.max(480, viewport.height)}px`,
+                display: "grid",
+                placeItems: "center",
+                p: 3
+              }}
+            >
+              <Stack spacing={1.25} alignItems="center" textAlign="center">
+                <Typography variant="h6">Widgets not ready</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {widgetPreviewState.contentLoading
+                    ? "Loading widget preview data…"
+                    : previewModelState.issue ?? "Adjust the studio document until a previewable widget context exists."}
+                </Typography>
+              </Stack>
+            </Paper>
+          )}
         </LayoutBuilderCanvasShell>
       </Box>
 
+      {railOpen ? (
       <Paper variant="outlined" square sx={{ p: 1, minHeight: 0, overflow: "auto" }}>
         <Stack spacing={1}>
           <RailSection
@@ -576,15 +734,24 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
               label="Breakpoint"
               size="small"
               value={activeBreakpoint}
-              onChange={(event) =>
+              onChange={(event) => {
+                const nextBreakpoint = event.target.value;
+                const nextPreset = buildViewportFromBreakpoint(nextBreakpoint);
                 onPatchDocument((previous) => ({
                   ...previous,
                   layout: {
                     ...previous.layout,
-                    activeBreakpoint: event.target.value
+                    activeBreakpoint: nextBreakpoint
                   }
-                }))
-              }
+                }));
+                if (nextPreset) {
+                  onPatchCanvasState((previous) => ({
+                    ...previous,
+                    viewport: { width: nextPreset.width, height: nextPreset.height },
+                    zoomMode: "auto"
+                  }));
+                }
+              }}
             >
               {Object.entries(PAGE_STUDIO_BREAKPOINT_LABELS).map(([breakpoint, label]) => (
                 <MenuItem key={breakpoint} value={breakpoint}>
@@ -617,7 +784,7 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
                     key={item.blockId}
                     size="small"
                     variant={selectedBlockId === item.blockId ? "contained" : "outlined"}
-                    onClick={() => setSelectedBlockId(item.blockId)}
+                    onClick={() => onSelectBlockId(item.blockId)}
                     sx={{ justifyContent: "space-between" }}
                   >
                     <span>{block.summary || block.id}</span>
@@ -658,9 +825,12 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
             </Stack>
             {supportState.loading ? <Chip size="small" variant="outlined" label="Loading media library..." /> : null}
             {supportState.errorMessage ? <Chip size="small" color="warning" label="Media library unavailable" /> : null}
+            {widgetPreviewState.loading ? <Chip size="small" variant="outlined" label="Loading widget preview..." /> : null}
+            {widgetPreviewState.errorMessage ? <Chip size="small" color="warning" label="Widget preview unavailable" /> : null}
           </RailSection>
         </Stack>
       </Paper>
+      ) : null}
 
       <Dialog
         open={Boolean(pickerBlock)}
@@ -762,3 +932,7 @@ export function PageStudioWidgetsMode({ studioDocument, onPatchDocument }) {
     </Box>
   );
 }
+
+
+
+

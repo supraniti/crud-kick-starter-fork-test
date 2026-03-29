@@ -10,6 +10,54 @@
   - [m04-completion-map.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-completion-map.md)
   - [m04-closeout-proof.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/m04-closeout-proof.md)
 
+## 2026-03-28 Page Studio Professional Polish Pass In Progress
+- The previously approved `Page Studio` slice was committed and pushed first:
+  - `a02e65f` `feat: advance page studio authoring`
+- A follow-up polish pass is now in the worktree and not committed yet.
+- Intent authority re-read before implementation:
+  - [intent-file.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/intent-file.md)
+- Plan and execution record:
+  - [page-studio-professional-polish-plan-2026-03-28.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/page-studio-professional-polish-plan-2026-03-28.md)
+  - [page-studio-professional-polish-pass-2026-03-28.md](C:/Users/cmsin/2026/crud-kick-starter-fork-test/docs/research/page-studio-professional-polish-pass-2026-03-28.md)
+- Main product improvements in this pass:
+  - mode switching no longer feels route-driven in the same way
+  - visited stages stay mounted and cross-fade
+  - `Page Studio` owns its immersive shell more completely
+  - hard reload now shows a cleaner immersive loading sequence
+  - viewport/zoom state is shared across `Layout`, `Widgets`, and `Preview`
+  - selected block continuity is shared between `Layout` and `Widgets`
+  - cross-tab draft updates now sync through storage events
+  - right-rail widths were normalized to stabilize fit zoom
+- Main files:
+  - [PageStudioView.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioView.jsx)
+  - [PageStudioLayoutMode.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioLayoutMode.jsx)
+  - [PageStudioWidgetsMode.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioWidgetsMode.jsx)
+  - [PageStudioPreviewMode.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/modules/test-modules-page-studio/frontend/PageStudioPreviewMode.jsx)
+  - [04-app-shell-layout.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/app/parts/04-app-shell-layout.jsx)
+  - [app-shell-layout.product-flow.integration.test.jsx](C:/Users/cmsin/2026/crud-kick-starter-fork-test/frontend/src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx)
+- Browser-reviewed routes:
+  - `http://localhost:3000/app/page-studio?studioMode=layout`
+  - `http://localhost:3000/app/page-studio?studioMode=widgets`
+  - `http://localhost:3000/app/page-studio?studioMode=preview`
+- Screenshot evidence:
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\page-studio-layout-pre-polish-review.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\page-studio-widgets-pre-polish-review.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\page-studio-preview-pre-polish-review.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\page-studio-iteration2-reload-clean.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\page-studio-iteration2-loaded-clean.png`
+  - `C:\Users\cmsin\2026\crud-kick-starter-fork-test\.codex-runtime\page-studio-final-preview-loaded.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm --filter frontend test -- src/tests/app-integration/app-shell-layout.product-flow.integration.test.jsx src/tests/core/page-studio-document.core.test.jsx src/tests/core/page-studio-layout-transform.core.test.jsx src/tests/core/page-studio-layout-editing.core.test.jsx src/tests/core/page-studio-preview-data.core.test.jsx src/tests/core/view-registry.descriptor.core.test.jsx`
+    - run outside sandbox because of the known Windows `spawn EPERM` boundary
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Current state:
+  - not committed
+  - review env healthy:
+    - `http://localhost:3000/`
+    - `http://127.0.0.1:3001/health`
+
 ## 2026-03-21 Comments Story Implemented And Ready For Review
 - The Comments story is implemented in the worktree and intentionally not committed yet.
 - Plan artifact:
@@ -2829,3 +2877,233 @@
   - `.codex-runtime/page-studio-preview-reset-draft-proof.png`
 - Pass record:
   - `docs/research/page-studio-usability-replan-pass-2026-03-27.md`
+
+### 2026-03-28 - Fixed The Page Studio Blank-Surface Failure By Restoring A Real Height Contract
+- Re-read `intent-file.md` before debugging.
+- The browser route `http://localhost:3000/app/page-studio?studioMode=layout` was investigated from the live page first, not from code assumptions.
+- The key evidence was contradictory at first:
+  - the DOM and accessibility tree contained real canvas content
+  - screenshots showed an almost blank white surface
+- The actual failure was layout, not missing data:
+  - the Page Studio builder paper had collapsed to a ~1px strip
+  - canvas and rail content were overflowing out of that collapsed container
+  - the result looked like a blank white page even though the DOM still existed underneath
+- Concrete fix:
+  - set Page Studio root to a stable `100dvh` immersive height
+  - made the studio content wrapper a real flex container
+  - made the builder paper take `height: 100%`
+- Supporting cleanups during the same investigation:
+  - removed the mounted multi-stage surface stack that had made the failure harder to reason about
+  - kept the work focused on restoring a visible working surface before returning to smoother transitions
+- Browser-validated after the fix:
+  - `/app/page-studio?studioMode=layout` now renders the canvas, ruler grid, blocks, and right rail
+  - `/app/page-studio?studioMode=widgets` now resolves to a visible widgets surface after module load
+  - `/app/page-studio?studioMode=preview` now renders a visible preview surface instead of a white screen
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:verify`
+- Remaining truthful boundary:
+  - `Preview` is no longer blank, but its data resolution still needs product work to become a trustworthy live-equivalent preview
+
+### 2026-03-28 - Repaired The Layout Interaction Surface And Made Preview Render Again
+- Re-read `intent-file.md` before the repair pass and validated from the live `page-studio` routes before claiming anything.
+- The concrete regressions reported by the operator were real:
+  - Gridstack layout editing had become unreliable after running inside a zoomed interaction surface
+  - the side panel had been reintroduced as a permanent space consumer instead of an opt-in aid
+  - preview was again opening as `Preview not ready` / loading instead of showing the page
+  - the terminal had reported a `DataCloneError` during HMR
+- Fixes applied:
+  - `Layout` mode no longer runs Gridstack inside a CSS-zoomed page surface
+  - the canvas now uses most of the screen again by default, with the side panel hidden until `Show Panel`
+  - preview data loading now:
+    - falls back to local posts if published-only sets are empty
+    - does not block first render on theme collection fetch
+    - reuses short-lived in-memory + session cache so reloads become materially faster after the first successful load
+  - history replacement now uses `null` state instead of cloning route state during mode changes
+- Browser-proved after the repair:
+  - `layout` route is visible, full-width by default, and no longer has a zoomed Gridstack ancestor
+  - resize handle geometry is inside the block bounds again
+  - `widgets` route is visible and populated
+  - `preview` route renders the post page again
+  - a second preview reload resolves within the short check window because the session cache is primed
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:verify`
+  - `pnpm quality:protocol`
+- Current truthful boundary:
+  - I have repaired the reported regressions and revalidated the visible routes
+  - I have not yet reworked Page Studio to full `PREVIEW === LIVE` parity; that is a larger remaining program, not part of this repair slice
+
+### 2026-03-28 - Unified Page Studio Preview Resources And Runtime Surface For Widgets/Preview Parity
+- Re-read `intent-file.md` before the pass and debugged from the live `page-studio` routes first.
+- The two concrete problems from the operator were real:
+  - Preview felt slow because the studio still treated preview data as a cold route-level fetch problem.
+  - `Layout`, `Widgets`, and `Preview` were still too different because `Widgets` and `Preview` were using separate render/data paths.
+- What the browser and screenshots proved:
+  - `Preview` could render, but it often opened on `Loading preview content...` because the mode waited on content collection loading.
+  - `Widgets` could also sit on `Loading widget preview data...` even though session cache already existed.
+  - `Widgets` and `Preview` only became visually close after data loaded, but they were not yet guaranteed to use one shared runtime surface.
+- Fixes applied:
+  - added shared preview resource loading in `page-studio-preview-resources.js`
+  - lifted preview resource ownership to `PageStudioView` so the studio warms the data once and shares it across modes
+  - changed the studio cache contract so stale session data is still usable immediately and freshness happens in the background instead of blocking the screen
+  - extended preview resource TTL to a practical editing-session window
+  - added `PageStudioRuntimeCanvas.jsx` so `Widgets` and `Preview` now render through the same MUI runtime block surface
+  - kept widget chrome as an overlay in `Widgets` instead of a separate fake block renderer
+- Browser proof after the fix:
+  - `widgets` now opens directly into the real widgetized page instead of remaining on `Widgets not ready`
+  - `preview` now opens from the same cached resource base and uses the same runtime block renderer
+  - screenshots of `widgets` and `preview` now show the same page surface with widget chrome as the main visible difference
+- Current truthful boundary:
+  - `Widgets` and `Preview` parity materially improved in both speed and visible output
+  - `Layout` is still the schematic geometry stage by design, so the remaining parity work is about making its geometry cues even more trustworthy, not about rendering full live content there
+
+### 2026-03-28 - Narrow-Screen Fit And Layout Geometry Were Revalidated From The Live Page Studio Routes
+- Re-read `intent-file.md` before this pass and validated from the browser first.
+- The exact operator-provided URL `http://localhost:3000/app/page-studio?studioMode=widgets/layouts` is not a valid mode. In the live route it falls back to `Infra`, so it cannot be used as proof for Layout-vs-Widgets parity.
+- I therefore compared the valid live routes directly:
+  - `/app/page-studio?studioMode=layout`
+  - `/app/page-studio?studioMode=widgets`
+  - `/app/page-studio?studioMode=preview`
+- Narrow-screen browser proof was done at `1100x900`.
+- What the live browser proved before the fix:
+  - `Widgets` and `Preview` were rendering through the scaled runtime frame, but `Layout` was still using a materially different vertical geometry contract.
+  - the fit label could show `Zoom 68% · Fit`, while the runtime surface still overflowed to the right on narrow screens.
+- Corrections applied and verified:
+  - `Widgets` and `Preview` now use the scaled render viewport and scaled theme metrics instead of scaling only the chrome label.
+  - `Layout` Gridstack cell height is now synchronized to `rowHeight + gap`, so hero/media/body/sidebar/related sections materially match the runtime block footprints.
+  - the layout block shell now uses a full-width absolute inset instead of shrinking the usable item width.
+- Browser-validated result at `1100x900`:
+  - `Widgets` now fully fits inside the narrow viewport when the UI says `Zoom 68% · Fit`.
+  - `Layout` now has much closer block heights and widths to `Widgets` / `Preview`, especially for the full-width story-stack sections.
+- Truthful current boundary:
+  - `Widgets` and `Preview` now share the same runtime structure.
+  - `Layout` is much closer geometrically, but it is still the schematic authoring stage, not a content-rendering stage.
+
+### 2026-03-28 - Fixed Page Studio Widgets Headline Flicker
+- Investigated the live `widgets` route directly after the operator reported headline flicker.
+- Browser sampling proved the headline box itself was stable, but the theme font stylesheet node was mutating continuously.
+- Root cause: `usePageStudioThemeStylesheet()` rewrote a `<style>` tag with `@import` rules on repeated runtime renders, which is a bad fit for the widget canvas and a plausible direct cause of visible font flicker.
+- Fix applied:
+  - stop using repeated `@import` text rewrites
+  - manage theme fonts as stable `<link rel="stylesheet">` nodes in `document.head`
+  - remove the legacy style node if present
+- Browser revalidation after the fix:
+  - two stable font links remain in `head`
+  - no further managed-head mutations observed during repeated sampling
+  - headline bounds remained stable across the sampling window
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+### 2026-03-29 - Fresh Preview Failures Were Caused By A Masked Stale Server, Then Fixed Against The Current Source
+- The operator-reported Preview route problem was real on `http://localhost:3000/app/page-studio?studioMode=preview`:
+  - cold load could sit on `Preview not ready`
+  - viewport preset switches felt unstable
+- The first important finding was environmental, not product-level:
+  - the ports were still owned by stale processes (`3000 -> PID 14672`, `3001 -> PID 26116`)
+  - those stale listeners were masking the current source tree, so earlier claims based on the live route were not trustworthy
+- After stopping the stale listeners, the real backend failure became visible:
+  - fresh backend startup failed because reference-state persistence was fail-fast against unavailable local Mongo (`127.0.0.1:27017`)
+- Review environment hardening applied in `scripts/review-env.mjs`:
+  - start backend with `REFERENCE_STATE_ALLOW_MEMORY_FALLBACK=true`
+  - reduce Mongo server selection timeout to `250ms`
+  - this keeps the current source runnable locally even when Docker/Mongo is not available
+- Preview data path fix applied:
+  - a dedicated Preview bootstrap endpoint is now mounted on the live backend path `/api/reference/modules/test-modules-page-studio/preview/bootstrap`
+  - the endpoint responds from the current source and returns the page/model/theme bootstrap required by Page Studio Preview
+- Direct backend validation after the fix:
+  - `POST /api/reference/modules/test-modules-page-studio/preview/bootstrap` returns `200`
+  - direct response time measured at about `52ms`
+- Browser validation after the fix:
+  - cold reload of `/app/page-studio?studioMode=preview` now renders `First Cup On The Table` again
+  - no white/empty Preview state remained after reload
+  - switching `Mobile -> Desktop` was sampled for ~2.5 seconds and the viewport/breakpoint stayed stable instead of oscillating
+- Evidence captured:
+  - `.codex-runtime/page-studio-preview-stable-after-bootstrap.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Truthful current boundary:
+  - Preview route rendering and the reported preset-switch instability are fixed on the current source
+  - this pass did not claim broader `PREVIEW === LIVE` completion beyond the operator-reported Preview route issues
+### 2026-03-29 - Preview Viewport Stability And Fit Semantics Were Fixed By Rendering True-Size Pages And Scaling The Canvas Shell
+- The previous Preview and Widgets implementation rebuilt the MUI runtime at a scaled breakpoint size instead of rendering the true page and scaling the page frame.
+- That created two concrete problems on the live Preview route:
+  - viewport preset changes could feel unstable or flickery
+  - zoom/fit semantics were heavier than necessary because theme/layout were recalculated at the scaled size
+- Shared shell fix in `modules/test-modules-layouts/frontend/LayoutBuilderCanvasShell.jsx`:
+  - when `contentZoom` is enabled, scale is now derived from the actual zoom level instead of viewport-ratio inference
+  - ruler/page labels now follow the intended display viewport while the page content scales independently
+- Page Studio runtime fix:
+  - `Widgets` and `Preview` now render the true viewport size and let the shell scale that page visually
+  - MUI theme generation no longer scales typography/spacing with zoom in `PageStudioRuntimeCanvas.jsx`
+  - `Widgets` and `Preview` now consume the preview bootstrap result directly instead of rebuilding the preview model from collections on every breakpoint/zoom change
+- Browser validation on `/app/page-studio?studioMode=preview`:
+  - `Mobile 390` settled in about `1536ms`
+  - `Desktop 1440` settled in about `1253ms`
+  - sampled desktop state stayed stable for 15 reads over ~3 seconds:
+    - viewport `1440x900`
+    - breakpoint `desktop`
+    - zoom `81% · Fit`
+    - headline bounds unchanged during sampling
+- Screenshot evidence:
+  - `.codex-runtime/page-studio-preview-desktop-after-fit-fix.png`
+  - `.codex-runtime/page-studio-preview-stable-viewport-pass.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Current truthful boundary:
+  - preview viewport switching is now stable in live browser validation
+  - first content render is still subject to broader local dev-shell cold-load cost, which is separate from the preview bootstrap route itself
+### 2026-03-29 - Widgets Blank Route Was A Real Refactor Regression And Is Fixed
+- Operator reported that `Widgets` had become blank.
+- Live route inspection confirmed the failure on:
+  - `http://localhost:3000/app/page-studio?studioMode=widgets`
+- Browser console showed the actual runtime error:
+  - `Uncaught ReferenceError: dataState is not defined`
+  - component: `PageStudioWidgetsMode`
+- Root cause:
+  - the recent preview/bootstrap refactor replaced the old fallback state in `Widgets`, but a `Preview`-only variable name (`dataState`) was left behind in the `Widgets` branch
+  - that made the entire route crash during render
+- Fix applied in `modules/test-modules-page-studio/frontend/PageStudioWidgetsMode.jsx`:
+  - use `widgetPreviewState` / `previewBootstrap` consistently instead of the nonexistent `dataState`
+  - keep the same bootstrap-first behavior as `Preview`
+- Browser revalidation after the fix:
+  - `Layout` renders on `/app/page-studio?studioMode=layout`
+  - `Widgets` renders on `/app/page-studio?studioMode=widgets`
+  - `Preview` renders on `/app/page-studio?studioMode=preview`
+  - clean console on fresh `Widgets` load: no runtime errors
+- Evidence captured:
+  - `.codex-runtime/page-studio-layout-route-check.png`
+  - `.codex-runtime/page-studio-widgets-fixed-route.png`
+  - `.codex-runtime/page-studio-preview-route-check.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Current truthful boundary:
+  - the operator-reported blank `Widgets` regression is fixed and proven on the real route
+  - broader Page Studio quality/polish work still remains separate from this specific repair
+### 2026-03-29 - Infra Mode Needed Its Own Scroll Host
+- Operator reported that `Infra` was only partially visible and could not be scrolled.
+- Live route checked on:
+  - `http://localhost:3000/app/page-studio?studioMode=infra`
+- Root cause:
+  - the generic Page Studio builder surface was still using the same clipped container contract as the dedicated canvas stages
+  - `BuilderCanvas` forced `overflow: hidden` and absolute positioning even for `Infra`
+  - result: on shorter screens, `Infra` could clip with no scroll path
+- Fix applied in `modules/test-modules-page-studio/frontend/PageStudioView.jsx`:
+  - dedicated stages (`Layout` / `Widgets` / `Preview`) keep the clipped immersive surface
+  - generic `Infra` now uses a real scroll container
+  - inner generic stack switched from fixed-height to `minHeight: 100%` + `overflow: auto`
+- Browser proof after the fix:
+  - `Infra` scroll host now reports `scrollHeight: 1328` and `clientHeight: 570`
+  - direct script scroll to bottom succeeded
+  - bottom content remained reachable (`Block Seeds` / `related-posts` visible through the scroll host)
+- Evidence:
+  - `.codex-runtime/page-studio-infra-scroll-fixed.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:verify`

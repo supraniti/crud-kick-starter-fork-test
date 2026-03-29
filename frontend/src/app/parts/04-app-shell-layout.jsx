@@ -48,8 +48,13 @@ function AppShellLayout({
   const deploymentCommandCenter = useGlobalDeploymentCommandCenter();
   const theme = useTheme();
   const preferCollapsedSidebar = useMediaQuery(theme.breakpoints.down("lg"));
+  const activeModuleId = typeof route?.moduleId === "string" ? route.moduleId.trim().toLowerCase() : "";
+  const requestedImmersiveRoute =
+    activeModuleId === "test-modules-page-studio" || activeModuleId === "page-studio";
   const immersiveShell =
-    activeViewRegistration?.shell?.mode === "immersive";
+    activeViewRegistration?.shell?.mode === "immersive" || requestedImmersiveRoute;
+  const hideImmersiveAppChrome =
+    immersiveShell && requestedImmersiveRoute;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined" || !window.localStorage) {
       return false;
@@ -96,72 +101,74 @@ function AppShellLayout({
       ) : null}
 
       <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <Paper
-          square
-          sx={{
-            borderBottom: 1,
-            borderColor: "divider",
-            px: 1.5,
-            py: 1
-          }}
-        >
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={0.75}
-            alignItems={{ xs: "flex-start", sm: "center" }}
-            justifyContent="space-between"
+        {!hideImmersiveAppChrome ? (
+          <Paper
+            square
+            sx={{
+              borderBottom: 1,
+              borderColor: "divider",
+              px: 1.5,
+              py: 1
+            }}
           >
-            <Stack spacing={0.5}>
-              <Typography variant="h6">Crud Control v{APP_VERSION}</Typography>
-              {activeRouteGuide ? (
-                <>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                    {activeRouteGuide.stageLabel ? (
-                      <Chip size="small" label={`Stage: ${activeRouteGuide.stageLabel}`} />
-                    ) : null}
-                    <Typography variant="caption" color="text.secondary">
-                      Route: {routeUrl}
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={0.75}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+            >
+              <Stack spacing={0.5}>
+                <Typography variant="h6">Crud Control v{APP_VERSION}</Typography>
+                {activeRouteGuide ? (
+                  <>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                      {activeRouteGuide.stageLabel ? (
+                        <Chip size="small" label={`Stage: ${activeRouteGuide.stageLabel}`} />
+                      ) : null}
+                      <Typography variant="caption" color="text.secondary">
+                        Route: {routeUrl}
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {activeRouteGuide.title}: {activeRouteGuide.purpose}
                     </Typography>
-                  </Stack>
-                  <Typography variant="body2" color="text.secondary">
-                    {activeRouteGuide.title}: {activeRouteGuide.purpose}
+                  </>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Active route: {routeUrl}
                   </Typography>
-                </>
-              ) : (
-                <Typography variant="caption" color="text.secondary">
-                  Active route: {routeUrl}
-                </Typography>
-              )}
-            </Stack>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <StatusChip mode={connectivityMode} />
-              {activeRouteGuide?.nextRouteId ? (
-                <Button
-                  size="small"
-                  variant="contained"
-                  onClick={() => handleSelectModule(activeRouteGuide.nextRouteId)}
-                >
-                  Next: {activeRouteGuide.nextRouteLabel || activeRouteGuide.nextRouteId}
+                )}
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <StatusChip mode={connectivityMode} />
+                {activeRouteGuide?.nextRouteId ? (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => handleSelectModule(activeRouteGuide.nextRouteId)}
+                  >
+                    Next: {activeRouteGuide.nextRouteLabel || activeRouteGuide.nextRouteId}
+                  </Button>
+                ) : null}
+                <Button size="small" variant="outlined" onClick={runConnectivityCheck}>
+                  Re-check API
                 </Button>
-              ) : null}
-              <Button size="small" variant="outlined" onClick={runConnectivityCheck}>
-                Re-check API
-              </Button>
-              {developerModeEnabled ? (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={handleOpenRuntimeSettings}
-                >
-                  Developer tools
+                {developerModeEnabled ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleOpenRuntimeSettings}
+                  >
+                    Developer tools
+                  </Button>
+                ) : null}
+                <Button size="small" variant="text" color="inherit" onClick={handleSignOut}>
+                  Sign out
                 </Button>
-              ) : null}
-              <Button size="small" variant="text" color="inherit" onClick={handleSignOut}>
-                Sign out
-              </Button>
+              </Stack>
             </Stack>
-          </Stack>
-        </Paper>
+          </Paper>
+        ) : null}
 
         <Box
           sx={{
@@ -203,7 +210,7 @@ function AppShellLayout({
 
           {!immersiveShell ? <Divider sx={{ mb: 1.5 }} /> : null}
 
-          {activeModuleView}
+          {!moduleState.loading ? activeModuleView : null}
         </Box>
       </Box>
 

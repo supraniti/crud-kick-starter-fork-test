@@ -190,7 +190,7 @@ test("sidebar can collapse to icon-only mode and keeps route discovery via butto
   expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
 });
 
-test("page studio route remains immersive while still exposing top-level route guidance", () => {
+test("page studio route stays immersive and suppresses outer shell chrome", () => {
   const moduleState = {
     loading: false,
     errorMessage: null,
@@ -230,8 +230,8 @@ test("page studio route remains immersive while still exposing top-level route g
   );
 
   expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
-  expect(screen.getByText(/Page Studio:/i)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Next: Deployments" })).toBeInTheDocument();
+  expect(screen.queryByText(/Crud Control v/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Next: Deployments" })).not.toBeInTheDocument();
   expect(screen.getByText("Page Studio Surface")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Sync/i })).not.toBeInTheDocument();
 });

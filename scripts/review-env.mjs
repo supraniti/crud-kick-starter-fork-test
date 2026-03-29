@@ -302,12 +302,13 @@ async function runReviewVerification() {
   };
 }
 
-function startDetachedProcess(command, argumentList, { stdoutPath, stderrPath }) {
+function startDetachedProcess(command, argumentList, { stdoutPath, stderrPath, env = null }) {
   const child = spawn(command, argumentList, {
     cwd: ROOT_DIR,
     detached: true,
     stdio: ["ignore", openLogFile(stdoutPath), openLogFile(stderrPath)],
-    windowsHide: true
+    windowsHide: true,
+    env: env ?? process.env
   });
   child.unref();
   return child.pid;
@@ -415,7 +416,13 @@ async function startReviewEnv() {
   const stamp = timestampTag();
   const backendPid = startDetachedNode([path.join(ROOT_DIR, "server", "src", "index.js")], {
     stdoutPath: path.join(RUNTIME_DIR, `review-backend-${stamp}.log`),
-    stderrPath: path.join(RUNTIME_DIR, `review-backend-${stamp}.err.log`)
+    stderrPath: path.join(RUNTIME_DIR, `review-backend-${stamp}.err.log`),
+    env: {
+      ...process.env,
+      REFERENCE_STATE_ALLOW_MEMORY_FALLBACK: process.env.REFERENCE_STATE_ALLOW_MEMORY_FALLBACK ?? "true",
+      REFERENCE_STATE_MONGO_SERVER_SELECTION_TIMEOUT_MS:
+        process.env.REFERENCE_STATE_MONGO_SERVER_SELECTION_TIMEOUT_MS ?? "250"
+    }
   });
 
   const backendReady = await waitFor(isBackendHealthy, 20_000);

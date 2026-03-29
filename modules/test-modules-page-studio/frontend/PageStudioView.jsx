@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -11,6 +11,14 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import {
+  clampViewportHeight,
+  clampViewportWidth,
+  clampZoomLevel,
+  DEFAULT_VIEWPORT,
+  DEFAULT_ZOOM_LEVEL,
+  VIEWPORT_PRESETS
+} from "../../test-modules-layouts/frontend/layout-builder-viewport.js";
 import { PAGE_STUDIO_CLIENTS, resolvePageStudioClient } from "../shared/page-studio-clients.mjs";
 import {
   PAGE_STUDIO_BREAKPOINT_LABELS,
@@ -38,8 +46,33 @@ import {
 import { PageStudioLayoutMode } from "./PageStudioLayoutMode.jsx";
 import { PageStudioPreviewMode } from "./PageStudioPreviewMode.jsx";
 import { PageStudioWidgetsMode } from "./PageStudioWidgetsMode.jsx";
+import { usePageStudioPreviewResources } from "./page-studio-preview-resources.js";
 
 const PAGE_STUDIO_STORAGE_KEY = "page-studio.document.v1";
+
+function toPersistedStudioDocument(document) {
+  const normalized = normalizePageStudioDocument(document);
+  const { mode: _ignoredMode, ...persistedDocument } = normalized;
+  return persistedDocument;
+}
+
+function buildViewportFromBreakpoint(breakpoint) {
+  if (breakpoint === "mobile") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "mobile") ?? DEFAULT_VIEWPORT;
+  }
+  if (breakpoint === "tablet") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "tablet") ?? DEFAULT_VIEWPORT;
+  }
+  return VIEWPORT_PRESETS.find((entry) => entry.id === "desktop") ?? DEFAULT_VIEWPORT;
+}
+
+function createInitialCanvasState(breakpoint) {
+  return {
+    viewport: buildViewportFromBreakpoint(breakpoint),
+    zoomLevel: DEFAULT_ZOOM_LEVEL,
+    zoomMode: "auto"
+  };
+}
 
 const MODE_DESCRIPTORS = Object.freeze({
   infra: {
@@ -519,149 +552,178 @@ function LayoutModeSummary({ studioDocument, onPatchDocument }) {
   );
 }
 
-function BuilderCanvas({ studioDocument, mode, onPatchDocument }) {
+function BuilderCanvas({
+  studioDocument,
+  mode,
+  canvasState,
+  onPatchCanvasState,
+  selectedBlockId,
+  onSelectBlockId,
+  railOpen,
+  onPatchDocument,
+  previewResources
+}) {
   const modeDescriptor = MODE_DESCRIPTORS[mode];
+  const usesDedicatedStageSurface = mode === "layout" || mode === "widgets" || mode === "preview";
 
-  if (mode === "layout") {
+  function renderSurface(activeMode) {
+    if (activeMode === "layout") {
+      return (
+        <PageStudioLayoutMode
+          studioDocument={studioDocument}
+          onPatchDocument={onPatchDocument}
+          active={mode === "layout"}
+          canvasState={canvasState}
+          onPatchCanvasState={onPatchCanvasState}
+          selectedBlockId={selectedBlockId}
+          onSelectBlockId={onSelectBlockId}
+          railOpen={railOpen}
+        />
+      );
+    }
+
+    if (activeMode === "widgets") {
+      return (
+        <PageStudioWidgetsMode
+          studioDocument={studioDocument}
+          onPatchDocument={onPatchDocument}
+          active={mode === "widgets"}
+          canvasState={canvasState}
+          onPatchCanvasState={onPatchCanvasState}
+          selectedBlockId={selectedBlockId}
+          onSelectBlockId={onSelectBlockId}
+          railOpen={railOpen}
+          previewResources={previewResources}
+        />
+      );
+    }
+
+    if (activeMode === "preview") {
+      return (
+        <PageStudioPreviewMode
+          studioDocument={studioDocument}
+          onPatchDocument={onPatchDocument}
+          active={mode === "preview"}
+          canvasState={canvasState}
+          onPatchCanvasState={onPatchCanvasState}
+          railOpen={railOpen}
+          previewResources={previewResources}
+        />
+      );
+    }
+
+    const blocks = studioDocument.widgets.blocks.length > 0
+      ? studioDocument.widgets.blocks
+      : createSeedBlocks();
+
     return (
-      <Paper
-        variant="outlined"
-        sx={{
-          position: "relative",
-          flex: 1,
-          minHeight: 0,
-          overflow: "hidden",
-          borderRadius: 0,
-          background:
-            "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(241,245,249,0.98) 100%)"
-        }}
-      >
-        <PageStudioLayoutMode studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
-      </Paper>
+      <>
+        <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <Box sx={{ position: "absolute", top: 0, left: 48, right: 0, height: 28, borderBottom: 1, borderColor: "divider", bgcolor: "rgba(255,255,255,0.7)" }} />
+          <Box sx={{ position: "absolute", top: 28, left: 0, bottom: 0, width: 48, borderRight: 1, borderColor: "divider", bgcolor: "rgba(255,255,255,0.7)" }} />
+        </Box>
+        <Stack
+          sx={{
+            position: "relative",
+            minHeight: "100%",
+            height: "auto",
+            overflow: "auto",
+            p: 3.5,
+            pt: 5,
+            pl: 6.5
+          }}
+          spacing={2}
+        >
+          <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+            <Chip label={modeDescriptor.title} color="primary" />
+            <Chip label="Canvas-first builder" variant="outlined" />
+            <Chip label="Decoupled module foundation" variant="outlined" />
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {modeDescriptor.summary}
+          </Typography>
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            spacing={1.5}
+            sx={{ minHeight: 0, flex: 1 }}
+          >
+            <Stack spacing={1.5} sx={{ flex: 1.2, minWidth: 0 }}>
+              {activeMode === "infra" ? (
+                <InfraEditor studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
+              ) : null}
+              {activeMode === "layout" ? (
+                <LayoutModeSummary studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
+              ) : null}
+              {activeMode === "preview" ? (
+                <ModeCard
+                  title="Preview Equals Live"
+                  body="This mode exists to prove that the chosen client and widget wrappers produce the same result as deployment for the same route, params, and data."
+                  chips={["mui runtime", "url param testing", "preview = live"]}
+                />
+              ) : null}
+            </Stack>
+            <Paper variant="outlined" square sx={{ flex: 1, p: 1.5, bgcolor: "common.white" }}>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">Block Seeds</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  These are placeholder block identities only. Real Gridstack geometry and widget assignment come in later passes.
+                </Typography>
+                <Stack spacing={1}>
+                  {blocks.map((block) => (
+                    <Paper
+                      key={block.id}
+                      variant="outlined"
+                      square
+                      sx={{
+                        p: 1.25,
+                        borderColor: block.tone,
+                        backgroundColor: `${block.tone}14`
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                        <Stack spacing={0.25}>
+                          <Typography variant="subtitle2">{block.id}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {block.summary}
+                          </Typography>
+                        </Stack>
+                        <Chip label={block.widgetKey ? block.widgetKey : "No widget yet"} />
+                      </Stack>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Stack>
+            </Paper>
+          </Stack>
+        </Stack>
+      </>
     );
   }
-
-  if (mode === "widgets") {
-    return (
-      <Paper
-        variant="outlined"
-        sx={{
-          position: "relative",
-          flex: 1,
-          minHeight: 0,
-          overflow: "hidden",
-          borderRadius: 0,
-          background:
-            "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(241,245,249,0.98) 100%)"
-        }}
-      >
-        <PageStudioWidgetsMode studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
-      </Paper>
-    );
-  }
-
-  if (mode === "preview") {
-    return (
-      <Paper
-        variant="outlined"
-        sx={{
-          position: "relative",
-          flex: 1,
-          minHeight: 0,
-          overflow: "hidden",
-          borderRadius: 0,
-          background:
-            "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(241,245,249,0.98) 100%)"
-        }}
-      >
-        <PageStudioPreviewMode studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
-      </Paper>
-    );
-  }
-
-  const blocks = studioDocument.widgets.blocks.length > 0
-    ? studioDocument.widgets.blocks
-    : createSeedBlocks();
 
   return (
     <Paper
       variant="outlined"
-        sx={{
-          position: "relative",
-          flex: 1,
-          minHeight: 0,
-          overflow: "hidden",
-          borderRadius: 0,
-          background:
-            "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(241,245,249,0.98) 100%)"
-        }}
+      square
+      sx={{
+        position: "relative",
+        flex: 1,
+        height: "100%",
+        minHeight: 0,
+        overflow: usesDedicatedStageSurface ? "hidden" : "auto",
+        borderRadius: 0,
+        background:
+          "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(241,245,249,0.98) 100%)"
+      }}
     >
-      <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-        <Box sx={{ position: "absolute", top: 0, left: 48, right: 0, height: 28, borderBottom: 1, borderColor: "divider", bgcolor: "rgba(255,255,255,0.7)" }} />
-        <Box sx={{ position: "absolute", top: 28, left: 0, bottom: 0, width: 48, borderRight: 1, borderColor: "divider", bgcolor: "rgba(255,255,255,0.7)" }} />
+      <Box
+        sx={
+          usesDedicatedStageSurface
+            ? { position: "absolute", inset: 0, overflow: "hidden" }
+            : { position: "relative", minHeight: "100%", overflow: "auto" }
+        }
+      >
+        {renderSurface(mode)}
       </Box>
-      <Stack sx={{ position: "relative", height: "100%", p: 3.5, pt: 5, pl: 6.5 }} spacing={2}>
-        <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-          <Chip label={modeDescriptor.title} color="primary" />
-          <Chip label="Canvas-first builder" variant="outlined" />
-          <Chip label="Decoupled module foundation" variant="outlined" />
-        </Stack>
-        <Typography variant="body2" color="text.secondary">
-          {modeDescriptor.summary}
-        </Typography>
-        <Stack
-          direction={{ xs: "column", lg: "row" }}
-          spacing={1.5}
-          sx={{ minHeight: 0, flex: 1 }}
-        >
-          <Stack spacing={1.5} sx={{ flex: 1.2, minWidth: 0 }}>
-            {mode === "infra" ? (
-              <InfraEditor studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
-            ) : null}
-            {mode === "layout" ? (
-              <LayoutModeSummary studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
-            ) : null}
-            {mode === "preview" ? (
-              <ModeCard
-                title="Preview Equals Live"
-                body="This mode exists to prove that the chosen client and widget wrappers produce the same result as deployment for the same route, params, and data."
-                chips={["mui runtime", "url param testing", "preview = live"]}
-              />
-            ) : null}
-          </Stack>
-          <Paper variant="outlined" sx={{ flex: 1, p: 1.5, bgcolor: "common.white" }}>
-            <Stack spacing={1}>
-              <Typography variant="subtitle2">Block Seeds</Typography>
-              <Typography variant="body2" color="text.secondary">
-                These are placeholder block identities only. Real Gridstack geometry and widget assignment come in later passes.
-              </Typography>
-              <Stack spacing={1}>
-                {blocks.map((block) => (
-                  <Paper
-                    key={block.id}
-                    variant="outlined"
-                    sx={{
-                      p: 1.25,
-                      borderColor: block.tone,
-                      backgroundColor: `${block.tone}14`
-                    }}
-                  >
-                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                      <Stack spacing={0.25}>
-                        <Typography variant="subtitle2">{block.id}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {block.summary}
-                        </Typography>
-                      </Stack>
-                      <Chip label={block.widgetKey ? block.widgetKey : "No widget yet"} />
-                    </Stack>
-                  </Paper>
-                ))}
-              </Stack>
-            </Stack>
-          </Paper>
-        </Stack>
-      </Stack>
     </Paper>
   );
 }
@@ -674,24 +736,79 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
     normalized.mode = normalizePageStudioMode(route?.studioMode, normalized.mode);
     return normalized;
   });
-  const activeMode = normalizePageStudioMode(route?.studioMode, studioDocument.mode);
+  const routeModeRef = useRef(normalizePageStudioMode(route?.studioMode, studioDocument.mode));
+  const activeMode = normalizePageStudioMode(studioDocument.mode, routeModeRef.current);
   const activeModeDescriptor = MODE_DESCRIPTORS[activeMode];
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+  const [canvasState, setCanvasState] = useState(() =>
+    createInitialCanvasState(studioDocument.layout.activeBreakpoint)
+  );
+  const [selectedBlockId, setSelectedBlockId] = useState(
+    () => studioDocument.widgets.blocks[0]?.id ?? null
+  );
+  const previewResources = usePageStudioPreviewResources(studioDocument, { eager: true });
+  const widgetsAssigned = studioDocument.widgets.blocks.filter((block) => block.componentInstance).length;
+  const supportsSidePanel = activeMode === "layout" || activeMode === "widgets" || activeMode === "preview";
+
 
   useEffect(() => {
-    setStudioDocument((previous) =>
-      normalizePageStudioDocument({
+    if (!selectedBlockId || !studioDocument.widgets.blocks.some((block) => block.id === selectedBlockId)) {
+      setSelectedBlockId(studioDocument.widgets.blocks[0]?.id ?? null);
+    }
+  }, [selectedBlockId, studioDocument.widgets.blocks]);
+
+  useEffect(() => {
+    const externalRouteMode = normalizePageStudioMode(route?.studioMode, null);
+    if (!externalRouteMode || externalRouteMode === routeModeRef.current) {
+      return;
+    }
+    routeModeRef.current = externalRouteMode;
+    setStudioDocument((previous) => {
+      if (previous.mode === externalRouteMode) {
+        return previous;
+      }
+      return normalizePageStudioDocument({
         ...previous,
-        mode: activeMode
-      })
-    );
-  }, [activeMode]);
+        mode: externalRouteMode
+      });
+    });
+  }, [route?.studioMode]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.localStorage) {
       return;
     }
-    window.localStorage.setItem(PAGE_STUDIO_STORAGE_KEY, JSON.stringify(studioDocument));
+    const serialized = JSON.stringify(toPersistedStudioDocument(studioDocument));
+    if (window.localStorage.getItem(PAGE_STUDIO_STORAGE_KEY) !== serialized) {
+      window.localStorage.setItem(PAGE_STUDIO_STORAGE_KEY, serialized);
+    }
   }, [studioDocument]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    function handleStorage(event) {
+      if (event.key !== PAGE_STUDIO_STORAGE_KEY || !event.newValue) {
+        return;
+      }
+      try {
+        const parsed = ensureSeedStudioShape(JSON.parse(event.newValue));
+        setStudioDocument((previous) =>
+          normalizePageStudioDocument({
+            ...parsed,
+            mode: previous.mode
+          })
+        );
+      } catch {
+        // ignore cross-tab storage noise
+      }
+    }
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   const patchStudioDocument = useCallback((updater) => {
     setStudioDocument((previous) => {
@@ -700,28 +817,42 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
     });
   }, []);
 
+  const patchCanvasState = useCallback((updater) => {
+    setCanvasState((previous) => {
+      const nextValue =
+        typeof updater === "function"
+          ? updater(previous)
+          : {
+              ...previous,
+              ...updater
+            };
+      return {
+        viewport: {
+          width: clampViewportWidth(nextValue.viewport?.width ?? previous.viewport.width),
+          height: clampViewportHeight(nextValue.viewport?.height ?? previous.viewport.height)
+        },
+        zoomLevel: clampZoomLevel(nextValue.zoomLevel ?? previous.zoomLevel),
+        zoomMode: nextValue.zoomMode === "manual" ? "manual" : "auto"
+      };
+    });
+  }, []);
+
   const handleChangeMode = useCallback(
     (mode) => {
       const nextMode = normalizePageStudioMode(mode, activeMode);
-      if (typeof navigate === "function") {
-        navigate(
-          {
-            ...route,
-            studioMode: nextMode
-          },
-          { replace: true }
-        );
-        return;
-      }
+      patchStudioDocument((previous) => ({
+        ...previous,
+        mode: nextMode
+      }));
+      routeModeRef.current = nextMode;
 
       if (typeof window !== "undefined") {
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set("studioMode", nextMode);
-        window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}`);
-        window.dispatchEvent(new PopStateEvent("popstate"));
+        window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}`);
       }
     },
-    [activeMode, navigate, route]
+    [activeMode, patchStudioDocument]
   );
 
   const handleOpenLegacyRoute = useCallback(
@@ -747,13 +878,22 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
   }, [activeMode, patchStudioDocument]);
 
   return (
-    <Box sx={{ minHeight: "100%", display: "flex", flexDirection: "column", bgcolor: "grey.100" }}>
+    <Box
+      sx={{
+        minHeight: "100dvh",
+        height: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "grey.100",
+        overflow: "hidden"
+      }}
+    >
       <Paper
         square
-        sx={{ borderBottom: 1, borderColor: "divider", px: 1.5, py: 0.75 }}
+        sx={{ borderBottom: 1, borderColor: "divider", px: 1.5, py: 0.75, position: "sticky", top: 0, zIndex: 3 }}
       >
         <Stack direction={{ xs: "column", lg: "row" }} spacing={1} justifyContent="space-between" alignItems={{ lg: "center" }}>
-          <Stack spacing={0.15}>
+          <Stack spacing={0.45}>
             <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
               <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2 }}>
                 PAGE STUDIO
@@ -764,6 +904,13 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
             <Typography variant="caption" color="text.secondary">
               {activeModeDescriptor.summary}
             </Typography>
+            <Stack direction="row" spacing={0.6} useFlexGap flexWrap="wrap">
+              <Chip size="small" variant="outlined" label={studioDocument.infra.routePath || "/untitled"} />
+              <Chip size="small" variant="outlined" label={`Breakpoint ${PAGE_STUDIO_BREAKPOINT_LABELS[studioDocument.layout.activeBreakpoint]}`} />
+              <Chip size="small" variant="outlined" label={`Scenario ${studioDocument.layout.scenarioKey || "custom"}`} />
+              <Chip size="small" variant="outlined" label={`${widgetsAssigned}/${studioDocument.widgets.blocks.length} widgets`} />
+              <Chip size="small" variant="outlined" label={resolvePageStudioClient(studioDocument.infra.clientKey).label} />
+            </Stack>
           </Stack>
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
             <Button size="small" variant="outlined" onClick={() => handleOpenLegacyRoute("test-modules-pages")}>
@@ -772,6 +919,11 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
             <Button size="small" variant="outlined" onClick={() => handleOpenLegacyRoute("test-modules-layouts")}>
               Legacy Layouts
             </Button>
+            {supportsSidePanel ? (
+              <Button size="small" variant="outlined" onClick={() => setSidePanelOpen((current) => !current)}>
+                {sidePanelOpen ? "Hide Panel" : "Show Panel"}
+              </Button>
+            ) : null}
             <Button size="small" variant="text" color="inherit" onClick={handleResetStudioDraft}>
               Reset Draft
             </Button>
@@ -779,8 +931,18 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
         </Stack>
       </Paper>
 
-      <Box sx={{ flex: 1, minHeight: 0, p: 1, position: "relative" }}>
-        <BuilderCanvas studioDocument={studioDocument} mode={activeMode} onPatchDocument={patchStudioDocument} />
+      <Box sx={{ flex: 1, minHeight: 0, p: 1, position: "relative", display: "flex" }}>
+        <BuilderCanvas
+          studioDocument={studioDocument}
+          mode={activeMode}
+          canvasState={canvasState}
+          onPatchCanvasState={patchCanvasState}
+          selectedBlockId={selectedBlockId}
+          onSelectBlockId={setSelectedBlockId}
+          railOpen={sidePanelOpen}
+          onPatchDocument={patchStudioDocument}
+          previewResources={previewResources}
+        />
         <SpeedDial
           ariaLabel="Page studio mode switcher"
           icon="◆"
@@ -806,3 +968,4 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
     </Box>
   );
 }
+

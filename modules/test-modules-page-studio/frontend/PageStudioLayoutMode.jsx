@@ -17,7 +17,6 @@ import {
   clampViewportHeight,
   clampViewportWidth,
   clampZoomLevel,
-  DEFAULT_VIEWPORT,
   DEFAULT_ZOOM_LEVEL,
   VIEWPORT_PRESETS
 } from "../../test-modules-layouts/frontend/layout-builder-viewport.js";
@@ -38,12 +37,7 @@ import {
   buildPageStudioRuntimeLayoutContract,
   materializePageStudioBreakpoints
 } from "../shared/page-studio-layout-transform.mjs";
-
-const BREAKPOINT_VIEWPORT_PRESET_ID = Object.freeze({
-  desktop: "desktop",
-  tablet: "tablet",
-  mobile: "mobile"
-});
+import { buildPageStudioCanvasFrameMetrics } from "./page-studio-canvas-frame.js";
 
 const BLOCK_TONES = Object.freeze([
   "#0f766e",
@@ -58,6 +52,7 @@ const BLOCK_TONES = Object.freeze([
 
 const CANVAS_FIT_WIDTH_OFFSET = 96;
 const CANVAS_FIT_HEIGHT_OFFSET = 120;
+const STUDIO_RAIL_WIDTH = 336;
 
 function RailSection({ title, description = null, children }) {
   return (
@@ -86,8 +81,13 @@ function normalizeText(value, fallback = "") {
 }
 
 function buildViewportFromBreakpoint(breakpoint) {
-  const presetId = BREAKPOINT_VIEWPORT_PRESET_ID[breakpoint] ?? "desktop";
-  return VIEWPORT_PRESETS.find((entry) => entry.id === presetId) ?? DEFAULT_VIEWPORT;
+  if (breakpoint === "mobile") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "mobile") ?? null;
+  }
+  if (breakpoint === "tablet") {
+    return VIEWPORT_PRESETS.find((entry) => entry.id === "tablet") ?? null;
+  }
+  return VIEWPORT_PRESETS.find((entry) => entry.id === "desktop") ?? null;
 }
 
 function mapViewportPresetToBreakpoint(preset = null) {
@@ -159,12 +159,13 @@ function buildScenarioDocumentPatch(previous, scenarioKey) {
   };
 }
 
-function toGridWidgetMarkup(block = {}, item = {}, breakpointLabel = "") {
+function toGridWidgetMarkup(block = {}, item = {}, breakpointLabel = "", frameMetrics = null) {
   const tone = normalizeText(block.tone, "#2563eb");
   const summary = normalizeText(block.summary, "Unassigned block");
   const geometry = `${item.w} x ${item.h} at ${item.x},${item.y}`;
+  const verticalInset = Math.max(0, Math.round((frameMetrics?.gapPx ?? 0) / 2));
   return `
-    <div class="page-studio-grid-item-shell" data-block-id="${block.id}" style="background-image: linear-gradient(180deg, ${tone}1a, rgba(255,255,255,0.94)); border-color: ${tone};">
+    <div class="page-studio-grid-item-shell" data-block-id="${block.id}" style="--page-studio-shell-y-inset:${verticalInset}px; background-image: linear-gradient(180deg, ${tone}1a, rgba(255,255,255,0.94)); border-color: ${tone};">
       <div>
         <div class="page-studio-grid-item-kicker">${breakpointLabel}</div>
         <div class="page-studio-grid-item-id">${block.id}</div>
@@ -189,7 +190,7 @@ function extractGridItems(grid) {
   );
 }
 
-function syncGridWidgets({ grid, visibleItems, blocksById, breakpointLabel }) {
+function syncGridWidgets({ grid, visibleItems, blocksById, breakpointLabel, frameMetrics }) {
   const gridElement = grid.el;
   grid.batchUpdate();
   grid.removeAll(false, false);
@@ -212,7 +213,7 @@ function syncGridWidgets({ grid, visibleItems, blocksById, breakpointLabel }) {
     });
     const contentElement = widgetElement.querySelector(".grid-stack-item-content");
     if (contentElement) {
-      contentElement.innerHTML = toGridWidgetMarkup(block, item, breakpointLabel);
+      contentElement.innerHTML = toGridWidgetMarkup(block, item, breakpointLabel, frameMetrics);
     }
   });
   grid.batchUpdate(false);
@@ -228,7 +229,15 @@ function SelectedBlockSummary({ selectedBlockId, selectedGeometryLabel, runtimeI
   );
 }
 
-export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
+export function PageStudioLayoutMode({
+  studioDocument,
+  onPatchDocument,
+  canvasState,
+  onPatchCanvasState,
+  selectedBlockId,
+  onSelectBlockId,
+  railOpen = false
+}) {
   const activeBreakpoint = studioDocument.layout.activeBreakpoint;
   const materializedBreakpoints = useMemo(
     () => materializePageStudioBreakpoints(studioDocument.layout.editorGrid),
@@ -247,13 +256,9 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
     () => new Map(studioDocument.widgets.blocks.map((block) => [block.id, block])),
     [studioDocument.widgets.blocks]
   );
-  const [selectedBlockId, setSelectedBlockId] = useState(visibleItems[0]?.blockId ?? null);
   const [selectedScenarioKey, setSelectedScenarioKey] = useState(
     studioDocument.layout.scenarioKey || PAGE_STUDIO_LAYOUT_SCENARIOS[0]?.key || "story-stack"
   );
-  const [viewport, setViewport] = useState(() => buildViewportFromBreakpoint(activeBreakpoint));
-  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
-  const [zoomMode, setZoomMode] = useState("auto");
   const [shellBounds, setShellBounds] = useState({ width: 0, height: 0 });
   const shellHostRef = useRef(null);
   const gridRootRef = useRef(null);
@@ -261,15 +266,35 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
   const syncingGridRef = useRef(false);
   const interactionInProgressRef = useRef(false);
   const visibleItemsSignature = useMemo(() => JSON.stringify(visibleItems), [visibleItems]);
+  const viewport = canvasState.viewport;
+  const zoomLevel = canvasState.zoomLevel;
+  const zoomMode = canvasState.zoomMode;
   const selectedItem = visibleItems.find((item) => item.blockId === selectedBlockId) ?? null;
   const selectedBlock = studioDocument.widgets.blocks.find((block) => block.id === selectedBlockId) ?? null;
   const runtimeBreakpoint = runtimeLayoutContract.breakpoints[activeBreakpoint];
   const effectiveZoomLevel = zoomMode === "auto"
     ? computeAutoFitZoomLevel({ viewport, shellBounds })
     : zoomLevel;
+  const visualScaleRatio = effectiveZoomLevel / 100;
+  const layoutViewport = useMemo(
+    () => ({
+      width: Math.max(320, Math.round(viewport.width * visualScaleRatio)),
+      height: Math.max(420, Math.round(viewport.height * visualScaleRatio))
+    }),
+    [viewport.height, viewport.width, visualScaleRatio]
+  );
   const zoomLabel = zoomMode === "auto"
     ? `Zoom ${effectiveZoomLevel}% · Fit`
     : `Zoom ${effectiveZoomLevel}%`;
+  const frameMetrics = useMemo(
+    () =>
+      buildPageStudioCanvasFrameMetrics({
+        viewport: layoutViewport,
+        runtimeBreakpoint,
+        scaleRatio: visualScaleRatio
+      }),
+    [layoutViewport, runtimeBreakpoint, visualScaleRatio]
+  );
   const selectedScenario =
     PAGE_STUDIO_LAYOUT_SCENARIOS.find((scenario) => scenario.key === selectedScenarioKey) ??
     PAGE_STUDIO_LAYOUT_SCENARIOS[0] ??
@@ -349,9 +374,9 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
     (scenarioKey) => {
       onPatchDocument((previous) => buildScenarioDocumentPatch(previous, scenarioKey));
       const scenarioSeed = buildPageStudioScenarioSeed(scenarioKey);
-      setSelectedBlockId(scenarioSeed?.blocks[0]?.id ?? null);
+      onSelectBlockId(scenarioSeed?.blocks[0]?.id ?? null);
     },
-    [onPatchDocument]
+    [onPatchDocument, onSelectBlockId]
   );
 
   const handleRemoveSelectedBlock = useCallback(() => {
@@ -369,8 +394,8 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
         editorGrid: removePageStudioBlockFromEditorGrid(previous.layout.editorGrid, selectedBlockId)
       }
     }));
-    setSelectedBlockId(null);
-  }, [onPatchDocument, selectedBlockId]);
+    onSelectBlockId(null);
+  }, [onPatchDocument, onSelectBlockId, selectedBlockId]);
 
   const handleResetCurrentBreakpoint = useCallback(() => {
     if (activeBreakpoint === "desktop") {
@@ -410,11 +435,6 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
   );
 
   useEffect(() => {
-    setViewport(buildViewportFromBreakpoint(activeBreakpoint));
-    setZoomMode("auto");
-  }, [activeBreakpoint]);
-
-  useEffect(() => {
     const shellHost = shellHostRef.current;
     if (!shellHost || typeof ResizeObserver === "undefined") {
       return undefined;
@@ -437,9 +457,9 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
 
   useEffect(() => {
     if (!selectedBlockId || !visibleItems.some((item) => item.blockId === selectedBlockId)) {
-      setSelectedBlockId(visibleItems[0]?.blockId ?? null);
+      onSelectBlockId(visibleItems[0]?.blockId ?? null);
     }
-  }, [selectedBlockId, visibleItems]);
+  }, [onSelectBlockId, selectedBlockId, visibleItems]);
 
   useEffect(() => {
     if (!gridRootRef.current) {
@@ -453,15 +473,15 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
     }
 
     const grid = GridStack.init(
-      {
-        animate: true,
-        column: 12,
-        float: false,
-        margin: 12,
-        cellHeight: studioDocument.layout.editorGrid[activeBreakpoint].rowHeight,
-        disableOneColumnMode: true
-      },
-      gridRootRef.current
+        {
+          animate: true,
+          column: 12,
+          float: false,
+          margin: 0,
+          cellHeight: frameMetrics.rowHeightPx + frameMetrics.gapPx,
+          disableOneColumnMode: true
+        },
+        gridRootRef.current
     );
     gridRef.current = grid;
 
@@ -470,7 +490,7 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
       if (!itemElement) {
         return;
       }
-      setSelectedBlockId(normalizeText(itemElement.getAttribute("gs-id"), null));
+      onSelectBlockId(normalizeText(itemElement.getAttribute("gs-id"), null));
     };
 
     const handleInteractionStart = () => {
@@ -499,7 +519,13 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
       gridElement?.replaceChildren();
       gridRef.current = null;
     };
-  }, [activeBreakpoint, handleCommitVisibleItems, studioDocument.layout.editorGrid[activeBreakpoint].rowHeight]);
+  }, [
+    activeBreakpoint,
+    handleCommitVisibleItems,
+    onSelectBlockId,
+    studioDocument.layout.editorGrid,
+    visualScaleRatio
+  ]);
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -508,12 +534,13 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
     }
 
     syncingGridRef.current = true;
-    grid.cellHeight(studioDocument.layout.editorGrid[activeBreakpoint].rowHeight);
+    grid.cellHeight(frameMetrics.rowHeightPx + frameMetrics.gapPx);
     syncGridWidgets({
       grid,
       visibleItems,
       blocksById,
-      breakpointLabel: PAGE_STUDIO_BREAKPOINT_LABELS[activeBreakpoint]
+      breakpointLabel: PAGE_STUDIO_BREAKPOINT_LABELS[activeBreakpoint],
+      frameMetrics
     });
     syncingGridRef.current = false;
   }, [
@@ -521,7 +548,8 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
     blocksById,
     studioDocument.layout.editorGrid,
     visibleItems,
-    visibleItemsSignature
+    visibleItemsSignature,
+    frameMetrics.rowHeightPx
   ]);
 
   useEffect(() => {
@@ -542,28 +570,48 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
         minHeight: 0,
         flex: 1,
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", lg: "minmax(0,1fr) 320px" },
+        gridTemplateColumns: {
+          xs: "1fr",
+          lg: railOpen ? `minmax(0,1fr) ${STUDIO_RAIL_WIDTH}px` : "minmax(0,1fr)"
+        },
         gap: 1,
         alignItems: "stretch"
       }}
     >
-      <Box ref={shellHostRef} sx={{ minHeight: 0, minWidth: 0 }}>
+      <Box
+        ref={shellHostRef}
+        sx={{
+          minHeight: 0,
+          minWidth: 0,
+          height: "100%",
+          display: "flex",
+          overflow: "hidden"
+        }}
+      >
         <LayoutBuilderCanvasShell
-          viewport={viewport}
-          zoomLevel={effectiveZoomLevel}
+          viewport={layoutViewport}
+          displayViewport={viewport}
+          zoomLevel={100}
+          contentZoom={false}
           zoomLabel={zoomLabel}
           fitZoomActive={zoomMode === "auto"}
-          onFitZoom={() => setZoomMode("auto")}
+          onFitZoom={() => onPatchCanvasState((previous) => ({ ...previous, zoomMode: "auto" }))}
           onWidthStep={(delta) =>
-            setViewport((current) => ({
-              ...current,
-              width: clampViewportWidth(current.width + delta)
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: {
+                ...previous.viewport,
+                width: clampViewportWidth(previous.viewport.width + delta)
+              }
             }))
           }
           onHeightStep={(delta) =>
-            setViewport((current) => ({
-              ...current,
-              height: clampViewportHeight(current.height + delta)
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: {
+                ...previous.viewport,
+                height: clampViewportHeight(previous.viewport.height + delta)
+              }
             }))
           }
           onSelectPreset={(preset) => {
@@ -577,29 +625,53 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
                 }
               }));
             }
-            setViewport({ width: preset.width, height: preset.height });
-            setZoomMode("auto");
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              viewport: { width: preset.width, height: preset.height },
+              zoomMode: "auto"
+            }));
           }}
           onZoomStep={(delta) => {
-            setZoomMode("manual");
-            setZoomLevel((current) =>
-              clampZoomLevel((zoomMode === "auto" ? effectiveZoomLevel : current) + delta)
-            );
+            onPatchCanvasState((previous) => ({
+              ...previous,
+              zoomMode: "manual",
+              zoomLevel: clampZoomLevel((previous.zoomMode === "auto" ? effectiveZoomLevel : previous.zoomLevel) + delta)
+            }));
           }}
         >
-          <Box sx={{ height: "100%", minHeight: "100%", bgcolor: "#f8fafc", p: 1.25 }}>
+          <Box
+            sx={{
+              height: "100%",
+              minHeight: "100%",
+              bgcolor: "#f8fafc",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "stretch"
+            }}
+          >
             <Box
-              ref={gridRootRef}
-              className="grid-stack page-studio-grid-stack"
               sx={{
-                minHeight: `${Math.max(480, viewport.height - 24)}px`,
-                backgroundColor: "rgba(255,255,255,0.96)",
-                borderRadius: 0
+                width: `${frameMetrics.canvasWidth}px`,
+                minHeight: `${frameMetrics.pageHeight}px`,
+                p: `${frameMetrics.paddingPx}px`,
+                boxSizing: "border-box"
               }}
-            />
+            >
+              <Box
+                ref={gridRootRef}
+                className="grid-stack page-studio-grid-stack"
+                sx={{
+                  width: "100%",
+                  minHeight: `${Math.max(240, frameMetrics.innerHeight)}px`,
+                  backgroundColor: "rgba(255,255,255,0.96)",
+                  borderRadius: 0
+                }}
+              />
+            </Box>
           </Box>
         </LayoutBuilderCanvasShell>
       </Box>
+      {railOpen ? (
       <Paper variant="outlined" square sx={{ p: 1, minHeight: 0, overflow: "auto" }}>
         <Stack spacing={1}>
           <RailSection
@@ -611,15 +683,24 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
               label="Breakpoint"
               size="small"
               value={activeBreakpoint}
-              onChange={(event) =>
+              onChange={(event) => {
+                const nextBreakpoint = event.target.value;
+                const nextPreset = buildViewportFromBreakpoint(nextBreakpoint);
                 onPatchDocument((previous) => ({
                   ...previous,
                   layout: {
                     ...previous.layout,
-                    activeBreakpoint: event.target.value
+                    activeBreakpoint: nextBreakpoint
                   }
-                }))
-              }
+                }));
+                if (nextPreset) {
+                  onPatchCanvasState((previous) => ({
+                    ...previous,
+                    viewport: { width: nextPreset.width, height: nextPreset.height },
+                    zoomMode: "auto"
+                  }));
+                }
+              }}
             >
               {Object.entries(PAGE_STUDIO_BREAKPOINT_LABELS).map(([breakpoint, label]) => (
                 <MenuItem key={breakpoint} value={breakpoint}>
@@ -782,6 +863,10 @@ export function PageStudioLayoutMode({ studioDocument, onPatchDocument }) {
           </RailSection>
         </Stack>
       </Paper>
+      ) : null}
     </Box>
   );
 }
+
+
+
