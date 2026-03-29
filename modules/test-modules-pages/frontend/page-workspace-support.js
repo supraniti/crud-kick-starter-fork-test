@@ -72,6 +72,7 @@ export function createEmptyPageDraft() {
     layoutKey: "page-shell",
     templateKey: "page-shell",
     heroVariant: "standard",
+    clientKey: "mui-reader",
     themeKey: "",
     heroBinding: "primary",
     bodyBinding: "primary",
@@ -104,6 +105,7 @@ function readLayoutDraft(page = {}) {
     layoutKey: page.layoutKey ?? "page-shell",
     templateKey: page.layoutModel?.templateKey ?? "page-shell",
     heroVariant: page.layoutModel?.heroVariant ?? "standard",
+    clientKey: page.layoutModel?.clientKey ?? "mui-reader",
     themeKey: page.layoutModel?.themeKey ?? "",
     heroBinding: page.layoutModel?.heroBinding ?? "primary",
     bodyBinding: page.layoutModel?.bodyBinding ?? "primary",
@@ -244,6 +246,7 @@ export function buildPageMutationPayload(draft) {
     layoutModel: {
       templateKey: draft.templateKey,
       heroVariant: draft.heroVariant,
+      clientKey: draft.clientKey || "mui-reader",
       themeKey: normalizeOptionalText(draft.themeKey),
       heroBinding: draft.heroBinding,
       bodyBinding: draft.bodyBinding,

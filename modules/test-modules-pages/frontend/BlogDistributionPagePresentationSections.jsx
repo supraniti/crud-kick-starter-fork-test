@@ -10,6 +10,12 @@ import {
   TEMPLATE_KEY_OPTIONS
 } from "./blog-distribution-panel-support.js";
 
+const PAGE_CLIENT_OPTIONS = Object.freeze([
+  { key: "data-layer", label: "Data Layer Client" },
+  { key: "reader-test", label: "Reader Test Client" },
+  { key: "mui-reader", label: "MUI Reader Client" }
+]);
+
 function PagePresentationSection({ workspace }) {
   const usingReusableLayout = Boolean(workspace.pageDraft.layoutId);
   const openLayoutLabel = usingReusableLayout ? "Edit Selected Layout" : "Open Layouts";
@@ -52,6 +58,20 @@ function PagePresentationSection({ workspace }) {
         </Stack>
       </Stack>
       <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+        <TextField
+          select
+          label="Client"
+          value={workspace.pageDraft.clientKey}
+          onChange={(event) => workspace.changePageField("clientKey", event.target.value)}
+          sx={{ minWidth: 240 }}
+          helperText="Controls which deployed reader client boots for this page."
+        >
+          {PAGE_CLIENT_OPTIONS.map((option) => (
+            <MenuItem key={option.key} value={option.key}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
           select
           label="Theme"

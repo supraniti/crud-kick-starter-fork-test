@@ -3,6 +3,7 @@ import { createSign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildDefaultLayoutModel } from "../../server/distribution-shared-runtime.mjs";
 import { resolvePageContextManifest } from "../../server/page-context-manifest-runtime.mjs";
 import { buildPageWidgetRenderState } from "../../server/page-widget-render-contract-runtime.mjs";
 import { buildTranslationProjectionDocumentId } from "../../../test-modules-translations/shared/translation-entry.mjs";
@@ -878,11 +879,12 @@ function buildHeadFromDocument(document = {}, fallbackTitle = "Page") {
 }
 
 function buildReaderLayoutDocument(page = {}, widgetRenderContract = null) {
+  const effectiveLayoutModel = buildDefaultLayoutModel(page?.layoutModel ?? {});
   return {
     pageId: page.id ?? null,
     layoutId: page.layoutId ?? null,
     layoutKey: page.layoutKey ?? null,
-    layoutModel: page.layoutModel ?? null,
+    layoutModel: effectiveLayoutModel,
     layoutDocument: page.layoutDocument ?? null,
     bindings: page.bindings && typeof page.bindings === "object" ? page.bindings : {},
     widgetRenderContract

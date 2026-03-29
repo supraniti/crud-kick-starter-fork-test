@@ -25,11 +25,15 @@ import {
   DEFAULT_ZOOM_LEVEL,
   VIEWPORT_PRESETS
 } from "../../test-modules-layouts/frontend/layout-builder-viewport.js";
-import { DEFAULT_WIDGET_COMPONENT_REGISTRY } from "../../test-modules-layouts/shared/widget-component-schema.mjs";
+import {
+  buildDefaultWidgetActions,
+  DEFAULT_WIDGET_COMPONENT_REGISTRY
+} from "../../test-modules-layouts/shared/widget-component-schema.mjs";
 import { buildWidgetContextScope } from "../../test-modules-pages/shared/page-widget-context.mjs";
 import { resolvePageContextManifest } from "../../test-modules-pages/server/page-context-manifest-runtime.mjs";
 import { summarizeWidgetInstance } from "../../test-modules-pages/shared/page-widget-compatibility.mjs";
 import { PAGE_STUDIO_BREAKPOINT_LABELS } from "../shared/page-studio-breakpoints.mjs";
+import { resolvePageStudioContextContract } from "../shared/page-studio-queries.mjs";
 import { buildPageStudioRuntimeLayoutContract } from "../shared/page-studio-layout-transform.mjs";
 import {
   buildPageStudioScenarioWidgetSeed,
@@ -113,41 +117,8 @@ function computeAutoFitZoomLevel({ viewport, shellBounds }) {
   return clampZoomLevel(Math.floor(fitRatio * 100));
 }
 
-function inferStudioContextContract(studioDocument) {
-  const routePath = normalizeText(studioDocument?.infra?.routePath, "").toLowerCase();
-  const sourceTypes = Array.isArray(studioDocument?.infra?.queries)
-    ? studioDocument.infra.queries.map((entry) => normalizeText(entry?.sourceType, "").toLowerCase())
-    : [];
-
-  if (
-    routePath.includes("/post") ||
-    routePath.includes("/journal") ||
-    sourceTypes.includes("blog-post")
-  ) {
-    return {
-      pageKind: "post-detail",
-      primarySourceType: "blog-post"
-    };
-  }
-
-  if (
-    routePath.includes("/category") ||
-    sourceTypes.includes("blog-category")
-  ) {
-    return {
-      pageKind: "category-detail",
-      primarySourceType: "blog-category"
-    };
-  }
-
-  return {
-    pageKind: null,
-    primarySourceType: null
-  };
-}
-
 function createStudioContextPayload(studioDocument) {
-  const inferred = inferStudioContextContract(studioDocument);
+  const inferred = resolvePageStudioContextContract(studioDocument);
   const pathPattern = normalizeText(studioDocument?.infra?.routePath, "/untitled");
   return {
     page: {
@@ -186,7 +157,7 @@ function createInstanceFromDescriptor(descriptor) {
     variantKey: "default",
     content: JSON.parse(JSON.stringify(descriptor.defaultBindings ?? {})),
     props: JSON.parse(JSON.stringify(descriptor.defaultProps ?? {})),
-    actions: []
+    actions: buildDefaultWidgetActions(descriptor)
   };
 }
 
@@ -517,9 +488,10 @@ export function PageStudioWidgetsMode({
     }));
   }
 
-  const widgetBindingManifestNote = pageContextManifest?.pageKind === "post-detail"
-    ? `Bindings come only from declared page-owned context for ${pageContextManifest.primarySourceType}.`
-    : "Dynamic bindings are only fully authored for post-detail routes in this slice.";
+  const widgetBindingManifestNote =
+    pageContextManifest?.pageKind && pageContextManifest?.primarySourceType
+      ? `Bindings come only from declared page-owned context for ${pageContextManifest.primarySourceType}.`
+      : "Choose a primary query in Infra first so widgets can bind to canonical page-owned context.";
   const canApplyRecommendedWidgets = pageStudioScenarioHasStarterWidgets(studioDocument.layout.scenarioKey);
   const blocksWithAssignedWidgets = studioDocument.widgets.blocks.filter((block) => block.componentInstance).length;
 

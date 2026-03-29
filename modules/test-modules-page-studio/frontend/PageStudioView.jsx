@@ -35,6 +35,7 @@ import {
   createEmptyPageStudioDocument,
   normalizePageStudioDocument
 } from "../shared/page-studio-document.mjs";
+import { resolvePageStudioContextContract } from "../shared/page-studio-queries.mjs";
 import {
   buildPageStudioScenarioSeed,
   inferPageStudioLayoutScenarioKey
@@ -43,6 +44,10 @@ import {
   buildPageStudioScenarioWidgetSeed,
   pageStudioScenarioHasStarterWidgets
 } from "../shared/page-studio-widget-seeds.mjs";
+import { resolvePageContextManifest } from "../../test-modules-pages/server/page-context-manifest-runtime.mjs";
+import { PageStudioQueryDialog } from "./PageStudioQueryDialog.jsx";
+import { PageStudioSeoDialog } from "./PageStudioSeoDialog.jsx";
+import { PageStudioThemeDialog } from "./PageStudioThemeDialog.jsx";
 import { PageStudioLayoutMode } from "./PageStudioLayoutMode.jsx";
 import { PageStudioPreviewMode } from "./PageStudioPreviewMode.jsx";
 import { PageStudioWidgetsMode } from "./PageStudioWidgetsMode.jsx";
@@ -72,6 +77,10 @@ function createInitialCanvasState(breakpoint) {
     zoomLevel: DEFAULT_ZOOM_LEVEL,
     zoomMode: "auto"
   };
+}
+
+function normalizeText(value, fallback = "") {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
 }
 
 const MODE_DESCRIPTORS = Object.freeze({
@@ -265,10 +274,54 @@ function ModeCard({ title, body, chips = [] }) {
   );
 }
 
-function InfraEditor({ studioDocument, onPatchDocument }) {
+function createStudioContextPayload(studioDocument) {
+  const inferred = resolvePageStudioContextContract(studioDocument);
+  const pathPattern = normalizeText(studioDocument?.infra?.routePath, "/untitled");
+  return {
+    page: {
+      id: "page-studio-preview",
+      title: normalizeText(studioDocument?.title, "Page Studio Preview"),
+      pathPattern,
+      path: pathPattern,
+      pageKind: inferred.pageKind,
+      primarySourceType: inferred.primarySourceType
+    },
+    application: {
+      model: inferred.pageKind ? { kind: inferred.pageKind } : { kind: "generic-page" }
+    }
+  };
+}
+
+function buildBindableFieldOptions(pageContextManifest = null) {
+  const branches = Array.isArray(pageContextManifest?.branches) ? pageContextManifest.branches : [];
+  return branches
+    .filter((branch) => branch?.bindable === true)
+    .flatMap((branch) =>
+      (Array.isArray(branch.fields) ? branch.fields : []).map((fieldPath) => ({
+        path: fieldPath,
+        label: `${branch.label}: ${fieldPath}`
+      }))
+    );
+}
+
+function InfraEditor({ studioDocument, onPatchDocument, previewResources = null }) {
+  const [queryDialogOpen, setQueryDialogOpen] = useState(false);
+  const [seoDialogOpen, setSeoDialogOpen] = useState(false);
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const queryParams = studioDocument.infra.queryParams;
   const seoTags = studioDocument.infra.seoTags;
   const queries = studioDocument.infra.queries;
+  const pageContextResolution = useMemo(
+    () => resolvePageContextManifest(createStudioContextPayload(studioDocument)),
+    [studioDocument]
+  );
+  const bindableFields = useMemo(
+    () => buildBindableFieldOptions(pageContextResolution.manifest),
+    [pageContextResolution.manifest]
+  );
+  const availableThemes = Array.isArray(previewResources?.collections?.themes)
+    ? previewResources.collections.themes
+    : [];
 
   const updateInfra = useCallback(
     (patch) => {
@@ -297,22 +350,6 @@ function InfraEditor({ studioDocument, onPatchDocument }) {
       });
     },
     [queryParams, updateInfra]
-  );
-
-  const updateSeoTag = useCallback(
-    (index, field, value) => {
-      updateInfra({
-        seoTags: seoTags.map((entry, entryIndex) =>
-          entryIndex === index
-            ? {
-                ...entry,
-                [field]: value
-              }
-            : entry
-        )
-      });
-    },
-    [seoTags, updateInfra]
   );
 
   return (
@@ -386,11 +423,11 @@ function InfraEditor({ studioDocument, onPatchDocument }) {
       </Paper>
       <ModeCard
         title="Data"
-        body="The dedicated query popup still comes in a later pass. For now the studio document already carries the declared query list and the page context dependency line."
+        body="Queries are authored in a dedicated popup so route params, preview, widgets, and live deployment all use the same page-owned data contract."
         chips={["page-owned queries", "context manifest", "deferred data"]}
       />
       <Paper variant="outlined" sx={{ p: 1.5 }}>
-        <Stack spacing={1}>
+        <Stack spacing={1.25}>
           {queries.length > 0 ? (
             queries.map((entry, index) => (
               <Chip
@@ -401,58 +438,35 @@ function InfraEditor({ studioDocument, onPatchDocument }) {
             ))
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No page-owned queries configured yet. The next pass will replace this with the query chooser popup required by the intent.
+              No page-owned queries configured yet.
             </Typography>
           )}
+          <Button size="small" variant="contained" onClick={() => setQueryDialogOpen(true)}>
+            Edit Queries
+          </Button>
         </Stack>
       </Paper>
       <ModeCard
         title="SEO"
-        body="SEO tags can later bind to query result fields. This slice starts the authored tag list so the Infra contract is real and persistent."
+        body="SEO tags are authored in a dedicated popup and can bind directly to canonical context fields from the declared query contract."
         chips={["predefined tags", "custom tags", "dynamic bindings"]}
       />
       <Paper variant="outlined" sx={{ p: 1.5 }}>
-        <Stack spacing={1}>
+        <Stack spacing={1.25}>
           {seoTags.map((entry, index) => (
-            <Stack key={`seo-${index}`} direction={{ xs: "column", md: "row" }} spacing={1}>
-              <TextField
-                label="Tag Key"
-                size="small"
-                value={entry.key}
-                onChange={(event) => updateSeoTag(index, "key", event.target.value)}
-              />
-              <TextField
-                label="Label"
-                size="small"
-                value={entry.label}
-                onChange={(event) => updateSeoTag(index, "label", event.target.value)}
-              />
-              <TextField
-                label="Value"
-                size="small"
-                fullWidth
-                value={entry.value}
-                onChange={(event) => updateSeoTag(index, "value", event.target.value)}
-              />
-            </Stack>
+            <Chip
+              key={`seo-${index}`}
+              label={`${entry.label || entry.key || "SEO Tag"} · ${entry.valueBinding?.mode === "dynamic" ? entry.valueBinding?.path : "Static text"}`}
+              variant="outlined"
+            />
           ))}
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() =>
-              updateInfra({
-                seoTags: [
-                  ...seoTags,
-                  {
-                    key: `tag-${seoTags.length + 1}`,
-                    label: `SEO Tag ${seoTags.length + 1}`,
-                    value: ""
-                  }
-                ]
-              })
-            }
-          >
-            Add SEO Tag
+          {seoTags.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No SEO tags configured yet.
+            </Typography>
+          ) : null}
+          <Button size="small" variant="contained" onClick={() => setSeoDialogOpen(true)}>
+            Edit SEO
           </Button>
         </Stack>
       </Paper>
@@ -476,16 +490,145 @@ function InfraEditor({ studioDocument, onPatchDocument }) {
               </MenuItem>
             ))}
           </TextField>
-          <TextField
-            label="Theme Key"
-            size="small"
-            value={studioDocument.infra.themeKey}
-            onChange={(event) => updateInfra({ themeKey: event.target.value })}
-            helperText="This remains a key for now. A real theme picker lands in a later pass."
-          />
+          <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+            <Chip size="small" variant="outlined" label={`Theme ${studioDocument.infra.themeKey || "global-default"}`} />
+            <Button size="small" variant="contained" onClick={() => setThemeDialogOpen(true)}>
+              Choose Theme
+            </Button>
+          </Stack>
         </Stack>
       </Paper>
+      <PageStudioQueryDialog
+        open={queryDialogOpen}
+        queryParams={queryParams}
+        initialQueries={queries}
+        onClose={() => setQueryDialogOpen(false)}
+        onSave={(nextQueries) => {
+          updateInfra({ queries: nextQueries });
+          setQueryDialogOpen(false);
+        }}
+      />
+      <PageStudioSeoDialog
+        open={seoDialogOpen}
+        initialSeoTags={seoTags}
+        bindableFields={bindableFields}
+        onClose={() => setSeoDialogOpen(false)}
+        onSave={(nextSeoTags) => {
+          updateInfra({ seoTags: nextSeoTags });
+          setSeoDialogOpen(false);
+        }}
+      />
+      <PageStudioThemeDialog
+        open={themeDialogOpen}
+        themeItems={availableThemes}
+        selectedThemeKey={studioDocument.infra.themeKey}
+        onClose={() => setThemeDialogOpen(false)}
+        onSave={(themeKey) => {
+          updateInfra({ themeKey });
+          setThemeDialogOpen(false);
+        }}
+      />
     </>
+  );
+}
+
+function InfraContractSummary({ studioDocument, pageContextManifest, bindableFields = [] }) {
+  const queries = Array.isArray(studioDocument?.infra?.queries) ? studioDocument.infra.queries : [];
+  const seoTags = Array.isArray(studioDocument?.infra?.seoTags) ? studioDocument.infra.seoTags : [];
+  const queryParams = Array.isArray(studioDocument?.infra?.queryParams) ? studioDocument.infra.queryParams : [];
+  const bindablePreview = bindableFields.slice(0, 10);
+
+  return (
+    <Paper variant="outlined" square sx={{ flex: 1, p: 1.5, bgcolor: "common.white" }}>
+      <Stack spacing={1.5}>
+        <Stack spacing={0.35}>
+          <Typography variant="subtitle2">Page Contract Snapshot</Typography>
+          <Typography variant="body2" color="text.secondary">
+            This is the current authoring contract that later Layout, Widgets, Preview, and deployment will read.
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+          <Chip size="small" color="primary" label={pageContextManifest?.pageKind ?? "No page kind"} />
+          <Chip size="small" variant="outlined" label={pageContextManifest?.primarySourceType ?? "No source"} />
+          <Chip size="small" variant="outlined" label={`${queries.length} queries`} />
+          <Chip size="small" variant="outlined" label={`${seoTags.length} SEO tags`} />
+          <Chip size="small" variant="outlined" label={`${queryParams.length} URL params`} />
+        </Stack>
+        <Paper variant="outlined" square sx={{ p: 1.25 }}>
+          <Stack spacing={0.75}>
+            <Typography variant="subtitle2">Route</Typography>
+            <Typography variant="body2">{studioDocument.infra.routePath}</Typography>
+            {queryParams.length > 0 ? (
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                {queryParams.map((entry) => (
+                  <Chip
+                    key={entry.id}
+                    size="small"
+                    variant="outlined"
+                    label={`${entry.label || entry.id}: ${entry.sampleValue || "sample missing"}`}
+                  />
+                ))}
+              </Stack>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                No route params are declared.
+              </Typography>
+            )}
+          </Stack>
+        </Paper>
+        <Paper variant="outlined" square sx={{ p: 1.25 }}>
+          <Stack spacing={0.75}>
+            <Typography variant="subtitle2">Declared Queries</Typography>
+            {queries.length > 0 ? (
+              queries.map((entry) => (
+                <Typography key={entry.id} variant="body2">
+                  <strong>{entry.label || entry.id}</strong>: {entry.summary || entry.kind}
+                </Typography>
+              ))
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                No page-owned queries are declared yet.
+              </Typography>
+            )}
+          </Stack>
+        </Paper>
+        <Paper variant="outlined" square sx={{ p: 1.25 }}>
+          <Stack spacing={0.75}>
+            <Typography variant="subtitle2">Bindable Context Fields</Typography>
+            {bindablePreview.length > 0 ? (
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                {bindablePreview.map((field) => (
+                  <Chip key={field.path} size="small" variant="outlined" label={field.path.replace(/^context\./, "")} />
+                ))}
+              </Stack>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                Bindable fields appear once the route and queries resolve into a page contract.
+              </Typography>
+            )}
+          </Stack>
+        </Paper>
+        <Paper variant="outlined" square sx={{ p: 1.25 }}>
+          <Stack spacing={0.75}>
+            <Typography variant="subtitle2">SEO Contract</Typography>
+            {seoTags.length > 0 ? (
+              seoTags.map((entry) => (
+                <Typography key={entry.key} variant="body2">
+                  <strong>{entry.label || entry.key}</strong>:{" "}
+                  {entry.valueBinding?.mode === "dynamic"
+                    ? entry.valueBinding?.path ?? "dynamic"
+                    : entry.valueBinding?.value ?? "Static text"}
+                </Typography>
+              ))
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                No SEO tags are configured yet.
+              </Typography>
+            )}
+          </Stack>
+        </Paper>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -565,6 +708,14 @@ function BuilderCanvas({
 }) {
   const modeDescriptor = MODE_DESCRIPTORS[mode];
   const usesDedicatedStageSurface = mode === "layout" || mode === "widgets" || mode === "preview";
+  const infraContextResolution = useMemo(
+    () => resolvePageContextManifest(createStudioContextPayload(studioDocument)),
+    [studioDocument]
+  );
+  const infraBindableFields = useMemo(
+    () => buildBindableFieldOptions(infraContextResolution.manifest),
+    [infraContextResolution.manifest]
+  );
 
   function renderSurface(activeMode) {
     if (activeMode === "layout") {
@@ -612,10 +763,6 @@ function BuilderCanvas({
       );
     }
 
-    const blocks = studioDocument.widgets.blocks.length > 0
-      ? studioDocument.widgets.blocks
-      : createSeedBlocks();
-
     return (
       <>
         <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -649,7 +796,11 @@ function BuilderCanvas({
           >
             <Stack spacing={1.5} sx={{ flex: 1.2, minWidth: 0 }}>
               {activeMode === "infra" ? (
-                <InfraEditor studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
+                <InfraEditor
+                  studioDocument={studioDocument}
+                  onPatchDocument={onPatchDocument}
+                  previewResources={previewResources}
+                />
               ) : null}
               {activeMode === "layout" ? (
                 <LayoutModeSummary studioDocument={studioDocument} onPatchDocument={onPatchDocument} />
@@ -662,38 +813,13 @@ function BuilderCanvas({
                 />
               ) : null}
             </Stack>
-            <Paper variant="outlined" square sx={{ flex: 1, p: 1.5, bgcolor: "common.white" }}>
-              <Stack spacing={1}>
-                <Typography variant="subtitle2">Block Seeds</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  These are placeholder block identities only. Real Gridstack geometry and widget assignment come in later passes.
-                </Typography>
-                <Stack spacing={1}>
-                  {blocks.map((block) => (
-                    <Paper
-                      key={block.id}
-                      variant="outlined"
-                      square
-                      sx={{
-                        p: 1.25,
-                        borderColor: block.tone,
-                        backgroundColor: `${block.tone}14`
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                        <Stack spacing={0.25}>
-                          <Typography variant="subtitle2">{block.id}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {block.summary}
-                          </Typography>
-                        </Stack>
-                        <Chip label={block.widgetKey ? block.widgetKey : "No widget yet"} />
-                      </Stack>
-                    </Paper>
-                  ))}
-                </Stack>
-              </Stack>
-            </Paper>
+            {activeMode === "infra" ? (
+              <InfraContractSummary
+                studioDocument={studioDocument}
+                pageContextManifest={infraContextResolution.manifest}
+                bindableFields={infraBindableFields}
+              />
+            ) : null}
           </Stack>
         </Stack>
       </>

@@ -44,6 +44,7 @@ export const LAYOUT_TEMPLATE_SET = new Set([
   "landing"
 ]);
 export const HERO_VARIANT_SET = new Set(["standard", "immersive", "minimal"]);
+export const PAGE_CLIENT_KEY_SET = new Set(["data-layer", "reader-test", "mui-reader"]);
 export const HTTP_CODE_SET = new Set(["301", "302", "307", "308"]);
 export const REDIRECT_STATUS_SET = new Set(["active", "disabled"]);
 
@@ -57,6 +58,7 @@ const SOURCE_COLLECTION_BY_TYPE = Object.freeze({
 const DEFAULT_LAYOUT_MODEL = Object.freeze({
   templateKey: "page-shell",
   heroVariant: "standard",
+  clientKey: "mui-reader",
   themeKey: null,
   heroBinding: "primary",
   bodyBinding: "primary",
@@ -173,6 +175,10 @@ export function normalizeHeroVariant(value, fallback = DEFAULT_LAYOUT_MODEL.hero
   return normalizeEnumValue(value, HERO_VARIANT_SET, fallback);
 }
 
+export function normalizePageClientKey(value, fallback = DEFAULT_LAYOUT_MODEL.clientKey) {
+  return normalizeEnumValue(value, PAGE_CLIENT_KEY_SET, fallback);
+}
+
 export function normalizeHttpCode(value, fallback = "301") {
   return normalizeEnumValue(value, HTTP_CODE_SET, fallback);
 }
@@ -231,6 +237,7 @@ export function buildDefaultLayoutModel(overrides = {}) {
   return {
     templateKey: normalizeLayoutTemplate(overrides.templateKey),
     heroVariant: normalizeHeroVariant(overrides.heroVariant),
+    clientKey: normalizePageClientKey(overrides.clientKey),
     themeKey: normalizeOptionalText(overrides.themeKey) ?? DEFAULT_LAYOUT_MODEL.themeKey,
     heroBinding: normalizeOptionalText(overrides.heroBinding) ?? DEFAULT_LAYOUT_MODEL.heroBinding,
     bodyBinding: normalizeOptionalText(overrides.bodyBinding) ?? DEFAULT_LAYOUT_MODEL.bodyBinding,

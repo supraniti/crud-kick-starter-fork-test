@@ -82,6 +82,51 @@ const TAG_BRANCH_FIELDS = createFieldPaths("context.tags[]", [
   "publicUrl"
 ]);
 
+const CATEGORY_DETAIL_BRANCH_FIELDS = [
+  ...createFieldPaths("context.category", [
+    "id",
+    "name",
+    "slug",
+    "description",
+    "path",
+    "publicUrl",
+    "treePath",
+    "depth"
+  ]),
+  "context.category.featuredMedia",
+  ...createFieldPaths("context.category.featuredMedia", MEDIA_SUMMARY_FIELD_SUFFIXES)
+];
+
+const CATEGORY_CHILDREN_BRANCH_FIELDS = [
+  ...createFieldPaths("context.children[]", [
+    "id",
+    "name",
+    "slug",
+    "description",
+    "path",
+    "publicUrl",
+    "treePath",
+    "depth"
+  ]),
+  "context.children[].featuredMedia",
+  ...createFieldPaths("context.children[].featuredMedia", MEDIA_SUMMARY_FIELD_SUFFIXES)
+];
+
+const CATEGORY_POSTS_BRANCH_FIELDS = [
+  ...createFieldPaths("context.posts[]", [
+    "id",
+    "title",
+    "slug",
+    "subtitle",
+    "excerpt",
+    "path",
+    "publicUrl",
+    "publishedOn"
+  ]),
+  "context.posts[].featuredMedia",
+  ...createFieldPaths("context.posts[].featuredMedia", MEDIA_SUMMARY_FIELD_SUFFIXES)
+];
+
 const PAGE_BRANCH_FIELDS = createFieldPaths("context.page", [
   "id",
   "title",
@@ -184,6 +229,14 @@ function isPostDetailPayload(payload = {}) {
     return true;
   }
   return payload?.page?.primarySourceType === "blog-post";
+}
+
+function isCategoryDetailPayload(payload = {}) {
+  const model = readApplicationModel(payload);
+  if (model?.kind === "category-detail") {
+    return true;
+  }
+  return payload?.page?.primarySourceType === "blog-category";
 }
 
 function createManifestBranch({
@@ -301,6 +354,51 @@ function buildPostDetailBranches() {
   ];
 }
 
+function buildCategoryDetailBranches() {
+  return [
+    createManifestBranch({
+      path: "context.category",
+      label: "Category",
+      kind: "record",
+      provenance: "declared",
+      bindable: true,
+      initial: true,
+      widgetFamilies: ["text", "media", "taxonomy", "meta"],
+      fields: CATEGORY_DETAIL_BRANCH_FIELDS
+    }),
+    createManifestBranch({
+      path: "context.children",
+      label: "Child Categories",
+      kind: "collection",
+      provenance: "declared",
+      bindable: true,
+      initial: true,
+      widgetFamilies: ["collection", "taxonomy", "navigation"],
+      fields: CATEGORY_CHILDREN_BRANCH_FIELDS
+    }),
+    createManifestBranch({
+      path: "context.posts",
+      label: "Category Posts",
+      kind: "collection",
+      provenance: "declared",
+      bindable: true,
+      initial: true,
+      widgetFamilies: ["collection", "navigation", "text", "media"],
+      fields: CATEGORY_POSTS_BRANCH_FIELDS
+    }),
+    createManifestBranch({
+      path: "context.navigation",
+      label: "Navigation",
+      kind: "record",
+      provenance: "derived",
+      bindable: false,
+      initial: false,
+      widgetFamilies: ["navigation"],
+      fields: NAVIGATION_BRANCH_FIELDS
+    })
+  ];
+}
+
 function buildUnsupportedPageBranchNotes(payload = {}) {
   const model = readApplicationModel(payload);
   if (model?.kind && model.kind !== "post-detail") {
@@ -312,14 +410,18 @@ function buildUnsupportedPageBranchNotes(payload = {}) {
 export function resolvePageContextManifest(payload = {}) {
   const page = readPageSummary(payload);
   const model = readApplicationModel(payload);
+  const isPostDetail = isPostDetailPayload(payload);
+  const isCategoryDetail = isCategoryDetailPayload(payload);
   const manifestCandidate = {
     contractVersion: 1,
     pageKind: payload?.application?.pageKind ?? model?.kind ?? page.pageKind ?? null,
     primarySourceType: payload?.application?.primarySourceType ?? page.primarySourceType ?? null,
     branches: [
       buildPageBranch(),
-      ...(isPostDetailPayload(payload)
+      ...(isPostDetail
         ? buildPostDetailBranches()
+        : isCategoryDetail
+          ? buildCategoryDetailBranches()
         : [
             createManifestBranch({
               path: "context.page",
@@ -333,10 +435,10 @@ export function resolvePageContextManifest(payload = {}) {
               notes: buildUnsupportedPageBranchNotes(payload)
             })
           ])
-    ]
+      ]
   };
 
-  if (!isPostDetailPayload(payload)) {
+  if (!isPostDetail && !isCategoryDetail) {
     manifestCandidate.branches = [manifestCandidate.branches[manifestCandidate.branches.length - 1]];
   }
 

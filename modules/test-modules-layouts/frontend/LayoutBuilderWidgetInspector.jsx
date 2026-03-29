@@ -3,11 +3,14 @@ import {
   Button,
   Chip,
   Divider,
+  MenuItem,
   Paper,
   Stack,
+  TextField,
   Typography
 } from "@mui/material";
 import {
+  buildDefaultWidgetActions,
   DEFAULT_WIDGET_COMPONENT_REGISTRY
 } from "../shared/widget-component-schema.mjs";
 import {
@@ -34,7 +37,7 @@ function createInstanceFromDescriptor(descriptor) {
     variantKey: "default",
     content: cloneJsonValue(descriptor.defaultBindings ?? {}),
     props: cloneJsonValue(descriptor.defaultProps ?? {}),
-    actions: []
+    actions: buildDefaultWidgetActions(descriptor)
   };
 }
 
@@ -224,6 +227,10 @@ function summarizeManifestBranches(pageContextManifest = null) {
 
 function DynamicBindingGuide({ pageContextManifest, widgetBindingManifestNote }) {
   const branches = summarizeManifestBranches(pageContextManifest);
+  const exampleField =
+    Array.isArray(branches?.[0]?.fields) && branches[0].fields.length > 0
+      ? branches[0].fields[0]
+      : "context.page.title";
 
   return (
     <Paper variant="outlined" sx={{ p: 1.5 }}>
@@ -231,7 +238,7 @@ function DynamicBindingGuide({ pageContextManifest, widgetBindingManifestNote })
         <Typography variant="subtitle1">How Dynamic Page Data Works</Typography>
         <Typography variant="body2" color="text.secondary">
           Each widget field can stay static or read from the current page record. Choose a widget, switch a field to
-          {" "}<strong>Dynamic page data</strong>, then pick the page field you want, such as <code>context.post.title</code>.
+          {" "}<strong>Dynamic page data</strong>, then pick the page field you want, such as <code>{exampleField}</code>.
         </Typography>
         <Alert severity="info">
           {widgetBindingManifestNote}
@@ -257,6 +264,111 @@ function DynamicBindingGuide({ pageContextManifest, widgetBindingManifestNote })
             </Typography>
           )}
         </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
+function normalizeActionInstance(instance = {}, actionDefinition) {
+  const matchingAction = (Array.isArray(instance?.actions) ? instance.actions : []).find(
+    (entry) => entry?.actionKey === actionDefinition.actionKey
+  );
+  if (matchingAction) {
+    return matchingAction;
+  }
+  return {
+    actionKey: actionDefinition.actionKey,
+    kind: actionDefinition.targetKind === "event" ? "emit" : "navigate",
+    targetKind: actionDefinition.targetKind,
+    eventName: actionDefinition.targetKind === "event" ? `widget:${actionDefinition.actionKey}` : ""
+  };
+}
+
+function ActionEditor({ instance, descriptor, onChange }) {
+  const actionDefinitions = Object.values(descriptor?.actionDefinitions ?? {});
+  if (actionDefinitions.length === 0) {
+    return null;
+  }
+
+  function patchAction(actionKey, patch) {
+    const currentActions = Array.isArray(instance?.actions) ? instance.actions : [];
+    const currentAction =
+      currentActions.find((entry) => entry?.actionKey === actionKey) ??
+      normalizeActionInstance(instance, { actionKey, targetKind: "bound-record" });
+    const nextAction = {
+      ...currentAction,
+      ...patch,
+      actionKey
+    };
+    const nextActions = currentActions.some((entry) => entry?.actionKey === actionKey)
+      ? currentActions.map((entry) => (entry?.actionKey === actionKey ? nextAction : entry))
+      : [...currentActions, nextAction];
+    onChange({
+      ...instance,
+      actions: nextActions
+    });
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5 }}>
+      <Stack spacing={1.5}>
+        <Typography variant="subtitle1">Actions</Typography>
+        <Alert severity="info">
+          Actions stay bounded. Widgets can navigate to their typed record target or emit a named event.
+        </Alert>
+        {actionDefinitions.map((definition) => {
+          const action = normalizeActionInstance(instance, definition);
+          const canEmit = definition.targetKind !== "event";
+          return (
+            <Paper key={definition.actionKey} variant="outlined" square sx={{ p: 1 }}>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">{definition.label}</Typography>
+                {definition.description ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {definition.description}
+                  </Typography>
+                ) : null}
+                <TextField
+                  select
+                  size="small"
+                  label="Behavior"
+                  value={action.kind}
+                  onChange={(event) =>
+                    patchAction(definition.actionKey, {
+                      kind: event.target.value,
+                      targetKind: event.target.value === "emit" ? "event" : definition.targetKind
+                    })
+                  }
+                >
+                  <MenuItem value="navigate">Navigate</MenuItem>
+                  {canEmit ? <MenuItem value="emit">Emit event</MenuItem> : null}
+                </TextField>
+                {action.kind === "navigate" ? (
+                  <TextField
+                    size="small"
+                    label="Target"
+                    value={definition.targetKind}
+                    InputProps={{ readOnly: true }}
+                    helperText="Bounded target from the widget contract."
+                  />
+                ) : (
+                  <TextField
+                    size="small"
+                    label="Event Name"
+                    value={action.eventName ?? ""}
+                    onChange={(event) =>
+                      patchAction(definition.actionKey, {
+                        kind: "emit",
+                        targetKind: "event",
+                        eventName: event.target.value
+                      })
+                    }
+                  />
+                )}
+              </Stack>
+            </Paper>
+          );
+        })}
       </Stack>
     </Paper>
   );
@@ -410,9 +522,11 @@ export function LayoutBuilderWidgetInspector({
           ) : null}
 
           <Divider />
-          <Alert severity="info">
-            Widget actions are intentionally bounded. The initial slice focuses on authored rendering before action-emitting widgets are introduced.
-          </Alert>
+          <ActionEditor
+            instance={instance}
+            descriptor={selectedDescriptor}
+            onChange={onChangeComponentInstance}
+          />
         </Stack>
       ) : null}
     </Stack>

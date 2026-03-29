@@ -1,14 +1,14 @@
 import { createSerializedBlockId } from "./page-studio-block-ids.mjs";
 
 const BLOCK_TONES = Object.freeze([
-  "#0f766e",
+  "#dbeafe",
+  "#bfdbfe",
+  "#93c5fd",
+  "#60a5fa",
+  "#3b82f6",
   "#2563eb",
-  "#7c3aed",
-  "#ea580c",
-  "#be123c",
-  "#15803d",
-  "#0369a1",
-  "#a16207"
+  "#1d4ed8",
+  "#1e40af"
 ]);
 
 function createBlock(sequence, summary) {

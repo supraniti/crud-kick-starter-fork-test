@@ -89,6 +89,63 @@ function PreviewLink({ href, onNavigate, children }) {
   );
 }
 
+function resolveWidgetAction(widget, descriptor, actionKey) {
+  const configuredAction = toArray(widget?.actions).find((entry) => entry?.actionKey === actionKey);
+  if (configuredAction) {
+    return configuredAction;
+  }
+  const definition = descriptor?.actionDefinitions?.[actionKey];
+  if (!definition) {
+    return null;
+  }
+  return {
+    actionKey,
+    kind: definition.targetKind === "event" ? "emit" : "navigate",
+    targetKind: definition.targetKind,
+    eventName: definition.targetKind === "event" ? `widget:${actionKey}` : null
+  };
+}
+
+function runWidgetAction({ action, context, record = null, fallbackHref = null, onNavigate = null }) {
+  if (!action) {
+    if (fallbackHref) {
+      onNavigate?.(fallbackHref);
+    }
+    return;
+  }
+
+  if (action.kind === "emit") {
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(
+        new CustomEvent(action.eventName || "page-studio:widget-action", {
+          detail: {
+            actionKey: action.actionKey,
+            record
+          }
+        })
+      );
+    }
+    return;
+  }
+
+  let href = fallbackHref;
+  if (action.targetKind === "previousPost") {
+    href = context.navigation?.previousPost?.publicUrl ?? context.navigation?.previousPost?.path ?? href;
+  } else if (action.targetKind === "nextPost") {
+    href = context.navigation?.nextPost?.publicUrl ?? context.navigation?.nextPost?.path ?? href;
+  } else if (action.targetKind === "primaryCategory") {
+    href = context.navigation?.primaryCategory?.publicUrl ?? context.navigation?.primaryCategory?.path ?? href;
+  } else if (action.targetKind === "authorPage") {
+    href = context.author?.publicUrl ?? context.author?.path ?? href;
+  } else if (action.targetKind === "bound-record") {
+    href = record?.publicUrl ?? record?.path ?? href;
+  }
+
+  if (href) {
+    onNavigate?.(href);
+  }
+}
+
 function TabsWidget({ tabs = [] }) {
   const [tabValue, setTabValue] = useState(0);
   if (!tabs.length) {
@@ -147,6 +204,17 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
     );
   }
 
+  if (widget.componentKey === "category-title") {
+    const tag = normalizeText(props?.tag, "h1");
+    return (
+      <Box sx={{ minHeight: 0 }}>
+        <Typography component={tag} variant={tag} sx={{ textWrap: "balance" }}>
+          {normalizeText(content?.text, "Untitled category")}
+        </Typography>
+      </Box>
+    );
+  }
+
   if (widget.componentKey === "post-rich-text") {
     const paragraphs = renderParagraphs(content?.body ?? "");
     return (
@@ -159,6 +227,23 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
           ))
         ) : (
           <Alert severity="info">No body content is available for this route.</Alert>
+        )}
+      </Stack>
+    );
+  }
+
+  if (widget.componentKey === "category-description") {
+    const paragraphs = renderParagraphs(content?.body ?? "");
+    return (
+      <Stack spacing={2}>
+        {paragraphs.length > 0 ? (
+          paragraphs.map((paragraph, index) => (
+            <Typography key={index} variant="body1">
+              {paragraph}
+            </Typography>
+          ))
+        ) : (
+          <Alert severity="info">No category description is available for this route.</Alert>
         )}
       </Stack>
     );
@@ -190,12 +275,24 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
 
   if (widget.componentKey === "category-chips") {
     const items = toArray(content?.items);
+    const action = resolveWidgetAction(widget, descriptor, "openCategory");
     return items.length > 0 ? (
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ alignContent: "flex-start" }}>
         {items.map((item) => (
-          <PreviewLink key={item.id ?? item.name} href={item.publicUrl ?? item.path} onNavigate={onNavigate}>
-            <Chip label={normalizeText(item?.name, "Category")} clickable />
-          </PreviewLink>
+          <Chip
+            key={item.id ?? item.name}
+            label={normalizeText(item?.name, "Category")}
+            clickable
+            onClick={() =>
+              runWidgetAction({
+                action,
+                context,
+                record: item,
+                fallbackHref: item.publicUrl ?? item.path,
+                onNavigate
+              })
+            }
+          />
         ))}
       </Stack>
     ) : (
@@ -205,6 +302,7 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
 
   if (widget.componentKey === "author-card") {
     const author = content?.author;
+    const action = resolveWidgetAction(widget, descriptor, "openAuthor");
     if (!author) {
       return <Alert severity="info">No author is attached to this post yet.</Alert>;
     }
@@ -216,11 +314,25 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
               {normalizeText(author.displayName, "A").slice(0, 1)}
             </Avatar>
             <Stack spacing={0.75}>
-              <PreviewLink href={author.publicUrl ?? author.path} onNavigate={onNavigate}>
+              <Link
+                href={author.publicUrl ?? author.path}
+                underline="hover"
+                color="inherit"
+                onClick={(event) => {
+                  event.preventDefault();
+                  runWidgetAction({
+                    action,
+                    context,
+                    record: author,
+                    fallbackHref: author.publicUrl ?? author.path,
+                    onNavigate
+                  });
+                }}
+              >
                 <Typography variant="subtitle1" fontWeight={700}>
                   {normalizeText(author.displayName, "Author")}
                 </Typography>
-              </PreviewLink>
+              </Link>
               {author.role ? <Typography variant="caption" color="text.secondary">{author.role}</Typography> : null}
               {author.bio ? <Typography variant="body2">{author.bio}</Typography> : null}
             </Stack>
@@ -248,8 +360,8 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
   if (widget.componentKey === "post-navigation") {
     const heading = normalizeText(props?.heading, "Keep Reading");
     const items = [
-      { label: "Previous Story", record: context.navigation?.previousPost },
-      { label: "Next Story", record: context.navigation?.nextPost }
+      { label: "Previous Story", record: context.navigation?.previousPost, action: resolveWidgetAction(widget, descriptor, "previous") },
+      { label: "Next Story", record: context.navigation?.nextPost, action: resolveWidgetAction(widget, descriptor, "next") }
     ].filter((entry) => entry.record);
     return (
       <Stack spacing={2}>
@@ -262,11 +374,25 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
                   <Typography variant="caption" color="text.secondary">
                     {entry.label}
                   </Typography>
-                  <PreviewLink href={entry.record.publicUrl ?? entry.record.path} onNavigate={onNavigate}>
+                  <Link
+                    href={entry.record.publicUrl ?? entry.record.path}
+                    underline="hover"
+                    color="inherit"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      runWidgetAction({
+                        action: entry.action,
+                        context,
+                        record: entry.record,
+                        fallbackHref: entry.record.publicUrl ?? entry.record.path,
+                        onNavigate
+                      });
+                    }}
+                  >
                     <Typography variant="h3" sx={{ mt: 0.75, mb: 1 }}>
                       {normalizeText(entry.record.title, "Untitled story")}
                     </Typography>
-                  </PreviewLink>
+                  </Link>
                   {entry.record.excerpt ? <Typography variant="body2">{entry.record.excerpt}</Typography> : null}
                 </CardContent>
               </Card>
@@ -285,6 +411,7 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
     const limit = Number(props?.limit);
     const maxItems = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 3;
     const related = context.related ?? {};
+    const action = resolveWidgetAction(widget, descriptor, "openRecord");
     let selectedItems = [];
     if (source === "moreFromAuthor") {
       selectedItems = toArray(related.moreFromAuthor);
@@ -330,9 +457,23 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
                       }}
                     />
                   ) : null}
-                  <PreviewLink href={item.publicUrl ?? item.path} onNavigate={onNavigate}>
+                  <Link
+                    href={item.publicUrl ?? item.path}
+                    underline="hover"
+                    color="inherit"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      runWidgetAction({
+                        action,
+                        context,
+                        record: item,
+                        fallbackHref: item.publicUrl ?? item.path,
+                        onNavigate
+                      });
+                    }}
+                  >
                     <Typography variant="h3">{normalizeText(item.title, "Untitled story")}</Typography>
-                  </PreviewLink>
+                  </Link>
                   {item.excerpt ? <Typography variant="body2">{item.excerpt}</Typography> : null}
                 </CardContent>
               </Card>
@@ -347,6 +488,71 @@ export function PageStudioWidgetRenderer({ widget, context, libraries, onNavigat
 
   if (widget.componentKey === "tabs") {
     return <TabsWidget tabs={toArray(content?.tabs)} />;
+  }
+
+  if (widget.componentKey === "post-list") {
+    const heading = normalizeText(props?.heading, "Stories");
+    const limit = Number(props?.limit);
+    const maxItems = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 6;
+    const items = toArray(content?.items).slice(0, maxItems);
+    const action = resolveWidgetAction(widget, descriptor, "openRecord");
+    return (
+      <Stack spacing={2} sx={{ height: "100%", minHeight: 0 }}>
+        <Typography variant="h2">{heading}</Typography>
+        {items.length > 0 ? (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+              gap: 2,
+              overflow: "auto",
+              pr: 0.5
+            }}
+          >
+            {items.map((item) => (
+              <Card key={item.id ?? item.title} variant="outlined" square sx={{ height: "100%" }}>
+                <CardContent sx={{ display: "grid", gap: 1.25 }}>
+                  {item.featuredMedia?.preferredUrl ? (
+                    <Box
+                      component="img"
+                      src={item.featuredMedia.preferredUrl}
+                      alt={normalizeText(item.featuredMedia.altText, normalizeText(item.title, "Story"))}
+                      sx={{
+                        width: "100%",
+                        height: 120,
+                        objectFit: "cover",
+                        border: "1px solid",
+                        borderColor: "divider"
+                      }}
+                    />
+                  ) : null}
+                  <Link
+                    href={item.publicUrl ?? item.path}
+                    underline="hover"
+                    color="inherit"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      runWidgetAction({
+                        action,
+                        context,
+                        record: item,
+                        fallbackHref: item.publicUrl ?? item.path,
+                        onNavigate
+                      });
+                    }}
+                  >
+                    <Typography variant="h3">{normalizeText(item.title, "Untitled story")}</Typography>
+                  </Link>
+                  {item.excerpt ? <Typography variant="body2">{item.excerpt}</Typography> : null}
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        ) : (
+          <Alert severity="info">No posts are available for this category yet.</Alert>
+        )}
+      </Stack>
+    );
   }
 
   return <Alert severity="warning">{descriptor.displayName} is not yet previewable.</Alert>;

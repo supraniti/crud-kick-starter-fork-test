@@ -6,6 +6,7 @@ import {
   MODULE_ID,
   POSTS_COLLECTION_ID,
   TAGS_COLLECTION_ID,
+  buildDefaultLayoutModel,
   buildDefaultPrimarySource,
   cloneJsonValue,
   isPerRecordDeploymentMode,
@@ -351,16 +352,18 @@ async function buildRenderModel(page = {}, collectionHandlerRegistry) {
     ? (layout.layoutDocument ?? parseStoredLayoutDocument(layout.layoutDocumentJson))
     : null;
 
+  const effectiveLayoutModel = buildDefaultLayoutModel(page.layoutModel ?? {});
+
   return {
     layoutId: page.layoutId ?? null,
     layoutKey: layout?.layoutKey ?? page.layoutKey,
     pageKind: page.pageKind,
-    layoutModel: cloneJsonValue(page.layoutModel ?? {}),
+    layoutModel: cloneJsonValue(effectiveLayoutModel),
     layoutDocument: cloneJsonValue(layoutDocument),
     bindings: {
-      hero: page.layoutModel?.heroBinding ?? "primary",
-      body: page.layoutModel?.bodyBinding ?? "primary",
-      supporting: page.layoutModel?.supportingBinding ?? "supporting"
+      hero: effectiveLayoutModel.heroBinding ?? "primary",
+      body: effectiveLayoutModel.bodyBinding ?? "primary",
+      supporting: effectiveLayoutModel.supportingBinding ?? "supporting"
     }
   };
 }
@@ -389,6 +392,7 @@ function buildResolvedSourceSummaries(primarySource, resolvedPrimary, resolvedSo
 }
 
 function buildPageSummary(page = {}, resolvedPath = null) {
+  const effectiveLayoutModel = buildDefaultLayoutModel(page.layoutModel ?? {});
   return {
     id: page.id,
     title: page.title,
@@ -401,7 +405,7 @@ function buildPageSummary(page = {}, resolvedPath = null) {
     primarySourceType: page.primarySourceType,
     layoutId: page.layoutId ?? null,
     layoutKey: page.layoutKey,
-    layoutModel: cloneJsonValue(page.layoutModel ?? {}),
+    layoutModel: cloneJsonValue(effectiveLayoutModel),
     runtimeScriptUrls: normalizeScriptUrlList(page.runtimeScriptUrls),
     renderPolicy: cloneJsonValue(page.renderPolicy ?? {}),
     deploymentArtifactPath: page.deploymentArtifactPath ?? null,

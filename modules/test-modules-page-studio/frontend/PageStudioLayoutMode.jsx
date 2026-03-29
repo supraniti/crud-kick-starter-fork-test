@@ -40,14 +40,14 @@ import {
 import { buildPageStudioCanvasFrameMetrics } from "./page-studio-canvas-frame.js";
 
 const BLOCK_TONES = Object.freeze([
-  "#0f766e",
+  "#dbeafe",
+  "#bfdbfe",
+  "#93c5fd",
+  "#60a5fa",
+  "#3b82f6",
   "#2563eb",
-  "#7c3aed",
-  "#ea580c",
-  "#be123c",
-  "#15803d",
-  "#0369a1",
-  "#a16207"
+  "#1d4ed8",
+  "#1e40af"
 ]);
 
 const CANVAS_FIT_WIDTH_OFFSET = 96;
@@ -78,6 +78,65 @@ function createBlockTone(sequence) {
 
 function normalizeText(value, fallback = "") {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function parseHexColor(hexValue) {
+  const normalized = normalizeText(hexValue, "").replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return null;
+  }
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16)
+  };
+}
+
+function toHexColor({ r, g, b }) {
+  return `#${[r, g, b]
+    .map((entry) => Math.max(0, Math.min(255, Math.round(entry))).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function mixHexColors(leftHex, rightHex, weight = 0.5) {
+  const left = parseHexColor(leftHex);
+  const right = parseHexColor(rightHex);
+  if (!left || !right) {
+    return leftHex;
+  }
+  const ratio = Math.max(0, Math.min(1, weight));
+  return toHexColor({
+    r: left.r + (right.r - left.r) * ratio,
+    g: left.g + (right.g - left.g) * ratio,
+    b: left.b + (right.b - left.b) * ratio
+  });
+}
+
+function readRelativeLuminance(hexValue) {
+  const rgb = parseHexColor(hexValue);
+  if (!rgb) {
+    return 1;
+  }
+  const channels = [rgb.r, rgb.g, rgb.b].map((entry) => {
+    const normalized = entry / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function buildBlockToneSurface(tone) {
+  const background = normalizeText(tone, "#bfdbfe");
+  const luminance = readRelativeLuminance(background);
+  const darkSurface = luminance < 0.32;
+  return {
+    background,
+    border: mixHexColors(background, "#0f172a", darkSurface ? 0.28 : 0.18),
+    ink: darkSurface ? "rgba(255,255,255,0.96)" : "rgb(15, 23, 42)",
+    meta: darkSurface ? "rgba(255,255,255,0.82)" : "rgba(15, 23, 42, 0.72)",
+    kicker: darkSurface ? "rgba(255,255,255,0.76)" : "rgba(15, 23, 42, 0.62)"
+  };
 }
 
 function buildViewportFromBreakpoint(breakpoint) {
@@ -161,11 +220,12 @@ function buildScenarioDocumentPatch(previous, scenarioKey) {
 
 function toGridWidgetMarkup(block = {}, item = {}, breakpointLabel = "", frameMetrics = null) {
   const tone = normalizeText(block.tone, "#2563eb");
+  const surface = buildBlockToneSurface(tone);
   const summary = normalizeText(block.summary, "Unassigned block");
   const geometry = `${item.w} x ${item.h} at ${item.x},${item.y}`;
   const verticalInset = Math.max(0, Math.round((frameMetrics?.gapPx ?? 0) / 2));
   return `
-    <div class="page-studio-grid-item-shell" data-block-id="${block.id}" style="--page-studio-shell-y-inset:${verticalInset}px; background-image: linear-gradient(180deg, ${tone}1a, rgba(255,255,255,0.94)); border-color: ${tone};">
+    <div class="page-studio-grid-item-shell" data-block-id="${block.id}" style="--page-studio-shell-y-inset:${verticalInset}px; --page-studio-block-bg:${surface.background}; --page-studio-block-border:${surface.border}; --page-studio-block-ink:${surface.ink}; --page-studio-block-meta:${surface.meta}; --page-studio-block-kicker:${surface.kicker};">
       <div>
         <div class="page-studio-grid-item-kicker">${breakpointLabel}</div>
         <div class="page-studio-grid-item-id">${block.id}</div>

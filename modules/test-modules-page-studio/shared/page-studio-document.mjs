@@ -1,5 +1,9 @@
 import { PAGE_STUDIO_CLIENTS, resolvePageStudioClient } from "./page-studio-clients.mjs";
 import {
+  buildPageStudioQueryDefinition,
+  normalizePageStudioQueryDefinition
+} from "./page-studio-queries.mjs";
+import {
   PAGE_STUDIO_BREAKPOINTS,
   PAGE_STUDIO_DEFAULT_EDITOR_GRID,
   PAGE_STUDIO_DEFAULT_RUNTIME_LAYOUT,
@@ -7,6 +11,7 @@ import {
 } from "./page-studio-breakpoints.mjs";
 import { normalizePageStudioMode } from "./page-studio-modes.mjs";
 import { normalizeWidgetComponentInstance } from "../../test-modules-layouts/shared/widget-component-schema.mjs";
+import { normalizeWidgetBindingDescriptor } from "../../test-modules-layouts/shared/widget-component-schema.mjs";
 
 function cloneJsonValue(value) {
   if (value === null || value === undefined) {
@@ -41,16 +46,13 @@ function normalizeSeoTagDefinition(entry = {}) {
   return {
     key: normalizeText(entry?.key, ""),
     label: normalizeText(entry?.label, "Tag"),
-    value: normalizeText(entry?.value, "")
-  };
-}
-
-function normalizeQueryDefinition(entry = {}) {
-  return {
-    id: normalizeText(entry?.id, ""),
-    label: normalizeText(entry?.label, "Query"),
-    sourceType: normalizeText(entry?.sourceType, ""),
-    summary: normalizeText(entry?.summary, "")
+    valueBinding: normalizeWidgetBindingDescriptor(
+      entry?.valueBinding ?? {
+        mode: "static",
+        value: normalizeText(entry?.value, "")
+      },
+      ""
+    )
   };
 }
 
@@ -118,23 +120,39 @@ export function createEmptyPageStudioDocument() {
         }
       ],
       queries: [
-        {
+        buildPageStudioQueryDefinition("primary-post-by-param", {
           id: "primary-post",
           label: "Primary Post",
-          sourceType: "blog-post",
-          summary: "Resolve the current blog post from the slug route param."
-        }
+          paramId: "slug"
+        }),
+        buildPageStudioQueryDefinition("related-posts-by-author", {
+          id: "related-author"
+        }),
+        buildPageStudioQueryDefinition("related-posts-by-category", {
+          id: "related-category"
+        }),
+        buildPageStudioQueryDefinition("related-posts-by-tag", {
+          id: "related-tag"
+        })
       ],
       seoTags: [
         {
           key: "title",
           label: "SEO Title",
-          value: "{{context.post.title}}"
+          valueBinding: {
+            mode: "dynamic",
+            source: "context",
+            path: "context.post.title"
+          }
         },
         {
           key: "description",
           label: "SEO Description",
-          value: "{{context.post.excerpt}}"
+          valueBinding: {
+            mode: "dynamic",
+            source: "context",
+            path: "context.post.excerpt"
+          }
         }
       ],
       clientKey: PAGE_STUDIO_CLIENTS[2].key,
@@ -192,7 +210,7 @@ export function normalizePageStudioDocument(value) {
     infra: {
       routePath: normalizeText(source?.infra?.routePath, "/untitled"),
       queryParams: toArray(source?.infra?.queryParams).map((entry) => normalizeQueryParamDefinition(entry)),
-      queries: toArray(source?.infra?.queries).map((entry) => normalizeQueryDefinition(entry)),
+      queries: toArray(source?.infra?.queries).map((entry, index) => normalizePageStudioQueryDefinition(entry, index)),
       seoTags: toArray(source?.infra?.seoTags).map((entry) => normalizeSeoTagDefinition(entry)),
       clientKey: normalizedClient.key,
       themeKey: normalizeText(source?.infra?.themeKey, "global-default")

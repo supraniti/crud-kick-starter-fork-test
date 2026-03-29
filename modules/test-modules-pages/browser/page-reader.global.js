@@ -1189,6 +1189,147 @@
       : null;
   }
 
+  function resolveReaderClientKey(state) {
+    var application = state && state.payload ? state.payload.application : null;
+    var layout = application && application.layout ? application.layout : null;
+    var layoutModel = layout && layout.layoutModel ? layout.layoutModel : state && state.payload && state.payload.page ? state.payload.page.layoutModel : null;
+    return toText(layoutModel && layoutModel.clientKey, "mui-reader");
+  }
+
+  function hasMuiReaderBridge(targetGlobal) {
+    return Boolean(
+      targetGlobal &&
+      targetGlobal.__CRUD_PAGE_MUI_READER__ &&
+      typeof targetGlobal.__CRUD_PAGE_MUI_READER__.renderApplication === "function"
+    );
+  }
+
+  function isMuiReaderEnabled(targetGlobal, state) {
+    return resolveReaderClientKey(state) === "mui-reader" && Boolean(readWidgetRenderContract(state)) && hasMuiReaderBridge(targetGlobal);
+  }
+
+  function unmountMuiReaderIfPresent(targetGlobal, state) {
+    if (!state || !state.muiReaderActive) {
+      return;
+    }
+    if (
+      targetGlobal &&
+      targetGlobal.__CRUD_PAGE_MUI_READER__ &&
+      typeof targetGlobal.__CRUD_PAGE_MUI_READER__.unmountApplication === "function"
+    ) {
+      targetGlobal.__CRUD_PAGE_MUI_READER__.unmountApplication(state.mount);
+    }
+    state.muiReaderActive = false;
+  }
+
+  function setCommentsNotice(state, message) {
+    state.commentsNotice = toText(message, "");
+    if (state.commentsSection && state.commentsSection.note) {
+      state.commentsSection.note.textContent = state.commentsNotice;
+    }
+  }
+
+  function buildMuiReaderCommentsState(state) {
+    var comments = state && state.model && state.model.comments ? state.model.comments : null;
+    return {
+      enabled: Boolean(comments && comments.enabled),
+      postId: comments ? comments.postId : null,
+      approved: normalizeArray(state && state.commentsApproved),
+      pending: normalizeArray(state && state.commentsPending),
+      note: toText(state && state.commentsNotice, ""),
+      loading: state && state.commentsLoading === true
+    };
+  }
+
+  function navigateFromMuiReader(targetGlobal, state, href) {
+    var candidate = toText(href, "");
+    if (!candidate) {
+      return;
+    }
+    try {
+      var nextUrl = new URL(candidate, targetGlobal.location.href);
+      if (nextUrl.origin !== targetGlobal.location.origin) {
+        targetGlobal.location.assign(nextUrl.toString());
+        return;
+      }
+      navigateToPage(targetGlobal, state, nextUrl.pathname, "push").catch(function (error) {
+        console.error(error);
+      });
+    } catch (_error) {
+      navigateToPage(targetGlobal, state, candidate, "push").catch(function (navigationError) {
+        console.error(navigationError);
+      });
+    }
+  }
+
+  async function submitMuiReaderComment(targetGlobal, state, payload) {
+    var commentPayload = {
+      postId: toText(state.model && state.model.comments ? state.model.comments.postId : "", toText(state.contract && state.contract.primaryRecordId, "")),
+      pagePath: readCurrentPagePath(targetGlobal, state),
+      parentCommentId: null,
+      authorDisplayName: toText(payload && payload.authorDisplayName, ""),
+      authorEmail: toText(payload && payload.authorEmail, ""),
+      body: toText(payload && payload.body, "")
+    };
+    if (!commentPayload.authorDisplayName || !commentPayload.body) {
+      setCommentsNotice(state, "Name and comment body are required.");
+      renderApplication(targetGlobal, state);
+      return false;
+    }
+    try {
+      var result = await targetGlobal.actionLayer.dispatch({ action: "comments.submit", payload: commentPayload });
+      if (!result || result.ok !== true) {
+        throw new Error(result && result.error && result.error.message ? result.error.message : "Comment submission failed.");
+      }
+      state.commentsPending = [{
+        id: result.data && result.data.id ? result.data.id : "pending-" + Date.now(),
+        authorDisplayName: commentPayload.authorDisplayName,
+        body: commentPayload.body,
+        createdAt: new Date().toISOString(),
+        status: "pending"
+      }].concat(normalizeArray(state.commentsPending));
+      setCommentsNotice(state, "Comment sent. It is awaiting moderation.");
+      renderApplication(targetGlobal, state);
+      await refreshComments(targetGlobal, state);
+      return true;
+    } catch (error) {
+      setCommentsNotice(state, error && error.message ? error.message : String(error));
+      renderApplication(targetGlobal, state);
+      return false;
+    }
+  }
+
+  function renderMuiReaderApplication(targetGlobal, state) {
+    state.muiReaderActive = true;
+    state.mount.className = "page-app-root page-app-root--mui-reader";
+    targetGlobal.__CRUD_PAGE_MUI_READER__.renderApplication({
+      mountNode: state.mount,
+      application: state.payload && state.payload.application ? state.payload.application : {},
+      model: state.model,
+      themeDocument: readResolvedThemeDocument(state),
+      widgetRenderContract: readWidgetRenderContract(state),
+      activeLocale: state.activeLocale,
+      supportedLocales: listSupportedLocales(state),
+      comments: buildMuiReaderCommentsState(state),
+      onNavigate: function (href) {
+        navigateFromMuiReader(targetGlobal, state, href);
+      },
+      onSelectLocale: function (localeCode) {
+        handleLocaleSelection(targetGlobal, state, localeCode).catch(function (error) {
+          console.error(error);
+        });
+      },
+      onRefreshComments: function () {
+        refreshComments(targetGlobal, state).catch(function (error) {
+          console.error(error);
+        });
+      },
+      onSubmitComment: function (payload) {
+        return submitMuiReaderComment(targetGlobal, state, payload);
+      }
+    });
+  }
+
   function ensureThemeStyleNodes(documentObject) {
     var fontStyle = documentObject.getElementById("page-application-theme-fonts");
     if (!fontStyle) {
@@ -2072,11 +2213,11 @@
     var items = normalizeArray(state.commentsApproved).concat(normalizeArray(state.commentsPending));
     state.commentsSection.list.replaceChildren();
     if (!items.length) {
-      state.commentsSection.note.textContent = "No public comments yet. Be the first reader to respond.";
+      setCommentsNotice(state, "No public comments yet. Be the first reader to respond.");
       state.commentsSection.list.appendChild(createNode(documentObject, "div", { className: "page-app-empty", text: "No comments are visible yet." }));
       return;
     }
-    state.commentsSection.note.textContent = items.length + (items.length === 1 ? " comment" : " comments");
+    setCommentsNotice(state, items.length + (items.length === 1 ? " comment" : " comments"));
     items.forEach(function (item) {
       var comment = createNode(documentObject, "article", { className: "page-app-comment" + (item.status === "pending" ? " pending" : "") });
       var head = createNode(documentObject, "div", { className: "page-app-comment-head" });
@@ -2090,13 +2231,18 @@
 
   async function refreshComments(targetGlobal, state) {
     if (!state.model || state.model.kind !== "post-detail" || !state.model.comments || !state.model.comments.enabled) { return; }
-    if (!targetGlobal.dataLayer || typeof targetGlobal.dataLayer.query !== "function") { state.commentsSection.note.textContent = "Comments runtime is unavailable on this page."; return; }
+    if (!targetGlobal.dataLayer || typeof targetGlobal.dataLayer.query !== "function") { setCommentsNotice(state, "Comments runtime is unavailable on this page."); if (state.muiReaderActive) { renderApplication(targetGlobal, state); } return; }
     var postId = toText(state.model.comments.postId, toText(state.contract && state.contract.primaryRecordId, ""));
     if (!postId) {
-      state.commentsSection.note.textContent = "This story does not expose a comment target.";
+      setCommentsNotice(state, "This story does not expose a comment target.");
+      if (state.muiReaderActive) { renderApplication(targetGlobal, state); }
       return;
     }
-    state.commentsSection.note.textContent = "Refreshing comments...";
+    state.commentsLoading = true;
+    setCommentsNotice(state, "Refreshing comments...");
+    if (state.muiReaderActive) {
+      renderApplication(targetGlobal, state);
+    }
     var result = await targetGlobal.dataLayer.query({
       resource: "comments",
       query: "byPost",
@@ -2109,14 +2255,23 @@
         pageSize: 50
       }
     });
+    state.commentsLoading = false;
     if (!result || result.ok !== true) {
-      state.commentsSection.note.textContent = result && result.error && result.error.message ? result.error.message : "Comments could not be loaded.";
-      renderCommentList(targetGlobal.document, state);
+      setCommentsNotice(state, result && result.error && result.error.message ? result.error.message : "Comments could not be loaded.");
+      if (state.muiReaderActive) {
+        renderApplication(targetGlobal, state);
+      } else {
+        renderCommentList(targetGlobal.document, state);
+      }
       return;
     }
     var normalized = state.support.normalizeCommentCollectionResult(result.data);
     state.commentsApproved = normalizeArray(normalized.items);
-    renderCommentList(targetGlobal.document, state);
+    if (state.muiReaderActive) {
+      renderApplication(targetGlobal, state);
+    } else {
+      renderCommentList(targetGlobal.document, state);
+    }
   }
 
   async function handleCommentSubmit(targetGlobal, state, event) {
@@ -2130,18 +2285,18 @@
       authorEmail: state.commentsSection.emailInput.value.trim(),
       body: state.commentsSection.bodyInput.value.trim()
     };
-    if (!payload.authorDisplayName || !payload.body) { state.commentsSection.note.textContent = "Name and comment body are required."; return; }
+    if (!payload.authorDisplayName || !payload.body) { setCommentsNotice(state, "Name and comment body are required."); return; }
     state.commentsSection.submitButton.disabled = true;
     try {
       var result = await targetGlobal.actionLayer.dispatch({ action: "comments.submit", payload: payload });
       if (!result || result.ok !== true) { throw new Error(result && result.error && result.error.message ? result.error.message : "Comment submission failed."); }
       state.commentsPending = [{ id: result.data && result.data.id ? result.data.id : "pending-" + Date.now(), authorDisplayName: payload.authorDisplayName, body: payload.body, createdAt: new Date().toISOString(), status: "pending" }].concat(normalizeArray(state.commentsPending));
       state.commentsSection.form.reset();
-      state.commentsSection.note.textContent = "Comment sent. It is awaiting moderation.";
+      setCommentsNotice(state, "Comment sent. It is awaiting moderation.");
       renderCommentList(targetGlobal.document, state);
       await refreshComments(targetGlobal, state);
     } catch (error) {
-      state.commentsSection.note.textContent = error && error.message ? error.message : String(error);
+      setCommentsNotice(state, error && error.message ? error.message : String(error));
     } finally {
       state.commentsSection.submitButton.disabled = false;
     }
@@ -2877,7 +3032,14 @@
   }
 
   function renderApplication(targetGlobal, state) {
-    var documentObject = targetGlobal.document; ensureStyles(documentObject); applyResolvedTheme(documentObject, readResolvedThemeDocument(state)); state.mount.replaceChildren(); state.mount.className = "page-app-root";
+    var documentObject = targetGlobal.document;
+    if (isMuiReaderEnabled(targetGlobal, state)) {
+      renderMuiReaderApplication(targetGlobal, state);
+      renderReviewOverlay(targetGlobal, state);
+      return;
+    }
+    unmountMuiReaderIfPresent(targetGlobal, state);
+    ensureStyles(documentObject); applyResolvedTheme(documentObject, readResolvedThemeDocument(state)); state.mount.replaceChildren(); state.mount.className = "page-app-root";
     state.commentsSection = null;
     if (renderWidgetizedPage(documentObject, state)) {
       renderReviewOverlay(targetGlobal, state);

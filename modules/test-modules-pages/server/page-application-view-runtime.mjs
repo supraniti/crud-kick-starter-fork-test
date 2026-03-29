@@ -5,6 +5,7 @@ import {
   PAGES_COLLECTION_ID,
   POSTS_COLLECTION_ID,
   TAGS_COLLECTION_ID,
+  buildDefaultLayoutModel,
   isPagePublished,
   isPerRecordDeploymentMode,
   normalizeOptionalText,
@@ -89,6 +90,10 @@ function cloneJsonValue(value) {
     return value ?? null;
   }
   return JSON.parse(JSON.stringify(value));
+}
+
+function resolveEffectiveLayoutModel(page = {}) {
+  return buildDefaultLayoutModel(page?.layoutModel ?? {});
 }
 
 function escapePathTokenSegment(value) {
@@ -830,7 +835,7 @@ async function buildReaderRouteManifest(payload = {}, collectionHandlerRegistry,
           pageId: page?.id ?? null,
           layoutId: page?.layoutId ?? null,
           layoutKey: page?.layoutKey ?? layout?.layoutKey ?? null,
-          layoutModel: cloneJsonValue(page?.layoutModel ?? null),
+          layoutModel: cloneJsonValue(resolveEffectiveLayoutModel(page)),
           bindings: cloneJsonValue(page?.bindings ?? {}),
           widgetRenderContract: cloneJsonValue(renderState?.widgetRenderContract ?? null)
         },
@@ -912,11 +917,12 @@ function buildApplicationReviewModel(payload) {
 }
 
 function buildReaderLayoutDocument(payload = {}) {
+  const effectiveLayoutModel = resolveEffectiveLayoutModel(payload?.page ?? {});
   return {
     pageId: payload?.page?.id ?? null,
     layoutId: payload?.renderModel?.layoutId ?? null,
     layoutKey: payload?.renderModel?.layoutKey ?? null,
-    layoutModel: payload?.renderModel?.layoutModel ?? null,
+    layoutModel: payload?.renderModel?.layoutModel ?? effectiveLayoutModel,
     layoutDocument: payload?.renderModel?.layoutDocument ?? null,
     bindings: payload?.renderModel?.bindings ?? {},
     widgetRenderContract: payload?.application?.layout?.widgetRenderContract ?? null

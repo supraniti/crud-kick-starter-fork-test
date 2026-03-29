@@ -1,9 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildDefaultLayoutModel } from "./distribution-shared-runtime.mjs";
 import { RUNTIME_PROBE_DOCUMENT_FILE_NAME } from "./page-runtime-probe-runtime.mjs";
 import { resolvePublishedFirestoreDescriptor } from "./page-firestore-publication-runtime.mjs";
 import { appendRuntimeAssetVersion } from "./page-runtime-asset-version-runtime.mjs";
+import {
+  buildPageMuiReaderAssetUrl,
+  syncPageMuiReaderAsset
+} from "./page-mui-reader-runtime.mjs";
 import {
   DEFAULT_SOURCE_LOCALE,
   listSupportedTranslationLocales
@@ -72,6 +77,13 @@ function normalizeAbsoluteUrl(value) {
 function normalizeOrigin(value) {
   const normalized = normalizeAbsoluteUrl(value);
   return normalized ? normalized.replace(/\/+$/g, "") : null;
+}
+
+function resolvePageClientKey(payload = {}) {
+  const effectiveLayoutModel = buildDefaultLayoutModel(
+    payload?.application?.layout?.layoutModel ?? payload?.page?.layoutModel ?? {}
+  );
+  return effectiveLayoutModel.clientKey;
 }
 
 function buildDocumentUrl(payload = {}) {
@@ -399,12 +411,18 @@ export function resolvePageApplicationTesterScriptUrls(payload, runtimeScriptUrl
       ? payload.runtime.applicationTester
       : {};
   const publicApiMode = applicationTesterContract.publicApiMode ?? null;
+  const clientKey = resolvePageClientKey(payload);
   const includeFirestoreHelper = publicApiMode === "browser-firestore";
+  const includeMuiReader = clientKey === "mui-reader";
   const withSupport = appendUniqueAssetUrl(normalizedUrls, applicationTesterSupportAssetUrl);
-  const withReader = appendUniqueAssetUrl(withSupport, applicationTesterAssetUrl);
-  return includeFirestoreHelper
+  const withMuiReader = includeMuiReader
+    ? appendUniqueAssetUrl(withSupport, buildPageMuiReaderAssetUrl(payload))
+    : withSupport;
+  const withReader = appendUniqueAssetUrl(withMuiReader, applicationTesterAssetUrl);
+  const withFirestore = includeFirestoreHelper
     ? appendUniqueAssetUrl(withReader, applicationTesterFirestoreAssetUrl)
     : withReader;
+  return withFirestore;
 }
 
 export async function syncPageApplicationTesterAsset(deploymentRootDir) {
@@ -424,8 +442,10 @@ export async function syncPageApplicationTesterAsset(deploymentRootDir) {
   await fs.copyFile(firestoreSourcePath, firestoreTargetPath);
   await fs.copyFile(supportSourcePath, supportTargetPath);
   await fs.copyFile(sourcePath, targetPath);
+  await syncPageMuiReaderAsset(deploymentRootDir);
   return {
     firestoreTargetPath,
+    muiReaderTargetPath: path.resolve(deploymentRootDir, "assets/page-mui-reader.global.js"),
     supportTargetPath,
     targetPath
   };

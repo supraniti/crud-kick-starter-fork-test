@@ -1,10 +1,16 @@
+import {
+  buildDefaultWidgetActions,
+  DEFAULT_WIDGET_COMPONENT_REGISTRY
+} from "../../test-modules-layouts/shared/widget-component-schema.mjs";
+
 function createInstance(componentKey, content = {}, props = {}) {
+  const descriptor = DEFAULT_WIDGET_COMPONENT_REGISTRY.get(componentKey) ?? null;
   return {
     componentKey,
     variantKey: "default",
     content,
     props,
-    actions: []
+    actions: buildDefaultWidgetActions(descriptor)
   };
 }
 
@@ -111,14 +117,102 @@ export function buildPageStudioScenarioWidgetSeed(scenarioKey = "", blocks = [])
     })
   };
 
+  const categoryGridAssignments = {
+    "B-0001": createInstance("category-title", {
+      text: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.category.name"
+      }
+    }, {
+      tag: {
+        mode: "static",
+        value: "h1"
+      }
+    }),
+    "B-0002": createInstance("category-description", {
+      body: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.category.description"
+      }
+    }),
+    "B-0003": createInstance("post-list", {
+      items: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.posts"
+      }
+    }, {
+      heading: {
+        mode: "static",
+        value: "Latest Stories"
+      },
+      limit: {
+        mode: "static",
+        value: 6
+      }
+    }),
+    "B-0004": createInstance("post-list", {
+      items: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.posts"
+      }
+    }, {
+      heading: {
+        mode: "static",
+        value: "More Stories"
+      },
+      limit: {
+        mode: "static",
+        value: 2
+      }
+    }),
+    "B-0005": createInstance("post-list", {
+      items: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.posts"
+      }
+    }, {
+      heading: {
+        mode: "static",
+        value: "More Stories"
+      },
+      limit: {
+        mode: "static",
+        value: 2
+      }
+    }),
+    "B-0006": createInstance("post-list", {
+      items: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.posts"
+      }
+    }, {
+      heading: {
+        mode: "static",
+        value: "More Stories"
+      },
+      limit: {
+        mode: "static",
+        value: 2
+      }
+    }),
+    "B-0007": createInstance("breadcrumbs")
+  };
+
   const assignmentsByScenario = {
     "story-stack": storyStackAssignments,
-    "story-sidebar": storySidebarAssignments
+    "story-sidebar": storySidebarAssignments,
+    "category-grid": categoryGridAssignments
   };
 
   return mapBlocksWithSeed(blocks, assignmentsByScenario[scenarioKey] ?? {});
 }
 
 export function pageStudioScenarioHasStarterWidgets(scenarioKey = "") {
-  return scenarioKey === "story-stack" || scenarioKey === "story-sidebar";
+  return scenarioKey === "story-stack" || scenarioKey === "story-sidebar" || scenarioKey === "category-grid";
 }

@@ -3107,3 +3107,48 @@
 - Validation counted:
   - `pnpm --filter frontend build`
   - `pnpm review:env:verify`
+### 2026-03-29 - Page Studio Intent Completion Proof Is Now Backed By Live Browser Evidence
+- Re-read `intent-file.md` and executed the remaining must-finish items from:
+  - `docs/research/page-studio-completion-plan-2026-03-29.md`
+- The last architectural gap, the deployed MUI reader path, is now already live and previously proven on `fastcart.dev`.
+- This final proof pass closed the remaining studio-side and parity obligations.
+- Category-detail authoring proof was executed end to end against a clean authored draft:
+  - `Infra` route: `/category/:slug`
+  - queries:
+    - `primary-category-by-param`
+    - `posts-by-category`
+  - scenario: `category-grid`
+  - preview param switch:
+    - `home-corners`
+    - `park-walks`
+- Browser-proven category-detail evidence:
+  - `.codex-runtime/page-studio-category-layout-proof.png`
+  - `.codex-runtime/page-studio-category-widgets-proof.png`
+  - `.codex-runtime/page-studio-category-preview-proof.png`
+- Post-detail MUI parity proof was then executed against a clean authored draft:
+  - `Infra` route: `/journal/:slug`
+  - client: `mui-reader`
+  - scenario: `story-sidebar`
+  - preview slug: `first-cup-on-the-table`
+- Browser-proven post-detail evidence:
+  - studio:
+    - `.codex-runtime/page-studio-story-layout-proof.png`
+    - `.codex-runtime/page-studio-story-widgets-proof.png`
+    - `.codex-runtime/page-studio-story-preview-proof.png`
+  - deployed live:
+    - `.codex-runtime/page-studio-live-journal-proof.png`
+- The local studio and deployed page are now on the same MUI/widget rendering family.
+- Additional cleanup in this closing pass:
+  - removed stale post-only binding warning from Widgets mode
+  - dynamic binding guide now chooses an example field from the actual current manifest instead of hardcoding `context.post.title`
+- Completion record written to:
+  - `docs/research/page-studio-completion-proof-2026-03-29.md`
+- Validation counted:
+  - `pnpm build:client-runtime`
+  - `pnpm --filter frontend build`
+  - `pnpm --filter server exec vitest run test/module-conformance/blog-distribution.module-conformance.test.js`
+  - `pnpm quality:protocol`
+  - `pnpm review:env:verify`
+- Truthful conclusion:
+  - the original Page Studio intent in `intent-file.md` is now complete
+  - remaining work after this point would be product refinement, not missing intent functionality

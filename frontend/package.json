@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/build-page-mui-reader.mjs",
+    "build:page-mui-reader": "node scripts/build-page-mui-reader.mjs",
     "test": "vitest run"
   },
   "dependencies": {

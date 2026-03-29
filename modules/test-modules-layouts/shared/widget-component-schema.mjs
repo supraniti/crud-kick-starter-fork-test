@@ -204,6 +204,17 @@ function normalizeActionDefinitions(rawValue = {}) {
   );
 }
 
+export function buildDefaultWidgetActions(descriptor = null) {
+  const actionDefinitions =
+    descriptor && typeof descriptor === "object" ? descriptor.actionDefinitions ?? {} : {};
+  return Object.values(actionDefinitions).map((definition) => ({
+    actionKey: definition.actionKey,
+    kind: definition.targetKind === "event" ? "emit" : "navigate",
+    targetKind: definition.targetKind,
+    eventName: definition.targetKind === "event" ? `widget:${definition.actionKey}` : null
+  }));
+}
+
 export function normalizeWidgetComponentDescriptor(rawValue = {}) {
   const source = isPlainObject(rawValue) ? rawValue : {};
   return {
@@ -398,10 +409,10 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
       }
     },
     propDefinitions: {
-      aspect: {
+      fit: {
         valueKind: "enum",
-        options: ["auto", "16:9", "4:3", "1:1"],
-        defaultValue: "auto",
+        options: ["cover", "contain"],
+        defaultValue: "cover",
         pageOverrideable: true
       }
     },
@@ -413,9 +424,9 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
       }
     },
     defaultProps: {
-      aspect: {
+      fit: {
         mode: "static",
-        value: "auto"
+        value: "cover"
       }
     }
   },
@@ -434,6 +445,13 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
         allowedSources: ["context"]
       }
     },
+    actionDefinitions: {
+      openCategory: {
+        label: "Open Category",
+        description: "Navigate to the clicked category record.",
+        targetKind: "bound-record"
+      }
+    },
     defaultBindings: {
       items: {
         mode: "dynamic",
@@ -450,6 +468,13 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     wrapperKind: "composite",
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
+    actionDefinitions: {
+      openAuthor: {
+        label: "Open Author Page",
+        description: "Navigate to the bound author page.",
+        targetKind: "authorPage"
+      }
+    },
     contentBindings: {
       author: {
         valueKind: "record",
@@ -471,8 +496,8 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     group: "Navigation",
     description: "Reader breadcrumb trail for the current post route.",
     wrapperKind: "composite",
-    supportedPageKinds: ["post-detail"],
-    supportedPrimarySourceTypes: ["blog-post"],
+    supportedPageKinds: ["post-detail", "category-detail"],
+    supportedPrimarySourceTypes: ["blog-post", "blog-category"],
     pageOverridePolicy: "layout-only",
     contentBindings: {},
     propDefinitions: {}
@@ -486,6 +511,18 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
     pageOverridePolicy: "layout-only",
+    actionDefinitions: {
+      previous: {
+        label: "Previous Story",
+        description: "Navigate to the previous post for this page.",
+        targetKind: "previousPost"
+      },
+      next: {
+        label: "Next Story",
+        description: "Navigate to the next post for this page.",
+        targetKind: "nextPost"
+      }
+    },
     contentBindings: {},
     propDefinitions: {
       heading: {
@@ -509,6 +546,13 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
     supportedPageKinds: ["post-detail"],
     supportedPrimarySourceTypes: ["blog-post"],
     pageOverridePolicy: "safe-page-overrides",
+    actionDefinitions: {
+      openRecord: {
+        label: "Open Related Story",
+        description: "Navigate to the clicked related record.",
+        targetKind: "bound-record"
+      }
+    },
     contentBindings: {},
     propDefinitions: {
       heading: {
@@ -583,6 +627,120 @@ const DEFAULT_WIDGET_COMPONENT_DESCRIPTORS = [
           }
         }
       ]
+    }
+  },
+  {
+    componentKey: "category-title",
+    displayName: "Category Title",
+    group: "Text",
+    description: "Heading for the current category page.",
+    wrapperKind: "primitive",
+    supportedPageKinds: ["category-detail"],
+    supportedPrimarySourceTypes: ["blog-category"],
+    pageOverridePolicy: "safe-page-overrides",
+    contentBindings: {
+      text: {
+        valueKind: "text",
+        required: true,
+        allowedSources: ["static", "context"]
+      }
+    },
+    propDefinitions: {
+      tag: {
+        valueKind: "enum",
+        options: ["h1", "h2", "h3"],
+        defaultValue: "h1",
+        pageOverrideable: true
+      }
+    },
+    defaultBindings: {
+      text: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.category.name"
+      }
+    },
+    defaultProps: {
+      tag: {
+        mode: "static",
+        value: "h1"
+      }
+    }
+  },
+  {
+    componentKey: "category-description",
+    displayName: "Category Description",
+    group: "Text",
+    description: "Long-form category description.",
+    wrapperKind: "primitive",
+    supportedPageKinds: ["category-detail"],
+    supportedPrimarySourceTypes: ["blog-category"],
+    contentBindings: {
+      body: {
+        valueKind: "rich-text",
+        required: true,
+        allowedSources: ["static", "context"]
+      }
+    },
+    defaultBindings: {
+      body: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.category.description"
+      }
+    }
+  },
+  {
+    componentKey: "post-list",
+    displayName: "Post List",
+    group: "Collection",
+    description: "Grid of post cards from a bound post collection.",
+    wrapperKind: "composite",
+    supportedPageKinds: ["category-detail"],
+    supportedPrimarySourceTypes: ["blog-category"],
+    pageOverridePolicy: "safe-page-overrides",
+    actionDefinitions: {
+      openRecord: {
+        label: "Open Story",
+        description: "Navigate to the clicked story record.",
+        targetKind: "bound-record"
+      }
+    },
+    contentBindings: {
+      items: {
+        valueKind: "collection",
+        required: true,
+        allowedSources: ["context"]
+      }
+    },
+    propDefinitions: {
+      heading: {
+        valueKind: "text",
+        defaultValue: "Stories",
+        pageOverrideable: true
+      },
+      limit: {
+        valueKind: "number",
+        defaultValue: 6,
+        pageOverrideable: true
+      }
+    },
+    defaultBindings: {
+      items: {
+        mode: "dynamic",
+        source: "context",
+        path: "context.posts"
+      }
+    },
+    defaultProps: {
+      heading: {
+        mode: "static",
+        value: "Stories"
+      },
+      limit: {
+        mode: "static",
+        value: 6
+      }
     }
   }
 ];
