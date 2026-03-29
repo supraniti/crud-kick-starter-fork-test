@@ -3209,3 +3209,46 @@
   - `pnpm quality:protocol`
   - `pnpm review:env:verify`
 
+## 2026-03-29 - Direct Custom Widget Authoring Surface
+
+- Implemented a dedicated custom-widget workspace inside Page Studio on:
+  - `/app/page-studio?studioSurface=custom-widgets`
+- Added route-backed custom-widget editing state:
+  - `studioSurface`
+  - `customWidgetId`
+  - `studioMode`
+- Added a real collection-backed custom-widget library surface:
+  - starter cards
+  - saved widget cards
+  - edit
+  - duplicate
+  - delete
+- Added direct custom-widget creation with context-aware starters:
+  - `Blank Composition`
+  - `Media · Title · CTA`
+  - `Post Detail`
+  - `Category Detail`
+- Added inverse transform from saved custom-widget composition back into an editable studio document.
+- Added collection-backed save/update/delete for composed custom widgets without going through page drafts.
+- Fixed the post-save UX bug where a successful save was immediately wiping the confirmation message.
+- Browser proof completed through local headless runs after local sign-in:
+  - direct custom-widget workspace loads and lists saved composed widgets
+  - new widget can be created from the dedicated surface and saved to the collection
+  - saved widget returns to the library after `Back To Library`
+  - saved widget appears in the existing Page Studio widget chooser
+- Evidence:
+  - `.codex-runtime/custom-widgets-workspace-initial.png`
+  - `.codex-runtime/custom-widgets-workspace-saved.png`
+  - `.codex-runtime/custom-widget-reuse-proof.png`
+- Validation counted:
+  - `pnpm --filter frontend build`
+  - `pnpm review:env:verify`
+  - `pnpm quality:protocol`
+  - `pnpm exec node .codex-runtime/check-custom-widgets.mjs`
+  - `pnpm exec node .codex-runtime/check-custom-widgets-save.mjs`
+  - `pnpm exec node .codex-runtime/check-custom-widget-reuse.mjs`
+- Focused Vitest coverage added:
+  - `frontend/src/tests/core/page-studio-custom-widget-editor-support.core.test.jsx`
+- Known env limitation remained the same:
+  - `pnpm --filter frontend test ...` still hits the local Windows `spawn EPERM` boundary in this environment
+

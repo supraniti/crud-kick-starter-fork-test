@@ -3808,3 +3808,29 @@
   - `pnpm quality:protocol`
   - `pnpm review:env:verify`
 
+## 2026-03-29 - Direct Custom Widget Authoring Surface
+
+- Added a dedicated collection-backed workspace at:
+  - `/app/page-studio?studioSurface=custom-widgets`
+- Introduced route-backed workspace state:
+  - `studioSurface`
+  - `customWidgetId`
+  - `studioMode`
+- Added starter-driven custom-widget creation:
+  - blank composition
+  - media/title/cta
+  - post-detail context
+  - category-detail context
+- Added inverse composition hydration so saved widgets reopen as editable studio documents.
+- Added direct create/update/delete flows against `page-custom-widgets`.
+- Fixed save confirmation loss after a successful write.
+- Verified with local headless browser runs:
+  - workspace loads after local sign-in
+  - widget can be created and saved directly from the workspace
+  - widget reappears in the library after returning
+  - widget appears in the existing Page Studio chooser
+- Evidence:
+  - `.codex-runtime/custom-widgets-workspace-initial.png`
+  - `.codex-runtime/custom-widgets-workspace-saved.png`
+  - `.codex-runtime/custom-widget-reuse-proof.png`
+

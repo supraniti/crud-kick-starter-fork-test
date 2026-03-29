@@ -854,7 +854,13 @@ function BuilderCanvas({
   );
 }
 
-export function PageStudioView({ route = {}, navigate = null, activeModuleLabel = "Page Studio" }) {
+export function PageStudioView({
+  route = {},
+  navigate = null,
+  activeModuleLabel = "Page Studio",
+  onPatchRouteState = null,
+  onOpenCustomWidgets = null
+}) {
   const [fabOpen, setFabOpen] = useState(false);
   const [studioDocument, setStudioDocument] = useState(() => {
     const persisted = readPersistedStudioDocument();
@@ -972,13 +978,20 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
       }));
       routeModeRef.current = nextMode;
 
+      if (typeof onPatchRouteState === "function") {
+        onPatchRouteState({
+          studioMode: nextMode
+        });
+        return;
+      }
+
       if (typeof window !== "undefined") {
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set("studioMode", nextMode);
         window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}`);
       }
     },
-    [activeMode, patchStudioDocument]
+    [activeMode, onPatchRouteState, patchStudioDocument]
   );
 
   const handleOpenLegacyRoute = useCallback(
@@ -1039,6 +1052,11 @@ export function PageStudioView({ route = {}, navigate = null, activeModuleLabel 
             </Stack>
           </Stack>
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
+            {typeof onOpenCustomWidgets === "function" ? (
+              <Button size="small" variant="outlined" onClick={onOpenCustomWidgets}>
+                Custom Widgets
+              </Button>
+            ) : null}
             <Button size="small" variant="outlined" onClick={() => handleOpenLegacyRoute("test-modules-pages")}>
               Legacy Pages
             </Button>
